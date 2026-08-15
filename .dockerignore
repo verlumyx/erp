@@ -1,0 +1,43 @@
+# Git
+.git
+.github
+.gitignore
+
+# Node
+node_modules
+npm-debug.log*
+
+# Build output (rebuilt inside Docker)
+public/build
+public/hot
+
+# Environment files (passed via docker-compose env_file)
+.env
+.env.*
+!.env.example
+
+# PHP vendor (installed inside Docker)
+# vendor  <-- intentionally NOT ignored; composer install uses cache layers
+
+# Storage (mounted as volumes or managed at runtime)
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+
+# Test & dev tools
+.phpunit.result.cache
+*.sqlite
+*.sqlite-journal
+
+# Docker compose files (not needed inside container)
+docker-compose*.yml
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# pnpm store
+.pnpm-store

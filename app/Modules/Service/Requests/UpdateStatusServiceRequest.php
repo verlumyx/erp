@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Service\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateStatusServiceRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->hasPermission('services.update-status') ?? false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        return [
+            'active' => ['required', 'boolean'],
+        ];
+    }
+}
