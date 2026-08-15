@@ -9,7 +9,6 @@ use App\Modules\Company\Models\Company;
 use App\Modules\Company\Repositories\Contracts\CompanyRepositoryInterface;
 use App\Modules\Role\Commands\CreateRoleCommand;
 use App\Modules\Role\Repositories\Contracts\RoleRepositoryInterface;
-use App\Modules\Service\Services\SeedCompanyServicesService;
 use App\Modules\Shared\Commands\CreateUserCompanyCommand;
 use App\Modules\Shared\Repositories\Contracts\UserCompanyRepositoryInterface;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +20,6 @@ class CompanyCreateService
         private readonly CompanyRepositoryInterface $companyRepository,
         private readonly RoleRepositoryInterface $roleRepository,
         private readonly UserCompanyRepositoryInterface $userCompanyRepository,
-        private readonly SeedCompanyServicesService $seedCompanyServicesService,
     ) {}
 
     public function execute(CreateCompanyCommand $command): Company
@@ -47,8 +45,6 @@ class CompanyCreateService
                 status: 'active',
                 isDefault: true,
             ));
-
-            $this->seedCompanyServicesService->execute($command->id);
 
             return $this->companyRepository->findOrFail($command->id);
         });

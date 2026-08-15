@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { InitialsAvatar } from '@/components/initials-avatar';
-import { ServiceStack } from '@/components/service-badge';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -32,12 +31,7 @@ import {
 } from '@/components/ui/select';
 import { WhatsAppButton } from '@/components/whatsapp-button';
 import clients from '@/routes/clients';
-import type {
-    Client,
-    ClientFilters,
-    ClientMeta,
-    ClientPlatform,
-} from '../types/Client';
+import type { Client, ClientFilters, ClientMeta } from '../types/Client';
 
 interface ClientListProps {
     clients: Client[];
@@ -59,15 +53,6 @@ export function ClientList({
     const companyId = currentCompany!.id;
 
     const [filters, setFilters] = useState<ClientFilters>(initialFilters);
-    const [plat, setPlat] = useState<string>('todas');
-
-    const platformOptions: ClientPlatform[] = Array.from(
-        new Map(
-            items
-                .flatMap((client) => client.platforms ?? [])
-                .map((platform) => [platform.id, platform]),
-        ).values(),
-    );
 
     const applyFilters = (next: ClientFilters) => {
         setFilters(next);
@@ -83,7 +68,6 @@ export function ClientList({
 
     const handleClear = () => {
         setFilters({});
-        setPlat('todas');
         router.get(clients.index(companyId).url);
     };
 
@@ -96,11 +80,7 @@ export function ClientList({
         );
     };
 
-    const rows = items.filter(
-        (client) =>
-            plat === 'todas' ||
-            (client.platforms ?? []).some((p) => p.id === plat),
-    );
+    const rows = items;
 
     return (
         <div className="flex flex-col gap-5">
@@ -110,8 +90,7 @@ export function ClientList({
                         Clientes
                     </h1>
                     <p className="mt-1 text-[14.5px] text-muted-foreground">
-                        {meta.total} cliente{meta.total !== 1 ? 's' : ''} ·
-                        perfiles y cuentas de streaming
+                        {meta.total} cliente{meta.total !== 1 ? 's' : ''}
                     </p>
                 </div>
                 <div className="flex gap-2.5">
@@ -189,27 +168,6 @@ export function ClientList({
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="filter-platform">Plataforma</Label>
-                        <Select value={plat} onValueChange={setPlat}>
-                            <SelectTrigger
-                                id="filter-platform"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Todas las plataformas" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todas">
-                                    Todas las plataformas
-                                </SelectItem>
-                                {platformOptions.map((p) => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                        {p.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">
                     <Button onClick={() => applyFilters(filters)} variant="default">
@@ -223,18 +181,12 @@ export function ClientList({
             </div>
 
             <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_1.2fr_0.9fr_1.2fr]">
-                    {[
-                        'Código',
-                        'Cliente',
-                        'Plataformas',
-                        'Estado',
-                        'Acciones',
-                    ].map((h, i) => (
+                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_0.9fr_1.2fr]">
+                    {['Código', 'Cliente', 'Estado', 'Acciones'].map((h, i) => (
                         <div
                             key={h}
                             className={`text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase ${
-                                i === 4 ? 'text-right' : ''
+                                i === 3 ? 'text-right' : ''
                             }`}
                         >
                             {h}
@@ -251,7 +203,7 @@ export function ClientList({
                         return (
                             <div
                                 key={client.id}
-                                className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1.2fr_0.9fr_1.2fr] lg:py-0"
+                                className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_0.9fr_1.2fr] lg:py-0"
                                 onClick={() =>
                                     router.visit(
                                         clients.show({
@@ -279,11 +231,6 @@ export function ClientList({
                                             {client.email ?? '—'}
                                         </span>
                                     </div>
-                                </div>
-                                <div className="hidden lg:block">
-                                    <ServiceStack
-                                        services={client.platforms ?? []}
-                                    />
                                 </div>
                                 <div className="hidden lg:block">
                                     <StatusPill kind={estadoCliente} />

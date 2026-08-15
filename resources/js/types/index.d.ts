@@ -23,22 +23,6 @@ export interface NavItem {
     isActive?: boolean;
 }
 
-export interface TransactionCatalogOption {
-    value: string;
-    label: string;
-}
-
-export interface TransactionCategoryOption extends TransactionCatalogOption {
-    type: 'income' | 'expense';
-}
-
-export interface TransactionCatalog {
-    types: TransactionCatalogOption[];
-    categories: TransactionCategoryOption[];
-    income: TransactionCatalogOption[];
-    expense: TransactionCatalogOption[];
-}
-
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
@@ -48,7 +32,6 @@ export interface SharedData {
         success: string | null;
         error: string | null;
     };
-    transactionCatalog: TransactionCatalog;
     [key: string]: unknown;
 }
 

@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Modules\Company\Models\Company;
 use App\Modules\Menu\Services\GetActiveMenusService;
 use App\Modules\Shared\Models\UserCompany;
-use App\Modules\Transaction\Models\Transaction;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -108,7 +107,6 @@ class HandleInertiaRequests extends Middleware
             'currentCompany' => $currentCompany,
             'defaultCompanyId' => $defaultCompanyId,
             'userCompanies' => $userCompanies,
-            'transactionCatalog' => Transaction::catalog(),
         ];
     }
 

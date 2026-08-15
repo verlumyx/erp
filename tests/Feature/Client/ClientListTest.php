@@ -23,40 +23,6 @@ test('the clients index renders with clients', function () {
     );
 });
 
-test('the clients index includes each client active platforms', function () {
-    $ctx = makeSaleContext();
-    persistSale($ctx); // venta activa sobre el cliente con su servicio
-
-    $response = actingAs($ctx['user'])
-        ->withSession(['current_company_id' => $ctx['company']->id])
-        ->get(route('clients.index', ['company' => $ctx['company']->id]));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('clients/index')
-        ->where('clients.0.id', $ctx['client']->id)
-        ->has('clients.0.platforms', 1)
-        ->where('clients.0.platforms.0.id', $ctx['service']->id)
-        ->where('clients.0.platforms.0.name', $ctx['service']->name)
-    );
-});
-
-test('the clients index does not list platforms for non-active sales', function () {
-    $ctx = makeSaleContext();
-    persistSale($ctx, status: 'expired');
-
-    $response = actingAs($ctx['user'])
-        ->withSession(['current_company_id' => $ctx['company']->id])
-        ->get(route('clients.index', ['company' => $ctx['company']->id]));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('clients/index')
-        ->where('clients.0.id', $ctx['client']->id)
-        ->has('clients.0.platforms', 0)
-    );
-});
-
 test('clients can be filtered by name', function () {
     [$user, $company] = createUserWithCompany();
 

@@ -25,58 +25,6 @@ test('the client show page renders', function () {
     );
 });
 
-test('the client show page includes the client real sales with their profiles', function () {
-    $ctx = makeSaleContext();
-    $sale = persistSale($ctx);
-
-    $response = actingAs($ctx['user'])
-        ->withSession(['current_company_id' => $ctx['company']->id])
-        ->get(route('clients.show', ['company' => $ctx['company']->id, 'id' => $ctx['client']->id]));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('clients/show')
-        ->has('sales', 1)
-        ->where('sales.0.id', $sale->id)
-        ->where('sales.0.status', 'active')
-        ->where('sales.0.service.id', $ctx['service']->id)
-        ->has('sales.0.sale_profiles', 1)
-    );
-});
-
-test('the client show page exposes real metrics computed from the client sales', function () {
-    $ctx = makeSaleContext();
-    persistSale($ctx);                    // activa, price 50.00
-    persistSale($ctx, status: 'expired'); // expirada, price 50.00
-
-    $response = actingAs($ctx['user'])
-        ->withSession(['current_company_id' => $ctx['company']->id])
-        ->get(route('clients.show', ['company' => $ctx['company']->id, 'id' => $ctx['client']->id]));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('clients/show')
-        ->where('metrics.monthly_income', fn ($value): bool => (float) $value === 50.0)
-        ->where('metrics.pending_debt', fn ($value): bool => (float) $value === 50.0)
-        ->where('metrics.total_paid', fn ($value): bool => (float) $value === 100.0)
-    );
-});
-
-test('the client show page excludes cancelled sales from the sales prop', function () {
-    $ctx = makeSaleContext();
-    persistSale($ctx, status: 'cancelled');
-
-    $response = actingAs($ctx['user'])
-        ->withSession(['current_company_id' => $ctx['company']->id])
-        ->get(route('clients.show', ['company' => $ctx['company']->id, 'id' => $ctx['client']->id]));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('clients/show')
-        ->has('sales', 0)
-    );
-});
-
 test('the client edit page renders', function () {
     [$user, $company] = createUserWithCompany();
 

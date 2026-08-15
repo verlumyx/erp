@@ -1,9 +1,3 @@
-export interface ClientPlatform {
-    id: string;
-    name: string;
-    code?: string | null;
-}
-
 export interface Client {
     id: string;
     company_id: string | null;
@@ -16,7 +10,6 @@ export interface Client {
     created_by: string | null;
     created_at: string;
     updated_at: string | null;
-    platforms?: ClientPlatform[];
 }
 
 export interface ClientMeta {
