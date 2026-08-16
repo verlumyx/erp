@@ -19,49 +19,80 @@ class GetActiveMenusService
      */
     public function execute(?User $user = null): array
     {
-        $mainMenus = $this->repository->findActiveRootsBySection('main');
-        $footerMenus = $this->repository->findActiveRootsBySection('footer');
-
-        if ($user) {
-            $mainMenus = $this->filterByPermissions($mainMenus, $user);
-            $footerMenus = $this->filterByPermissions($footerMenus, $user);
-        }
-
         return [
-            'mainNavItems' => array_values(array_map(fn (Menu $menu) => $this->toArray($menu), $mainMenus)),
-            'footerNavItems' => array_values(array_map(fn (Menu $menu) => $this->toArray($menu), $footerMenus)),
+            'mainNavItems' => $this->buildSection('main', $user),
+            'footerNavItems' => $this->buildSection('footer', $user),
         ];
     }
 
     /**
-     * @param  array<Menu>  $menus
-     * @return array<Menu>
+     * @return array<int, array<string, mixed>>
      */
-    private function filterByPermissions(array $menus, User $user): array
+    private function buildSection(string $section, ?User $user): array
     {
-        return array_values(array_filter($menus, function (Menu $menu) use ($user) {
-            if (! $menu->permission) {
-                return true;
-            }
+        $menus = $this->repository->findActiveRootsBySection($section);
 
-            if ($menu->permission === 'system_owner') {
-                return $user->is_system_owner;
-            }
-
-            return $user->hasPermission($menu->permission);
-        }));
+        return $this->buildNodes($menus, $user);
     }
 
-    /** @return array<mixed> */
-    private function toArray(Menu $menu): array
+    /**
+     * @param  iterable<Menu>  $menus
+     * @return array<int, array<string, mixed>>
+     */
+    private function buildNodes(iterable $menus, ?User $user): array
     {
+        $nodes = [];
+
+        foreach ($menus as $menu) {
+            $node = $this->toArray($menu, $user);
+
+            if ($node !== null) {
+                $nodes[] = $node;
+            }
+        }
+
+        return $nodes;
+    }
+
+    /**
+     * Build a menu node, or return null when it must be hidden: either the user
+     * lacks its permission, or it is an empty group — a node with no URL of its
+     * own whose children were all filtered out.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function toArray(Menu $menu, ?User $user): ?array
+    {
+        if ($user !== null && ! $this->isVisibleTo($menu, $user)) {
+            return null;
+        }
+
+        $children = $this->buildNodes($menu->children, $user);
+
+        if ($children === [] && ($menu->url === null || $menu->url === '')) {
+            return null;
+        }
+
         return [
             'id' => $menu->id,
             'title' => $menu->title,
             'icon' => $menu->icon,
             'url' => $menu->url,
             'permission' => $menu->permission,
-            'children' => array_values($menu->children->map(fn (Menu $child) => $this->toArray($child))->all()),
+            'children' => $children,
         ];
+    }
+
+    private function isVisibleTo(Menu $menu, User $user): bool
+    {
+        if (! $menu->permission) {
+            return true;
+        }
+
+        if ($menu->permission === 'system_owner') {
+            return $user->is_system_owner;
+        }
+
+        return $user->hasPermission($menu->permission);
     }
 }

@@ -23,31 +23,23 @@ const getIconComponent = (iconName: string | null) => {
     return (LucideIcons as any)[iconName];
 };
 
+// Convierte un menú del backend al formato del frontend. Un grupo padre
+// (p. ej. "Catálogo") llega con url null: se mapea a '' porque no navega,
+// solo despliega a sus hijos.
+const toNavItem = (item: any): NavItem => ({
+    title: item.title,
+    href: item.url ?? '',
+    icon: getIconComponent(item.icon),
+    items: item.children?.map(toNavItem),
+});
+
 export function AppSidebar() {
     const { menus } = usePage().props as any;
 
-    // Convertir menús del backend al formato del frontend
-    const mainNavItems: NavItem[] = (menus?.mainNavItems || []).map((item: any) => ({
-        title: item.title,
-        href: item.url,
-        icon: getIconComponent(item.icon),
-        items: item.children?.map((child: any) => ({
-            title: child.title,
-            href: child.url,
-            icon: getIconComponent(child.icon),
-        })),
-    }));
-
-    const footerNavItems: NavItem[] = (menus?.footerNavItems || []).map((item: any) => ({
-        title: item.title,
-        href: item.url,
-        icon: getIconComponent(item.icon),
-        items: item.children?.map((child: any) => ({
-            title: child.title,
-            href: child.url,
-            icon: getIconComponent(child.icon),
-        })),
-    }));
+    const mainNavItems: NavItem[] = (menus?.mainNavItems || []).map(toNavItem);
+    const footerNavItems: NavItem[] = (menus?.footerNavItems || []).map(
+        toNavItem,
+    );
     return (
         <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader>

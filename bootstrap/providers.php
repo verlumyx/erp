@@ -11,6 +11,12 @@ return [
     App\Modules\Role\Providers\RoleServiceProvider::class,
     App\Modules\User\Providers\UserServiceProvider::class,
     App\Modules\Client\Providers\ClientServiceProvider::class,
+    App\Modules\MeasurementUnit\Providers\MeasurementUnitServiceProvider::class,
+    App\Modules\Category\Providers\CategoryServiceProvider::class,
+    App\Modules\PriceList\Providers\PriceListServiceProvider::class,
+    App\Modules\ClientType\Providers\ClientTypeServiceProvider::class,
+    App\Modules\SupplierType\Providers\SupplierTypeServiceProvider::class,
+    App\Modules\ExchangeRate\Providers\ExchangeRateServiceProvider::class,
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,
 ];

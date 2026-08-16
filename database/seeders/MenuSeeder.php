@@ -34,6 +34,83 @@ class MenuSeeder extends Seeder
                 'is_active' => true,
                 'section' => 'main',
             ],
+            /**
+             * Catálogo: grupo padre sin URL ni permiso propio. Se muestra solo
+             * si al menos uno de sus hijos es visible para el usuario.
+             */
+            [
+                'id' => (string) Str::uuid7(),
+                'parent_id' => null,
+                'title' => 'Catálogo',
+                'icon' => 'Library',
+                'url' => null,
+                'permission' => null,
+                'order' => 3,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'id' => (string) Str::uuid7(),
+                        'title' => 'Categorías',
+                        'icon' => 'Tags',
+                        'url' => '/categories',
+                        'permission' => 'categories.list',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'id' => (string) Str::uuid7(),
+                        'title' => 'Unidades de medida',
+                        'icon' => 'Ruler',
+                        'url' => '/measurement-units',
+                        'permission' => 'measurement-units.list',
+                        'order' => 2,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'id' => (string) Str::uuid7(),
+                        'title' => 'Tipos de proveedor',
+                        'icon' => 'Truck',
+                        'url' => '/supplier-types',
+                        'permission' => 'supplier-types.list',
+                        'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'id' => (string) Str::uuid7(),
+                        'title' => 'Tipos de cliente',
+                        'icon' => 'ContactRound',
+                        'url' => '/client-types',
+                        'permission' => 'client-types.list',
+                        'order' => 4,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'id' => (string) Str::uuid7(),
+                        'title' => 'Listas de precio',
+                        'icon' => 'DollarSign',
+                        'url' => '/price-lists',
+                        'permission' => 'price-lists.list',
+                        'order' => 5,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'id' => (string) Str::uuid7(),
+                        'title' => 'Tasas',
+                        'icon' => 'Coins',
+                        'url' => '/exchange-rates',
+                        'permission' => 'exchange-rates.list',
+                        'order' => 6,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
 
             // Footer navigation (admin section)
             [
@@ -75,10 +152,25 @@ class MenuSeeder extends Seeder
         ];
 
         foreach ($menus as $menu) {
-            Menu::query()->updateOrCreate(
-                ['title' => $menu['title'], 'section' => $menu['section']],
-                $menu
-            );
+            $children = $menu['children'] ?? [];
+            unset($menu['children']);
+
+            $parent = $this->upsert($menu);
+
+            foreach ($children as $child) {
+                $this->upsert([...$child, 'parent_id' => $parent->id]);
+            }
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $menu
+     */
+    private function upsert(array $menu): Menu
+    {
+        return Menu::query()->updateOrCreate(
+            ['title' => $menu['title'], 'section' => $menu['section']],
+            $menu
+        );
     }
 }

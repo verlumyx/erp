@@ -27,14 +27,20 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+// Un grupo padre no tiene URL propia: devuelve '' para que nunca se marque
+// activo por sí mismo ni se navegue a él.
 function navHref(item: NavItem): string {
+    if (!item.href) {
+        return '';
+    }
     return typeof item.href === 'string' ? item.href : item.href.url;
 }
 
 // Un grupo se considera activo (y por tanto abierto) si la URL actual
 // coincide con el padre o con cualquiera de sus descendientes.
 function isItemActive(item: NavItem, currentUrl: string): boolean {
-    if (currentUrl.startsWith(navHref(item))) {
+    const href = navHref(item);
+    if (href !== '' && currentUrl.startsWith(href)) {
         return true;
     }
     return (item.items ?? []).some((child) => isItemActive(child, currentUrl));
@@ -48,9 +54,9 @@ function NavSubMenu({ items }: { items: NavItem[] }) {
         <SidebarMenuSub>
             {items.map((item) => {
                 const hasChildren = item.items && item.items.length > 0;
-                const itemHref =
-                    typeof item.href === 'string' ? item.href : item.href.url;
-                const isActive = page.url.startsWith(itemHref);
+                const itemHref = navHref(item);
+                const isActive =
+                    itemHref !== '' && page.url.startsWith(itemHref);
 
                 // Si tiene hijos, renderizar como Collapsible anidado
                 if (hasChildren) {
@@ -81,7 +87,7 @@ function NavSubMenu({ items }: { items: NavItem[] }) {
                 return (
                     <SidebarMenuSubItem key={item.title}>
                         <SidebarMenuSubButton asChild isActive={isActive}>
-                            <Link href={item.href} prefetch>
+                            <Link href={itemHref} prefetch>
                                 {item.icon && <item.icon />}
                                 <span>{item.title}</span>
                             </Link>
@@ -101,16 +107,18 @@ function DropdownSubMenu({ items }: { items: NavItem[] }) {
         <>
             {items.map((item) => {
                 const hasChildren = item.items && item.items.length > 0;
-                const itemHref =
-                    typeof item.href === 'string' ? item.href : item.href.url;
-                const isActive = page.url.startsWith(itemHref);
+                const itemHref = navHref(item);
+                const isActive =
+                    itemHref !== '' && page.url.startsWith(itemHref);
 
                 // Si tiene hijos, renderizar como DropdownMenuSub
                 if (hasChildren) {
                     return (
                         <DropdownMenuSub key={item.title}>
                             <DropdownMenuSubTrigger>
-                                {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                                {item.icon && (
+                                    <item.icon className="mr-2 h-4 w-4" />
+                                )}
                                 <span>{item.title}</span>
                             </DropdownMenuSubTrigger>
                             <DropdownMenuSubContent>
@@ -124,11 +132,13 @@ function DropdownSubMenu({ items }: { items: NavItem[] }) {
                 return (
                     <DropdownMenuItem key={item.title} asChild>
                         <Link
-                            href={item.href}
+                            href={itemHref}
                             prefetch
                             className={isActive ? 'bg-accent' : ''}
                         >
-                            {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                            {item.icon && (
+                                <item.icon className="mr-2 h-4 w-4" />
+                            )}
                             <span>{item.title}</span>
                         </Link>
                     </DropdownMenuItem>
@@ -148,11 +158,9 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
             <SidebarMenu>
                 {items.map((item) => {
                     const hasChildren = item.items && item.items.length > 0;
-                    const itemHref =
-                        typeof item.href === 'string'
-                            ? item.href
-                            : item.href.url;
-                    const isActive = page.url.startsWith(itemHref);
+                    const itemHref = navHref(item);
+                    const isActive =
+                        itemHref !== '' && page.url.startsWith(itemHref);
 
                     // Si tiene hijos y el sidebar está colapsado, usar DropdownMenu
                     if (hasChildren && state === 'collapsed') {
@@ -218,7 +226,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                 isActive={isActive}
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch>
+                                <Link href={itemHref} prefetch>
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>
