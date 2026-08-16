@@ -129,6 +129,42 @@ function itemScenario(): array
 }
 
 /**
+ * A valid `suppliers.store` / `suppliers.update` payload, overridable per test.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function supplierPayload(array $overrides = []): array
+{
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'name' => 'Distribuidora Andina C.A.',
+        'document_type' => 'J',
+        'document_number' => '123456789',
+        'currency' => 'USD',
+        ...$overrides,
+    ];
+}
+
+/**
+ * A valid `clients.store` / `clients.update` payload, overridable per test.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function clientPayload(array $overrides = []): array
+{
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'name' => 'Camila Rojas',
+        'document_type' => 'V',
+        'document_number' => '12345678',
+        'credit_blocked' => 'no',
+        ...$overrides,
+    ];
+}
+
+/**
  * A valid `items.store` / `items.update` payload, overridable per test.
  *
  * @param  array<string, mixed>  $overrides

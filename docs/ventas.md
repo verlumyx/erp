@@ -34,47 +34,47 @@ con la información comercial necesaria para facturar.
 
 ### Columnas actuales
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `name` | `string(150)` | No | Nombre del cliente. |
-| `phone` | `string(30)` | Sí | |
-| `email` | `string(255)` | Sí | Único por empresa. |
-| `notes` | `text` | Sí | |
+| Columna | Tipo          | Nulo | Descripción         |
+|---------|---------------|------|---------------------|
+| `name`  | `string(150)` | No   | Nombre del cliente. |
+| `phone` | `string(30)`  | Sí   |                     |
+| `email` | `string(255)` | Sí   | Único por empresa.  |
+| `notes` | `text`        | Sí   |                     |
 
 ### Columnas a agregar
 
-| Columna | Tipo | Nulo | Default | Descripción |
-|---|---|---|---|---|
-| `client_type_id` | `uuid` | Sí | | FK → `app_client_types.id` (`nullOnDelete`). Solo clasificación; no afecta precios ni crédito. |
-| `price_list_id` | `uuid` | Sí | | FK → `app_price_lists.id` (`nullOnDelete`). Lista asignada al cliente. |
-| `legal_name` | `string(200)` | Sí | | Razón social para facturar. |
-| `tax_id` | `string(30)` | Sí | | Identificación fiscal. |
-| `person_type` | `enum` | No | `'individual'` | `individual` o `company`. |
-| `mobile` | `string(30)` | Sí | | |
-| `address` | `string(500)` | Sí | | Dirección fiscal. |
-| `city` | `string(100)` | Sí | | |
-| `state` | `string(100)` | Sí | | |
-| `country` | `string(100)` | Sí | | |
-| `currency` | `string(3)` | No | `'USD'` | Moneda habitual de venta. |
-| `payment_term_days` | `integer` | No | `0` | Días de crédito. `0` = contado. |
-| `credit_limit` | `decimal(18,2)` | No | `0` | Cupo máximo. `0` = sin crédito. |
-| `credit_blocked` | `enum` | No | `'no'` | Bloquea nuevas ventas a crédito. |
-| `current_balance` | `decimal(18,2)` | No | `0` | Saldo por cobrar. Derivado. |
-| `advance_balance` | `decimal(18,2)` | No | `0` | Anticipos recibidos y no aplicados. |
-| `discount_percent` | `decimal(7,4)` | No | `0` | Descuento fijo del cliente. |
-| `default_tax_id` | `uuid` | Sí | | FK → `app_taxes.id`. |
-| `withholding_tax_id` | `uuid` | Sí | | FK → `app_taxes.id`. Retención que practica el cliente. |
-| `salesperson_id` | `uuid` | Sí | | FK → `users.id` (`nullOnDelete`). Vendedor asignado. |
-| `route_id` | `uuid` | Sí | | FK → `app_routes.id` (`nullOnDelete`). Ruta de entrega habitual. |
-| `default_warehouse_id` | `uuid` | Sí | | FK → `app_warehouses.id`. Bodega desde la que se despacha. |
-| `latitude` | `decimal(10,7)` | Sí | | Georreferencia para rutas. |
-| `longitude` | `decimal(10,7)` | Sí | | |
+| Columna                | Tipo            | Nulo | Default        | Descripción                                                                                    |
+|------------------------|-----------------|------|----------------|------------------------------------------------------------------------------------------------|
+| `client_type_id`       | `uuid`          | Sí   |                | FK → `app_client_types.id` (`nullOnDelete`). Solo clasificación; no afecta precios ni crédito. |
+| `price_list_id`        | `uuid`          | Sí   |                | FK → `app_price_lists.id` (`nullOnDelete`). Lista asignada al cliente.                         |
+| `legal_name`           | `string(200)`   | Sí   |                | Razón social para facturar.                                                                    |
+| `document_type`        | `enum`          | No   | `'V'`          | Letra del RIF: `V`, `E`, `J`, `P`, `G`, `C`. Ver [README.md](README.md).                       |
+| `document_number`      | `string(15)`    | No   |                | Dígitos del RIF/cédula, sin letra ni guiones.                                                   |
+| `mobile`               | `string(30)`    | Sí   |                |                                                                                                |
+| `address`              | `string(500)`   | Sí   |                | Dirección fiscal.                                                                              |
+| `city`                 | `string(100)`   | Sí   |                |                                                                                                |
+| `state`                | `string(100)`   | Sí   |                |                                                                                                |
+| `country`              | `string(100)`   | Sí   |                |                                                                                                |
+| `payment_term_days`    | `integer`       | No   | `0`            | Días de crédito. `0` = contado.                                                                |
+| `credit_limit`         | `decimal(18,2)` | No   | `0`            | Cupo máximo. `0` = sin crédito.                                                                |
+| `credit_blocked`       | `enum`          | No   | `'no'`         | Bloquea nuevas ventas a crédito.                                                               |
+| `current_balance`      | `decimal(18,2)` | No   | `0`            | Saldo por cobrar. Derivado.                                                                    |
+| `advance_balance`      | `decimal(18,2)` | No   | `0`            | Anticipos recibidos y no aplicados.                                                            |
+| `discount_percent`     | `decimal(7,4)`  | No   | `0`            | Descuento fijo del cliente.                                                                    |
+| `salesperson_id`       | `uuid`          | Sí   |                | FK → `users.id` (`nullOnDelete`). Vendedor asignado.                                           |
+| `route_id`             | `uuid`          | Sí   |                | FK → `app_routes.id` (`nullOnDelete`). Ruta de entrega habitual.                               |
+| `latitude`             | `decimal(10,7)` | Sí   |                | Georreferencia para rutas.                                                                     |
+| `longitude`            | `decimal(10,7)` | Sí   |                |                                                                                                |
 
-**Índices adicionales:** `unique(company_id, tax_id)`, `index(client_type_id)`, `index(price_list_id)`,
-`index(salesperson_id)`, `index(route_id)`, `index(current_balance)`.
+**Índices adicionales:** `unique(company_id, document_type, document_number)`, `index(client_type_id)`,
+`index(price_list_id)`, `index(salesperson_id)`, `index(route_id)`, `index(current_balance)`,
+`index(document_number)`.
 
 **Reglas**
-- Resolución del precio de venta: precio del artículo en `client.price_list_id` → `item.base_price`.
+- `document_type` + `document_number` identifican al cliente: son obligatorios y únicos por empresa.
+  La naturaleza del contribuyente se deriva de la letra (`V`/`E`/`P` natural, `J`/`G`/`C` jurídica).
+- Resolución del precio de venta: precio del artículo en `client.price_list_id` → precio del artículo
+  en la lista por defecto de la empresa. Ambos salen de `app_item_prices`.
   El tipo de cliente no interviene.
 - `current_balance` y `advance_balance` son derivados; los mantiene el sistema al confirmar documentos.
 - Si `current_balance + total del pedido > credit_limit`, la venta a crédito se bloquea salvo
@@ -83,18 +83,18 @@ con la información comercial necesaria para facturar.
 
 ### 1.1 Contactos — `app_client_contacts`
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `id` | `uuid` | No | PK. |
-| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del cliente. |
-| `client_id` | `uuid` | No | FK → `app_clients.id` (`cascadeOnDelete`). |
-| `name` | `string(150)` | No | |
-| `position` | `string(100)` | Sí | |
-| `email` | `string(255)` | Sí | |
-| `phone` | `string(30)` | Sí | |
-| `is_primary` | `enum` | No | `yes` / `no`, default `'no'`. Contacto principal. |
-| `status` | `enum` | No | `active` / `inactive`. |
-| `created_at` / `updated_at` | `timestamp` | Sí | |
+| Columna                     | Tipo          | Nulo | Descripción                                       |
+|-----------------------------|---------------|------|---------------------------------------------------|
+| `id`                        | `uuid`        | No   | PK.                                               |
+| `company_id`                | `uuid`        | Sí   | FK → `app_companies.id`. Heredado del cliente.    |
+| `client_id`                 | `uuid`        | No   | FK → `app_clients.id` (`cascadeOnDelete`).        |
+| `name`                      | `string(150)` | No   |                                                   |
+| `position`                  | `string(100)` | Sí   |                                                   |
+| `email`                     | `string(255)` | Sí   |                                                   |
+| `phone`                     | `string(30)`  | Sí   |                                                   |
+| `is_primary`                | `enum`        | No   | `yes` / `no`, default `'no'`. Contacto principal. |
+| `status`                    | `enum`        | No   | `active` / `inactive`.                            |
+| `created_at` / `updated_at` | `timestamp`   | Sí   |                                                   |
 
 **Índices:** `index(client_id)`, `index(company_id)`, `index(status)`.
 
@@ -102,20 +102,20 @@ con la información comercial necesaria para facturar.
 
 Un cliente puede tener varias direcciones de entrega (sucursales).
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `id` | `uuid` | No | PK. |
-| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del cliente. |
-| `client_id` | `uuid` | No | FK → `app_clients.id` (`cascadeOnDelete`). |
-| `type` | `enum` | No | `billing`, `shipping`. |
-| `name` | `string(150)` | No | Alias ("Sucursal Centro"). |
-| `address` | `string(500)` | No | |
-| `city` / `state` / `country` | `string(100)` | Sí | |
-| `route_id` | `uuid` | Sí | FK → `app_routes.id`. Ruta de esta dirección. |
-| `latitude` / `longitude` | `decimal(10,7)` | Sí | |
-| `is_default` | `enum` | No | `yes` / `no`, default `'no'`. Dirección sugerida. |
-| `status` | `enum` | No | `active` / `inactive`. |
-| `created_at` / `updated_at` | `timestamp` | Sí | |
+| Columna                      | Tipo            | Nulo | Descripción                                       |
+|------------------------------|-----------------|------|---------------------------------------------------|
+| `id`                         | `uuid`          | No   | PK.                                               |
+| `company_id`                 | `uuid`          | Sí   | FK → `app_companies.id`. Heredado del cliente.    |
+| `client_id`                  | `uuid`          | No   | FK → `app_clients.id` (`cascadeOnDelete`).        |
+| `type`                       | `enum`          | No   | `billing`, `shipping`.                            |
+| `name`                       | `string(150)`   | No   | Alias ("Sucursal Centro").                        |
+| `address`                    | `string(500)`   | No   |                                                   |
+| `city` / `state` / `country` | `string(100)`   | Sí   |                                                   |
+| `route_id`                   | `uuid`          | Sí   | FK → `app_routes.id`. Ruta de esta dirección.     |
+| `latitude` / `longitude`     | `decimal(10,7)` | Sí   |                                                   |
+| `is_default`                 | `enum`          | No   | `yes` / `no`, default `'no'`. Dirección sugerida. |
+| `status`                     | `enum`          | No   | `active` / `inactive`.                            |
+| `created_at` / `updated_at`  | `timestamp`     | Sí   |                                                   |
 
 **Índices:** `index(client_id)`, `index(company_id)`, `index(route_id)`, `index(status)`.
 

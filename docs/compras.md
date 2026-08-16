@@ -29,72 +29,69 @@ Maestro de proveedores y sus condiciones comerciales.
 
 **Tabla:** `app_suppliers` — **Prefijo:** `PRO`
 
-| Columna | Tipo | Nulo | Default | Descripción |
-|---|---|---|---|---|
-| `supplier_type_id` | `uuid` | Sí | | FK → `app_supplier_types.id` (`nullOnDelete`). |
-| `name` | `string(200)` | No | | Razón social o nombre comercial. |
-| `legal_name` | `string(200)` | Sí | | Nombre legal si difiere del comercial. |
-| `tax_id` | `string(30)` | Sí | | Identificación fiscal (RUC/NIT/RFC). |
-| `person_type` | `enum` | No | `'company'` | `company` (jurídica) o `individual` (natural). |
-| `email` | `string(255)` | Sí | | Correo principal. |
-| `phone` | `string(30)` | Sí | | |
-| `mobile` | `string(30)` | Sí | | |
-| `website` | `string(255)` | Sí | | |
-| `address` | `string(500)` | Sí | | Dirección fiscal. |
-| `city` | `string(100)` | Sí | | |
-| `state` | `string(100)` | Sí | | |
-| `country` | `string(100)` | Sí | | |
-| `currency` | `string(3)` | No | `'USD'` | Moneda habitual de compra. |
-| `payment_term_days` | `integer` | No | `0` | Días de crédito. `0` = contado. |
-| `credit_limit` | `decimal(18,2)` | No | `0` | Cupo máximo de deuda con el proveedor. |
-| `current_balance` | `decimal(18,2)` | No | `0` | Saldo por pagar. Derivado; lo mantiene el sistema. |
-| `advance_balance` | `decimal(18,2)` | No | `0` | Anticipos entregados y no aplicados. |
-| `default_tax_id` | `uuid` | Sí | | FK → `app_taxes.id`. Impuesto sugerido en sus documentos. |
-| `withholding_tax_id` | `uuid` | Sí | | FK → `app_taxes.id`. Retención aplicable al pagarle. |
-| `lead_time_days` | `integer` | No | `0` | Días promedio de entrega; alimenta la sugerencia de reorden. |
-| `bank_name` | `string(150)` | Sí | | Para transferencias. |
-| `bank_account` | `string(60)` | Sí | | |
-| `bank_account_type` | `string(30)` | Sí | | |
-| `notes` | `text` | Sí | | |
+| Columna              | Tipo            | Nulo | Default     | Descripción                                                  |
+|----------------------|-----------------|------|-------------|--------------------------------------------------------------|
+| `supplier_type_id`   | `uuid`          | Sí   |             | FK → `app_supplier_types.id` (`nullOnDelete`).               |
+| `name`               | `string(200)`   | No   |             | Razón social o nombre comercial.                             |
+| `legal_name`         | `string(200)`   | Sí   |             | Nombre legal si difiere del comercial.                       |
+| `document_type`      | `enum`          | No   | `'J'`       | Letra del RIF: `V`, `E`, `J`, `P`, `G`, `C`. Ver [README.md](README.md). |
+| `document_number`    | `string(15)`    | No   |             | Dígitos del RIF/cédula, sin letra ni guiones.                |
+| `email`              | `string(255)`   | Sí   |             | Correo principal.                                            |
+| `phone`              | `string(30)`    | Sí   |             |                                                              |
+| `mobile`             | `string(30)`    | Sí   |             |                                                              |
+| `website`            | `string(255)`   | Sí   |             |                                                              |
+| `address`            | `string(500)`   | Sí   |             | Dirección fiscal.                                            |
+| `city`               | `string(100)`   | Sí   |             |                                                              |
+| `state`              | `string(100)`   | Sí   |             |                                                              |
+| `country`            | `string(100)`   | Sí   |             |                                                              |
+| `currency`           | `string(3)`     | No   | `'USD'`     | Moneda habitual de compra.                                   |
+| `payment_term_days`  | `integer`       | No   | `0`         | Días de crédito. `0` = contado.                              |
+| `credit_limit`       | `decimal(18,2)` | No   | `0`         | Cupo máximo de deuda con el proveedor.                       |
+| `current_balance`    | `decimal(18,2)` | No   | `0`         | Saldo por pagar. Derivado; lo mantiene el sistema.           |
+| `advance_balance`    | `decimal(18,2)` | No   | `0`         | Anticipos entregados y no aplicados.                         |
+| `lead_time_days`     | `integer`       | No   | `0`         | Días promedio de entrega; alimenta la sugerencia de reorden. |
+| `notes`              | `text`          | Sí   |             |                                                              |
 
-**Índices:** `unique(company_id, tax_id)`, `unique(company_id, email)`, `index(name)`,
-`index(supplier_type_id)`, `index(current_balance)`.
+**Índices:** `unique(company_id, document_type, document_number)`, `unique(company_id, email)`,
+`index(name)`, `index(supplier_type_id)`, `index(current_balance)`, `index(document_number)`.
 
 **Reglas**
+- `document_type` + `document_number` identifican al proveedor: son obligatorios y únicos por empresa.
+  La naturaleza del contribuyente se deriva de la letra (`V`/`E`/`P` natural, `J`/`G`/`C` jurídica).
 - `current_balance` y `advance_balance` **nunca** se editan a mano; se recalculan al confirmar facturas,
   notas de crédito, anticipos y pagos.
 - No se puede desactivar un proveedor con saldo distinto de cero o documentos abiertos.
 
 ### 1.1 Contactos — `app_supplier_contacts`
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `id` | `uuid` | No | PK. |
-| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del proveedor. |
-| `supplier_id` | `uuid` | No | FK → `app_suppliers.id` (`cascadeOnDelete`). |
-| `name` | `string(150)` | No | |
-| `position` | `string(100)` | Sí | Cargo. |
-| `email` | `string(255)` | Sí | |
-| `phone` | `string(30)` | Sí | |
-| `is_primary` | `enum` | No | `yes` / `no`, default `'no'`. Contacto principal. |
-| `status` | `enum` | No | `active` / `inactive`. |
-| `created_at` / `updated_at` | `timestamp` | Sí | |
+| Columna                     | Tipo          | Nulo | Descripción                                       |
+|-----------------------------|---------------|------|---------------------------------------------------|
+| `id`                        | `uuid`        | No   | PK.                                               |
+| `company_id`                | `uuid`        | Sí   | FK → `app_companies.id`. Heredado del proveedor.  |
+| `supplier_id`               | `uuid`        | No   | FK → `app_suppliers.id` (`cascadeOnDelete`).      |
+| `name`                      | `string(150)` | No   |                                                   |
+| `position`                  | `string(100)` | Sí   | Cargo.                                            |
+| `email`                     | `string(255)` | Sí   |                                                   |
+| `phone`                     | `string(30)`  | Sí   |                                                   |
+| `is_primary`                | `enum`        | No   | `yes` / `no`, default `'no'`. Contacto principal. |
+| `status`                    | `enum`        | No   | `active` / `inactive`.                            |
+| `created_at` / `updated_at` | `timestamp`   | Sí   |                                                   |
 
 **Índices:** `index(supplier_id)`, `index(company_id)`, `index(status)`.
 
 ### 1.2 Direcciones — `app_supplier_addresses`
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `id` | `uuid` | No | PK. |
-| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del proveedor. |
-| `supplier_id` | `uuid` | No | FK → `app_suppliers.id` (`cascadeOnDelete`). |
-| `type` | `enum` | No | `billing`, `pickup`, `warehouse`. |
-| `address` | `string(500)` | No | |
-| `city` / `state` / `country` | `string(100)` | Sí | |
-| `is_default` | `enum` | No | `yes` / `no`, default `'no'`. Dirección sugerida. |
-| `status` | `enum` | No | `active` / `inactive`. |
-| `created_at` / `updated_at` | `timestamp` | Sí | |
+| Columna                      | Tipo          | Nulo | Descripción                                       |
+|------------------------------|---------------|------|---------------------------------------------------|
+| `id`                         | `uuid`        | No   | PK.                                               |
+| `company_id`                 | `uuid`        | Sí   | FK → `app_companies.id`. Heredado del proveedor.  |
+| `supplier_id`                | `uuid`        | No   | FK → `app_suppliers.id` (`cascadeOnDelete`).      |
+| `type`                       | `enum`        | No   | `billing`, `pickup`, `warehouse`.                 |
+| `address`                    | `string(500)` | No   |                                                   |
+| `city` / `state` / `country` | `string(100)` | Sí   |                                                   |
+| `is_default`                 | `enum`        | No   | `yes` / `no`, default `'no'`. Dirección sugerida. |
+| `status`                     | `enum`        | No   | `active` / `inactive`.                            |
+| `created_at` / `updated_at`  | `timestamp`   | Sí   |                                                   |
 
 **Índices:** `index(supplier_id)`, `index(company_id)`, `index(status)`.
 

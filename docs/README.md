@@ -134,6 +134,36 @@ Todos los importes se guardan en la **moneda del documento** más el campo `exch
 reexpresar en moneda base sin recalcular históricos. Ese `exchange_rate` se copia desde
 `app_exchange_rates` (módulo Tasas, ver [catalogo.md](catalogo.md)) al confirmar el documento.
 
+### Identificación fiscal (RIF / cédula)
+
+Clientes y proveedores se identifican con el **RIF venezolano**, no con una clasificación genérica de
+persona natural/jurídica. Son dos columnas, presentes con la misma definición en `app_clients` y en
+`app_suppliers`:
+
+| Columna | Tipo | Nulo | Default | Descripción |
+|---|---|---|---|---|
+| `document_type` | `enum` | No | `'V'` | Letra del RIF: `V`, `E`, `J`, `P`, `G`, `C`. |
+| `document_number` | `string(15)` | No | | Solo dígitos, sin letra ni guiones. |
+
+| Letra | Contribuyente | Naturaleza |
+|---|---|---|
+| `V` | Persona natural venezolana. Los dígitos son su cédula de identidad. | Natural |
+| `E` | Persona natural extranjera con cédula de extranjero (residente). | Natural |
+| `P` | Persona natural extranjera identificada con pasaporte (no residente). | Natural |
+| `J` | Persona jurídica: compañías, firmas personales, asociaciones. | Jurídica |
+| `G` | Entes gubernamentales y del sector público. | Jurídica |
+| `C` | Consejos comunales, comunas y organizaciones del Poder Popular. | Jurídica |
+
+**Reglas**
+- El RIF completo es `letra + 8 dígitos + dígito verificador` (`J-12345678-9`). Para `V`/`E` los
+  8 dígitos son la cédula, que se guarda **sin** rellenar con ceros y suele ir sin dígito verificador.
+- Se guarda normalizado: letra en mayúscula en `document_type` y solo dígitos en `document_number`.
+  El guion y el formato `J-12345678-9` son de presentación, no de almacenamiento.
+- Único por empresa: `unique(company_id, document_type, document_number)`.
+- La naturaleza del contribuyente (natural o jurídica) **se deriva de la letra**; no se guarda en otra
+  columna. `V`, `E` y `P` son naturales; `J`, `G` y `C` son jurídicas.
+- La retención de IVA/ISLR y el formato de la factura dependen de esta letra, por eso es obligatoria.
+
 ### Líneas de documento
 
 Toda tabla `*_lines` comparte esta estructura (no se repite en cada ficha; solo se documentan sus

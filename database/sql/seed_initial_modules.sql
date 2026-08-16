@@ -19,6 +19,7 @@ DECLARE
     v_mod_items       UUID;
     v_mod_warehouses  UUID;
     v_mod_wh_locs     UUID;
+    v_mod_suppliers   UUID;
 BEGIN
 
     -- ==========================================================
@@ -40,7 +41,8 @@ BEGIN
         (gen_random_uuid(), 'exchange-rates', 'Tasas', 'Catálogo de tasas de cambio por fecha', 'Coins', true, 10, NOW(), NOW()),
         (gen_random_uuid(), 'items', 'Catálogo de artículos', 'Maestro de productos y servicios', 'Package', true, 11, NOW(), NOW()),
         (gen_random_uuid(), 'warehouses', 'Bodegas', 'Lugares físicos o lógicos donde se almacena inventario', 'Warehouse', true, 12, NOW(), NOW()),
-        (gen_random_uuid(), 'warehouse-locations', 'Ubicaciones', 'Ubicaciones internas de las bodegas', 'MapPin', true, 13, NOW(), NOW())
+        (gen_random_uuid(), 'warehouse-locations', 'Ubicaciones', 'Ubicaciones internas de las bodegas', 'MapPin', true, 13, NOW(), NOW()),
+        (gen_random_uuid(), 'suppliers', 'Proveedores', 'Maestro de proveedores y sus condiciones comerciales', 'Truck', true, 14, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -57,6 +59,7 @@ BEGIN
     SELECT id INTO v_mod_items       FROM app_modules WHERE name = 'items';
     SELECT id INTO v_mod_warehouses  FROM app_modules WHERE name = 'warehouses';
     SELECT id INTO v_mod_wh_locs     FROM app_modules WHERE name = 'warehouse-locations';
+    SELECT id INTO v_mod_suppliers   FROM app_modules WHERE name = 'suppliers';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -193,6 +196,16 @@ BEGIN
         (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.show',          'Ver detalle de ubicación',     true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.update',        'Editar ubicaciones',           true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.update-status', 'Cambiar estado de ubicación',  true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Proveedores
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_suppliers, 'suppliers.list',          'Listar proveedores',            true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_suppliers, 'suppliers.create',        'Crear proveedores',             true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_suppliers, 'suppliers.show',          'Ver detalle de proveedor',      true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_suppliers, 'suppliers.update',        'Editar proveedores',            true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_suppliers, 'suppliers.update-status', 'Cambiar estado de proveedor',   true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
 END $$;

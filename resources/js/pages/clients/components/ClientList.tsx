@@ -31,12 +31,19 @@ import {
 } from '@/components/ui/select';
 import { WhatsAppButton } from '@/components/whatsapp-button';
 import clients from '@/routes/clients';
-import type { Client, ClientFilters, ClientMeta } from '../types/Client';
+import {
+    formatDocument,
+    type Client,
+    type ClientFilters,
+    type ClientMeta,
+    type ClientOptions,
+} from '../types/Client';
 
 interface ClientListProps {
     clients: Client[];
     meta: ClientMeta;
     filters: ClientFilters;
+    options: ClientOptions;
 }
 
 interface PageProps {
@@ -44,10 +51,13 @@ interface PageProps {
     [key: string]: unknown;
 }
 
+const ALL = 'todos';
+
 export function ClientList({
-    clients: items,
+    clients: rows,
     meta,
     filters: initialFilters,
+    options,
 }: ClientListProps) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
@@ -79,8 +89,6 @@ export function ClientList({
             },
         );
     };
-
-    const rows = items;
 
     return (
         <div className="flex flex-col gap-5">
@@ -118,9 +126,10 @@ export function ClientList({
                     {(
                         [
                             ['name', 'Nombre'],
+                            ['code', 'Código'],
+                            ['document_number', 'RIF'],
                             ['email', 'Correo'],
                             ['phone', 'Teléfono'],
-                            ['code', 'Código'],
                         ] as Array<[keyof ClientFilters, string]>
                     ).map(([key, label]) => (
                         <div key={key} className="space-y-2">
@@ -144,23 +153,58 @@ export function ClientList({
                             />
                         </div>
                     ))}
+
                     <div className="space-y-2">
-                        <Label htmlFor="filter-status">Estado</Label>
+                        <Label htmlFor="filter-client-type">Tipo</Label>
                         <Select
-                            value={filters.status ?? 'todos'}
+                            value={filters.client_type_id ?? ALL}
                             onValueChange={(value) =>
                                 applyFilters({
                                     ...filters,
-                                    status:
-                                        value === 'todos' ? undefined : value,
+                                    client_type_id:
+                                        value === ALL ? undefined : value,
                                 })
                             }
                         >
-                            <SelectTrigger id="filter-status" className="w-full">
+                            <SelectTrigger
+                                id="filter-client-type"
+                                className="w-full"
+                            >
+                                <SelectValue placeholder="Tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={ALL}>Todos</SelectItem>
+                                {options.clientTypes.map((clientType) => (
+                                    <SelectItem
+                                        key={clientType.id}
+                                        value={clientType.id}
+                                    >
+                                        {clientType.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="filter-status">Estado</Label>
+                        <Select
+                            value={filters.status ?? ALL}
+                            onValueChange={(value) =>
+                                applyFilters({
+                                    ...filters,
+                                    status: value === ALL ? undefined : value,
+                                })
+                            }
+                        >
+                            <SelectTrigger
+                                id="filter-status"
+                                className="w-full"
+                            >
                                 <SelectValue placeholder="Estado" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
+                                <SelectItem value={ALL}>Todos</SelectItem>
                                 <SelectItem value="active">Activos</SelectItem>
                                 <SelectItem value="inactive">
                                     Inactivos
@@ -170,7 +214,10 @@ export function ClientList({
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">
-                    <Button onClick={() => applyFilters(filters)} variant="default">
+                    <Button
+                        onClick={() => applyFilters(filters)}
+                        variant="default"
+                    >
                         <Search className="mr-2 h-4 w-4" />
                         Buscar
                     </Button>
@@ -181,12 +228,19 @@ export function ClientList({
             </div>
 
             <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_0.9fr_1.2fr]">
-                    {['Código', 'Cliente', 'Estado', 'Acciones'].map((h, i) => (
+                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_1.2fr_1fr_0.9fr_1.2fr]">
+                    {[
+                        'Código',
+                        'Cliente',
+                        'RIF',
+                        'Saldo',
+                        'Estado',
+                        'Acciones',
+                    ].map((h, i) => (
                         <div
                             key={h}
                             className={`text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase ${
-                                i === 3 ? 'text-right' : ''
+                                i === 5 ? 'text-right' : ''
                             }`}
                         >
                             {h}
@@ -203,7 +257,7 @@ export function ClientList({
                         return (
                             <div
                                 key={client.id}
-                                className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_0.9fr_1.2fr] lg:py-0"
+                                className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1.2fr_1fr_0.9fr_1.2fr] lg:py-0"
                                 onClick={() =>
                                     router.visit(
                                         clients.show({
@@ -214,7 +268,7 @@ export function ClientList({
                                 }
                             >
                                 <div className="hidden lg:block">
-                                    <span className="font-semibold tabular-nums text-muted-foreground">
+                                    <span className="font-semibold text-muted-foreground tabular-nums">
                                         {client.code}
                                     </span>
                                 </div>
@@ -228,9 +282,20 @@ export function ClientList({
                                             {client.name}
                                         </span>
                                         <span className="truncate text-[12.5px] text-muted-foreground">
-                                            {client.email ?? '—'}
+                                            {client.client_type_name ??
+                                                client.email ??
+                                                '—'}
                                         </span>
                                     </div>
+                                </div>
+                                <div className="hidden text-[13.5px] font-medium text-muted-foreground tabular-nums lg:block">
+                                    {formatDocument(
+                                        client.document_type,
+                                        client.document_number,
+                                    )}
+                                </div>
+                                <div className="hidden text-[13.5px] font-semibold tabular-nums lg:block">
+                                    {client.current_balance}
                                 </div>
                                 <div className="hidden lg:block">
                                     <StatusPill kind={estadoCliente} />

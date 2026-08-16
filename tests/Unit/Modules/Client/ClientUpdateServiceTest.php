@@ -11,7 +11,11 @@ use App\Modules\Client\Services\ClientUpdateService;
 uses(Tests\TestCase::class);
 
 test('it updates an existing client', function () {
-    $command = new UpdateClientCommand(name: 'Updated');
+    $command = new UpdateClientCommand(
+        name: 'Updated',
+        documentType: 'V',
+        documentNumber: '12345678',
+    );
     $model = new Client(['id' => 'client-uuid', 'name' => 'Old']);
 
     $repository = Mockery::mock(ClientRepositoryInterface::class);
@@ -33,5 +37,9 @@ test('it throws when updating a missing client', function () {
 
     $service = new ClientUpdateService($repository);
 
-    $service->execute('missing', new UpdateClientCommand(name: 'X'));
+    $service->execute('missing', new UpdateClientCommand(
+        name: 'X',
+        documentType: 'V',
+        documentNumber: '12345678',
+    ));
 })->throws(ClientNotFoundException::class);

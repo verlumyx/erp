@@ -21,16 +21,6 @@ class MenuSeeder extends Seeder
                 'is_active' => true,
                 'section' => 'main',
             ],
-            [
-                'parent_id' => null,
-                'title' => 'Clientes',
-                'icon' => 'Contact',
-                'url' => '/clients',
-                'permission' => 'clients.list',
-                'order' => 2,
-                'is_active' => true,
-                'section' => 'main',
-            ],
             /**
              * Catálogo: grupo padre sin URL ni permiso propio. Se muestra solo
              * si al menos uno de sus hijos es visible para el usuario.
@@ -139,6 +129,57 @@ class MenuSeeder extends Seeder
                         'url' => '/warehouse-locations',
                         'permission' => 'warehouse-locations.list',
                         'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
+            /**
+             * Compras: grupo padre sin URL ni permiso propio. Permanece oculto
+             * hasta que tenga al menos un hijo visible (Proveedores, Órdenes de
+             * compra, Facturas de compra, etc.).
+             */
+            [
+                'parent_id' => null,
+                'title' => 'Compras',
+                'icon' => 'ShoppingCart',
+                'url' => null,
+                'permission' => null,
+                'order' => 5,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Proveedores',
+                        'icon' => 'Truck',
+                        'url' => '/suppliers',
+                        'permission' => 'suppliers.list',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
+            /**
+             * Ventas: grupo padre sin URL ni permiso propio. Se muestra solo
+             * si al menos uno de sus hijos es visible para el usuario.
+             */
+            [
+                'parent_id' => null,
+                'title' => 'Ventas',
+                'icon' => 'ShoppingBag',
+                'url' => null,
+                'permission' => null,
+                'order' => 6,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Clientes',
+                        'icon' => 'Contact',
+                        'url' => '/clients',
+                        'permission' => 'clients.list',
+                        'order' => 1,
                         'is_active' => true,
                         'section' => 'main',
                     ],

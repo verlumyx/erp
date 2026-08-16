@@ -22,14 +22,34 @@ class ClientFactory extends Factory
      */
     public function definition(): array
     {
-        $code = 'CLI'.str_pad((string) (++self::$sequence), 6, '0', STR_PAD_LEFT);
+        $sequence = ++self::$sequence;
 
         return [
             'company_id' => Company::factory(),
-            'code' => $code,
+            'code' => 'CLI'.str_pad((string) $sequence, 6, '0', STR_PAD_LEFT),
+            'client_type_id' => null,
+            'price_list_id' => null,
             'name' => fake()->name(),
+            'legal_name' => null,
+            'document_type' => 'V',
+            'document_number' => str_pad((string) (10000000 + $sequence), 8, '0', STR_PAD_LEFT),
             'phone' => fake()->optional()->numerify('+58 4## ### ####'),
+            'mobile' => null,
             'email' => fake()->unique()->safeEmail(),
+            'address' => fake()->optional()->streetAddress(),
+            'city' => null,
+            'state' => null,
+            'country' => null,
+            'payment_term_days' => 0,
+            'credit_limit' => 0,
+            'credit_blocked' => 'no',
+            'current_balance' => 0,
+            'advance_balance' => 0,
+            'discount_percent' => 0,
+            'salesperson_id' => null,
+            'route_id' => null,
+            'latitude' => null,
+            'longitude' => null,
             'status' => 'active',
             'notes' => fake()->optional()->sentence(),
             'created_by' => User::factory(),
@@ -43,6 +63,16 @@ class ClientFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => 'inactive',
+        ]);
+    }
+
+    /**
+     * A client that still owes money: it cannot be deactivated.
+     */
+    public function withBalance(float $balance = 150.00): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'current_balance' => $balance,
         ]);
     }
 }

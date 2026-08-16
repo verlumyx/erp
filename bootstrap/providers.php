@@ -20,6 +20,7 @@ return [
     App\Modules\Warehouse\Providers\WarehouseServiceProvider::class,
     App\Modules\WarehouseLocation\Providers\WarehouseLocationServiceProvider::class,
     App\Modules\Item\Providers\ItemServiceProvider::class,
+    App\Modules\Supplier\Providers\SupplierServiceProvider::class,
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,
 ];

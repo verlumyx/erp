@@ -14,6 +14,8 @@ test('it creates a client and returns the persisted model', function () {
         id: 'a1b2c3d4-e5f6-7890-ab12-cd34ef567890',
         companyId: 'company-uuid',
         name: 'Acme',
+        documentType: 'J',
+        documentNumber: '123456789',
         createdBy: 'user-uuid',
         email: 'acme@test.com',
     );

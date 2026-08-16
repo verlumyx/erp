@@ -6,10 +6,11 @@ import type { BreadcrumbItem } from '@/types';
 import { ClientForm } from './components/ClientForm';
 import { ClientFormProvider } from './contexts/ClientFormContext';
 import { useClientForm } from './hooks/useClientForm';
-import type { Client } from './types/Client';
+import type { Client, ClientOptions } from './types/Client';
 
 interface Props {
     client: Client;
+    options: ClientOptions;
 }
 
 interface PageProps {
@@ -17,7 +18,7 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-export default function ClientsEdit({ client }: Props) {
+export default function ClientsEdit({ client, options }: Props) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
 
@@ -53,10 +54,10 @@ export default function ClientsEdit({ client }: Props) {
                         Editar cliente
                     </h1>
                     <p className="mt-1 text-[14.5px] text-muted-foreground">
-                        Modifica la información de contacto del cliente
+                        Actualiza los datos, contactos y direcciones del cliente
                     </p>
                 </div>
-                <ClientFormProvider value={formMethods}>
+                <ClientFormProvider value={{ ...formMethods, options }}>
                     <ClientForm />
                 </ClientFormProvider>
             </div>

@@ -6,13 +6,18 @@ import type { BreadcrumbItem } from '@/types';
 import { ClientForm } from './components/ClientForm';
 import { ClientFormProvider } from './contexts/ClientFormContext';
 import { useClientForm } from './hooks/useClientForm';
+import type { ClientOptions } from './types/Client';
+
+interface Props {
+    options: ClientOptions;
+}
 
 interface PageProps {
     currentCompany?: { id: string; name: string } | null;
     [key: string]: unknown;
 }
 
-export default function ClientsCreate() {
+export default function ClientsCreate({ options }: Props) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
 
@@ -39,11 +44,11 @@ export default function ClientsCreate() {
                         Nuevo cliente
                     </h1>
                     <p className="mt-1 text-[14.5px] text-muted-foreground">
-                        Registra los datos del cliente y, si quieres, su primer
-                        perfil
+                        Define el cliente, sus contactos, sus direcciones y sus
+                        condiciones comerciales
                     </p>
                 </div>
-                <ClientFormProvider value={formMethods}>
+                <ClientFormProvider value={{ ...formMethods, options }}>
                     <ClientForm />
                 </ClientFormProvider>
             </div>
