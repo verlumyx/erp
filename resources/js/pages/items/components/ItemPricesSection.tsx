@@ -3,13 +3,7 @@ import { CurrencySelect } from '@/components/currency-select';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { useItemFormContext } from '../contexts/ItemFormContext';
 
 /**
@@ -24,6 +18,10 @@ export function ItemPricesSection() {
         (errors as Record<string, string | undefined>)[
             `prices.${index}.${field}`
         ];
+
+    const priceListOptions: OptionType[] = options.priceLists.map(
+        (priceList) => ({ value: priceList.id, label: priceList.name }),
+    );
 
     return (
         <div className="flex flex-col gap-4 p-5">
@@ -43,28 +41,25 @@ export function ItemPricesSection() {
                         <Label className="text-[13px] font-semibold">
                             Lista de precio *
                         </Label>
-                        <Select
-                            value={price.price_list_id}
-                            onValueChange={(value) =>
-                                updatePrice(index, 'price_list_id', value)
+                        <Select2
+                            options={priceListOptions}
+                            value={
+                                priceListOptions.find(
+                                    (option) =>
+                                        option.value === price.price_list_id,
+                                ) ?? null
                             }
-                        >
-                            <SelectTrigger
-                                className={`h-[42px] w-full rounded-[10px] ${fieldError(index, 'price_list_id') ? 'border-bad' : ''}`}
-                            >
-                                <SelectValue placeholder="Selecciona una lista" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {options.priceLists.map((priceList) => (
-                                    <SelectItem
-                                        key={priceList.id}
-                                        value={priceList.id}
-                                    >
-                                        {priceList.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            onChange={(option) =>
+                                updatePrice(
+                                    index,
+                                    'price_list_id',
+                                    option?.value ?? '',
+                                )
+                            }
+                            error={!!fieldError(index, 'price_list_id')}
+                            size="md"
+                            placeholder="Selecciona una lista"
+                        />
                         {fieldError(index, 'price_list_id') && (
                             <p className="text-sm text-bad">
                                 {fieldError(index, 'price_list_id')}

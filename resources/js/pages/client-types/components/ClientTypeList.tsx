@@ -13,13 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import clientTypes from '@/routes/client-types';
 import type {
     ClientType,
@@ -38,6 +32,12 @@ interface PageProps {
     [key: string]: unknown;
 }
 
+const STATUS_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' },
+];
+
 export function ClientTypeList({
     clientTypes: items,
     meta,
@@ -50,10 +50,14 @@ export function ClientTypeList({
 
     const applyFilters = (next: ClientTypeFilters) => {
         setFilters(next);
-        router.get(clientTypes.index(companyId).url, next as Record<string, string>, {
-            preserveState: true,
-            preserveScroll: true,
-        });
+        router.get(
+            clientTypes.index(companyId).url,
+            next as Record<string, string>,
+            {
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
     };
 
     const handleClear = () => {
@@ -126,30 +130,28 @@ export function ClientTypeList({
                     ))}
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     status:
-                                        value === 'todos' ? undefined : value,
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="active">Activos</SelectItem>
-                                <SelectItem value="inactive">
-                                    Inactivos
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

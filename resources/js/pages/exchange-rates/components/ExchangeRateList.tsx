@@ -14,13 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import exchangeRates from '@/routes/exchange-rates';
 import type {
     ExchangeRate,
@@ -40,6 +34,18 @@ interface PageProps {
     [key: string]: unknown;
 }
 
+const TYPE_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'legal', label: 'Legal' },
+    { value: 'manual', label: 'Manual' },
+];
+
+const STATUS_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'active', label: 'Activas' },
+    { value: 'inactive', label: 'Inactivas' },
+];
+
 export function ExchangeRateList({
     exchangeRates: items,
     meta,
@@ -50,6 +56,14 @@ export function ExchangeRateList({
     const companyId = currentCompany!.id;
 
     const [filters, setFilters] = useState<ExchangeRateFilters>(initialFilters);
+
+    const currencyOptions: OptionType[] = [
+        { value: 'todas', label: 'Todas' },
+        ...currencies.map((currency) => ({
+            value: currency.code,
+            label: currency.code,
+        })),
+    ];
 
     const applyFilters = (next: ExchangeRateFilters) => {
         setFilters(next);
@@ -138,82 +152,77 @@ export function ExchangeRateList({
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filter-currency">Moneda</Label>
-                        <Select
-                            value={filters.currency ?? 'todas'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-currency"
+                            options={currencyOptions}
+                            value={
+                                currencyOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.currency ?? 'todas'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     currency:
-                                        value === 'todas' ? undefined : value,
+                                        !option || option.value === 'todas'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-currency"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Moneda" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todas">Todas</SelectItem>
-                                {currencies.map((currency) => (
-                                    <SelectItem
-                                        key={currency.code}
-                                        value={currency.code}
-                                    >
-                                        {currency.code}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Moneda"
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filter-type">Tipo</Label>
-                        <Select
-                            value={filters.type ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-type"
+                            options={TYPE_OPTIONS}
+                            value={
+                                TYPE_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.type ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
-                                    type: value === 'todos' ? undefined : value,
+                                    type:
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger id="filter-type" className="w-full">
-                                <SelectValue placeholder="Tipo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="legal">Legal</SelectItem>
-                                <SelectItem value="manual">Manual</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Tipo"
+                            isSearchable={false}
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     status:
-                                        value === 'todos' ? undefined : value,
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="active">Activas</SelectItem>
-                                <SelectItem value="inactive">
-                                    Inactivas
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

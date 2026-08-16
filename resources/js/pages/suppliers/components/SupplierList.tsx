@@ -13,13 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import suppliers from '@/routes/suppliers';
 import {
     formatDocument,
@@ -43,6 +37,12 @@ interface PageProps {
 
 const ALL = 'todos';
 
+const STATUS_OPTIONS: OptionType[] = [
+    { value: ALL, label: 'Todos' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' },
+];
+
 export function SupplierList({
     suppliers: rows,
     meta,
@@ -53,6 +53,14 @@ export function SupplierList({
     const companyId = currentCompany!.id;
 
     const [filters, setFilters] = useState<SupplierFilters>(initialFilters);
+
+    const supplierTypeOptions: OptionType[] = [
+        { value: ALL, label: 'Todos' },
+        ...options.supplierTypes.map((supplierType) => ({
+            value: supplierType.id,
+            label: supplierType.name,
+        })),
+    ];
 
     const applyFilters = (next: SupplierFilters) => {
         setFilters(next);
@@ -136,61 +144,53 @@ export function SupplierList({
 
                     <div className="space-y-2">
                         <Label htmlFor="filter-supplier-type">Tipo</Label>
-                        <Select
-                            value={filters.supplier_type_id ?? ALL}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-supplier-type"
+                            options={supplierTypeOptions}
+                            value={
+                                supplierTypeOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.supplier_type_id ?? ALL),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     supplier_type_id:
-                                        value === ALL ? undefined : value,
+                                        !option || option.value === ALL
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-supplier-type"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Tipo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>Todos</SelectItem>
-                                {options.supplierTypes.map((supplierType) => (
-                                    <SelectItem
-                                        key={supplierType.id}
-                                        value={supplierType.id}
-                                    >
-                                        {supplierType.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Tipo"
+                        />
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? ALL}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? ALL),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
-                                    status: value === ALL ? undefined : value,
+                                    status:
+                                        !option || option.value === ALL
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>Todos</SelectItem>
-                                <SelectItem value="active">Activos</SelectItem>
-                                <SelectItem value="inactive">
-                                    Inactivos
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

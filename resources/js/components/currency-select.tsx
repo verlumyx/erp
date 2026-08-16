@@ -1,11 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import type { Currency } from '@/types';
 
 interface CurrencySelectProps {
@@ -41,21 +35,21 @@ export function CurrencySelect({
 }: CurrencySelectProps) {
     const currencies = useCurrencies();
 
+    const options: OptionType[] = currencies.map((currency) => ({
+        value: currency.code,
+        label: `${currency.name} (${currency.code})`,
+    }));
+
     return (
-        <Select value={value} onValueChange={onValueChange}>
-            <SelectTrigger
-                id={id}
-                className={`h-[42px] w-full rounded-[10px] ${error ? 'border-bad' : ''} ${className}`}
-            >
-                <SelectValue placeholder="Moneda" />
-            </SelectTrigger>
-            <SelectContent>
-                {currencies.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                        {currency.name} ({currency.code})
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
+        <Select2
+            inputId={id}
+            options={options}
+            value={options.find((option) => option.value === value) ?? null}
+            onChange={(option) => onValueChange(option?.value ?? '')}
+            error={!!error}
+            size="md"
+            className={className}
+            placeholder="Moneda"
+        />
     );
 }

@@ -1,16 +1,11 @@
 import { Plus, X } from 'lucide-react';
+import { LineNotePopover } from '@/components/line-note-popover';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { usePurchaseOrderFormContext } from '../contexts/PurchaseOrderFormContext';
 import { lineAmounts } from '../hooks/usePurchaseOrderForm';
 import { formatAmount } from '../types/PurchaseOrder';
@@ -38,6 +33,11 @@ export function PurchaseOrderLinesSection() {
     const unitsOf = (itemId: string) =>
         options.items.find((item) => item.id === itemId)?.units ?? [];
 
+    const itemOptions: OptionType[] = options.items.map((item) => ({
+        value: item.id,
+        label: `${item.code} · ${item.name}`,
+    }));
+
     const handleItemChange = (index: number, itemId: string) => {
         const item = options.items.find((option) => option.id === itemId);
         const baseUnit =
@@ -59,6 +59,10 @@ export function PurchaseOrderLinesSection() {
             {data.lines.map((line, index) => {
                 const amounts = lineAmounts(line);
                 const units = unitsOf(line.item_id);
+                const unitOptions: OptionType[] = units.map((unit) => ({
+                    value: unit.measurement_unit_id,
+                    label: unit.name,
+                }));
 
                 return (
                     <div
@@ -70,32 +74,24 @@ export function PurchaseOrderLinesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
                                 </Label>
-                                <Select
-                                    value={line.item_id}
-                                    onValueChange={(value) =>
-                                        handleItemChange(index, value)
+                                <Select2
+                                    options={itemOptions}
+                                    value={
+                                        itemOptions.find(
+                                            (option) =>
+                                                option.value === line.item_id,
+                                        ) ?? null
                                     }
-                                >
-                                    <SelectTrigger
-                                        className={`h-[42px] w-full rounded-[10px] ${
-                                            fieldError(index, 'item_id')
-                                                ? 'border-bad'
-                                                : ''
-                                        }`}
-                                    >
-                                        <SelectValue placeholder="Selecciona un artículo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {options.items.map((item) => (
-                                            <SelectItem
-                                                key={item.id}
-                                                value={item.id}
-                                            >
-                                                {item.code} · {item.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    onChange={(option) =>
+                                        handleItemChange(
+                                            index,
+                                            option?.value ?? '',
+                                        )
+                                    }
+                                    error={!!fieldError(index, 'item_id')}
+                                    size="md"
+                                    placeholder="Selecciona un artículo"
+                                />
                                 {fieldError(index, 'item_id') && (
                                     <p className="text-sm text-bad">
                                         {fieldError(index, 'item_id')}
@@ -107,40 +103,32 @@ export function PurchaseOrderLinesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Unidad *
                                 </Label>
-                                <Select
-                                    value={line.measurement_unit_id}
-                                    onValueChange={(value) =>
+                                <Select2
+                                    options={unitOptions}
+                                    value={
+                                        unitOptions.find(
+                                            (option) =>
+                                                option.value ===
+                                                line.measurement_unit_id,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
                                         updateLine(
                                             index,
                                             'measurement_unit_id',
-                                            value,
+                                            option?.value ?? '',
                                         )
                                     }
-                                    disabled={units.length === 0}
-                                >
-                                    <SelectTrigger
-                                        className={`h-[42px] w-full rounded-[10px] ${
-                                            fieldError(
-                                                index,
-                                                'measurement_unit_id',
-                                            )
-                                                ? 'border-bad'
-                                                : ''
-                                        }`}
-                                    >
-                                        <SelectValue placeholder="Unidad" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {units.map((unit) => (
-                                            <SelectItem
-                                                key={unit.measurement_unit_id}
-                                                value={unit.measurement_unit_id}
-                                            >
-                                                {unit.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    isDisabled={units.length === 0}
+                                    error={
+                                        !!fieldError(
+                                            index,
+                                            'measurement_unit_id',
+                                        )
+                                    }
+                                    size="md"
+                                    placeholder="Unidad"
+                                />
                                 {fieldError(index, 'measurement_unit_id') && (
                                     <p className="text-sm text-bad">
                                         {fieldError(
@@ -199,19 +187,29 @@ export function PurchaseOrderLinesSection() {
                                 )}
                             </div>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="size-[42px] rounded-[10px] bg-card"
-                                onClick={() => removeLine(index)}
-                                aria-label="Quitar línea"
-                            >
-                                <X className="size-4" />
-                            </Button>
+                            <div className="flex items-end gap-2">
+                                <LineNotePopover
+                                    value={line.notes}
+                                    onValueChange={(value) =>
+                                        updateLine(index, 'notes', value)
+                                    }
+                                    ariaLabel={`Nota de la línea ${index + 1}`}
+                                />
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="size-[42px] rounded-[10px] bg-card"
+                                    onClick={() => removeLine(index)}
+                                    aria-label="Quitar línea"
+                                >
+                                    <X className="size-4" />
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr_1.4fr]">
+                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
                                     Descuento %
@@ -282,25 +280,6 @@ export function PurchaseOrderLinesSection() {
                                             e.target.value,
                                         )
                                     }
-                                    className="h-[42px] rounded-[10px]"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Nota de la línea
-                                </Label>
-                                <Input
-                                    type="text"
-                                    value={line.notes}
-                                    onChange={(e) =>
-                                        updateLine(
-                                            index,
-                                            'notes',
-                                            e.target.value,
-                                        )
-                                    }
-                                    maxLength={500}
                                     className="h-[42px] rounded-[10px]"
                                 />
                             </div>

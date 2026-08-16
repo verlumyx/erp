@@ -3,7 +3,7 @@ import { router, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,6 +29,12 @@ interface PageProps {
   currentCompany?: { id: string; name: string } | null;
   [key: string]: unknown;
 }
+
+const STATUS_OPTIONS: OptionType[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'active', label: 'Activo' },
+  { value: 'inactive', label: 'Inactivo' },
+];
 
 export const RoleList: React.FC<RoleListProps> = ({
   roles: items,
@@ -123,20 +129,15 @@ export const RoleList: React.FC<RoleListProps> = ({
 
           <div className="space-y-2">
             <Label htmlFor="status-filter">Estado</Label>
-            <Select
-              value={filters.status || 'all'}
-              onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}
-              disabled={loading}
-            >
-              <SelectTrigger id="status-filter">
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="active">Activo</SelectItem>
-                <SelectItem value="inactive">Inactivo</SelectItem>
-              </SelectContent>
-            </Select>
+            <Select2
+              inputId="status-filter"
+              options={STATUS_OPTIONS}
+              value={STATUS_OPTIONS.find((option) => option.value === (filters.status || 'all')) ?? null}
+              onChange={(option) => handleFilterChange('status', !option || option.value === 'all' ? undefined : option.value)}
+              isDisabled={loading}
+              placeholder="Todos"
+              isSearchable={false}
+            />
           </div>
 
           <div className="space-y-2">

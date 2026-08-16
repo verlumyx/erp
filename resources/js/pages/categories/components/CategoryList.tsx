@@ -13,13 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import categories from '@/routes/categories';
 import type {
     Category,
@@ -37,6 +31,12 @@ interface PageProps {
     currentCompany?: { id: string; name: string } | null;
     [key: string]: unknown;
 }
+
+const STATUS_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'active', label: 'Activas' },
+    { value: 'inactive', label: 'Inactivas' },
+];
 
 export function CategoryList({
     categories: items,
@@ -131,30 +131,28 @@ export function CategoryList({
                     ))}
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     status:
-                                        value === 'todos' ? undefined : value,
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="active">Activas</SelectItem>
-                                <SelectItem value="inactive">
-                                    Inactivas
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

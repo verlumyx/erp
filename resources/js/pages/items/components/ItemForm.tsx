@@ -5,13 +5,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useItemFormContext } from '../contexts/ItemFormContext';
 import {
@@ -109,9 +103,38 @@ function MoneyField({ id, label, value, error, onChange }: NumericFieldProps) {
     );
 }
 
+const TYPE_OPTIONS: OptionType[] = Object.entries(ITEM_TYPE_LABELS).map(
+    ([value, label]) => ({ value, label }),
+);
+
+const COST_METHOD_OPTIONS: OptionType[] = Object.entries(
+    COST_METHOD_LABELS,
+).map(([value, label]) => ({ value, label }));
+
+const YES_NO_OPTIONS: OptionType[] = [
+    { value: 'yes', label: 'Sí' },
+    { value: 'no', label: 'No' },
+];
+
 export function ItemForm() {
     const { data, setData, processing, errors, handleSubmit, mode, options } =
         useItemFormContext();
+
+    const categoryOptions: OptionType[] = [
+        { value: NO_CATEGORY, label: 'Sin categoría' },
+        ...options.categories.map((category) => ({
+            value: category.id,
+            label: category.name,
+        })),
+    ];
+
+    const taxOptions: OptionType[] = [
+        { value: NO_TAX, label: 'Sin impuesto' },
+        ...options.taxes.map((tax) => ({
+            value: tax.id,
+            label: taxLabel(tax),
+        })),
+    ];
 
     return (
         <form
@@ -203,28 +226,22 @@ export function ItemForm() {
                             <Label className="text-[13px] font-semibold">
                                 Tipo *
                             </Label>
-                            <Select
-                                value={data.type}
-                                onValueChange={(value) =>
-                                    setData('type', value as ItemType)
+                            <Select2
+                                options={TYPE_OPTIONS}
+                                value={
+                                    TYPE_OPTIONS.find(
+                                        (option) => option.value === data.type,
+                                    ) ?? null
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(ITEM_TYPE_LABELS).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                onChange={(option) =>
+                                    setData(
+                                        'type',
+                                        (option?.value ?? '') as ItemType,
+                                    )
+                                }
+                                error={!!errors.type}
+                                size="md"
+                            />
                             {errors.type && (
                                 <p className="text-sm text-bad">
                                     {errors.type}
@@ -236,32 +253,27 @@ export function ItemForm() {
                             <Label className="text-[13px] font-semibold">
                                 Categoría
                             </Label>
-                            <Select
-                                value={data.category_id || NO_CATEGORY}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={categoryOptions}
+                                value={
+                                    categoryOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.category_id || NO_CATEGORY),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'category_id',
-                                        value === NO_CATEGORY ? '' : value,
+                                        !option || option.value === NO_CATEGORY
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin categoría" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_CATEGORY}>
-                                        Sin categoría
-                                    </SelectItem>
-                                    {options.categories.map((category) => (
-                                        <SelectItem
-                                            key={category.id}
-                                            value={category.id}
-                                        >
-                                            {category.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.category_id}
+                                size="md"
+                                placeholder="Sin categoría"
+                            />
                             {errors.category_id && (
                                 <p className="text-sm text-bad">
                                     {errors.category_id}
@@ -319,28 +331,23 @@ export function ItemForm() {
                             <Label className="text-[13px] font-semibold">
                                 Método de costo *
                             </Label>
-                            <Select
-                                value={data.cost_method}
-                                onValueChange={(value) =>
-                                    setData('cost_method', value as CostMethod)
+                            <Select2
+                                options={COST_METHOD_OPTIONS}
+                                value={
+                                    COST_METHOD_OPTIONS.find(
+                                        (option) =>
+                                            option.value === data.cost_method,
+                                    ) ?? null
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(COST_METHOD_LABELS).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                onChange={(option) =>
+                                    setData(
+                                        'cost_method',
+                                        (option?.value ?? '') as CostMethod,
+                                    )
+                                }
+                                error={!!errors.cost_method}
+                                size="md"
+                            />
                         </div>
 
                         <MoneyField
@@ -366,52 +373,52 @@ export function ItemForm() {
                             <Label className="text-[13px] font-semibold">
                                 Se compra
                             </Label>
-                            <Select
-                                value={data.is_purchasable}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={YES_NO_OPTIONS}
+                                value={
+                                    YES_NO_OPTIONS.find(
+                                        (option) =>
+                                            option.value ===
+                                            data.is_purchasable,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'is_purchasable',
-                                        value as 'yes' | 'no',
+                                        (option?.value ?? 'no') as 'yes' | 'no',
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="yes">Sí</SelectItem>
-                                    <SelectItem value="no">No</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.is_purchasable}
+                                size="md"
+                                isSearchable={false}
+                            />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                             <Label className="text-[13px] font-semibold">
                                 Impuesto de compra
                             </Label>
-                            <Select
-                                value={data.purchase_tax_id || NO_TAX}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={taxOptions}
+                                value={
+                                    taxOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.purchase_tax_id || NO_TAX),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'purchase_tax_id',
-                                        value === NO_TAX ? '' : value,
+                                        !option || option.value === NO_TAX
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin impuesto" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_TAX}>
-                                        Sin impuesto
-                                    </SelectItem>
-                                    {options.taxes.map((tax) => (
-                                        <SelectItem key={tax.id} value={tax.id}>
-                                            {taxLabel(tax)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.purchase_tax_id}
+                                size="md"
+                                placeholder="Sin impuesto"
+                            />
                             {errors.purchase_tax_id && (
                                 <p className="text-sm text-bad">
                                     {errors.purchase_tax_id}
@@ -423,52 +430,51 @@ export function ItemForm() {
                             <Label className="text-[13px] font-semibold">
                                 Se vende
                             </Label>
-                            <Select
-                                value={data.is_sellable}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={YES_NO_OPTIONS}
+                                value={
+                                    YES_NO_OPTIONS.find(
+                                        (option) =>
+                                            option.value === data.is_sellable,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'is_sellable',
-                                        value as 'yes' | 'no',
+                                        (option?.value ?? 'no') as 'yes' | 'no',
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="yes">Sí</SelectItem>
-                                    <SelectItem value="no">No</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.is_sellable}
+                                size="md"
+                                isSearchable={false}
+                            />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                             <Label className="text-[13px] font-semibold">
                                 Impuesto de venta
                             </Label>
-                            <Select
-                                value={data.sale_tax_id || NO_TAX}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={taxOptions}
+                                value={
+                                    taxOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.sale_tax_id || NO_TAX),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'sale_tax_id',
-                                        value === NO_TAX ? '' : value,
+                                        !option || option.value === NO_TAX
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin impuesto" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_TAX}>
-                                        Sin impuesto
-                                    </SelectItem>
-                                    {options.taxes.map((tax) => (
-                                        <SelectItem key={tax.id} value={tax.id}>
-                                            {taxLabel(tax)}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.sale_tax_id}
+                                size="md"
+                                placeholder="Sin impuesto"
+                            />
                             {errors.sale_tax_id && (
                                 <p className="text-sm text-bad">
                                     {errors.sale_tax_id}

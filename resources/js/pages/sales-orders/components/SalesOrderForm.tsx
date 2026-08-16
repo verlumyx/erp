@@ -5,13 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useSalesOrderFormContext } from '../contexts/SalesOrderFormContext';
 import { formatAmount } from '../types/SalesOrder';
@@ -63,6 +57,39 @@ export function SalesOrderForm() {
         (candidate) => candidate.id === data.client_id,
     );
 
+    const clientOptions: OptionType[] = options.clients.map((option) => ({
+        value: option.id,
+        label: `${option.code ? `${option.code} — ` : ''}${option.name}`,
+    }));
+
+    const addressOptions: OptionType[] = [
+        { value: NO_ADDRESS, label: 'Dirección fiscal del cliente' },
+        ...(client?.addresses ?? []).map((address) => ({
+            value: address.id,
+            label: `${address.name} — ${address.address}`,
+        })),
+    ];
+
+    const warehouseOptions: OptionType[] = options.warehouses.map(
+        (warehouse) => ({ value: warehouse.id, label: warehouse.name }),
+    );
+
+    const salespersonOptions: OptionType[] = [
+        { value: NO_SALESPERSON, label: 'Sin vendedor' },
+        ...options.salespeople.map((salesperson) => ({
+            value: salesperson.id,
+            label: salesperson.name,
+        })),
+    ];
+
+    const priceListOptions: OptionType[] = [
+        { value: NO_PRICE_LIST, label: 'Lista por defecto de la empresa' },
+        ...options.priceLists.map((priceList) => ({
+            value: priceList.id,
+            label: priceList.name,
+        })),
+    ];
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -80,29 +107,21 @@ export function SalesOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Cliente *
                             </Label>
-                            <Select
-                                value={data.client_id}
-                                onValueChange={selectClient}
-                            >
-                                <SelectTrigger
-                                    className={`h-[42px] w-full rounded-[10px] ${errors.client_id ? 'border-bad' : ''}`}
-                                >
-                                    <SelectValue placeholder="Selecciona un cliente" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.clients.map((option) => (
-                                        <SelectItem
-                                            key={option.id}
-                                            value={option.id}
-                                        >
-                                            {option.code
-                                                ? `${option.code} — `
-                                                : ''}
-                                            {option.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Select2
+                                options={clientOptions}
+                                value={
+                                    clientOptions.find(
+                                        (option) =>
+                                            option.value === data.client_id,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
+                                    selectClient(option?.value ?? '')
+                                }
+                                error={!!errors.client_id}
+                                size="md"
+                                placeholder="Selecciona un cliente"
+                            />
                             {client?.credit_blocked === 'yes' && (
                                 <span className="text-[12px] font-semibold text-warn">
                                     Este cliente tiene el crédito bloqueado
@@ -119,36 +138,29 @@ export function SalesOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Dirección de entrega
                             </Label>
-                            <Select
-                                value={data.client_address_id || NO_ADDRESS}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={addressOptions}
+                                value={
+                                    addressOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.client_address_id ||
+                                                NO_ADDRESS),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'client_address_id',
-                                        value === NO_ADDRESS ? '' : value,
+                                        !option || option.value === NO_ADDRESS
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                                disabled={client === undefined}
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Dirección fiscal del cliente" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_ADDRESS}>
-                                        Dirección fiscal del cliente
-                                    </SelectItem>
-                                    {(client?.addresses ?? []).map(
-                                        (address) => (
-                                            <SelectItem
-                                                key={address.id}
-                                                value={address.id}
-                                            >
-                                                {address.name} —{' '}
-                                                {address.address}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                isDisabled={client === undefined}
+                                error={!!errors.client_address_id}
+                                size="md"
+                                placeholder="Dirección fiscal del cliente"
+                            />
                             {errors.client_address_id && (
                                 <p className="text-sm text-bad">
                                     {errors.client_address_id}
@@ -160,28 +172,21 @@ export function SalesOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Bodega de despacho *
                             </Label>
-                            <Select
-                                value={data.warehouse_id}
-                                onValueChange={(value) =>
-                                    setData('warehouse_id', value)
+                            <Select2
+                                options={warehouseOptions}
+                                value={
+                                    warehouseOptions.find(
+                                        (option) =>
+                                            option.value === data.warehouse_id,
+                                    ) ?? null
                                 }
-                            >
-                                <SelectTrigger
-                                    className={`h-[42px] w-full rounded-[10px] ${errors.warehouse_id ? 'border-bad' : ''}`}
-                                >
-                                    <SelectValue placeholder="Selecciona una bodega" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.warehouses.map((warehouse) => (
-                                        <SelectItem
-                                            key={warehouse.id}
-                                            value={warehouse.id}
-                                        >
-                                            {warehouse.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                onChange={(option) =>
+                                    setData('warehouse_id', option?.value ?? '')
+                                }
+                                error={!!errors.warehouse_id}
+                                size="md"
+                                placeholder="Selecciona una bodega"
+                            />
                             {errors.warehouse_id && (
                                 <p className="text-sm text-bad">
                                     {errors.warehouse_id}
@@ -193,32 +198,29 @@ export function SalesOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Vendedor
                             </Label>
-                            <Select
-                                value={data.salesperson_id || NO_SALESPERSON}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={salespersonOptions}
+                                value={
+                                    salespersonOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.salesperson_id ||
+                                                NO_SALESPERSON),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'salesperson_id',
-                                        value === NO_SALESPERSON ? '' : value,
+                                        !option ||
+                                            option.value === NO_SALESPERSON
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin vendedor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_SALESPERSON}>
-                                        Sin vendedor
-                                    </SelectItem>
-                                    {options.salespeople.map((salesperson) => (
-                                        <SelectItem
-                                            key={salesperson.id}
-                                            value={salesperson.id}
-                                        >
-                                            {salesperson.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.salesperson_id}
+                                size="md"
+                                placeholder="Sin vendedor"
+                            />
                         </div>
 
                         <div className="flex flex-col gap-1.5">
@@ -291,31 +293,28 @@ export function SalesOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Lista de precio
                             </Label>
-                            <Select
-                                value={data.price_list_id || NO_PRICE_LIST}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={priceListOptions}
+                                value={
+                                    priceListOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.price_list_id ||
+                                                NO_PRICE_LIST),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     selectPriceList(
-                                        value === NO_PRICE_LIST ? '' : value,
+                                        !option ||
+                                            option.value === NO_PRICE_LIST
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Lista por defecto de la empresa" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_PRICE_LIST}>
-                                        Lista por defecto de la empresa
-                                    </SelectItem>
-                                    {options.priceLists.map((priceList) => (
-                                        <SelectItem
-                                            key={priceList.id}
-                                            value={priceList.id}
-                                        >
-                                            {priceList.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.price_list_id}
+                                size="md"
+                                placeholder="Lista por defecto de la empresa"
+                            />
                             <span className="text-[12px] text-muted-foreground">
                                 Cambiarla revalúa las líneas sin precio pactado
                             </span>

@@ -86,6 +86,58 @@ test('the totals are computed from the lines and never taken from the payload', 
     expect((float) $order->total)->toBe(156.6);
 });
 
+test('the note of a line is stored', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $payload = salesOrderPayload($client, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 4,
+                'unit_price' => 30,
+                'notes' => 'Empacar por separado.',
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $line = SalesOrder::with('lines')->find($payload['id'])->lines->first();
+    expect($line->notes)->toBe('Empacar por separado.');
+});
+
+test('the line withholding is computed over the subtotal and does not change the total', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $payload = salesOrderPayload($client, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 3,
+                'unit_price' => 50,
+                'discount_percent' => 10,
+                'tax_percent' => 16,
+                'withholding_percent' => 75,
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $line = SalesOrder::with('lines')->find($payload['id'])->lines->first();
+
+    // Base 135; IVA 16% = 21.60; retención 75% de la base = 101.25; total 156.60
+    expect((float) $line->withholding_percent)->toBe(75.0);
+    expect((float) $line->withholding_amount)->toBe(101.25);
+    expect((float) $line->total)->toBe(156.6);
+});
+
 test('the base quantity uses the conversion factor of the line unit', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
 

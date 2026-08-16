@@ -4,13 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { useWarehouseLocationFormContext } from '../contexts/WarehouseLocationFormContext';
 import {
     LOCATION_TYPE_LABELS,
@@ -41,6 +35,10 @@ function FormSectionHead({ step, title, sub }: FormSectionHeadProps) {
     );
 }
 
+const TYPE_OPTIONS: OptionType[] = Object.entries(LOCATION_TYPE_LABELS).map(
+    ([value, label]) => ({ value, label }),
+);
+
 export function WarehouseLocationForm() {
     const {
         data,
@@ -57,6 +55,19 @@ export function WarehouseLocationForm() {
         (parent) =>
             parent.warehouse_id === data.warehouse_id && parent.id !== data.id,
     );
+
+    const warehouseOptions: OptionType[] = warehouses.map((warehouse) => ({
+        value: warehouse.id,
+        label: warehouse.name,
+    }));
+
+    const parentSelectOptions: OptionType[] = [
+        { value: 'ninguna', label: 'Sin padre (raíz)' },
+        ...parentOptions.map((parent) => ({
+            value: parent.id,
+            label: `${parent.location_code} · ${parent.name}`,
+        })),
+    ];
 
     return (
         <form
@@ -79,31 +90,28 @@ export function WarehouseLocationForm() {
                                 >
                                     Bodega *
                                 </Label>
-                                <Select
-                                    value={data.warehouse_id}
-                                    onValueChange={(value) => {
-                                        setData('warehouse_id', value);
+                                <Select2
+                                    inputId="warehouse_id"
+                                    options={warehouseOptions}
+                                    value={
+                                        warehouseOptions.find(
+                                            (option) =>
+                                                option.value ===
+                                                data.warehouse_id,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) => {
+                                        setData(
+                                            'warehouse_id',
+                                            option?.value ?? '',
+                                        );
                                         setData('parent_id', '');
                                     }}
-                                    disabled={mode === 'edit'}
-                                >
-                                    <SelectTrigger
-                                        id="warehouse_id"
-                                        className="h-[42px] w-full rounded-[10px]"
-                                    >
-                                        <SelectValue placeholder="Selecciona una bodega" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {warehouses.map((warehouse) => (
-                                            <SelectItem
-                                                key={warehouse.id}
-                                                value={warehouse.id}
-                                            >
-                                                {warehouse.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    isDisabled={mode === 'edit'}
+                                    error={!!errors.warehouse_id}
+                                    size="md"
+                                    placeholder="Selecciona una bodega"
+                                />
                                 <p className="text-[12px] text-muted-foreground">
                                     Solo aparecen las bodegas que gestionan
                                     ubicaciones.
@@ -121,37 +129,30 @@ export function WarehouseLocationForm() {
                                 >
                                     Ubicación padre
                                 </Label>
-                                <Select
-                                    value={data.parent_id || 'ninguna'}
-                                    onValueChange={(value) =>
+                                <Select2
+                                    inputId="parent_id"
+                                    options={parentSelectOptions}
+                                    value={
+                                        parentSelectOptions.find(
+                                            (option) =>
+                                                option.value ===
+                                                (data.parent_id || 'ninguna'),
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
                                         setData(
                                             'parent_id',
-                                            value === 'ninguna' ? '' : value,
+                                            !option ||
+                                                option.value === 'ninguna'
+                                                ? ''
+                                                : option.value,
                                         )
                                     }
-                                    disabled={data.warehouse_id === ''}
-                                >
-                                    <SelectTrigger
-                                        id="parent_id"
-                                        className="h-[42px] w-full rounded-[10px]"
-                                    >
-                                        <SelectValue placeholder="Sin padre (raíz)" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ninguna">
-                                            Sin padre (raíz)
-                                        </SelectItem>
-                                        {parentOptions.map((parent) => (
-                                            <SelectItem
-                                                key={parent.id}
-                                                value={parent.id}
-                                            >
-                                                {parent.location_code} ·{' '}
-                                                {parent.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    isDisabled={data.warehouse_id === ''}
+                                    error={!!errors.parent_id}
+                                    size="md"
+                                    placeholder="Sin padre (raíz)"
+                                />
                                 {errors.parent_id && (
                                     <p className="text-sm text-bad">
                                         {errors.parent_id}
@@ -228,34 +229,26 @@ export function WarehouseLocationForm() {
                                 >
                                     Tipo *
                                 </Label>
-                                <Select
-                                    value={data.type}
-                                    onValueChange={(value) =>
+                                <Select2
+                                    inputId="type"
+                                    options={TYPE_OPTIONS}
+                                    value={
+                                        TYPE_OPTIONS.find(
+                                            (option) =>
+                                                option.value === data.type,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
                                         setData(
                                             'type',
-                                            value as WarehouseLocationType,
+                                            (option?.value ??
+                                                '') as WarehouseLocationType,
                                         )
                                     }
-                                >
-                                    <SelectTrigger
-                                        id="type"
-                                        className="h-[42px] w-full rounded-[10px]"
-                                    >
-                                        <SelectValue placeholder="Tipo de ubicación" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(
-                                            LOCATION_TYPE_LABELS,
-                                        ).map(([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    error={!!errors.type}
+                                    size="md"
+                                    placeholder="Tipo de ubicación"
+                                />
                                 {errors.type && (
                                     <p className="text-sm text-bad">
                                         {errors.type}

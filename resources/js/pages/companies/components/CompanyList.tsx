@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -29,6 +29,12 @@ interface PageProps {
     auth: { user: { is_system_owner: boolean } };
     [key: string]: unknown;
 }
+
+const STATUS_OPTIONS: OptionType[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'active', label: 'Activo' },
+    { value: 'inactive', label: 'Inactivo' },
+];
 
 export function CompanyList({ companies: items, meta, filters: initialFilters }: CompanyListProps) {
     const { currentCompany, auth } = usePage<PageProps>().props;
@@ -97,19 +103,14 @@ export function CompanyList({ companies: items, meta, filters: initialFilters }:
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="status">Estado</Label>
-                        <Select
-                            value={filters.status ?? 'all'}
-                            onValueChange={(v) => setFilters({ ...filters, status: v === 'all' ? undefined : v })}
-                        >
-                            <SelectTrigger id="status">
-                                <SelectValue placeholder="Todos" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                <SelectItem value="active">Activo</SelectItem>
-                                <SelectItem value="inactive">Inactivo</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <Select2
+                            inputId="status"
+                            options={STATUS_OPTIONS}
+                            value={STATUS_OPTIONS.find((option) => option.value === (filters.status ?? 'all')) ?? null}
+                            onChange={(option) => setFilters({ ...filters, status: !option || option.value === 'all' ? undefined : option.value })}
+                            placeholder="Todos"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">

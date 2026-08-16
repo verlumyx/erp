@@ -4,13 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import {
     Table,
     TableBody,
@@ -51,6 +45,12 @@ interface UserListProps {
     onCreate: () => void;
     onSearch: (filters: { name?: string; email?: string; email_verified?: boolean }) => void;
 }
+
+const EMAIL_VERIFIED_OPTIONS: OptionType[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'verified', label: 'Verificado' },
+    { value: 'unverified', label: 'No Verificado' },
+];
 
 export const UserList: React.FC<UserListProps> = ({
     users: items,
@@ -146,19 +146,14 @@ export const UserList: React.FC<UserListProps> = ({
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="email-verified-filter">Estado Email</Label>
-                        <Select
-                            value={emailVerifiedFilter}
-                            onValueChange={(value) => setEmailVerifiedFilter(value)}
-                        >
-                            <SelectTrigger id="email-verified-filter">
-                                <SelectValue placeholder="Todos" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos</SelectItem>
-                                <SelectItem value="verified">Verificado</SelectItem>
-                                <SelectItem value="unverified">No Verificado</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <Select2
+                            inputId="email-verified-filter"
+                            options={EMAIL_VERIFIED_OPTIONS}
+                            value={EMAIL_VERIFIED_OPTIONS.find((option) => option.value === emailVerifiedFilter) ?? null}
+                            onChange={(option) => setEmailVerifiedFilter(option?.value ?? 'all')}
+                            placeholder="Todos"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">

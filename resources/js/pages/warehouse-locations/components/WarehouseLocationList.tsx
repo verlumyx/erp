@@ -13,13 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import warehouseLocations from '@/routes/warehouse-locations';
 import {
     LOCATION_TYPE_LABELS,
@@ -41,6 +35,12 @@ interface PageProps {
     [key: string]: unknown;
 }
 
+const STATUS_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'active', label: 'Activas' },
+    { value: 'inactive', label: 'Inactivas' },
+];
+
 export function WarehouseLocationList({
     locations,
     warehouses,
@@ -52,6 +52,14 @@ export function WarehouseLocationList({
 
     const [filters, setFilters] =
         useState<WarehouseLocationFilters>(initialFilters);
+
+    const warehouseOptions: OptionType[] = [
+        { value: 'todas', label: 'Todas' },
+        ...warehouses.map((warehouse) => ({
+            value: warehouse.id,
+            label: warehouse.name,
+        })),
+    ];
 
     const applyFilters = (next: WarehouseLocationFilters) => {
         setFilters(next);
@@ -135,61 +143,52 @@ export function WarehouseLocationList({
                     ))}
                     <div className="space-y-2">
                         <Label htmlFor="filter-warehouse">Bodega</Label>
-                        <Select
-                            value={filters.warehouse_id ?? 'todas'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-warehouse"
+                            options={warehouseOptions}
+                            value={
+                                warehouseOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.warehouse_id ?? 'todas'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     warehouse_id:
-                                        value === 'todas' ? undefined : value,
+                                        !option || option.value === 'todas'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-warehouse"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Bodega" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todas">Todas</SelectItem>
-                                {warehouses.map((warehouse) => (
-                                    <SelectItem
-                                        key={warehouse.id}
-                                        value={warehouse.id}
-                                    >
-                                        {warehouse.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Bodega"
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     status:
-                                        value === 'todos' ? undefined : value,
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="active">Activas</SelectItem>
-                                <SelectItem value="inactive">
-                                    Inactivas
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

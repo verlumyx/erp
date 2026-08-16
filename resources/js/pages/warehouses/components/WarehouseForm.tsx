@@ -4,13 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useWarehouseFormContext } from '../contexts/WarehouseFormContext';
 import {
@@ -74,9 +68,18 @@ function FlagField({ id, label, hint, value, onChange }: FlagFieldProps) {
     );
 }
 
+const TYPE_OPTIONS: OptionType[] = Object.entries(WAREHOUSE_TYPE_LABELS).map(
+    ([value, label]) => ({ value, label }),
+);
+
 export function WarehouseForm() {
     const { data, setData, processing, errors, handleSubmit, mode, users } =
         useWarehouseFormContext();
+
+    const userOptions: OptionType[] = [
+        { value: 'ninguno', label: 'Sin encargado' },
+        ...users.map((user) => ({ value: user.id, label: user.name })),
+    ];
 
     return (
         <form
@@ -124,31 +127,26 @@ export function WarehouseForm() {
                                 >
                                     Tipo *
                                 </Label>
-                                <Select
-                                    value={data.type}
-                                    onValueChange={(value) =>
-                                        setData('type', value as WarehouseType)
+                                <Select2
+                                    inputId="type"
+                                    options={TYPE_OPTIONS}
+                                    value={
+                                        TYPE_OPTIONS.find(
+                                            (option) =>
+                                                option.value === data.type,
+                                        ) ?? null
                                     }
-                                >
-                                    <SelectTrigger
-                                        id="type"
-                                        className="h-[42px] w-full rounded-[10px]"
-                                    >
-                                        <SelectValue placeholder="Tipo de bodega" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(
-                                            WAREHOUSE_TYPE_LABELS,
-                                        ).map(([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    onChange={(option) =>
+                                        setData(
+                                            'type',
+                                            (option?.value ??
+                                                '') as WarehouseType,
+                                        )
+                                    }
+                                    error={!!errors.type}
+                                    size="md"
+                                    placeholder="Tipo de bodega"
+                                />
                                 {errors.type && (
                                     <p className="text-sm text-bad">
                                         {errors.type}
@@ -240,35 +238,29 @@ export function WarehouseForm() {
                             >
                                 Encargado
                             </Label>
-                            <Select
-                                value={data.responsible_user_id || 'ninguno'}
-                                onValueChange={(value) =>
+                            <Select2
+                                inputId="responsible_user_id"
+                                options={userOptions}
+                                value={
+                                    userOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.responsible_user_id ||
+                                                'ninguno'),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'responsible_user_id',
-                                        value === 'ninguno' ? '' : value,
+                                        !option || option.value === 'ninguno'
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger
-                                    id="responsible_user_id"
-                                    className="h-[42px] w-full rounded-[10px]"
-                                >
-                                    <SelectValue placeholder="Sin encargado" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ninguno">
-                                        Sin encargado
-                                    </SelectItem>
-                                    {users.map((user) => (
-                                        <SelectItem
-                                            key={user.id}
-                                            value={user.id}
-                                        >
-                                            {user.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.responsible_user_id}
+                                size="md"
+                                placeholder="Sin encargado"
+                            />
                             {errors.responsible_user_id && (
                                 <p className="text-sm text-bad">
                                     {errors.responsible_user_id}

@@ -2,13 +2,7 @@ import { Plus, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { useItemFormContext } from '../contexts/ItemFormContext';
 
 /**
@@ -35,6 +29,13 @@ export function ItemUnitsSection() {
         data.units.find((unit) => unit.is_base === 'yes')
             ?.measurement_unit_id ?? '';
 
+    const measurementUnitOptions: OptionType[] = options.measurementUnits.map(
+        (measurementUnit) => ({
+            value: measurementUnit.id,
+            label: `${measurementUnit.name} (${measurementUnit.abbreviation})`,
+        }),
+    );
+
     return (
         <div className="flex flex-col gap-4 p-5">
             {errors.units && <p className="text-sm text-bad">{errors.units}</p>}
@@ -54,40 +55,31 @@ export function ItemUnitsSection() {
                             <Label className="text-[13px] font-semibold">
                                 Unidad de medida *
                             </Label>
-                            <Select
-                                value={unit.measurement_unit_id}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={measurementUnitOptions}
+                                value={
+                                    measurementUnitOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            unit.measurement_unit_id,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     updateUnit(
                                         index,
                                         'measurement_unit_id',
-                                        value,
+                                        option?.value ?? '',
                                     )
                                 }
-                            >
-                                <SelectTrigger
-                                    className={`h-[42px] w-full rounded-[10px] ${unitError ? 'border-bad' : ''}`}
-                                >
-                                    <SelectValue placeholder="Selecciona una unidad" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.measurementUnits.map(
-                                        (measurementUnit) => (
-                                            <SelectItem
-                                                key={measurementUnit.id}
-                                                value={measurementUnit.id}
-                                            >
-                                                {measurementUnit.name} (
-                                                {measurementUnit.abbreviation})
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                error={!!unitError}
+                                size="md"
+                                placeholder="Selecciona una unidad"
+                            />
                             {unitError && (
                                 <p className="text-sm text-bad">{unitError}</p>
                             )}
                             <span className="text-[12px] text-muted-foreground">
-                                <br/>
+                                <br />
                             </span>
                         </div>
 

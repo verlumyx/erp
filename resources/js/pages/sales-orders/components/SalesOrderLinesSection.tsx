@@ -1,16 +1,10 @@
 import { Plus, X } from 'lucide-react';
+import { LineNotePopover } from '@/components/line-note-popover';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { useSalesOrderFormContext } from '../contexts/SalesOrderFormContext';
 import { lineAmounts } from '../hooks/useSalesOrderForm';
 import { formatAmount } from '../types/SalesOrder';
@@ -35,6 +29,11 @@ export function SalesOrderLinesSection() {
             `lines.${index}.${field}`
         ];
 
+    const itemOptions: OptionType[] = options.items.map((option) => ({
+        value: option.id,
+        label: `${option.sku} — ${option.name}`,
+    }));
+
     return (
         <div className="flex flex-col gap-4 p-5">
             {errors.lines && <p className="text-sm text-bad">{errors.lines}</p>}
@@ -48,6 +47,14 @@ export function SalesOrderLinesSection() {
                 const unitError = fieldError(index, 'measurement_unit_id');
                 const quantityError = fieldError(index, 'quantity');
                 const priceError = fieldError(index, 'unit_price');
+                const unitOptions: OptionType[] = (item?.units ?? []).map(
+                    (unit) => ({
+                        value: unit.measurement_unit_id,
+                        label: `${unit.name ?? 'Unidad'}${
+                            unit.is_base === 'yes' ? ' (base)' : ''
+                        }`,
+                    }),
+                );
                 const belowMinPrice =
                     item !== undefined &&
                     Number(item.min_price) > 0 &&
@@ -58,49 +65,29 @@ export function SalesOrderLinesSection() {
                         key={line.id}
                         className="flex flex-col gap-3 rounded-[12px] border p-4"
                     >
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-[13px] font-bold text-muted-foreground">
-                                Línea {index + 1}
-                            </span>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="rounded-[10px] bg-card"
-                                onClick={() => removeLine(index)}
-                                aria-label={`Quitar línea ${index + 1}`}
-                            >
-                                <X className="size-4" />
-                            </Button>
-                        </div>
-
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2.4fr_1.2fr_1fr_1.2fr_1fr]">
+                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_1.2fr_1fr_1.2fr_auto]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
                                 </Label>
-                                <Select
-                                    value={line.item_id}
-                                    onValueChange={(value) =>
-                                        selectLineItem(index, value)
+                                <Select2
+                                    options={itemOptions}
+                                    value={
+                                        itemOptions.find(
+                                            (option) =>
+                                                option.value === line.item_id,
+                                        ) ?? null
                                     }
-                                >
-                                    <SelectTrigger
-                                        className={`h-[42px] w-full rounded-[10px] ${itemError ? 'border-bad' : ''}`}
-                                    >
-                                        <SelectValue placeholder="Selecciona un artículo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {options.items.map((option) => (
-                                            <SelectItem
-                                                key={option.id}
-                                                value={option.id}
-                                            >
-                                                {option.sku} — {option.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    onChange={(option) =>
+                                        selectLineItem(
+                                            index,
+                                            option?.value ?? '',
+                                        )
+                                    }
+                                    error={!!itemError}
+                                    size="md"
+                                    placeholder="Selecciona un artículo"
+                                />
                                 {itemError && (
                                     <p className="text-sm text-bad">
                                         {itemError}
@@ -112,36 +99,27 @@ export function SalesOrderLinesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Unidad *
                                 </Label>
-                                <Select
-                                    value={line.measurement_unit_id}
-                                    onValueChange={(value) =>
+                                <Select2
+                                    options={unitOptions}
+                                    value={
+                                        unitOptions.find(
+                                            (option) =>
+                                                option.value ===
+                                                line.measurement_unit_id,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
                                         updateLine(
                                             index,
                                             'measurement_unit_id',
-                                            value,
+                                            option?.value ?? '',
                                         )
                                     }
-                                    disabled={item === undefined}
-                                >
-                                    <SelectTrigger
-                                        className={`h-[42px] w-full rounded-[10px] ${unitError ? 'border-bad' : ''}`}
-                                    >
-                                        <SelectValue placeholder="Unidad" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(item?.units ?? []).map((unit) => (
-                                            <SelectItem
-                                                key={unit.measurement_unit_id}
-                                                value={unit.measurement_unit_id}
-                                            >
-                                                {unit.name ?? 'Unidad'}
-                                                {unit.is_base === 'yes'
-                                                    ? ' (base)'
-                                                    : ''}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    isDisabled={item === undefined}
+                                    error={!!unitError}
+                                    size="md"
+                                    placeholder="Unidad"
+                                />
                                 {unitError && (
                                     <p className="text-sm text-bad">
                                         {unitError}
@@ -202,9 +180,33 @@ export function SalesOrderLinesSection() {
                                 )}
                             </div>
 
+                            <div className="flex items-end gap-2">
+                                <LineNotePopover
+                                    value={line.notes}
+                                    onValueChange={(value) =>
+                                        updateLine(index, 'notes', value)
+                                    }
+                                    ariaLabel={`Nota de la línea ${index + 1}`}
+                                    placeholder="Instrucción de empaque, referencia…"
+                                />
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="size-[42px] rounded-[10px] bg-card"
+                                    onClick={() => removeLine(index)}
+                                    aria-label={`Quitar línea ${index + 1}`}
+                                >
+                                    <X className="size-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
-                                    Descuento (%)
+                                    Descuento %
                                 </Label>
                                 <NumberInput
                                     value={line.discount_percent}
@@ -226,12 +228,10 @@ export function SalesOrderLinesSection() {
                                     </p>
                                 )}
                             </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_2.4fr_1.4fr]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
-                                    Impuesto (%)
+                                    Impuesto %
                                 </Label>
                                 <NumberInput
                                     value={line.tax_percent}
@@ -247,48 +247,44 @@ export function SalesOrderLinesSection() {
 
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
-                                    Nota de la línea
+                                    Retención %
                                 </Label>
-                                <Input
-                                    type="text"
-                                    value={line.notes}
-                                    onChange={(e) =>
+                                <NumberInput
+                                    value={line.withholding_percent}
+                                    onValueChange={(value) =>
                                         updateLine(
                                             index,
-                                            'notes',
-                                            e.target.value,
+                                            'withholding_percent',
+                                            value,
                                         )
                                     }
-                                    placeholder="Instrucción de empaque, referencia…"
-                                    maxLength={500}
+                                    min={0}
+                                    max={100}
+                                    decimals={4}
                                     className="h-[42px] rounded-[10px]"
                                 />
                             </div>
+                        </div>
 
-                            <div className="flex flex-col gap-1 rounded-[10px] bg-muted px-3.5 py-2.5">
-                                <div className="flex items-center justify-between text-[12.5px]">
-                                    <span className="font-medium text-muted-foreground">
-                                        Subtotal
-                                    </span>
-                                    <b className="font-bold tabular-nums">
-                                        {formatAmount(amounts.subtotal)}
-                                    </b>
-                                </div>
-                                <div className="flex items-center justify-between text-[12.5px]">
-                                    <span className="font-medium text-muted-foreground">
-                                        Impuesto
-                                    </span>
-                                    <b className="font-bold tabular-nums">
-                                        {formatAmount(amounts.taxAmount)}
-                                    </b>
-                                </div>
-                                <div className="flex items-center justify-between text-[13.5px]">
-                                    <span className="font-semibold">Total</span>
-                                    <b className="font-extrabold tabular-nums">
-                                        {formatAmount(amounts.total)}
-                                    </b>
-                                </div>
-                            </div>
+                        <div className="flex flex-wrap justify-end gap-x-5 gap-y-1 border-t pt-3 text-[13px]">
+                            <span className="text-muted-foreground">
+                                Base{' '}
+                                <b className="font-bold text-foreground tabular-nums">
+                                    {formatAmount(amounts.subtotal)}
+                                </b>
+                            </span>
+                            <span className="text-muted-foreground">
+                                Impuesto{' '}
+                                <b className="font-bold text-foreground tabular-nums">
+                                    {formatAmount(amounts.taxAmount)}
+                                </b>
+                            </span>
+                            <span className="text-muted-foreground">
+                                Total{' '}
+                                <b className="font-bold text-foreground tabular-nums">
+                                    {formatAmount(amounts.total)}
+                                </b>
+                            </span>
                         </div>
                     </div>
                 );

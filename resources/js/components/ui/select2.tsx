@@ -1,25 +1,38 @@
-import * as React from "react"
-import ReactSelect, { 
-    Props as ReactSelectProps, 
-    GroupBase,
-    StylesConfig,
+import { ChevronDown } from 'lucide-react';
+import ReactSelect, {
     components,
-    DropdownIndicatorProps
-} from 'react-select'
-import { cn } from "@/lib/utils"
-import { ChevronDown } from "lucide-react"
+    DropdownIndicatorProps,
+    GroupBase,
+    Props as ReactSelectProps,
+    StylesConfig,
+} from 'react-select';
+import { cn } from '@/lib/utils';
 
 export interface OptionType {
     value: string;
     label: string;
 }
 
-interface Select2Props extends Omit<ReactSelectProps<OptionType, false, GroupBase<OptionType>>, 'classNames'> {
+type Select2Size = 'sm' | 'md';
+
+interface Select2Props
+    extends Omit<
+        ReactSelectProps<OptionType, false, GroupBase<OptionType>>,
+        'classNames'
+    > {
     error?: boolean;
     className?: string;
+    size?: Select2Size;
 }
 
-const DropdownIndicator = (props: DropdownIndicatorProps<OptionType, false, GroupBase<OptionType>>) => {
+const SIZES: Record<Select2Size, { height: string; radius: string }> = {
+    sm: { height: '36px', radius: '0.375rem' },
+    md: { height: '42px', radius: '10px' },
+};
+
+const DropdownIndicator = (
+    props: DropdownIndicatorProps<OptionType, false, GroupBase<OptionType>>,
+) => {
     return (
         <components.DropdownIndicator {...props}>
             <ChevronDown className="h-4 w-4 opacity-50" />
@@ -30,140 +43,141 @@ const DropdownIndicator = (props: DropdownIndicatorProps<OptionType, false, Grou
 function Select2({
     error = false,
     className,
+    size = 'sm',
     ...props
 }: Select2Props) {
-    // Obtener los valores CSS computados
-    const rootStyles = getComputedStyle(document.documentElement);
-    const inputColor = rootStyles.getPropertyValue('--input').trim();
-    const backgroundColor = rootStyles.getPropertyValue('--background').trim();
-    const popoverColor = rootStyles.getPropertyValue('--popover').trim();
-    const cardColor = rootStyles.getPropertyValue('--card').trim();
-    const ringColor = rootStyles.getPropertyValue('--ring').trim();
-    const destructiveColor = rootStyles.getPropertyValue('--destructive').trim();
-    const borderColor = rootStyles.getPropertyValue('--border').trim();
+    const { height, radius } = SIZES[size];
 
-    // Usar popover o card para el menú (más sólido)
-    const menuBackground = popoverColor || cardColor || backgroundColor;
-
-    const customStyles: StylesConfig<OptionType, false, GroupBase<OptionType>> = {
+    const customStyles: StylesConfig<
+        OptionType,
+        false,
+        GroupBase<OptionType>
+    > = {
         control: (base, state) => {
             const getBorderColor = () => {
-                if (error) return destructiveColor.includes('oklch') ? destructiveColor : `hsl(${destructiveColor})`;
-                if (state.isFocused) return ringColor.includes('oklch') ? ringColor : `hsl(${ringColor})`;
-                return inputColor.includes('oklch') ? inputColor : `hsl(${inputColor})`;
+                if (error) {
+                    return 'var(--destructive)';
+                }
+
+                if (state.isFocused) {
+                    return 'var(--ring)';
+                }
+
+                return 'var(--input)';
             };
 
             return {
-                minHeight: '36px',
-                height: '36px',
-                borderRadius: '0.375rem',
+                ...base,
+                minHeight: height,
+                height,
+                borderRadius: radius,
                 borderWidth: '1px',
                 borderStyle: 'solid',
                 borderColor: getBorderColor(),
-                backgroundColor: backgroundColor.includes('oklch') ? backgroundColor : `hsl(${backgroundColor})`,
+                backgroundColor: state.isDisabled
+                    ? 'var(--muted)'
+                    : 'var(--background)',
                 boxShadow: state.isFocused
-                    ? `0 0 0 3px ${ringColor.includes('oklch') ? ringColor.replace(')', ' / 0.5)') : `hsl(${ringColor} / 0.5)`}`
+                    ? '0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent)'
                     : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                 transition: 'all 0.2s',
                 outline: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'space-between',
-                position: 'relative',
+                cursor: state.isDisabled ? 'not-allowed' : 'pointer',
+                opacity: state.isDisabled ? 0.6 : 1,
                 '&:hover': {
                     borderColor: getBorderColor(),
                 },
             };
         },
         valueContainer: (base) => ({
-            height: '36px',
+            ...base,
+            height,
             padding: '0 0.75rem',
             display: 'flex',
             alignItems: 'center',
-            flex: 1,
-            flexWrap: 'wrap',
-            position: 'relative',
+            flexWrap: 'nowrap',
             overflow: 'hidden',
         }),
         input: (base) => ({
-            margin: '0',
-            padding: '0',
+            ...base,
+            margin: 0,
+            padding: 0,
             fontSize: '0.875rem',
-            color: `hsl(${rootStyles.getPropertyValue('--foreground').trim()})`,
-            gridArea: '1 / 1 / 2 / 3',
-            gridTemplateColumns: '0 min-content',
+            color: 'var(--foreground)',
         }),
         indicatorSeparator: () => ({
             display: 'none',
         }),
         indicatorsContainer: (base) => ({
-            height: '36px',
-            display: 'flex',
-            alignItems: 'center',
+            ...base,
+            height,
+        }),
+        clearIndicator: (base) => ({
+            ...base,
+            padding: '0 0.25rem',
+            color: 'var(--muted-foreground)',
+            cursor: 'pointer',
         }),
         dropdownIndicator: (base) => ({
+            ...base,
             padding: '0 0.5rem',
-            color: `hsl(${rootStyles.getPropertyValue('--muted-foreground').trim()})`,
-            display: 'flex',
-            alignItems: 'center',
+            color: 'var(--muted-foreground)',
         }),
         menu: (base) => ({
-            backgroundColor: menuBackground.includes('oklch') ? menuBackground : `hsl(${menuBackground})`,
-            border: `1px solid ${borderColor.includes('oklch') ? borderColor : `hsl(${borderColor})`}`,
+            ...base,
+            backgroundColor: 'var(--popover)',
+            border: '1px solid var(--border)',
             borderRadius: '0.5rem',
-            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-            marginTop: '0.5rem',
+            boxShadow:
+                '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+            marginTop: '0.25rem',
+            overflow: 'hidden',
             zIndex: 9999,
-            position: 'absolute',
-            width: '100%',
+        }),
+        menuPortal: (base) => ({
+            ...base,
+            zIndex: 9999,
         }),
         menuList: (base) => ({
+            ...base,
             padding: '0.25rem',
-            backgroundColor: menuBackground.includes('oklch') ? menuBackground : `hsl(${menuBackground})`,
             maxHeight: '300px',
-            overflowY: 'auto',
         }),
-        option: (base, state) => {
-            const accentColor = rootStyles.getPropertyValue('--accent').trim();
-            const accentForeground = rootStyles.getPropertyValue('--accent-foreground').trim();
-            const foregroundColor = rootStyles.getPropertyValue('--foreground').trim();
-
-            const getBackgroundColor = () => {
-                if (state.isSelected || state.isFocused) {
-                    return accentColor.includes('oklch') ? accentColor : `hsl(${accentColor})`;
-                }
-                return menuBackground.includes('oklch') ? menuBackground : `hsl(${menuBackground})`;
-            };
-
-            return {
-                backgroundColor: getBackgroundColor(),
-                color: state.isSelected
-                    ? (accentForeground.includes('oklch') ? accentForeground : `hsl(${accentForeground})`)
-                    : (foregroundColor.includes('oklch') ? foregroundColor : `hsl(${foregroundColor})`),
-                fontSize: '0.875rem',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '0.25rem',
-                cursor: 'pointer',
-                '&:active': {
-                    backgroundColor: accentColor.includes('oklch') ? accentColor : `hsl(${accentColor})`,
-                },
-            };
-        },
+        option: (base, state) => ({
+            ...base,
+            backgroundColor:
+                state.isSelected || state.isFocused
+                    ? 'var(--accent)'
+                    : 'transparent',
+            color: state.isSelected
+                ? 'var(--accent-foreground)'
+                : 'var(--foreground)',
+            fontSize: '0.875rem',
+            padding: '0.5rem 0.75rem',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+            '&:active': {
+                backgroundColor: 'var(--accent)',
+            },
+        }),
         placeholder: (base) => ({
-            color: `hsl(${rootStyles.getPropertyValue('--muted-foreground').trim()})`,
+            ...base,
+            color: 'var(--muted-foreground)',
             fontSize: '0.875rem',
             margin: 0,
-            position: 'absolute',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
         }),
         singleValue: (base) => ({
-            color: `hsl(${rootStyles.getPropertyValue('--foreground').trim()})`,
+            ...base,
+            color: 'var(--foreground)',
             fontSize: '0.875rem',
             margin: 0,
-            position: 'absolute',
         }),
         noOptionsMessage: (base) => ({
-            color: `hsl(${rootStyles.getPropertyValue('--muted-foreground').trim()})`,
+            ...base,
+            color: 'var(--muted-foreground)',
             fontSize: '0.875rem',
             padding: '0.5rem 0.75rem',
         }),
@@ -173,14 +187,17 @@ function Select2({
         <ReactSelect<OptionType, false, GroupBase<OptionType>>
             styles={customStyles}
             components={{ DropdownIndicator }}
-            className={cn("react-select-container", className)}
+            className={cn('react-select-container', className)}
             classNamePrefix="react-select"
-            noOptionsMessage={() => "No hay opciones disponibles"}
+            menuPortalTarget={
+                typeof document !== 'undefined' ? document.body : undefined
+            }
+            menuPosition="fixed"
+            noOptionsMessage={() => 'No hay opciones disponibles'}
             placeholder="Selecciona una opción..."
             {...props}
         />
     );
 }
 
-export { Select2 }
-
+export { Select2 };

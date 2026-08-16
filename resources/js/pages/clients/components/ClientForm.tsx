@@ -5,13 +5,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { COUNTRY_CODES } from '@/lib/phone';
 import { useClientFormContext } from '../contexts/ClientFormContext';
@@ -90,9 +84,42 @@ function TextField({
     );
 }
 
+const DOCUMENT_TYPE_OPTIONS: OptionType[] = Object.entries(
+    DOCUMENT_TYPE_LABELS,
+).map(([value, label]) => ({ value, label }));
+
+const CREDIT_BLOCKED_OPTIONS: OptionType[] = [
+    { value: 'no', label: 'No' },
+    { value: 'yes', label: 'Sí' },
+];
+
 export function ClientForm() {
     const { data, setData, processing, errors, handleSubmit, mode, options } =
         useClientFormContext();
+
+    const clientTypeOptions: OptionType[] = [
+        { value: NO_CLIENT_TYPE, label: 'Sin tipo' },
+        ...options.clientTypes.map((clientType) => ({
+            value: clientType.id,
+            label: clientType.name,
+        })),
+    ];
+
+    const priceListOptions: OptionType[] = [
+        { value: NO_PRICE_LIST, label: 'Lista por defecto de la empresa' },
+        ...options.priceLists.map((priceList) => ({
+            value: priceList.id,
+            label: priceList.name,
+        })),
+    ];
+
+    const salespersonOptions: OptionType[] = [
+        { value: NO_SALESPERSON, label: 'Sin vendedor' },
+        ...options.salespeople.map((salesperson) => ({
+            value: salesperson.id,
+            label: salesperson.name,
+        })),
+    ];
 
     return (
         <form
@@ -131,31 +158,23 @@ export function ClientForm() {
                             <Label className="text-[13px] font-semibold">
                                 Tipo de documento *
                             </Label>
-                            <Select
-                                value={data.document_type}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={DOCUMENT_TYPE_OPTIONS}
+                                value={
+                                    DOCUMENT_TYPE_OPTIONS.find(
+                                        (option) =>
+                                            option.value === data.document_type,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'document_type',
-                                        value as DocumentType,
+                                        (option?.value ?? '') as DocumentType,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(DOCUMENT_TYPE_LABELS).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.document_type}
+                                size="md"
+                            />
                             {errors.document_type && (
                                 <p className="text-sm text-bad">
                                     {errors.document_type}
@@ -182,32 +201,29 @@ export function ClientForm() {
                             <Label className="text-[13px] font-semibold">
                                 Tipo de cliente
                             </Label>
-                            <Select
-                                value={data.client_type_id || NO_CLIENT_TYPE}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={clientTypeOptions}
+                                value={
+                                    clientTypeOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.client_type_id ||
+                                                NO_CLIENT_TYPE),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'client_type_id',
-                                        value === NO_CLIENT_TYPE ? '' : value,
+                                        !option ||
+                                            option.value === NO_CLIENT_TYPE
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin tipo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_CLIENT_TYPE}>
-                                        Sin tipo
-                                    </SelectItem>
-                                    {options.clientTypes.map((clientType) => (
-                                        <SelectItem
-                                            key={clientType.id}
-                                            value={clientType.id}
-                                        >
-                                            {clientType.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.client_type_id}
+                                size="md"
+                                placeholder="Sin tipo"
+                            />
                             {errors.client_type_id && (
                                 <p className="text-sm text-bad">
                                     {errors.client_type_id}
@@ -382,32 +398,29 @@ export function ClientForm() {
                             <Label className="text-[13px] font-semibold">
                                 Lista de precio
                             </Label>
-                            <Select
-                                value={data.price_list_id || NO_PRICE_LIST}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={priceListOptions}
+                                value={
+                                    priceListOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.price_list_id ||
+                                                NO_PRICE_LIST),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'price_list_id',
-                                        value === NO_PRICE_LIST ? '' : value,
+                                        !option ||
+                                            option.value === NO_PRICE_LIST
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Lista por defecto" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_PRICE_LIST}>
-                                        Lista por defecto de la empresa
-                                    </SelectItem>
-                                    {options.priceLists.map((priceList) => (
-                                        <SelectItem
-                                            key={priceList.id}
-                                            value={priceList.id}
-                                        >
-                                            {priceList.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.price_list_id}
+                                size="md"
+                                placeholder="Lista por defecto"
+                            />
                             {errors.price_list_id && (
                                 <p className="text-sm text-bad">
                                     {errors.price_list_id}
@@ -419,32 +432,29 @@ export function ClientForm() {
                             <Label className="text-[13px] font-semibold">
                                 Vendedor asignado
                             </Label>
-                            <Select
-                                value={data.salesperson_id || NO_SALESPERSON}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={salespersonOptions}
+                                value={
+                                    salespersonOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.salesperson_id ||
+                                                NO_SALESPERSON),
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'salesperson_id',
-                                        value === NO_SALESPERSON ? '' : value,
+                                        !option ||
+                                            option.value === NO_SALESPERSON
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin vendedor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_SALESPERSON}>
-                                        Sin vendedor
-                                    </SelectItem>
-                                    {options.salespeople.map((salesperson) => (
-                                        <SelectItem
-                                            key={salesperson.id}
-                                            value={salesperson.id}
-                                        >
-                                            {salesperson.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.salesperson_id}
+                                size="md"
+                                placeholder="Sin vendedor"
+                            />
                             {errors.salesperson_id && (
                                 <p className="text-sm text-bad">
                                     {errors.salesperson_id}
@@ -535,20 +545,25 @@ export function ClientForm() {
                             <Label className="text-[13px] font-semibold">
                                 Crédito bloqueado
                             </Label>
-                            <Select
-                                value={data.credit_blocked}
-                                onValueChange={(value) =>
-                                    setData('credit_blocked', value as YesNo)
+                            <Select2
+                                options={CREDIT_BLOCKED_OPTIONS}
+                                value={
+                                    CREDIT_BLOCKED_OPTIONS.find(
+                                        (option) =>
+                                            option.value ===
+                                            data.credit_blocked,
+                                    ) ?? null
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="no">No</SelectItem>
-                                    <SelectItem value="yes">Sí</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                onChange={(option) =>
+                                    setData(
+                                        'credit_blocked',
+                                        (option?.value ?? 'no') as YesNo,
+                                    )
+                                }
+                                error={!!errors.credit_blocked}
+                                size="md"
+                                isSearchable={false}
+                            />
                             <span className="text-[12px] text-muted-foreground">
                                 Bloquea nuevas ventas a crédito
                             </span>

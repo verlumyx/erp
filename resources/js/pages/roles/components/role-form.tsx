@@ -4,16 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
+
+const PERMISSION_TYPE_OPTIONS: OptionType[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'custom', label: 'Personalizados' },
+];
 
 export function RoleForm() {
-    const {
-        data,
-        setData,
-        errors,
-        processing,
-        handleSubmit
-    } = useRoleFormContext();
+    const { data, setData, errors, processing, handleSubmit } =
+        useRoleFormContext();
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -31,27 +31,35 @@ export function RoleForm() {
                     maxLength={255}
                 />
                 {errors.name && (
-                    <p className="text-sm text-red-500 mt-1">{errors.name}</p>
+                    <p className="mt-1 text-sm text-red-500">{errors.name}</p>
                 )}
             </div>
 
             {/* Permission Type Field */}
             <div className="space-y-2">
                 <Label htmlFor="permission_type">Tipo de Permisos *</Label>
-                <Select
-                    value={data.permission_type}
-                    onValueChange={(value: 'all' | 'custom') => setData('permission_type', value)}
-                >
-                    <SelectTrigger className={errors.permission_type ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Seleccione el tipo de permisos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="custom">Personalizados</SelectItem>
-                    </SelectContent>
-                </Select>
+                <Select2
+                    inputId="permission_type"
+                    options={PERMISSION_TYPE_OPTIONS}
+                    value={
+                        PERMISSION_TYPE_OPTIONS.find(
+                            (option) => option.value === data.permission_type,
+                        ) ?? null
+                    }
+                    onChange={(option) =>
+                        setData(
+                            'permission_type',
+                            (option?.value ?? 'all') as 'all' | 'custom',
+                        )
+                    }
+                    error={!!errors.permission_type}
+                    placeholder="Seleccione el tipo de permisos"
+                    isSearchable={false}
+                />
                 {errors.permission_type && (
-                    <p className="text-sm text-red-500 mt-1">{errors.permission_type}</p>
+                    <p className="mt-1 text-sm text-red-500">
+                        {errors.permission_type}
+                    </p>
                 )}
             </div>
 
@@ -68,7 +76,9 @@ export function RoleForm() {
                     rows={4}
                 />
                 {errors.description && (
-                    <p className="text-sm text-red-500 mt-1">{errors.description}</p>
+                    <p className="mt-1 text-sm text-red-500">
+                        {errors.description}
+                    </p>
                 )}
             </div>
 
@@ -83,10 +93,7 @@ export function RoleForm() {
                     Cancelar
                 </Button>
 
-                <Button
-                    type="submit"
-                    disabled={processing}
-                >
+                <Button type="submit" disabled={processing}>
                     {processing ? 'Guardando...' : 'Guardar Rol'}
                 </Button>
             </div>

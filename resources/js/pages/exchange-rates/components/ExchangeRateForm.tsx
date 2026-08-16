@@ -5,13 +5,7 @@ import { Card } from '@/components/ui/card';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useExchangeRateFormContext } from '../contexts/ExchangeRateFormContext';
 import type { ExchangeRateType } from '../types/ExchangeRate';
@@ -42,6 +36,10 @@ function FormSectionHead({ step, title, sub, children }: FormSectionHeadProps) {
         </div>
     );
 }
+
+const TYPE_OPTIONS: OptionType[] = (
+    Object.keys(TYPE_LABELS) as ExchangeRateType[]
+).map((type) => ({ value: type, label: TYPE_LABELS[type] }));
 
 export function ExchangeRateForm() {
     const { data, setData, processing, errors, handleSubmit, mode } =
@@ -112,30 +110,22 @@ export function ExchangeRateForm() {
                                 >
                                     Tipo *
                                 </Label>
-                                <Select
-                                    value={data.type}
-                                    onValueChange={(value) =>
-                                        setData('type', value)
+                                <Select2
+                                    inputId="type"
+                                    options={TYPE_OPTIONS}
+                                    value={
+                                        TYPE_OPTIONS.find(
+                                            (option) =>
+                                                option.value === data.type,
+                                        ) ?? null
                                     }
-                                >
-                                    <SelectTrigger
-                                        id="type"
-                                        className={`h-[42px] w-full rounded-[10px] ${errors.type ? 'border-bad' : ''}`}
-                                    >
-                                        <SelectValue placeholder="Tipo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(
-                                            Object.keys(
-                                                TYPE_LABELS,
-                                            ) as ExchangeRateType[]
-                                        ).map((type) => (
-                                            <SelectItem key={type} value={type}>
-                                                {TYPE_LABELS[type]}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    onChange={(option) =>
+                                        setData('type', option?.value ?? '')
+                                    }
+                                    error={!!errors.type}
+                                    size="md"
+                                    placeholder="Tipo"
+                                />
                                 {errors.type && (
                                     <p className="text-sm text-bad">
                                         {errors.type}

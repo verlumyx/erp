@@ -13,13 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import taxRoutes from '@/routes/taxes';
 import type { Tax, TaxFilters, TaxMeta } from '../types/Tax';
 import { formatPercentage } from '../types/Tax';
@@ -34,6 +28,18 @@ interface PageProps {
     currentCompany?: { id: string; name: string } | null;
     [key: string]: unknown;
 }
+
+const WITHHOLDING_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'yes', label: 'Con retención' },
+    { value: 'no', label: 'Sin retención' },
+];
+
+const STATUS_OPTIONS: OptionType[] = [
+    { value: 'todos', label: 'Todos' },
+    { value: 'active', label: 'Activos' },
+    { value: 'inactive', label: 'Inactivos' },
+];
 
 export function TaxList({
     taxes: items,
@@ -126,59 +132,53 @@ export function TaxList({
                         <Label htmlFor="filter-has-withholding">
                             Retención
                         </Label>
-                        <Select
-                            value={filters.has_withholding ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-has-withholding"
+                            options={WITHHOLDING_OPTIONS}
+                            value={
+                                WITHHOLDING_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.has_withholding ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     has_withholding:
-                                        value === 'todos' ? undefined : value,
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-has-withholding"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Retención" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="yes">
-                                    Con retención
-                                </SelectItem>
-                                <SelectItem value="no">
-                                    Sin retención
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Retención"
+                            isSearchable={false}
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? 'todos'}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? 'todos'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     status:
-                                        value === 'todos' ? undefined : value,
+                                        !option || option.value === 'todos'
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos</SelectItem>
-                                <SelectItem value="active">Activos</SelectItem>
-                                <SelectItem value="inactive">
-                                    Inactivos
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                            isSearchable={false}
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

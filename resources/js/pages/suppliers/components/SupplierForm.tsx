@@ -6,13 +6,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useSupplierFormContext } from '../contexts/SupplierFormContext';
 import {
@@ -87,9 +81,21 @@ function TextField({
     );
 }
 
+const DOCUMENT_TYPE_OPTIONS: OptionType[] = Object.entries(
+    DOCUMENT_TYPE_LABELS,
+).map(([value, label]) => ({ value, label }));
+
 export function SupplierForm() {
     const { data, setData, processing, errors, handleSubmit, mode, options } =
         useSupplierFormContext();
+
+    const supplierTypeOptions: OptionType[] = [
+        { value: NO_SUPPLIER_TYPE, label: 'Sin tipo' },
+        ...options.supplierTypes.map((supplierType) => ({
+            value: supplierType.id,
+            label: supplierType.name,
+        })),
+    ];
 
     return (
         <form
@@ -128,31 +134,23 @@ export function SupplierForm() {
                             <Label className="text-[13px] font-semibold">
                                 Tipo de documento *
                             </Label>
-                            <Select
-                                value={data.document_type}
-                                onValueChange={(value) =>
+                            <Select2
+                                options={DOCUMENT_TYPE_OPTIONS}
+                                value={
+                                    DOCUMENT_TYPE_OPTIONS.find(
+                                        (option) =>
+                                            option.value === data.document_type,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
                                     setData(
                                         'document_type',
-                                        value as DocumentType,
+                                        (option?.value ?? '') as DocumentType,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(DOCUMENT_TYPE_LABELS).map(
-                                        ([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.document_type}
+                                size="md"
+                            />
                             {errors.document_type && (
                                 <p className="text-sm text-bad">
                                     {errors.document_type}
@@ -179,36 +177,29 @@ export function SupplierForm() {
                             <Label className="text-[13px] font-semibold">
                                 Tipo de proveedor
                             </Label>
-                            <Select
+                            <Select2
+                                options={supplierTypeOptions}
                                 value={
-                                    data.supplier_type_id || NO_SUPPLIER_TYPE
+                                    supplierTypeOptions.find(
+                                        (option) =>
+                                            option.value ===
+                                            (data.supplier_type_id ||
+                                                NO_SUPPLIER_TYPE),
+                                    ) ?? null
                                 }
-                                onValueChange={(value) =>
+                                onChange={(option) =>
                                     setData(
                                         'supplier_type_id',
-                                        value === NO_SUPPLIER_TYPE ? '' : value,
+                                        !option ||
+                                            option.value === NO_SUPPLIER_TYPE
+                                            ? ''
+                                            : option.value,
                                     )
                                 }
-                            >
-                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                    <SelectValue placeholder="Sin tipo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={NO_SUPPLIER_TYPE}>
-                                        Sin tipo
-                                    </SelectItem>
-                                    {options.supplierTypes.map(
-                                        (supplierType) => (
-                                            <SelectItem
-                                                key={supplierType.id}
-                                                value={supplierType.id}
-                                            >
-                                                {supplierType.name}
-                                            </SelectItem>
-                                        ),
-                                    )}
-                                </SelectContent>
-                            </Select>
+                                error={!!errors.supplier_type_id}
+                                size="md"
+                                placeholder="Sin tipo"
+                            />
                             {errors.supplier_type_id && (
                                 <p className="text-sm text-bad">
                                     {errors.supplier_type_id}

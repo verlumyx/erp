@@ -12,13 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import purchaseOrders from '@/routes/purchase-orders';
 import {
     isEditable,
@@ -45,6 +39,14 @@ interface PageProps {
 
 const ALL = 'todos';
 
+const STATUS_OPTIONS: OptionType[] = [
+    { value: ALL, label: 'Todos' },
+    ...Object.entries(STATUS_LABELS).map(([value, label]) => ({
+        value,
+        label,
+    })),
+];
+
 export function PurchaseOrderList({
     purchaseOrders: rows,
     meta,
@@ -56,6 +58,22 @@ export function PurchaseOrderList({
 
     const [filters, setFilters] =
         useState<PurchaseOrderFilters>(initialFilters);
+
+    const supplierOptions: OptionType[] = [
+        { value: ALL, label: 'Todos' },
+        ...options.suppliers.map((supplier) => ({
+            value: supplier.id,
+            label: supplier.name,
+        })),
+    ];
+
+    const warehouseOptions: OptionType[] = [
+        { value: ALL, label: 'Todas' },
+        ...options.warehouses.map((warehouse) => ({
+            value: warehouse.id,
+            label: warehouse.name,
+        })),
+    ];
 
     const applyFilters = (next: PurchaseOrderFilters) => {
         setFilters(next);
@@ -165,96 +183,77 @@ export function PurchaseOrderList({
 
                     <div className="space-y-2">
                         <Label htmlFor="filter-supplier">Proveedor</Label>
-                        <Select
-                            value={filters.supplier_id ?? ALL}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-supplier"
+                            options={supplierOptions}
+                            value={
+                                supplierOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.supplier_id ?? ALL),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     supplier_id:
-                                        value === ALL ? undefined : value,
+                                        !option || option.value === ALL
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-supplier"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Proveedor" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>Todos</SelectItem>
-                                {options.suppliers.map((supplier) => (
-                                    <SelectItem
-                                        key={supplier.id}
-                                        value={supplier.id}
-                                    >
-                                        {supplier.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Proveedor"
+                        />
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="filter-warehouse">Bodega</Label>
-                        <Select
-                            value={filters.warehouse_id ?? ALL}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-warehouse"
+                            options={warehouseOptions}
+                            value={
+                                warehouseOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.warehouse_id ?? ALL),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
                                     warehouse_id:
-                                        value === ALL ? undefined : value,
+                                        !option || option.value === ALL
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-warehouse"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Bodega" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>Todas</SelectItem>
-                                {options.warehouses.map((warehouse) => (
-                                    <SelectItem
-                                        key={warehouse.id}
-                                        value={warehouse.id}
-                                    >
-                                        {warehouse.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Bodega"
+                        />
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
-                        <Select
-                            value={filters.status ?? ALL}
-                            onValueChange={(value) =>
+                        <Select2
+                            inputId="filter-status"
+                            options={STATUS_OPTIONS}
+                            value={
+                                STATUS_OPTIONS.find(
+                                    (option) =>
+                                        option.value ===
+                                        (filters.status ?? ALL),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
                                 applyFilters({
                                     ...filters,
-                                    status: value === ALL ? undefined : value,
+                                    status:
+                                        !option || option.value === ALL
+                                            ? undefined
+                                            : option.value,
                                 })
                             }
-                        >
-                            <SelectTrigger
-                                id="filter-status"
-                                className="w-full"
-                            >
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value={ALL}>Todos</SelectItem>
-                                {Object.entries(STATUS_LABELS).map(
-                                    ([value, label]) => (
-                                        <SelectItem key={value} value={value}>
-                                            {label}
-                                        </SelectItem>
-                                    ),
-                                )}
-                            </SelectContent>
-                        </Select>
+                            placeholder="Estado"
+                        />
                     </div>
                 </div>
                 <div className="mt-4 flex justify-end gap-2">

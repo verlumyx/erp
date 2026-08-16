@@ -6,13 +6,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { usePurchaseOrderFormContext } from '../contexts/PurchaseOrderFormContext';
 import { formatAmount } from '../types/PurchaseOrder';
@@ -54,6 +48,15 @@ export function PurchaseOrderForm() {
         totals,
     } = usePurchaseOrderFormContext();
 
+    const supplierOptions: OptionType[] = options.suppliers.map((supplier) => ({
+        value: supplier.id,
+        label: `${supplier.code} · ${supplier.name}`,
+    }));
+
+    const warehouseOptions: OptionType[] = options.warehouses.map(
+        (warehouse) => ({ value: warehouse.id, label: warehouse.name }),
+    );
+
     /** El proveedor arrastra su moneda y sus días de crédito; ambos quedan editables. */
     const handleSupplierChange = (supplierId: string) => {
         const supplier = options.suppliers.find(
@@ -86,26 +89,21 @@ export function PurchaseOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Proveedor *
                             </Label>
-                            <Select
-                                value={data.supplier_id}
-                                onValueChange={handleSupplierChange}
-                            >
-                                <SelectTrigger
-                                    className={`h-[42px] w-full rounded-[10px] ${errors.supplier_id ? 'border-bad' : ''}`}
-                                >
-                                    <SelectValue placeholder="Selecciona un proveedor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.suppliers.map((supplier) => (
-                                        <SelectItem
-                                            key={supplier.id}
-                                            value={supplier.id}
-                                        >
-                                            {supplier.code} · {supplier.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Select2
+                                options={supplierOptions}
+                                value={
+                                    supplierOptions.find(
+                                        (option) =>
+                                            option.value === data.supplier_id,
+                                    ) ?? null
+                                }
+                                onChange={(option) =>
+                                    handleSupplierChange(option?.value ?? '')
+                                }
+                                error={!!errors.supplier_id}
+                                size="md"
+                                placeholder="Selecciona un proveedor"
+                            />
                             {errors.supplier_id && (
                                 <p className="text-sm text-bad">
                                     {errors.supplier_id}
@@ -117,28 +115,21 @@ export function PurchaseOrderForm() {
                             <Label className="text-[13px] font-semibold">
                                 Bodega de recepción *
                             </Label>
-                            <Select
-                                value={data.warehouse_id}
-                                onValueChange={(value) =>
-                                    setData('warehouse_id', value)
+                            <Select2
+                                options={warehouseOptions}
+                                value={
+                                    warehouseOptions.find(
+                                        (option) =>
+                                            option.value === data.warehouse_id,
+                                    ) ?? null
                                 }
-                            >
-                                <SelectTrigger
-                                    className={`h-[42px] w-full rounded-[10px] ${errors.warehouse_id ? 'border-bad' : ''}`}
-                                >
-                                    <SelectValue placeholder="Selecciona una bodega" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {options.warehouses.map((warehouse) => (
-                                        <SelectItem
-                                            key={warehouse.id}
-                                            value={warehouse.id}
-                                        >
-                                            {warehouse.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                onChange={(option) =>
+                                    setData('warehouse_id', option?.value ?? '')
+                                }
+                                error={!!errors.warehouse_id}
+                                size="md"
+                                placeholder="Selecciona una bodega"
+                            />
                             {errors.warehouse_id && (
                                 <p className="text-sm text-bad">
                                     {errors.warehouse_id}

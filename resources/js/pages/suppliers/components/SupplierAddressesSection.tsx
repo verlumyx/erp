@@ -2,13 +2,7 @@ import { Plus, Star, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select2, type OptionType } from '@/components/ui/select2';
 import { useSupplierFormContext } from '../contexts/SupplierFormContext';
 import { ADDRESS_TYPE_LABELS, type AddressType } from '../types/Supplier';
 
@@ -16,6 +10,10 @@ import { ADDRESS_TYPE_LABELS, type AddressType } from '../types/Supplier';
  * 1.2 Direcciones del proveedor. Cada tipo (facturación, retiro, almacén) puede
  * tener una dirección sugerida.
  */
+const ADDRESS_TYPE_OPTIONS: OptionType[] = Object.entries(
+    ADDRESS_TYPE_LABELS,
+).map(([value, label]) => ({ value, label }));
+
 export function SupplierAddressesSection() {
     const {
         data,
@@ -52,32 +50,25 @@ export function SupplierAddressesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Tipo *
                                 </Label>
-                                <Select
-                                    value={address.type}
-                                    onValueChange={(value) =>
+                                <Select2
+                                    options={ADDRESS_TYPE_OPTIONS}
+                                    value={
+                                        ADDRESS_TYPE_OPTIONS.find(
+                                            (option) =>
+                                                option.value === address.type,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
                                         updateAddress(
                                             index,
                                             'type',
-                                            value as AddressType,
+                                            (option?.value ??
+                                                '') as AddressType,
                                         )
                                     }
-                                >
-                                    <SelectTrigger className="h-[42px] w-full rounded-[10px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(
-                                            ADDRESS_TYPE_LABELS,
-                                        ).map(([value, label]) => (
-                                            <SelectItem
-                                                key={value}
-                                                value={value}
-                                            >
-                                                {label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    size="md"
+                                    isSearchable={false}
+                                />
                             </div>
 
                             <div className="flex flex-col gap-1.5">

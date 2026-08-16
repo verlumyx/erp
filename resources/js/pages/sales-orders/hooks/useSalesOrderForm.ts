@@ -23,6 +23,7 @@ export interface SalesOrderLineRow {
     list_price: number;
     discount_percent: number;
     tax_percent: number;
+    withholding_percent: number;
     notes: string;
 }
 
@@ -88,6 +89,7 @@ function emptyLine(): SalesOrderLineRow {
         list_price: 0,
         discount_percent: 0,
         tax_percent: 0,
+        withholding_percent: 0,
         notes: '',
     };
 }
@@ -109,6 +111,7 @@ function lineRows(order?: SalesOrder): SalesOrderLineRow[] {
             list_price: Number(line.list_price),
             discount_percent: Number(line.discount_percent),
             tax_percent: Number(line.tax_percent),
+            withholding_percent: Number(line.withholding_percent),
             notes: line.notes ?? '',
         }));
 

@@ -49,6 +49,29 @@ test('a purchase order can be created', function () {
     expect((float) $line->subtotal)->toBe(250.0);
 });
 
+test('the note of a line is stored', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $payload = purchaseOrderPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 4,
+                'unit_price' => 30,
+                'notes' => 'Confirmar empaque con el proveedor.',
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $line = PurchaseOrder::with('lines')->find($payload['id'])->lines->first();
+    expect($line->notes)->toBe('Confirmar empaque con el proveedor.');
+});
+
 test('the totals are calculated on the backend and ignore what the client sends', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
 

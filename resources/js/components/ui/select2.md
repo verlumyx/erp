@@ -54,7 +54,12 @@ function MyComponent() {
 | `isClearable` | `boolean` | `false` | Permite limpiar la selección |
 | `isSearchable` | `boolean` | `true` | Permite buscar opciones |
 | `isDisabled` | `boolean` | `false` | Deshabilita el select |
+| `size` | `'sm' \| 'md'` | `'sm'` | Alto del control: `sm` = 36px (filtros de listado), `md` = 42px y radio 10px (campos de formulario) |
+| `inputId` | `string` | - | Id del input interno; úsalo para enlazar el `<Label htmlFor>` |
 | `className` | `string` | - | Clases CSS adicionales |
+
+> El menú se renderiza en un portal sobre `document.body` con `menuPosition="fixed"`,
+> así no lo recorta ningún contenedor con `overflow` (tablas, tarjetas, diálogos).
 
 ## 📚 Ejemplos
 
@@ -254,17 +259,13 @@ export interface OptionType {
 
 ## 💡 Cuándo Usar
 
-**Usa Select2 cuando:**
-- Necesitas búsqueda en las opciones
-- Tienes muchas opciones (>10)
-- Necesitas limpiar la selección
-- Necesitas funcionalidades avanzadas
+Select2 es el select estándar de la aplicación: todos los formularios y filtros
+de listado lo usan. El `Select` de shadcn/ui (`@/components/ui/select`) ya no se
+usa en ninguna pantalla.
 
-**Usa Select de shadcn/ui cuando:**
-- Tienes pocas opciones (<10)
-- No necesitas búsqueda
-- Prefieres un componente más ligero
-- No necesitas funcionalidades avanzadas
+- Campos de formulario: `size="md"` y `error={!!errors.campo}`.
+- Filtros de listado: tamaño por defecto; añade `isSearchable={false}` cuando el
+  filtro tiene pocas opciones fijas (estado, sí/no).
 
 ## 🐛 Troubleshooting
 
