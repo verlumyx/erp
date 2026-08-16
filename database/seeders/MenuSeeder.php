@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Modules\Menu\Models\Menu;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class MenuSeeder extends Seeder
 {
@@ -13,7 +12,6 @@ class MenuSeeder extends Seeder
         $menus = [
             // Main navigation
             [
-                'id' => (string) Str::uuid7(),
                 'parent_id' => null,
                 'title' => 'Dashboard',
                 'icon' => 'LayoutGrid',
@@ -24,7 +22,6 @@ class MenuSeeder extends Seeder
                 'section' => 'main',
             ],
             [
-                'id' => (string) Str::uuid7(),
                 'parent_id' => null,
                 'title' => 'Clientes',
                 'icon' => 'Contact',
@@ -39,7 +36,6 @@ class MenuSeeder extends Seeder
              * si al menos uno de sus hijos es visible para el usuario.
              */
             [
-                'id' => (string) Str::uuid7(),
                 'parent_id' => null,
                 'title' => 'Catálogo',
                 'icon' => 'Library',
@@ -50,7 +46,6 @@ class MenuSeeder extends Seeder
                 'section' => 'main',
                 'children' => [
                     [
-                        'id' => (string) Str::uuid7(),
                         'title' => 'Categorías',
                         'icon' => 'Tags',
                         'url' => '/categories',
@@ -60,7 +55,6 @@ class MenuSeeder extends Seeder
                         'section' => 'main',
                     ],
                     [
-                        'id' => (string) Str::uuid7(),
                         'title' => 'Unidades de medida',
                         'icon' => 'Ruler',
                         'url' => '/measurement-units',
@@ -70,7 +64,6 @@ class MenuSeeder extends Seeder
                         'section' => 'main',
                     ],
                     [
-                        'id' => (string) Str::uuid7(),
                         'title' => 'Tipos de proveedor',
                         'icon' => 'Truck',
                         'url' => '/supplier-types',
@@ -80,7 +73,6 @@ class MenuSeeder extends Seeder
                         'section' => 'main',
                     ],
                     [
-                        'id' => (string) Str::uuid7(),
                         'title' => 'Tipos de cliente',
                         'icon' => 'ContactRound',
                         'url' => '/client-types',
@@ -90,7 +82,6 @@ class MenuSeeder extends Seeder
                         'section' => 'main',
                     ],
                     [
-                        'id' => (string) Str::uuid7(),
                         'title' => 'Listas de precio',
                         'icon' => 'DollarSign',
                         'url' => '/price-lists',
@@ -100,7 +91,6 @@ class MenuSeeder extends Seeder
                         'section' => 'main',
                     ],
                     [
-                        'id' => (string) Str::uuid7(),
                         'title' => 'Tasas',
                         'icon' => 'Coins',
                         'url' => '/exchange-rates',
@@ -111,10 +101,52 @@ class MenuSeeder extends Seeder
                     ],
                 ],
             ],
+            /**
+             * Inventario: grupo padre sin URL ni permiso propio. Permanece oculto
+             * hasta que tenga al menos un hijo visible (Artículos, Bodegas, etc.).
+             */
+            [
+                'parent_id' => null,
+                'title' => 'Inventario',
+                'icon' => 'Boxes',
+                'url' => null,
+                'permission' => null,
+                'order' => 4,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Catálogo de artículos',
+                        'icon' => 'Package',
+                        'url' => '/items',
+                        'permission' => 'items.list',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Bodegas',
+                        'icon' => 'Warehouse',
+                        'url' => '/warehouses',
+                        'permission' => 'warehouses.list',
+                        'order' => 2,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Ubicaciones',
+                        'icon' => 'MapPin',
+                        'url' => '/warehouse-locations',
+                        'permission' => 'warehouse-locations.list',
+                        'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
 
             // Footer navigation (admin section)
             [
-                'id' => (string) Str::uuid7(),
                 'parent_id' => null,
                 'title' => 'Usuarios',
                 'icon' => 'UserCheck',
@@ -125,7 +157,6 @@ class MenuSeeder extends Seeder
                 'section' => 'footer',
             ],
             [
-                'id' => (string) Str::uuid7(),
                 'parent_id' => null,
                 'title' => 'Roles',
                 'icon' => 'Users',
@@ -139,7 +170,6 @@ class MenuSeeder extends Seeder
              * 'system_owner' es un permiso reservado: este menú solo lo ve el dueño del sistema.
              */
             [
-                'id' => (string) Str::uuid7(),
                 'parent_id' => null,
                 'title' => 'Empresas',
                 'icon' => 'Building2',

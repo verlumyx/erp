@@ -16,6 +16,9 @@ DECLARE
     v_mod_cli_types   UUID;
     v_mod_price_lists UUID;
     v_mod_exch_rates  UUID;
+    v_mod_items       UUID;
+    v_mod_warehouses  UUID;
+    v_mod_wh_locs     UUID;
 BEGIN
 
     -- ==========================================================
@@ -34,7 +37,10 @@ BEGIN
         (gen_random_uuid(), 'supplier-types', 'Tipos de proveedor', 'Catálogo de tipos de proveedor', 'Truck', true, 7, NOW(), NOW()),
         (gen_random_uuid(), 'client-types', 'Tipos de cliente', 'Catálogo de tipos de cliente', 'ContactRound', true, 8, NOW(), NOW()),
         (gen_random_uuid(), 'price-lists', 'Listas de precio', 'Catálogo de listas de precio de venta', 'DollarSign', true, 9, NOW(), NOW()),
-        (gen_random_uuid(), 'exchange-rates', 'Tasas', 'Catálogo de tasas de cambio por fecha', 'Coins', true, 10, NOW(), NOW())
+        (gen_random_uuid(), 'exchange-rates', 'Tasas', 'Catálogo de tasas de cambio por fecha', 'Coins', true, 10, NOW(), NOW()),
+        (gen_random_uuid(), 'items', 'Catálogo de artículos', 'Maestro de productos y servicios', 'Package', true, 11, NOW(), NOW()),
+        (gen_random_uuid(), 'warehouses', 'Bodegas', 'Lugares físicos o lógicos donde se almacena inventario', 'Warehouse', true, 12, NOW(), NOW()),
+        (gen_random_uuid(), 'warehouse-locations', 'Ubicaciones', 'Ubicaciones internas de las bodegas', 'MapPin', true, 13, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -48,6 +54,9 @@ BEGIN
     SELECT id INTO v_mod_cli_types  FROM app_modules WHERE name = 'client-types';
     SELECT id INTO v_mod_price_lists FROM app_modules WHERE name = 'price-lists';
     SELECT id INTO v_mod_exch_rates  FROM app_modules WHERE name = 'exchange-rates';
+    SELECT id INTO v_mod_items       FROM app_modules WHERE name = 'items';
+    SELECT id INTO v_mod_warehouses  FROM app_modules WHERE name = 'warehouses';
+    SELECT id INTO v_mod_wh_locs     FROM app_modules WHERE name = 'warehouse-locations';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -154,6 +163,36 @@ BEGIN
         (gen_random_uuid(), v_mod_exch_rates, 'exchange-rates.show',          'Ver detalle de tasa',      true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_exch_rates, 'exchange-rates.update',        'Editar tasas',             true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_exch_rates, 'exchange-rates.update-status', 'Cambiar estado de tasa',   true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Catálogo de artículos
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_items, 'items.list',          'Listar artículos',            true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_items, 'items.create',        'Crear artículos',             true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_items, 'items.show',          'Ver detalle de artículo',     true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_items, 'items.update',        'Editar artículos',            true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_items, 'items.update-status', 'Cambiar estado de artículo',  true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Bodegas
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_warehouses, 'warehouses.list',          'Listar bodegas',            true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_warehouses, 'warehouses.create',        'Crear bodegas',             true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_warehouses, 'warehouses.show',          'Ver detalle de bodega',     true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_warehouses, 'warehouses.update',        'Editar bodegas',            true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_warehouses, 'warehouses.update-status', 'Cambiar estado de bodega',  true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Ubicaciones
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.list',          'Listar ubicaciones',           true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.create',        'Crear ubicaciones',            true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.show',          'Ver detalle de ubicación',     true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.update',        'Editar ubicaciones',           true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_wh_locs, 'warehouse-locations.update-status', 'Cambiar estado de ubicación',  true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
 END $$;

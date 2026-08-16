@@ -787,26 +787,38 @@ Register the module and its permissions in `database/sql/seed_initial_modules.sq
 
 ### 3. Sidebar menu (ALWAYS add the URL)
 
-**Every new module MUST add its URL to `database/sql/seed_initial_menus.sql`.**
-Without this row the module exists but has no entry in the sidebar, so users can't
-reach it. Add an `INSERT` into `app_menus` with the module's `url`
-(e.g. `/{module-name}s`) and its `.list` permission:
+**Every new module MUST add its entry to `database/seeders/MenuSeeder.php`** — the
+single source of truth for the sidebar. Without it the module exists but has no
+entry in the sidebar, so users can't reach it. Add an item to the `$menus` array
+with the module's `url` (e.g. `/{module-name}s`) and its `.list` permission:
 
-```sql
--- {ModuleName}
-('<uuid-v7>', NULL, '{Label}', '/{module-name}s', '{module-name}s.list', '{Icon}', true, {order}, 'main', NOW(), NOW())
+```php
+[
+    'parent_id' => null,
+    'title' => '{Label}',
+    'icon' => '{Icon}',
+    'url' => '/{module-name}s',
+    'permission' => '{module-name}s.list',
+    'order' => {order},
+    'is_active' => true,
+    'section' => 'main',
+],
 ```
 
 - `url` must match the module's index route (without the `/{company}` prefix —
   `HandleInertiaRequests` prepends the company id at runtime).
 - `permission` is the module's `.list` action; the menu is hidden if the user
   lacks it.
-- A parent group with children must use `section = 'main'` (the footer nav does
-  not render children). Keep `MenuSeeder.php` in sync — it is the runnable mirror
-  of this SQL.
+- A child goes in the parent's `children` array; the seeder resolves `parent_id`.
+  A parent group with children must use `section = 'main'` (the footer nav does
+  not render children). A group with `url = null` stays hidden until it has at
+  least one visible child.
+- Never set `id`: `Menu` uses `HasUuids` and generates a uuid7 on insert. Passing
+  an `id` makes `updateOrCreate` rewrite the PK on every run and breaks `parent_id`.
+- The seeder is idempotent (matches on `title` + `section`), so it can be re-run.
 
-> These seeds do not run automatically. Apply manually, e.g.:
-> `docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -q' < database/sql/seed_initial_menus.sql`
+> Apply it with:
+> `docker compose exec -T app php artisan db:seed --class=MenuSeeder --force`
 
 ---
 
@@ -937,6 +949,6 @@ class {ModuleName}UpdateStatusTest extends TestCase
 8. Unit tests mock the Repository — they never touch the database.
 9. Feature tests use `RefreshDatabase` and test the full HTTP flow.
 10. IDs are UUIDs — always validate with the UUID regex in routes.
-11. **Always** add the new module's URL to `database/sql/seed_initial_menus.sql`
-    (and keep `MenuSeeder.php` in sync). A module without this row has no sidebar
-    entry and is unreachable. See *Registering the Module → Sidebar menu*.
+11. **Always** add the new module's URL to `database/seeders/MenuSeeder.php`, the
+    single source of truth for the sidebar. A module without this entry has no
+    sidebar entry and is unreachable. See *Registering the Module → Sidebar menu*.

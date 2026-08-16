@@ -8,7 +8,7 @@ Núcleo del ERP: define **qué** se compra, se vende y se mueve (artículos), **
 
 | Módulo | Tabla | Prefijo |
 |---|---|---|
-| Catálogo de artículos | `app_items` (+ detalle: `app_item_units`, `app_item_taxes`, `app_item_warehouses`) | `ART` |
+| Catálogo de artículos | `app_items` (+ detalle: `app_item_units`, `app_item_prices`) | `ART` |
 | Bodega | `app_warehouses` | `BOD` |
 | Ubicaciones | `app_warehouse_locations` | `UBI` |
 | Lotes | `app_item_lots` | `LOT` |
@@ -32,31 +32,21 @@ Maestro de productos y servicios. Es el registro más referenciado del sistema.
 | `barcode` | `string(60)` | Sí | | Código de barras principal (EAN/UPC). |
 | `name` | `string(200)` | No | | Nombre comercial. |
 | `description` | `text` | Sí | | Descripción larga. |
-| `type` | `enum` | No | `'product'` | `product` (inventariable), `service` (no afecta stock), `kit` (compuesto). |
+| `type` | `enum` | No | `'inventoried'` | `inventoried` (inventariado: afecta stock y kardex), `non_inventoried` (no inventariado: se compra/vende pero no lleva existencia), `service` (servicio: no afecta stock), `kit` (lote/kit: compuesto por otros artículos), `serialized` (serializado: cada unidad se controla por número de serie). |
 | `category_id` | `uuid` | Sí | | FK → `app_categories.id` (`nullOnDelete`). |
-| `measurement_unit_id` | `uuid` | No | | FK → `app_measurement_units.id` (`restrictOnDelete`). **Unidad base** del artículo; todo el stock se guarda en ella. |
-| `purchase_unit_id` | `uuid` | Sí | | FK → `app_measurement_units.id`. Unidad sugerida en compras. |
-| `sale_unit_id` | `uuid` | Sí | | FK → `app_measurement_units.id`. Unidad sugerida en ventas. |
 | `sale_tax_id` | `uuid` | Sí | | FK → `app_taxes.id`. Impuesto por defecto en venta. |
 | `purchase_tax_id` | `uuid` | Sí | | FK → `app_taxes.id`. Impuesto por defecto en compra. |
 | `cost_method` | `enum` | No | `'average'` | `average` (promedio ponderado), `fifo`, `standard`. Método de valuación. |
 | `standard_cost` | `decimal(18,6)` | No | `0` | Costo estándar (si `cost_method = standard`). |
 | `average_cost` | `decimal(18,6)` | No | `0` | Costo promedio actual; lo recalcula cada entrada. Solo lectura para el usuario. |
-| `last_purchase_cost` | `decimal(18,6)` | No | `0` | Último costo de compra registrado. |
-| `base_price` | `decimal(18,6)` | No | `0` | Precio de venta base cuando no hay lista aplicable. |
 | `min_price` | `decimal(18,6)` | No | `0` | Precio mínimo permitido; bloquea descuentos excesivos. |
-| `is_inventoriable` | `enum` | No | `'yes'` | `no` para servicios: no genera movimientos de stock. |
 | `is_purchasable` | `enum` | No | `'yes'` | Puede aparecer en documentos de compra. |
 | `is_sellable` | `enum` | No | `'yes'` | Puede aparecer en documentos de venta. |
-| `tracks_lot` | `enum` | No | `'no'` | Exige lote en cada movimiento. |
-| `tracks_serial` | `enum` | No | `'no'` | Exige número de serie unitario. |
-| `tracks_expiration` | `enum` | No | `'no'` | Exige fecha de vencimiento; implica `tracks_lot`. |
 | `min_stock` | `decimal(18,4)` | No | `0` | Punto de reorden global. |
 | `max_stock` | `decimal(18,4)` | No | `0` | Existencia máxima sugerida. |
 | `reorder_quantity` | `decimal(18,4)` | No | `0` | Cantidad sugerida a comprar al llegar al mínimo. |
 | `weight` | `decimal(18,4)` | No | `0` | Peso unitario en la unidad base de peso. |
 | `volume` | `decimal(18,4)` | No | `0` | Volumen unitario. |
-| `default_warehouse_id` | `uuid` | Sí | | FK → `app_warehouses.id` (`nullOnDelete`). Bodega sugerida. |
 | `image_path` | `string(500)` | Sí | | Ruta de la imagen en storage. |
 | `notes` | `text` | Sí | | |
 
@@ -65,67 +55,67 @@ Maestro de productos y servicios. Es el registro más referenciado del sistema.
 
 **Reglas**
 - `sku` es obligatorio y único por empresa; `code` (`ART000001`) es el secuencial automático adicional.
-- Cambiar `measurement_unit_id` está bloqueado si el artículo ya tiene movimientos.
+- Las unidades de medida **no** viven en esta tabla: se configuran en `app_item_units`, donde una
+  de ellas se marca como base (`is_base = 'yes'`).
+- Los impuestos se manejan **solo** aquí (`sale_tax_id`, `purchase_tax_id`); no hay tabla pivot de impuestos.
 - `average_cost` y `last_purchase_cost` **nunca** se editan a mano: los actualiza el proceso de entrada.
-- Un artículo `type = service` fuerza `is_inventoriable = 'no'`.
+- Los tipos `service` y `non_inventoried` no generan movimientos de kardex ni registros en `app_item_stocks`.
+- `serialized` obliga a registrar `app_item_serials` en cada entrada y salida.
 - No se puede desactivar si tiene existencia distinta de cero o documentos abiertos.
 
-### 1.1 Unidades alternativas — `app_item_units`
+### 1.1 Unidades del artículo — `app_item_units`
 
-Permite comprar en caja y vender en unidad para un mismo artículo.
+Todas las unidades de medida del artículo. Se seleccionan al crear el artículo: una se marca como
+**base** (`is_base = 'yes'`) y el resto se definen por su factor de conversión contra ella. Permite
+comprar en caja y vender en unidad para un mismo artículo.
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
 | `id` | `uuid` | No | | PK. |
 | `company_id` | `uuid` | Sí | | FK → `app_companies.id`. Heredado del artículo. |
 | `item_id` | `uuid` | No | | FK → `app_items.id` (`cascadeOnDelete`). |
-| `measurement_unit_id` | `uuid` | No | | FK → `app_measurement_units.id`. |
+| `measurement_unit_id` | `uuid` | No | | FK → `app_measurement_units.id` (`restrictOnDelete`). |
+| `is_base` | `enum` | No | `'no'` | `yes` = unidad base del artículo; todo el stock se guarda en ella. Exactamente una por artículo. |
 | `conversion_factor` | `decimal(18,8)` | No | `1` | Unidades base que contiene 1 de esta unidad (p. ej. 1 `cja` = 12 `un`). |
-| `barcode` | `string(60)` | Sí | | Código de barras propio del empaque. |
-| `is_purchase_default` | `enum` | No | `'no'` | |
-| `is_sale_default` | `enum` | No | `'no'` | |
 | `status` | `enum` | No | `'active'` | `active` / `inactive`. |
 | `created_at` / `updated_at` | `timestamp` | Sí | | |
 
-**Índices:** `unique(item_id, measurement_unit_id)`, `index(barcode)`, `index(company_id)`, `index(status)`.
+**Índices:** `unique(item_id, measurement_unit_id)`, `index(company_id)`, `index(is_base)`, `index(status)`.
 
-> La conversión vive aquí y no en `app_measurement_units`, porque el contenido de una caja cambia de
-> producto en producto.
+**Reglas**
+- Todo artículo debe tener **exactamente una** fila con `is_base = 'yes'`, y esa fila lleva
+  `conversion_factor = 1`.
+- Cambiar la unidad base está bloqueado si el artículo ya tiene movimientos.
+- No se puede desactivar ni quitar una unidad usada en documentos abiertos.
+- La conversión vive aquí y no en `app_measurement_units`, porque el contenido de una caja cambia de
+  producto en producto.
 
-### 1.2 Impuestos adicionales — `app_item_taxes`
+### 1.2 Precios por lista — `app_item_prices`
 
-Pivot para artículos con más de un impuesto (p. ej. IVA + impuesto específico).
-
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `id` | `uuid` | No | PK. |
-| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del artículo. |
-| `item_id` | `uuid` | No | FK → `app_items.id` (`cascadeOnDelete`). |
-| `tax_id` | `uuid` | No | FK → `app_taxes.id` (`restrictOnDelete`). |
-| `scope` | `enum` | No | `sale`, `purchase`. |
-| `order` | `integer` | No | Orden de aplicación (impuestos en cascada). |
-| `status` | `enum` | No | `active` / `inactive`. |
-| `created_at` / `updated_at` | `timestamp` | Sí | |
-
-**Índices:** `unique(item_id, tax_id, scope)`, `index(company_id)`, `index(status)`.
-
-### 1.3 Parámetros por bodega — `app_item_warehouses`
-
-Mínimos y máximos específicos por bodega, que sobrescriben los del artículo.
+Precio del artículo en cada lista de precio. La lista solo nombra el conjunto
+(ver [Catálogo](catalogo.md)); el precio, la moneda y la vigencia se definen aquí.
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
 | `id` | `uuid` | No | | PK. |
 | `company_id` | `uuid` | Sí | | FK → `app_companies.id`. Heredado del artículo. |
 | `item_id` | `uuid` | No | | FK → `app_items.id` (`cascadeOnDelete`). |
-| `warehouse_id` | `uuid` | No | | FK → `app_warehouses.id` (`cascadeOnDelete`). |
-| `min_stock` | `decimal(18,4)` | No | `0` | |
-| `max_stock` | `decimal(18,4)` | No | `0` | |
-| `default_location_id` | `uuid` | Sí | | FK → `app_warehouse_locations.id`. Ubicación sugerida. |
+| `price_list_id` | `uuid` | No | | FK → `app_price_lists.id` (`restrictOnDelete`). |
+| `price` | `decimal(18,6)` | No | `0` | Precio unitario en la unidad base del artículo. |
+| `currency` | `string(3)` | No | | Moneda ISO 4217 del precio. |
+| `valid_from` | `date` | Sí | | Inicio de vigencia. Nulo = vigente desde siempre. |
+| `valid_to` | `date` | Sí | | Fin de vigencia. Nulo = sin vencimiento. |
 | `status` | `enum` | No | `'active'` | `active` / `inactive`. |
 | `created_at` / `updated_at` | `timestamp` | Sí | | |
 
-**Índices:** `unique(item_id, warehouse_id)`, `index(company_id)`, `index(status)`.
+**Índices:** `unique(item_id, price_list_id, valid_from)`, `index(company_id)`, `index(price_list_id)`, `index(status)`.
+
+**Reglas**
+- `price` nunca puede quedar por debajo de `app_items.min_price`.
+- El precio se **copia** a la línea del documento al confirmarlo; cambiarlo después no altera
+  documentos ya emitidos.
+- El orden de resolución en una venta es: precio del artículo en la lista del cliente
+  (`app_clients.price_list_id`) → precio del artículo en la lista por defecto de la empresa.
 
 ---
 
@@ -157,8 +147,10 @@ Lugares físicos o lógicos donde se almacena inventario.
 
 ### 2.1 Ubicaciones — `app_warehouse_locations` — Prefijo `UBI`
 
-Solo aplica si la bodega tiene `uses_locations = 'yes'`. Es tabla de módulo: lleva las columnas base
-(`company_id`, `code`, `status`, `created_by`, timestamps).
+Toda bodega tiene ubicaciones, porque `app_item_stocks.location_id` es obligatorio. Si
+`uses_locations = 'no'`, la bodega se crea con una única ubicación llamada **"Principal"** y el
+usuario no la gestiona; si es `'yes'`, se habilita el árbol completo (pasillo/estante). Es tabla de
+módulo: lleva las columnas base (`company_id`, `code`, `status`, `created_by`, timestamps).
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
@@ -168,8 +160,20 @@ Solo aplica si la bodega tiene `uses_locations = 'yes'`. Es tabla de módulo: ll
 | `location_code` | `string(50)` | No | | Código físico rotulado en el estante (`A-01-03`). Distinto de `code` (`UBI000001`), que es el correlativo del sistema. |
 | `type` | `enum` | No | `'shelf'` | `zone`, `aisle`, `shelf`, `bin`. |
 | `capacity` | `decimal(18,4)` | No | `0` | Capacidad máxima. |
+| `is_default` | `enum` | No | `'no'` | Ubicación sugerida de la bodega. Exactamente una por bodega. |
 
-**Índices:** `unique(warehouse_id, location_code)`, `index(parent_id)`, `index(warehouse_id)`.
+**Índices:** `unique(warehouse_id, location_code)`, `index(parent_id)`, `index(warehouse_id)`,
+`index(is_default)`.
+
+**Reglas**
+- Al crear una bodega con `uses_locations = 'no'` se genera automáticamente una ubicación
+  `name = 'Principal'`, `location_code = 'PRINCIPAL'`, `type = 'zone'`, `is_default = 'yes'`.
+  Todo el stock de esa bodega se asigna a ella.
+- Esa ubicación no se muestra en la UI ni se puede editar, desactivar o borrar mientras la bodega
+  esté activa; tampoco admite ubicaciones hijas.
+- Si la bodega pasa a `uses_locations = 'yes'`, "Principal" se mantiene como ubicación por defecto
+  y sobre ella se crea el resto del árbol. El camino inverso (de `'yes'` a `'no'`) exige que todo el
+  saldo esté consolidado en "Principal".
 
 ---
 
@@ -186,7 +190,7 @@ kardex. No se edita manualmente, solo mediante Ajustes.
 | `company_id` | `uuid` | No | | FK → `app_companies.id`. |
 | `item_id` | `uuid` | No | | FK → `app_items.id` (`restrictOnDelete`). |
 | `warehouse_id` | `uuid` | No | | FK → `app_warehouses.id` (`restrictOnDelete`). |
-| `location_id` | `uuid` | Sí | | FK → `app_warehouse_locations.id`. |
+| `location_id` | `uuid` | No | | FK → `app_warehouse_locations.id` (`restrictOnDelete`). Todo saldo vive en una ubicación concreta. |
 | `lot_id` | `uuid` | Sí | | FK → `app_item_lots.id`. Segrega el saldo por lote. |
 | `quantity` | `decimal(18,4)` | No | `0` | Existencia física en unidad base. |
 | `reserved_quantity` | `decimal(18,4)` | No | `0` | Comprometida por órdenes de venta confirmadas. |
@@ -199,11 +203,15 @@ kardex. No se edita manualmente, solo mediante Ajustes.
 | `created_at` / `updated_at` | `timestamp` | Sí | | |
 
 **Índices:** `unique(company_id, item_id, warehouse_id, location_id, lot_id)`, `index(item_id)`,
-`index(warehouse_id)`, `index(quantity)`.
+`index(warehouse_id)`, `index(location_id)`, `index(quantity)`.
 
 **Reglas**
 - Toda actualización ocurre dentro de la transacción del documento que la origina, con `lockForUpdate()`.
 - Si `allows_negative_stock = 'no'` en la bodega, se rechaza cualquier salida que deje `quantity < 0`.
+- `warehouse_id` y `location_id` son obligatorios: no existe saldo sin bodega ni sin ubicación.
+  Por eso toda bodega —incluso con `uses_locations = 'no'`— tiene al menos una ubicación por defecto
+  a la que se asignan los saldos.
+- `location_id` debe pertenecer a `warehouse_id`; se valida antes de escribir el saldo.
 
 ### 3.1 Lotes — `app_item_lots` — Prefijo `LOT`
 
@@ -282,10 +290,8 @@ un error se corrige con un movimiento de contrapartida, nunca editando el origin
 
 ```
 app_categories        ──┐
-app_measurement_units ──┼──> app_items ──┬──> app_item_units
-app_taxes             ──┘                ├──> app_item_taxes
-                                         ├──> app_item_prices ──> app_price_lists
-                                         ├──> app_item_warehouses
+                        ├──> app_items ──┬──> app_item_units ──> app_measurement_units
+app_taxes             ──┘                ├──> app_item_prices ──> app_price_lists
                                          ├──> app_item_lots ──> app_item_serials
                                          ├──> app_item_stocks <── app_warehouses ──> app_warehouse_locations
                                          └──> app_inventory_movements

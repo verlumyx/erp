@@ -50,7 +50,7 @@ alcanza: una línea o un contacto que ya no aplica se desactiva, no se elimina.
 
 **Tablas de detalle** (sin `code`, con `company_id` + `status`):
 
-`app_item_prices`, `app_item_units`, `app_item_taxes`, `app_item_warehouses`, `app_item_stocks`,
+`app_item_prices`, `app_item_units`, `app_item_stocks`,
 `app_supplier_contacts`, `app_supplier_addresses`, `app_client_contacts`, `app_client_addresses`,
 `app_route_stops`, `app_route_clients`, `app_supplier_payment_applications`,
 `app_client_collection_applications` y todas las tablas `*_lines`.

@@ -55,7 +55,7 @@ solo **nombra el conjunto**: no guarda precios ni condiciones.
 
 **Reglas**
 - La lista **no** guarda precio, moneda, vigencia ni impuesto. Todo eso se configura **por artículo**,
-  dentro del artículo, indicando a qué lista pertenece cada precio.
+  en `app_item_prices` (ver [Inventario](inventario.md)), indicando a qué lista pertenece cada precio.
 - Los precios se **copian** a la línea del documento al confirmarlo; cambiar un precio después no
   altera documentos ya emitidos.
 
@@ -79,7 +79,8 @@ Catálogo simple de unidades (Unidad, Caja, Kilogramo, Litro).
 - La unidad **no** guarda factores de conversión. La equivalencia se define **por artículo** en
   `app_item_units` (p. ej. para el artículo X, 1 `cja` = 12 `un`), porque el contenido de una caja
   cambia de producto en producto.
-- Cada artículo tiene una unidad base (`app_items.measurement_unit_id`); todo el stock se guarda en ella.
+- Cada artículo tiene una unidad base: la fila de `app_item_units` con `is_base = 'yes'`; todo el
+  stock se guarda en ella.
 - No se puede desactivar una unidad usada como unidad base de algún artículo activo.
 
 ---
@@ -141,8 +142,6 @@ Clasificación de clientes para reportes y filtros de Ventas.
 
 **Reglas**
 - El orden de resolución del precio en una venta es:
-  precio del artículo en la lista del cliente (`app_clients.price_list_id`) → precio base del
-  artículo (`app_items.base_price`).
   El tipo de cliente **no** interviene en el precio: es solo clasificación.
 - No se puede desactivar si tiene clientes activos asociados.
 

@@ -111,3 +111,44 @@ function assignRoleWithPermissions(
 
     return $role;
 }
+
+/**
+ * User + company + one measurement unit of that company, the minimum needed to
+ * create an item (every item requires at least a base unit).
+ *
+ * @return array{0: \App\Modules\User\Models\User, 1: \App\Modules\Company\Models\Company, 2: \App\Modules\MeasurementUnit\Models\MeasurementUnit}
+ */
+function itemScenario(): array
+{
+    [$user, $company] = createUserWithCompany();
+
+    $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()
+        ->create(['company_id' => $company->id]);
+
+    return [$user, $company, $unit];
+}
+
+/**
+ * A valid `items.store` / `items.update` payload, overridable per test.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function itemPayload(
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'sku' => 'SKU-001',
+        'name' => 'Martillo de carpintero',
+        'type' => 'inventoried',
+        'cost_method' => 'average',
+        'is_purchasable' => 'yes',
+        'is_sellable' => 'yes',
+        'units' => [
+            ['measurement_unit_id' => $unit->id, 'is_base' => 'yes', 'conversion_factor' => 1],
+        ],
+        ...$overrides,
+    ];
+}
