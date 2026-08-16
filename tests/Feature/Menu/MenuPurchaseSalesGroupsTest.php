@@ -66,9 +66,12 @@ test('compras ships with proveedores as its first child', function () {
 
     expect($compras)->not->toBeNull()
         ->and($compras['url'])->toBeNull()
-        ->and(collect($compras['children'])->pluck('title')->all())->toBe(['Proveedores'])
+        ->and(collect($compras['children'])->pluck('title')->all())
+        ->toBe(['Proveedores', 'Órdenes de compra'])
         ->and(collect($compras['children'])->firstWhere('title', 'Proveedores')['url'])
-        ->toBe('/suppliers');
+        ->toBe('/suppliers')
+        ->and(collect($compras['children'])->firstWhere('title', 'Órdenes de compra')['url'])
+        ->toBe('/purchase-orders');
 });
 
 test('proveedores is hidden for a user without the suppliers.list permission', function () {
@@ -94,9 +97,12 @@ test('ventas ships with clientes as its first child', function () {
 
     expect($ventas)->not->toBeNull()
         ->and($ventas['url'])->toBeNull()
-        ->and(collect($ventas['children'])->pluck('title')->all())->toBe(['Clientes'])
+        ->and(collect($ventas['children'])->pluck('title')->all())
+        ->toBe(['Clientes', 'Órdenes de venta'])
         ->and(collect($ventas['children'])->firstWhere('title', 'Clientes')['url'])
-        ->toBe('/clients');
+        ->toBe('/clients')
+        ->and(collect($ventas['children'])->firstWhere('title', 'Órdenes de venta')['url'])
+        ->toBe('/sales-orders');
 });
 
 test('clientes is hidden for a user without the clients.list permission', function () {

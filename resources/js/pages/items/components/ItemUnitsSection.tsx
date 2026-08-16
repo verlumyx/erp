@@ -86,6 +86,9 @@ export function ItemUnitsSection() {
                             {unitError && (
                                 <p className="text-sm text-bad">{unitError}</p>
                             )}
+                            <span className="text-[12px] text-muted-foreground">
+                                <br/>
+                            </span>
                         </div>
 
                         <div className="flex flex-col gap-1.5">

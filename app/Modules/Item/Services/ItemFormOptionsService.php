@@ -13,6 +13,9 @@ use App\Modules\MeasurementUnit\Repositories\Contracts\MeasurementUnitRepository
 use App\Modules\PriceList\Commands\SearchPriceListCommand;
 use App\Modules\PriceList\Models\PriceList;
 use App\Modules\PriceList\Repositories\Contracts\PriceListRepositoryInterface;
+use App\Modules\Tax\Commands\SearchTaxCommand;
+use App\Modules\Tax\Models\Tax;
+use App\Modules\Tax\Repositories\Contracts\TaxRepositoryInterface;
 
 /**
  * Catálogos que alimentan los selects del formulario de artículo.
@@ -28,13 +31,15 @@ class ItemFormOptionsService
         private readonly CategoryRepositoryInterface $categories,
         private readonly MeasurementUnitRepositoryInterface $measurementUnits,
         private readonly PriceListRepositoryInterface $priceLists,
+        private readonly TaxRepositoryInterface $taxes,
     ) {}
 
     /**
      * @return array{
      *     categories: array<int, array{id: string, name: string}>,
      *     measurementUnits: array<int, array{id: string, name: string, abbreviation: string}>,
-     *     priceLists: array<int, array{id: string, name: string}>
+     *     priceLists: array<int, array{id: string, name: string}>,
+     *     taxes: array<int, array{id: string, name: string, percentage: string}>
      * }
      */
     public function execute(?string $companyId): array
@@ -52,6 +57,12 @@ class ItemFormOptionsService
         ));
 
         $priceLists = $this->priceLists->search(new SearchPriceListCommand(
+            filters: ['status' => 'active'],
+            limit: self::MAX_OPTIONS,
+            companyId: $companyId,
+        ));
+
+        $taxes = $this->taxes->search(new SearchTaxCommand(
             filters: ['status' => 'active'],
             limit: self::MAX_OPTIONS,
             companyId: $companyId,
@@ -79,6 +90,14 @@ class ItemFormOptionsService
                     'name' => $priceList->name,
                 ],
                 $priceLists['data'],
+            ),
+            'taxes' => array_map(
+                fn (Tax $tax): array => [
+                    'id' => $tax->id,
+                    'name' => $tax->name,
+                    'percentage' => (string) $tax->percentage,
+                ],
+                $taxes['data'],
             ),
         ];
     }

@@ -24,6 +24,12 @@ import { ItemPricesSection } from './ItemPricesSection';
 import { ItemUnitsSection } from './ItemUnitsSection';
 
 const NO_CATEGORY = 'none';
+const NO_TAX = 'none';
+
+/** Ej. "IVA general (16%)": el porcentaje llega como decimal(18,4). */
+function taxLabel(tax: { name: string; percentage: string }): string {
+    return `${tax.name} (${Number(tax.percentage)}%)`;
+}
 
 interface FormSectionHeadProps {
     step: number;
@@ -305,8 +311,8 @@ export function ItemForm() {
                 <Card className="gap-0 overflow-hidden rounded-2xl py-0">
                     <FormSectionHead
                         step={4}
-                        title="Costos y venta"
-                        sub="Cómo se valúa el artículo y dónde puede usarse"
+                        title="Costos, impuestos y venta"
+                        sub="Cómo se valúa el artículo, qué impuestos aplica y dónde puede usarse"
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
@@ -354,7 +360,8 @@ export function ItemForm() {
                             error={errors.min_price}
                             onChange={(value) => setData('min_price', value)}
                         />
-
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
                             <Label className="text-[13px] font-semibold">
                                 Se compra
@@ -380,6 +387,40 @@ export function ItemForm() {
 
                         <div className="flex flex-col gap-1.5">
                             <Label className="text-[13px] font-semibold">
+                                Impuesto de compra
+                            </Label>
+                            <Select
+                                value={data.purchase_tax_id || NO_TAX}
+                                onValueChange={(value) =>
+                                    setData(
+                                        'purchase_tax_id',
+                                        value === NO_TAX ? '' : value,
+                                    )
+                                }
+                            >
+                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
+                                    <SelectValue placeholder="Sin impuesto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={NO_TAX}>
+                                        Sin impuesto
+                                    </SelectItem>
+                                    {options.taxes.map((tax) => (
+                                        <SelectItem key={tax.id} value={tax.id}>
+                                            {taxLabel(tax)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.purchase_tax_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.purchase_tax_id}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[13px] font-semibold">
                                 Se vende
                             </Label>
                             <Select
@@ -399,6 +440,40 @@ export function ItemForm() {
                                     <SelectItem value="no">No</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[13px] font-semibold">
+                                Impuesto de venta
+                            </Label>
+                            <Select
+                                value={data.sale_tax_id || NO_TAX}
+                                onValueChange={(value) =>
+                                    setData(
+                                        'sale_tax_id',
+                                        value === NO_TAX ? '' : value,
+                                    )
+                                }
+                            >
+                                <SelectTrigger className="h-[42px] w-full rounded-[10px]">
+                                    <SelectValue placeholder="Sin impuesto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={NO_TAX}>
+                                        Sin impuesto
+                                    </SelectItem>
+                                    {options.taxes.map((tax) => (
+                                        <SelectItem key={tax.id} value={tax.id}>
+                                            {taxLabel(tax)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.sale_tax_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sale_tax_id}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </Card>

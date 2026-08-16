@@ -16,10 +16,13 @@ DECLARE
     v_mod_cli_types   UUID;
     v_mod_price_lists UUID;
     v_mod_exch_rates  UUID;
+    v_mod_taxes       UUID;
     v_mod_items       UUID;
     v_mod_warehouses  UUID;
     v_mod_wh_locs     UUID;
     v_mod_suppliers   UUID;
+    v_mod_sales_ord   UUID;
+    v_mod_purch_ord   UUID;
 BEGIN
 
     -- ==========================================================
@@ -42,7 +45,10 @@ BEGIN
         (gen_random_uuid(), 'items', 'Catálogo de artículos', 'Maestro de productos y servicios', 'Package', true, 11, NOW(), NOW()),
         (gen_random_uuid(), 'warehouses', 'Bodegas', 'Lugares físicos o lógicos donde se almacena inventario', 'Warehouse', true, 12, NOW(), NOW()),
         (gen_random_uuid(), 'warehouse-locations', 'Ubicaciones', 'Ubicaciones internas de las bodegas', 'MapPin', true, 13, NOW(), NOW()),
-        (gen_random_uuid(), 'suppliers', 'Proveedores', 'Maestro de proveedores y sus condiciones comerciales', 'Truck', true, 14, NOW(), NOW())
+        (gen_random_uuid(), 'suppliers', 'Proveedores', 'Maestro de proveedores y sus condiciones comerciales', 'Truck', true, 14, NOW(), NOW()),
+        (gen_random_uuid(), 'sales-orders', 'Órdenes de venta', 'Pedidos del cliente: reservan inventario sin descargarlo', 'ClipboardList', true, 15, NOW(), NOW()),
+        (gen_random_uuid(), 'purchase-orders', 'Órdenes de compra', 'Solicitudes de mercancía al proveedor: reservan la entrada esperada', 'ClipboardList', true, 16, NOW(), NOW()),
+        (gen_random_uuid(), 'taxes', 'Impuestos', 'Catálogo de impuestos y retenciones', 'Percent', true, 17, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -60,6 +66,9 @@ BEGIN
     SELECT id INTO v_mod_warehouses  FROM app_modules WHERE name = 'warehouses';
     SELECT id INTO v_mod_wh_locs     FROM app_modules WHERE name = 'warehouse-locations';
     SELECT id INTO v_mod_suppliers   FROM app_modules WHERE name = 'suppliers';
+    SELECT id INTO v_mod_sales_ord   FROM app_modules WHERE name = 'sales-orders';
+    SELECT id INTO v_mod_purch_ord   FROM app_modules WHERE name = 'purchase-orders';
+    SELECT id INTO v_mod_taxes       FROM app_modules WHERE name = 'taxes';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -206,6 +215,36 @@ BEGIN
         (gen_random_uuid(), v_mod_suppliers, 'suppliers.show',          'Ver detalle de proveedor',      true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_suppliers, 'suppliers.update',        'Editar proveedores',            true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_suppliers, 'suppliers.update-status', 'Cambiar estado de proveedor',   true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Órdenes de venta
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.list',          'Listar órdenes de venta',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.create',        'Crear órdenes de venta',         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.show',          'Ver detalle de orden de venta',  true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.update',        'Editar órdenes de venta',        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.update-status', 'Confirmar o anular una orden',   true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Órdenes de compra
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.list',          'Listar órdenes de compra',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.create',        'Crear órdenes de compra',         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.show',          'Ver detalle de orden de compra',  true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.update',        'Editar órdenes de compra',        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.update-status', 'Confirmar o anular una orden',    true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Impuestos
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_taxes, 'taxes.list',          'Listar impuestos',            true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_taxes, 'taxes.create',        'Crear impuestos',             true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_taxes, 'taxes.show',          'Ver detalle de impuesto',     true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_taxes, 'taxes.update',        'Editar impuestos',            true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_taxes, 'taxes.update-status', 'Cambiar estado de impuesto',  true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
 END $$;

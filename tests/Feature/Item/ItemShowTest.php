@@ -7,6 +7,7 @@ use App\Modules\Item\Models\ItemPrice;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\PriceList\Models\PriceList;
+use App\Modules\Tax\Models\Tax;
 
 use function Pest\Laravel\actingAs;
 
@@ -87,6 +88,23 @@ test('the create form only offers catalogs of the active company', function () {
     $response->assertOk();
     $response->assertInertia(
         fn ($page) => $page->component('items/create')->has('options.measurementUnits', 1)
+    );
+});
+
+test('the create form only offers active taxes of the active company', function () {
+    [$user, $company] = createUserWithCompany();
+
+    Tax::factory()->create(['company_id' => $company->id]);
+    Tax::factory()->inactive()->create(['company_id' => $company->id]);
+    Tax::factory()->create();
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('items.create', ['company' => $company->id]));
+
+    $response->assertOk();
+    $response->assertInertia(
+        fn ($page) => $page->component('items/create')->has('options.taxes', 1)
     );
 });
 

@@ -168,6 +168,168 @@ function clientPayload(array $overrides = []): array
 }
 
 /**
+ * User + company + the minimum masters a purchase order needs: an active
+ * supplier, a warehouse and a purchasable item with its base unit.
+ *
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Supplier\Models\Supplier,
+ *     3: \App\Modules\Warehouse\Models\Warehouse,
+ *     4: \App\Modules\Item\Models\Item,
+ *     5: \App\Modules\MeasurementUnit\Models\MeasurementUnit
+ * }
+ */
+function purchaseOrderScenario(): array
+{
+    [$user, $company] = createUserWithCompany();
+
+    $supplier = \App\Modules\Supplier\Models\Supplier::factory()->create(['company_id' => $company->id]);
+    $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()->create(['company_id' => $company->id]);
+    $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()->create(['company_id' => $company->id]);
+    $item = \App\Modules\Item\Models\Item::factory()->create([
+        'company_id' => $company->id,
+        'is_purchasable' => 'yes',
+    ]);
+
+    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    return [$user, $company, $supplier, $warehouse, $item, $unit];
+}
+
+/**
+ * A valid `purchase-orders.store` / `purchase-orders.update` payload.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function purchaseOrderPayload(
+    \App\Modules\Supplier\Models\Supplier $supplier,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'supplier_id' => $supplier->id,
+        'warehouse_id' => $warehouse->id,
+        'order_date' => now()->toDateString(),
+        'currency' => 'USD',
+        'exchange_rate' => 1,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 10,
+                'unit_price' => 25,
+            ],
+        ],
+        ...$overrides,
+    ];
+}
+
+/**
+ * User + company + the minimum masters a sales order needs: a client, a
+ * warehouse and one sellable item with its base unit.
+ *
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Client\Models\Client,
+ *     3: \App\Modules\Warehouse\Models\Warehouse,
+ *     4: \App\Modules\Item\Models\Item,
+ *     5: \App\Modules\MeasurementUnit\Models\MeasurementUnit
+ * }
+ */
+function salesOrderScenario(): array
+{
+    [$user, $company] = createUserWithCompany();
+
+    $client = \App\Modules\Client\Models\Client::factory()
+        ->create(['company_id' => $company->id]);
+
+    $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()
+        ->create(['company_id' => $company->id]);
+
+    $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()
+        ->create(['company_id' => $company->id]);
+
+    $item = \App\Modules\Item\Models\Item::factory()
+        ->create(['company_id' => $company->id]);
+
+    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    return [$user, $company, $client, $warehouse, $item, $unit];
+}
+
+/**
+ * A valid `sales-orders.store` / `sales-orders.update` payload, overridable
+ * per test. Without explicit lines it carries one line of the given item.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function salesOrderPayload(
+    \App\Modules\Client\Models\Client $client,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'client_id' => $client->id,
+        'warehouse_id' => $warehouse->id,
+        'order_date' => now()->toDateString(),
+        'currency' => 'USD',
+        'exchange_rate' => 1,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 2,
+                'unit_price' => 100,
+            ],
+        ],
+        ...$overrides,
+    ];
+}
+
+/**
+ * Creates a sales order over HTTP and returns the freshly saved model, so the
+ * tests that need an existing order do not rebuild the payload each time.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function createSalesOrder(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Client\Models\Client $client,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): \App\Modules\SalesOrder\Models\SalesOrder {
+    $payload = salesOrderPayload($client, $warehouse, $item, $unit, $overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\SalesOrder\Models\SalesOrder::with('lines')->findOrFail($payload['id']);
+}
+
+/**
  * A valid `items.store` / `items.update` payload, overridable per test.
  *
  * @param  array<string, mixed>  $overrides

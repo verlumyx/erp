@@ -96,6 +96,7 @@ export interface ItemOptions {
         abbreviation: string;
     }>;
     priceLists: Array<{ id: string; name: string }>;
+    taxes: Array<{ id: string; name: string; percentage: string }>;
 }
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {

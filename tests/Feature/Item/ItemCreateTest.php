@@ -6,6 +6,7 @@ use App\Modules\Category\Models\Category;
 use App\Modules\Item\Models\Item;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\PriceList\Models\PriceList;
+use App\Modules\Tax\Models\Tax;
 
 use function Pest\Laravel\actingAs;
 
@@ -236,6 +237,58 @@ test('a measurement unit from another company is rejected', function () {
         ->post(route('items.store', ['company' => $company->id]), itemPayload($foreignUnit));
 
     $response->assertSessionHasErrors('units.0.measurement_unit_id');
+});
+
+test('an item can be created with its sale and purchase taxes', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $saleTax = Tax::factory()->create(['company_id' => $company->id, 'percentage' => 16]);
+    $purchaseTax = Tax::factory()->create(['company_id' => $company->id, 'percentage' => 8]);
+
+    $payload = itemPayload($unit, [
+        'sale_tax_id' => $saleTax->id,
+        'purchase_tax_id' => $purchaseTax->id,
+    ]);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), $payload);
+
+    $response->assertSessionHasNoErrors();
+
+    $item = Item::find($payload['id']);
+    expect($item->sale_tax_id)->toBe($saleTax->id);
+    expect($item->purchase_tax_id)->toBe($purchaseTax->id);
+});
+
+test('an item can be created without taxes', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $payload = itemPayload($unit);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $item = Item::find($payload['id']);
+    expect($item->sale_tax_id)->toBeNull();
+    expect($item->purchase_tax_id)->toBeNull();
+});
+
+test('a tax from another company is rejected', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $foreignTax = Tax::factory()->create();
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), itemPayload($unit, [
+            'sale_tax_id' => $foreignTax->id,
+            'purchase_tax_id' => $foreignTax->id,
+        ]));
+
+    $response->assertSessionHasErrors(['sale_tax_id', 'purchase_tax_id']);
 });
 
 test('a user without permission cannot create an item', function () {

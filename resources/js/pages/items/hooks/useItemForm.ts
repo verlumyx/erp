@@ -29,6 +29,8 @@ interface ItemFormData {
     description: string;
     type: ItemType;
     category_id: string;
+    sale_tax_id: string;
+    purchase_tax_id: string;
     cost_method: CostMethod;
     standard_cost: number;
     min_price: number;
@@ -104,6 +106,8 @@ export function useItemForm({
             description: initialData?.description ?? '',
             type: initialData?.type ?? 'inventoried',
             category_id: initialData?.category_id ?? '',
+            sale_tax_id: initialData?.sale_tax_id ?? '',
+            purchase_tax_id: initialData?.purchase_tax_id ?? '',
             cost_method: initialData?.cost_method ?? 'average',
             standard_cost: Number(initialData?.standard_cost ?? 0),
             min_price: Number(initialData?.min_price ?? 0),

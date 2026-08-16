@@ -43,6 +43,16 @@ class ItemFilters extends EloquentQueryFilters
         return $this->builder->where('category_id', $value);
     }
 
+    public function is_sellable(string $value): Builder
+    {
+        return $this->builder->where('is_sellable', $value);
+    }
+
+    public function is_purchasable(string $value): Builder
+    {
+        return $this->builder->where('is_purchasable', $value);
+    }
+
     public function status(string $value): Builder
     {
         return $this->builder->where('status', $value);

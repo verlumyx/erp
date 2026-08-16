@@ -7,6 +7,7 @@ use App\Modules\Item\Models\ItemPrice;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\PriceList\Models\PriceList;
+use App\Modules\Tax\Models\Tax;
 
 use function Pest\Laravel\actingAs;
 
@@ -177,6 +178,31 @@ test('the sku cannot collide with another item of the same company', function ()
         ->withSession(['current_company_id' => $company->id])
         ->put(route('items.update', ['company' => $company->id, 'id' => $item->id]), $payload)
         ->assertSessionHasErrors('sku');
+});
+
+test('the sale and purchase taxes can be changed and cleared', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $oldTax = Tax::factory()->create(['company_id' => $company->id]);
+    $newTax = Tax::factory()->create(['company_id' => $company->id]);
+
+    $item = Item::factory()->create([
+        'company_id' => $company->id,
+        'sale_tax_id' => $oldTax->id,
+        'purchase_tax_id' => $oldTax->id,
+    ]);
+
+    $payload = itemPayload($unit, ['sale_tax_id' => $newTax->id]);
+    unset($payload['id']);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(route('items.update', ['company' => $company->id, 'id' => $item->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $item->refresh();
+    expect($item->sale_tax_id)->toBe($newTax->id);
+    expect($item->purchase_tax_id)->toBeNull();
 });
 
 test('an item from another company cannot be updated', function () {
