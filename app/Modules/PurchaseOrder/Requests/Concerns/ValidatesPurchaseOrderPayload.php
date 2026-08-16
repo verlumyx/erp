@@ -70,7 +70,6 @@ trait ValidatesPurchaseOrderPayload
             'lines.*.tax_id' => ['nullable', 'uuid'],
             'lines.*.tax_percent' => ['nullable', 'numeric', 'between:0,100'],
             'lines.*.withholding_percent' => ['nullable', 'numeric', 'between:0,100'],
-            'lines.*.expected_date' => ['nullable', 'date'],
             'lines.*.notes' => ['nullable', 'string', 'max:500'],
             'lines.*.status' => ['nullable', 'string', 'in:active,inactive'],
         ];

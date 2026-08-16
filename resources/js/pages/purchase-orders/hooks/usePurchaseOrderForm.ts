@@ -18,7 +18,6 @@ export interface PurchaseOrderLineRow {
     discount_percent: number;
     tax_percent: number;
     withholding_percent: number;
-    expected_date: string;
     notes: string;
 }
 
@@ -58,7 +57,6 @@ function emptyLine(): PurchaseOrderLineRow {
         discount_percent: 0,
         tax_percent: 0,
         withholding_percent: 0,
-        expected_date: '',
         notes: '',
     };
 }
@@ -80,7 +78,6 @@ function lineRows(order?: PurchaseOrder): PurchaseOrderLineRow[] {
             discount_percent: Number(line.discount_percent),
             tax_percent: Number(line.tax_percent),
             withholding_percent: Number(line.withholding_percent),
-            expected_date: line.expected_date ?? '',
             notes: line.notes ?? '',
         }));
 

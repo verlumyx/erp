@@ -38,7 +38,6 @@ class PurchaseOrderLineResource extends JsonResource
             'received_quantity' => $this->received_quantity,
             'invoiced_quantity' => $this->invoiced_quantity,
             'pending_quantity' => $this->pending_quantity,
-            'expected_date' => $this->expected_date?->format('Y-m-d'),
             'status' => $this->status,
             'notes' => $this->notes,
         ];

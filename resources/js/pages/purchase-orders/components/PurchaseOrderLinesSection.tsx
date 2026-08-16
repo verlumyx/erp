@@ -2,7 +2,6 @@ import { Plus, X } from 'lucide-react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
@@ -209,7 +208,7 @@ export function PurchaseOrderLinesSection() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]">
+                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
                                     Descuento %
@@ -262,24 +261,6 @@ export function PurchaseOrderLinesSection() {
                                     min={0}
                                     max={100}
                                     decimals={4}
-                                    className="h-[42px] rounded-[10px]"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Entrega esperada
-                                </Label>
-                                <Input
-                                    type="date"
-                                    value={line.expected_date}
-                                    onChange={(e) =>
-                                        updateLine(
-                                            index,
-                                            'expected_date',
-                                            e.target.value,
-                                        )
-                                    }
                                     className="h-[42px] rounded-[10px]"
                                 />
                             </div>

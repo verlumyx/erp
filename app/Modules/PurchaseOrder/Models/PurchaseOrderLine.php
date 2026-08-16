@@ -45,7 +45,6 @@ class PurchaseOrderLine extends Model
         'received_quantity',
         'invoiced_quantity',
         'pending_quantity',
-        'expected_date',
         'status',
         'notes',
     ];
@@ -71,7 +70,6 @@ class PurchaseOrderLine extends Model
             'received_quantity' => 'decimal:4',
             'invoiced_quantity' => 'decimal:4',
             'pending_quantity' => 'decimal:4',
-            'expected_date' => 'date',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

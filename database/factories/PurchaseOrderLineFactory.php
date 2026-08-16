@@ -45,7 +45,6 @@ class PurchaseOrderLineFactory extends Factory
             'received_quantity' => 0,
             'invoiced_quantity' => 0,
             'pending_quantity' => $quantity,
-            'expected_date' => null,
             'status' => 'active',
             'notes' => null,
         ];

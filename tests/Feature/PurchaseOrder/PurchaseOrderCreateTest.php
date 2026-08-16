@@ -72,6 +72,30 @@ test('the note of a line is stored', function () {
     expect($line->notes)->toBe('Confirmar empaque con el proveedor.');
 });
 
+test('a line ignores the expected date that an old client may still send', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $payload = purchaseOrderPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 4,
+                'unit_price' => 30,
+                'expected_date' => now()->addDays(5)->toDateString(),
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $line = PurchaseOrder::with('lines')->find($payload['id'])->lines->first();
+    expect($line)->not->toBeNull();
+    expect($line->getAttributes())->not->toHaveKey('expected_date');
+});
+
 test('the totals are calculated on the backend and ignore what the client sends', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
 

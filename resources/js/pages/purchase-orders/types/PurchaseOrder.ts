@@ -29,7 +29,6 @@ export interface PurchaseOrderLine {
     received_quantity: string;
     invoiced_quantity: string;
     pending_quantity: string;
-    expected_date: string | null;
     status: 'active' | 'inactive';
     notes: string | null;
 }

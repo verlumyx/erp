@@ -33,7 +33,6 @@ class PurchaseOrderLineData
         public readonly float $subtotal,
         public readonly float $total,
         public readonly ?string $taxId = null,
-        public readonly ?string $expectedDate = null,
         public readonly ?string $notes = null,
         public readonly string $status = 'active',
     ) {}
@@ -77,7 +76,6 @@ class PurchaseOrderLineData
             subtotal: $subtotal,
             total: round($subtotal + $taxAmount, 2),
             taxId: $row['tax_id'] ?? null,
-            expectedDate: $row['expected_date'] ?? null,
             notes: $row['notes'] ?? null,
             status: (string) ($row['status'] ?? 'active'),
         );

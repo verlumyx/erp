@@ -181,7 +181,6 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
                 'subtotal' => $line->subtotal,
                 'total' => $line->total,
                 'pending_quantity' => max($line->quantity - $received, 0),
-                'expected_date' => $line->expectedDate,
                 'status' => $line->status,
                 'notes' => $line->notes,
             ];
