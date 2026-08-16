@@ -99,6 +99,10 @@ al final, cuando Inventario, Compras, Ventas y Logística ya generan informació
 Si los reportes se construyen fijos en código, estas tablas no son necesarias. Se plantean para el caso
 en que el usuario deba poder guardar sus propias vistas y programar envíos.
 
+`app_reports` sería tabla de módulo (con `code`, prefijo `REP`, que habría que agregar a la tabla de
+prefijos del [README](README.md)). `app_report_views` y `app_report_executions` son tablas de detalle:
+llevan `company_id` y `status`, pero no `code`.
+
 ### 3.1 Definición — `app_reports` — Prefijo `REP`
 
 | Columna | Tipo | Nulo | Default | Descripción |
@@ -125,7 +129,7 @@ en que el usuario deba poder guardar sus propias vistas y programar envíos.
 | `name` | `string(150)` | No | Nombre que le da el usuario. |
 | `filters` | `json` | No | Filtros guardados. |
 | `columns` | `json` | Sí | Columnas y su orden. |
-| `is_shared` | `boolean` | No | Visible para otros usuarios de la empresa. |
+| `is_shared` | `enum` | No | `yes` / `no`, default `'no'`. Visible para otros usuarios de la empresa. |
 | `status` | `enum` | No | `active` / `inactive`. |
 
 **Índices:** `unique(report_id, user_id, name)`, `index(user_id)`.

@@ -5,7 +5,7 @@ Cada archivo agrupa un conjunto de módulos relacionados.
 
 | Archivo | Grupo | Módulos |
 |---|---|---|
-| [catalogo.md](catalogo.md) | Catálogo | Categorías, Listas de precio de venta, Unidades de medida, Impuestos, Tipo de proveedor, Tipo de cliente |
+| [catalogo.md](catalogo.md) | Catálogo | Categorías, Listas de precio de venta, Unidades de medida, Impuestos, Tipo de proveedor, Tipo de cliente, Tasas |
 | [inventario.md](inventario.md) | Inventario | Catálogo de artículos, Bodegas, Existencias, Kardex |
 | [logistica.md](logistica.md) | Logística | Despachos, Traslados, Entradas, Rutas, Ajustes |
 | [compras.md](compras.md) | Compras | Proveedores, Órdenes de compra, Facturas de compra, Notas de crédito a proveedor, Anticipos a proveedor, Pagos a proveedor, Devoluciones de compras |
@@ -22,7 +22,43 @@ porque cada grupo depende de los anteriores.
 Todas las tablas siguen las mismas reglas. En las fichas de cada módulo **no se repiten** estas columnas:
 solo se listan las propias del módulo.
 
-### Columnas base (presentes en toda tabla maestra y de documento)
+### Clasificación de tablas
+
+Hay dos tipos de tabla, y de ahí depende qué columnas base lleva:
+
+| Tipo | Qué es | Lleva |
+|---|---|---|
+| **Tabla de módulo** | Entidad con pantalla y CRUD propio: se lista, se crea y se edita por sí sola. | `id`, `company_id`, `code`, `status`, `created_by`, timestamps |
+| **Tabla de detalle** | Filas que solo existen dentro de un padre: líneas de documento, contactos, direcciones, precios de una lista, aplicaciones de pago, saldos. Se editan desde la pantalla del padre. | `id`, `company_id`, `status`, timestamps (**sin `code`**) |
+
+Las de detalle **no** llevan `code` porque no se numeran de forma independiente: se identifican por su
+padre más su `line_number` o su combinación única. Sí llevan `company_id` (para filtrar y reportar sin
+join contra el padre) y `status` (`active` / `inactive`), porque la política de no borrado también las
+alcanza: una línea o un contacto que ya no aplica se desactiva, no se elimina.
+
+> Los totales de un documento suman **solo** las líneas con `status = active`.
+
+**Tablas de módulo** (llevan `code`):
+
+| Grupo | Tablas |
+|---|---|
+| Catálogo | `app_categories`, `app_price_lists`, `app_measurement_units`, `app_taxes`, `app_supplier_types`, `app_client_types`, `app_exchange_rates` |
+| Inventario | `app_items`, `app_warehouses`, `app_warehouse_locations`, `app_item_lots`, `app_item_serials`, `app_inventory_movements` |
+| Logística | `app_dispatches`, `app_transfers`, `app_entries`, `app_routes`, `app_adjustments` |
+| Compras | `app_suppliers`, `app_purchase_orders`, `app_purchase_invoices`, `app_purchase_credit_notes`, `app_supplier_advances`, `app_supplier_payments`, `app_purchase_returns` |
+| Ventas | `app_clients`, `app_sales_orders`, `app_sales_invoices`, `app_sales_credit_notes`, `app_client_advances`, `app_client_collections`, `app_sales_returns` |
+
+**Tablas de detalle** (sin `code`, con `company_id` + `status`):
+
+`app_item_prices`, `app_item_units`, `app_item_taxes`, `app_item_warehouses`, `app_item_stocks`,
+`app_supplier_contacts`, `app_supplier_addresses`, `app_client_contacts`, `app_client_addresses`,
+`app_route_stops`, `app_route_clients`, `app_supplier_payment_applications`,
+`app_client_collection_applications` y todas las tablas `*_lines`.
+
+`app_item_stocks` es un caso especial: es una tabla **derivada** (el saldo calculado del kardex).
+No se captura ni se edita a mano, pero lleva `company_id` y `status` como el resto.
+
+### Columnas base (presentes en toda tabla de módulo)
 
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
@@ -68,6 +104,22 @@ solo se listan las propias del módulo.
 `softDeletes`. Los maestros se desactivan (`status = inactive`) y los documentos se anulan
 (`status = cancelled`). Ver skill `no-delete-policy`.
 
+### Campos sí/no
+
+**No se usan columnas `boolean`.** Todo campo de dos valores se declara como
+`enum('yes', 'no')` con default explícito:
+
+```php
+$table->enum('has_withholding', ['yes', 'no'])->default('no');
+```
+
+Motivo: al consultar la base directamente se lee `yes` / `no` en lugar de `1` / `0`, y si mañana el
+campo necesita un tercer valor se agrega al enum sin cambiar el tipo de la columna.
+
+- Los nombres conservan el prefijo habitual: `is_*`, `has_*`, `tracks_*`, `allows_*`, `uses_*`.
+- La validación en el Request es `in:yes,no`.
+- En las comparaciones de este documento el valor va entre comillas: `has_withholding = 'yes'`.
+
 ### Tipos numéricos
 
 | Uso | Tipo |
@@ -79,7 +131,8 @@ solo se listan las propias del módulo.
 | Tasa de cambio | `decimal(18,8)` |
 
 Todos los importes se guardan en la **moneda del documento** más el campo `exchange_rate`, para poder
-reexpresar en moneda base sin recalcular históricos.
+reexpresar en moneda base sin recalcular históricos. Ese `exchange_rate` se copia desde
+`app_exchange_rates` (módulo Tasas, ver [catalogo.md](catalogo.md)) al confirmar el documento.
 
 ### Líneas de documento
 
@@ -89,6 +142,7 @@ particularidades):
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `uuid` | No | PK. |
+| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del documento padre. |
 | `{document}_id` | `uuid` | No | FK → documento padre, `cascadeOnDelete`. |
 | `line_number` | `integer` | No | Orden de la línea dentro del documento. |
 | `item_id` | `uuid` | No | FK → `app_items.id`, `restrictOnDelete`. |
@@ -99,14 +153,18 @@ particularidades):
 | `discount_percent` | `decimal(7,4)` | No | Default `0`. |
 | `discount_amount` | `decimal(18,2)` | No | Default `0`. |
 | `tax_id` | `uuid` | Sí | FK → `app_taxes.id`. |
-| `tax_percent` | `decimal(7,4)` | No | Copiado del impuesto al momento del documento. |
+| `tax_percent` | `decimal(7,4)` | No | Copiado de `app_taxes.percentage` al momento del documento. |
 | `tax_amount` | `decimal(18,2)` | No | Default `0`. |
+| `withholding_percent` | `decimal(7,4)` | No | Copiado de `app_taxes.withholding_percentage`. Default `0`. |
+| `withholding_amount` | `decimal(18,2)` | No | Default `0`. Retención de la línea. |
 | `subtotal` | `decimal(18,2)` | No | `quantity * unit_price - discount_amount`. |
 | `total` | `decimal(18,2)` | No | `subtotal + tax_amount`. |
+| `status` | `enum` | No | `active` / `inactive`. Una línea no se borra: se desactiva. |
 | `notes` | `string(500)` | Sí | |
 | `created_at` / `updated_at` | `timestamp` | Sí | |
 
-Índices: `index({document}_id)`, `index(item_id)`, `unique({document}_id, line_number)`.
+Índices: `index({document}_id)`, `index(item_id)`, `index(company_id)`, `index(status)`,
+`unique({document}_id, line_number)`.
 
 ### Multiempresa
 
@@ -130,8 +188,9 @@ empresa: dos empresas pueden tener cada una su `FVE000001`.
 | `ANP` | Anticipo a proveedor | `FVE` | Facturas de venta |
 | `PGP` | Pago a proveedor | `NCC` | Nota de crédito a cliente |
 | `DVC` | Devolución de compra | `ANC` | Anticipo de cliente |
-| | | `COB` | Cobro a cliente |
-| | | `DVV` | Devolución de venta |
+| `UBI` | Ubicación de bodega | `COB` | Cobro a cliente |
+| `LOT` | Lote | `DVV` | Devolución de venta |
+| `SER` | Número de serie | `TAS` | Tasa de cambio |
 
 ### Arquitectura
 

@@ -9,137 +9,109 @@ porque Inventario, Compras y Ventas dependen de ellos.
 | Módulo | Tabla | Prefijo | Usado por |
 |---|---|---|---|
 | Categorías | `app_categories` | `CAT` | Inventario |
-| Lista de precio de venta | `app_price_lists` + `app_price_list_items` | `PRL` | Inventario / Ventas |
+| Lista de precio de venta | `app_price_lists` | `PRL` | Inventario / Ventas |
 | Unidades de medida | `app_measurement_units` | `UOM` | Inventario |
 | Impuestos | `app_taxes` | `IMP` | Todo el sistema |
 | Tipo de proveedor | `app_supplier_types` | `TPR` | Compras |
 | Tipo de cliente | `app_client_types` | `TCL` | Ventas |
+| Tasas | `app_exchange_rates` | `TAS` | Compras / Ventas |
 
 ---
 
 ## 1. Categorías
 
-Clasificación jerárquica de los artículos. Soporta árbol de N niveles mediante autorreferencia.
+Clasificación de los artículos. **Un solo nivel**: no hay subcategorías ni jerarquía.
 
 **Tabla:** `app_categories` — **Prefijo:** `CAT`
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
-| `parent_id` | `uuid` | Sí | | FK → `app_categories.id` (`nullOnDelete`). Categoría padre; `null` = raíz. |
 | `name` | `string(150)` | No | | Nombre de la categoría. |
 | `description` | `text` | Sí | | |
-| `level` | `smallInteger` | No | `0` | Profundidad en el árbol; se calcula al guardar. |
-| `path` | `string(500)` | Sí | | Ruta materializada de ids (`uuid/uuid/uuid`) para consultas descendentes rápidas. |
-| `order` | `integer` | No | `0` | Orden de presentación entre hermanas. |
+| `order` | `integer` | No | `0` | Orden de presentación en listados y selectores. |
 
-**Índices:** `unique(company_id, name, parent_id)`, `index(parent_id)`, `index(level)`, `index(order)`.
+**Índices:** `unique(company_id, name)`, `index(name)`, `index(order)`.
 
-**Reglas**
-- Una categoría no puede ser su propia ancestra (validar ciclo antes de guardar).
-- Desactivar una categoría desactiva en cascada lógica a sus descendientes (no se borran).
-- No se puede desactivar si tiene artículos activos asociados.
+**Reglas**  
+- No se puede desactivar una categoría con artículos activos asociados.
 
-**Relaciones:** `hasMany(Category, parent_id)` (hijas), `belongsTo(Category, parent_id)` (padre), `hasMany(Item)`.
+**Relaciones:** `hasMany(Item)`.
 
 ---
 
 ## 2. Lista de precio de venta
 
-Conjuntos de precios de venta por artículo. Un cliente puede tener una lista asignada; si no la tiene,
-se usa la lista marcada como predeterminada.
+Catálogo simple de listas de precio de venta ("Mayorista", "Detalle", "Promoción Enero"). La lista
+solo **nombra el conjunto**: no guarda precios ni condiciones.
 
-### 2.1 Cabecera — `app_price_lists` — Prefijo `PRL`
+**Tabla:** `app_price_lists` — **Prefijo:** `PRL`
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
 | `name` | `string(150)` | No | | Nombre de la lista (p. ej. "Mayorista"). |
 | `description` | `text` | Sí | | |
-| `currency` | `string(3)` | No | `'USD'` | Moneda ISO 4217 de los precios. |
-| `is_default` | `boolean` | No | `false` | Lista aplicada cuando el cliente no tiene una asignada. Solo una por empresa. |
-| `includes_tax` | `boolean` | No | `false` | `true` = los precios ya incluyen impuesto. |
-| `valid_from` | `date` | Sí | | Inicio de vigencia. |
-| `valid_to` | `date` | Sí | | Fin de vigencia; `null` = sin vencimiento. |
-| `priority` | `integer` | No | `0` | Desempate cuando varias listas aplican. |
 
-**Índices:** `unique(company_id, name)`, `index(is_default)`, `index(valid_from, valid_to)`.
-
-### 2.2 Detalle — `app_price_list_items`
-
-| Columna | Tipo | Nulo | Default | Descripción |
-|---|---|---|---|---|
-| `id` | `uuid` | No | | PK. |
-| `price_list_id` | `uuid` | No | | FK → `app_price_lists.id` (`cascadeOnDelete`). |
-| `item_id` | `uuid` | No | | FK → `app_items.id` (`restrictOnDelete`). |
-| `measurement_unit_id` | `uuid` | Sí | | FK → `app_measurement_units.id`. Unidad a la que aplica el precio; `null` = unidad base. |
-| `price` | `decimal(18,6)` | No | | Precio unitario de venta. |
-| `min_quantity` | `decimal(18,4)` | No | `0` | Cantidad mínima para que aplique este precio (escalas por volumen). |
-| `discount_percent` | `decimal(7,4)` | No | `0` | Descuento máximo permitido sobre este precio. |
-| `created_at` / `updated_at` | `timestamp` | Sí | | |
-
-**Índices:** `unique(price_list_id, item_id, measurement_unit_id, min_quantity)`, `index(item_id)`.
+**Índices:** `unique(company_id, name)`, `index(name)`.
 
 **Reglas**
-- Al cambiar `is_default` a `true`, se pone en `false` la lista predeterminada anterior de la empresa.
-- Los precios de un documento se **copian** a la línea al confirmarlo; cambiar la lista después no altera históricos.
+- La lista **no** guarda precio, moneda, vigencia ni impuesto. Todo eso se configura **por artículo**,
+  dentro del artículo, indicando a qué lista pertenece cada precio.
+- Los precios se **copian** a la línea del documento al confirmarlo; cambiar un precio después no
+  altera documentos ya emitidos.
 
 ---
 
 ## 3. Unidades de medida
 
-Unidades con factor de conversión hacia una unidad base por familia (peso, volumen, longitud, unidad).
+Catálogo simple de unidades (Unidad, Caja, Kilogramo, Litro).
 
 **Tabla:** `app_measurement_units` — **Prefijo:** `UOM`
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
 | `name` | `string(100)` | No | | Nombre (p. ej. "Kilogramo"). |
-| `abbreviation` | `string(10)` | No | | Símbolo (`kg`, `un`, `cja`). |
-| `type` | `enum` | No | `'unit'` | `unit`, `weight`, `volume`, `length`, `area`, `time`. Solo se convierten unidades del mismo tipo. |
-| `is_base` | `boolean` | No | `false` | Unidad base de su tipo. Una sola por `type` y empresa. |
-| `conversion_factor` | `decimal(18,8)` | No | `1` | Cuántas unidades base equivale 1 de esta unidad. |
-| `decimals` | `smallInteger` | No | `2` | Decimales admitidos al capturar cantidades. |
 | `description` | `text` | Sí | | |
+| `abbreviation` | `string(10)` | No | | Símbolo (`kg`, `un`, `cja`). |
 
-**Índices:** `unique(company_id, abbreviation)`, `unique(company_id, name)`, `index(type)`, `index(is_base)`.
+**Índices:** `unique(company_id, name)`, `unique(company_id, abbreviation)`, `index(name)`.
 
 **Reglas**
-- La unidad base de cada tipo tiene `conversion_factor = 1` y no es editable.
-- No se puede desactivar una unidad usada como unidad base de algún artículo.
-- La conversión se aplica siempre a la unidad base del artículo al mover inventario (`base_quantity`).
+- La unidad **no** guarda factores de conversión. La equivalencia se define **por artículo** en
+  `app_item_units` (p. ej. para el artículo X, 1 `cja` = 12 `un`), porque el contenido de una caja
+  cambia de producto en producto.
+- Cada artículo tiene una unidad base (`app_items.measurement_unit_id`); todo el stock se guarda en ella.
+- No se puede desactivar una unidad usada como unidad base de algún artículo activo.
 
 ---
 
 ## 4. Impuestos
 
-Impuestos aplicables a líneas de compra y de venta (IVA, retenciones, impuestos específicos).
+Impuestos aplicables a líneas de compra y de venta.
 
 **Tabla:** `app_taxes` — **Prefijo:** `IMP`
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
 | `name` | `string(100)` | No | | Nombre (p. ej. "IVA 15%"). |
-| `type` | `enum` | No | `'percentage'` | `percentage` (sobre la base) o `fixed` (monto por unidad). |
-| `scope` | `enum` | No | `'both'` | `sale`, `purchase`, `both`. Dónde puede seleccionarse. |
-| `rate` | `decimal(7,4)` | No | `0` | Porcentaje (`15.0000`) o monto fijo según `type`. |
-| `is_withholding` | `boolean` | No | `false` | `true` = retención (resta del total a pagar/cobrar). |
-| `is_included_in_price` | `boolean` | No | `false` | `true` = el precio capturado ya lo contiene. |
-| `is_default` | `boolean` | No | `false` | Impuesto sugerido al crear un artículo. |
-| `accounting_code` | `string(50)` | Sí | | Código fiscal/contable para reportes y declaraciones. |
 | `description` | `text` | Sí | | |
+| `percentage` | `decimal(7,4)` | No | `0` | Porcentaje del impuesto (`15.0000`). |
+| `has_withholding` | `enum` | No | `'no'` | `yes` = además se practica retención. |
+| `withholding_percentage` | `decimal(7,4)` | No | `0` | Porcentaje de retención. Solo aplica si `has_withholding = 'yes'`. |
 
-**Índices:** `unique(company_id, name)`, `index(scope)`, `index(is_withholding)`, `index(is_default)`.
+**Índices:** `unique(company_id, name)`, `index(has_withholding)`.
 
 **Reglas**
-- La tasa se **copia** a la línea del documento (`tax_percent`) al confirmarlo. Cambiar la tasa no
-  recalcula documentos ya emitidos.
-- Un impuesto con `rate = 0` sirve para artículos exentos y permite declararlos correctamente.
-- No se puede desactivar si está asignado como impuesto de algún artículo activo.
+- `percentage` y `withholding_percentage` se **copian** a la línea del documento
+  (`tax_percent`, `withholding_percent`) al confirmarlo. Cambiar la tasa no recalcula documentos ya emitidos.
+- Un impuesto con `percentage = 0` sirve para artículos exentos y permite declararlos correctamente.
+- Si `has_withholding = 'no'`, `withholding_percentage` se fuerza a `0`.
+- No se puede desactivar si está asignado a algún artículo, cliente o proveedor activo.
 
 ---
 
 ## 5. Tipo de proveedor
 
-Clasificación de proveedores para reglas comerciales y reportes de Compras.
+Clasificación de proveedores para reportes y filtros de Compras.
 
 **Tabla:** `app_supplier_types` — **Prefijo:** `TPR`
 
@@ -147,12 +119,8 @@ Clasificación de proveedores para reglas comerciales y reportes de Compras.
 |---|---|---|---|---|
 | `name` | `string(100)` | No | | Nombre (p. ej. "Nacional", "Importador", "Servicios"). |
 | `description` | `text` | Sí | | |
-| `default_payment_term_days` | `integer` | No | `0` | Días de crédito sugeridos al crear un proveedor de este tipo. |
-| `default_tax_id` | `uuid` | Sí | | FK → `app_taxes.id` (`nullOnDelete`). Impuesto sugerido en compras. |
-| `requires_tax_id` | `boolean` | No | `true` | Exige identificación fiscal al registrar el proveedor. |
-| `order` | `integer` | No | `0` | Orden de presentación. |
 
-**Índices:** `unique(company_id, name)`, `index(default_tax_id)`.
+**Índices:** `unique(company_id, name)`, `index(name)`.
 
 **Reglas:** no se puede desactivar si tiene proveedores activos asociados.
 
@@ -160,7 +128,7 @@ Clasificación de proveedores para reglas comerciales y reportes de Compras.
 
 ## 6. Tipo de cliente
 
-Clasificación de clientes para precios, crédito y reportes de Ventas.
+Clasificación de clientes para reportes y filtros de Ventas.
 
 **Tabla:** `app_client_types` — **Prefijo:** `TCL`
 
@@ -168,16 +136,46 @@ Clasificación de clientes para precios, crédito y reportes de Ventas.
 |---|---|---|---|---|
 | `name` | `string(100)` | No | | Nombre (p. ej. "Mayorista", "Detalle", "Corporativo"). |
 | `description` | `text` | Sí | | |
-| `price_list_id` | `uuid` | Sí | | FK → `app_price_lists.id` (`nullOnDelete`). Lista de precio por defecto del tipo. |
-| `default_payment_term_days` | `integer` | No | `0` | Días de crédito sugeridos. |
-| `default_credit_limit` | `decimal(18,2)` | No | `0` | Límite de crédito sugerido. |
-| `default_discount_percent` | `decimal(7,4)` | No | `0` | Descuento sugerido en venta. |
-| `requires_tax_id` | `boolean` | No | `false` | Exige identificación fiscal al registrar el cliente. |
-| `order` | `integer` | No | `0` | Orden de presentación. |
 
-**Índices:** `unique(company_id, name)`, `index(price_list_id)`.
+**Índices:** `unique(company_id, name)`, `index(name)`.
 
 **Reglas**
 - El orden de resolución del precio en una venta es:
-  cliente → tipo de cliente → lista predeterminada de la empresa → precio base del artículo.
+  precio del artículo en la lista del cliente (`app_clients.price_list_id`) → precio base del
+  artículo (`app_items.base_price`).
+  El tipo de cliente **no** interviene en el precio: es solo clasificación.
 - No se puede desactivar si tiene clientes activos asociados.
+
+---
+
+## 7. Tasas
+
+Valor de la tasa de cambio del dólar y el euro por fecha. Es la fuente única desde la que los
+documentos toman su `exchange_rate`.
+
+**Tabla:** `app_exchange_rates` — **Prefijo:** `TAS`
+
+| Columna | Tipo | Nulo | Default | Descripción |
+|---|---|---|---|---|
+| `currency` | `string(3)` | No | | Moneda ISO 4217: `USD`, `EUR`. |
+| `rate_date` | `date` | No | | Fecha de vigencia de la tasa. |
+| `rate` | `decimal(18,8)` | No | `0` | Valor de la tasa: cuántas unidades de la moneda base equivale **1** unidad de `currency`. |
+| `type` | `enum` | No | `'legal'` | `legal` (tasa oficial publicada) o `manual` (tasa interna cargada a mano). |
+| `source` | `string(150)` | Sí | | De dónde salió la tasa (banco central, boletín, carga manual). |
+| `description` | `text` | Sí | | |
+
+**Índices:** `unique(company_id, currency, rate_date, type)`, `index(currency)`, `index(rate_date)`,
+`index(type)`.
+
+**Reglas**
+- Una sola tasa por moneda, fecha y tipo. Si se carga de nuevo la misma combinación, se actualiza el
+  registro existente en lugar de crear otro.
+- **Búsqueda de la tasa de un documento:** se busca la del `type = legal` cuya `rate_date` sea igual a
+  la fecha del documento; si no existe, se toma la **más reciente anterior** a esa fecha. Si tampoco
+  hay, el documento no se puede confirmar en moneda extranjera.
+- La tasa se **copia** al documento (`exchange_rate`) al confirmarlo. Cargar después una tasa distinta
+  no recalcula documentos ya emitidos: eso es lo que permite calcular el diferencial cambiario entre
+  la emisión y el pago (`exchange_difference` en las tablas de aplicación).
+- Una tasa cargada con error no se borra: se desactiva (`status = inactive`) y se registra la correcta.
+  Los documentos ya confirmados con ella conservan su `exchange_rate`.
+- La moneda base de la empresa no se registra aquí: su tasa es siempre `1`.

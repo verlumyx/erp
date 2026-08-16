@@ -45,8 +45,8 @@ con la información comercial necesaria para facturar.
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
-| `client_type_id` | `uuid` | Sí | | FK → `app_client_types.id` (`nullOnDelete`). |
-| `price_list_id` | `uuid` | Sí | | FK → `app_price_lists.id` (`nullOnDelete`). Lista propia; tiene prioridad sobre la del tipo. |
+| `client_type_id` | `uuid` | Sí | | FK → `app_client_types.id` (`nullOnDelete`). Solo clasificación; no afecta precios ni crédito. |
+| `price_list_id` | `uuid` | Sí | | FK → `app_price_lists.id` (`nullOnDelete`). Lista asignada al cliente. |
 | `legal_name` | `string(200)` | Sí | | Razón social para facturar. |
 | `tax_id` | `string(30)` | Sí | | Identificación fiscal. |
 | `person_type` | `enum` | No | `'individual'` | `individual` o `company`. |
@@ -58,7 +58,7 @@ con la información comercial necesaria para facturar.
 | `currency` | `string(3)` | No | `'USD'` | Moneda habitual de venta. |
 | `payment_term_days` | `integer` | No | `0` | Días de crédito. `0` = contado. |
 | `credit_limit` | `decimal(18,2)` | No | `0` | Cupo máximo. `0` = sin crédito. |
-| `credit_blocked` | `boolean` | No | `false` | Bloquea nuevas ventas a crédito. |
+| `credit_blocked` | `enum` | No | `'no'` | Bloquea nuevas ventas a crédito. |
 | `current_balance` | `decimal(18,2)` | No | `0` | Saldo por cobrar. Derivado. |
 | `advance_balance` | `decimal(18,2)` | No | `0` | Anticipos recibidos y no aplicados. |
 | `discount_percent` | `decimal(7,4)` | No | `0` | Descuento fijo del cliente. |
@@ -74,8 +74,8 @@ con la información comercial necesaria para facturar.
 `index(salesperson_id)`, `index(route_id)`, `index(current_balance)`.
 
 **Reglas**
-- Resolución del precio de venta: `client.price_list_id` → `client_type.price_list_id` →
-  lista con `is_default = true` → `item.base_price`.
+- Resolución del precio de venta: precio del artículo en `client.price_list_id` → `item.base_price`.
+  El tipo de cliente no interviene.
 - `current_balance` y `advance_balance` son derivados; los mantiene el sistema al confirmar documentos.
 - Si `current_balance + total del pedido > credit_limit`, la venta a crédito se bloquea salvo
   autorización explícita (permiso `override_credit_limit`).
@@ -86,13 +86,17 @@ con la información comercial necesaria para facturar.
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `uuid` | No | PK. |
+| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del cliente. |
 | `client_id` | `uuid` | No | FK → `app_clients.id` (`cascadeOnDelete`). |
 | `name` | `string(150)` | No | |
 | `position` | `string(100)` | Sí | |
 | `email` | `string(255)` | Sí | |
 | `phone` | `string(30)` | Sí | |
-| `is_primary` | `boolean` | No | |
+| `is_primary` | `enum` | No | `yes` / `no`, default `'no'`. Contacto principal. |
 | `status` | `enum` | No | `active` / `inactive`. |
+| `created_at` / `updated_at` | `timestamp` | Sí | |
+
+**Índices:** `index(client_id)`, `index(company_id)`, `index(status)`.
 
 ### 1.2 Direcciones — `app_client_addresses`
 
@@ -101,6 +105,7 @@ Un cliente puede tener varias direcciones de entrega (sucursales).
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `uuid` | No | PK. |
+| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del cliente. |
 | `client_id` | `uuid` | No | FK → `app_clients.id` (`cascadeOnDelete`). |
 | `type` | `enum` | No | `billing`, `shipping`. |
 | `name` | `string(150)` | No | Alias ("Sucursal Centro"). |
@@ -108,7 +113,11 @@ Un cliente puede tener varias direcciones de entrega (sucursales).
 | `city` / `state` / `country` | `string(100)` | Sí | |
 | `route_id` | `uuid` | Sí | FK → `app_routes.id`. Ruta de esta dirección. |
 | `latitude` / `longitude` | `decimal(10,7)` | Sí | |
-| `is_default` | `boolean` | No | |
+| `is_default` | `enum` | No | `yes` / `no`, default `'no'`. Dirección sugerida. |
+| `status` | `enum` | No | `active` / `inactive`. |
+| `created_at` / `updated_at` | `timestamp` | Sí | |
+
+**Índices:** `index(client_id)`, `index(company_id)`, `index(route_id)`, `index(status)`.
 
 ---
 
@@ -190,7 +199,7 @@ Documento fiscal que genera la cuenta por cobrar y descarga inventario si no hub
 | `sale_type` | `enum` | No | `'credit'` | `cash` (contado) o `credit`. |
 | `currency` | `string(3)` | No | `'USD'` | |
 | `exchange_rate` | `decimal(18,8)` | No | `1` | |
-| `affects_inventory` | `boolean` | No | `true` | `false` si el stock ya salió con un despacho. |
+| `affects_inventory` | `enum` | No | `'yes'` | `no` si el stock ya salió con un despacho. |
 | `subtotal` | `decimal(18,2)` | No | `0` | |
 | `discount_amount` | `decimal(18,2)` | No | `0` | |
 | `tax_amount` | `decimal(18,2)` | No | `0` | |
@@ -230,7 +239,7 @@ Además de las columnas comunes de línea:
 | `returned_quantity` | `decimal(18,4)` | No | `0` | Cantidad devuelta por el cliente. |
 
 **Reglas**
-- Al confirmar: si `affects_inventory = true`, genera movimientos `out` y congela `unit_cost` con el
+- Al confirmar: si `affects_inventory = 'yes'`, genera movimientos `out` y congela `unit_cost` con el
   costo vigente del artículo. Aumenta `current_balance` del cliente.
 - `invoice_number` se asigna al confirmar, nunca en borrador, y es correlativo por serie.
 - Una factura confirmada **no se edita**: se anula y se emite una nueva, o se corrige con nota de crédito.
@@ -254,7 +263,7 @@ Disminuye la cuenta por cobrar: devoluciones, descuentos posteriores o correccio
 | `note_date` | `date` | No | | |
 | `reason` | `enum` | No | `'return'` | `return`, `discount`, `price_correction`, `damaged`, `cancellation`, `other`. |
 | `reason_detail` | `string(500)` | Sí | | |
-| `affects_inventory` | `boolean` | No | `false` | `true` si reingresa mercancía. |
+| `affects_inventory` | `enum` | No | `'no'` | `yes` si reingresa mercancía. |
 | `currency` | `string(3)` | No | `'USD'` | |
 | `exchange_rate` | `decimal(18,8)` | No | `1` | |
 | `subtotal` | `decimal(18,2)` | No | `0` | |
@@ -361,6 +370,7 @@ Entrada de dinero que cancela una o varias facturas. Puede combinar efectivo, an
 ### 6.2 Aplicaciones — `app_client_collection_applications`
 
 Tabla puente que registra **qué documento abona qué factura**. La usan cobros, anticipos y notas de crédito.
+Es tabla de detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la factura y su origen).
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
@@ -443,10 +453,11 @@ Además de las columnas comunes de línea:
 ## Diagrama del ciclo
 
 ```
-app_client_types ──> app_clients ──┬──> app_client_contacts
-app_price_lists ───────┘           ├──> app_client_addresses
-                                   │
-     ┌─────────────────────────────┤
+app_client_types ──┐
+                   ├──> app_clients ──┬──> app_client_contacts
+app_price_lists ───┘                  ├──> app_client_addresses
+                                      │
+     ┌────────────────────────────────┤
      ├──> app_sales_orders ──> app_sales_order_lines
      │            │
      │            └──> app_dispatches (Logística) ──> kardex (out)

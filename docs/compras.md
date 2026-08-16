@@ -70,24 +70,33 @@ Maestro de proveedores y sus condiciones comerciales.
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `uuid` | No | PK. |
+| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del proveedor. |
 | `supplier_id` | `uuid` | No | FK → `app_suppliers.id` (`cascadeOnDelete`). |
 | `name` | `string(150)` | No | |
 | `position` | `string(100)` | Sí | Cargo. |
 | `email` | `string(255)` | Sí | |
 | `phone` | `string(30)` | Sí | |
-| `is_primary` | `boolean` | No | Contacto principal. |
+| `is_primary` | `enum` | No | `yes` / `no`, default `'no'`. Contacto principal. |
 | `status` | `enum` | No | `active` / `inactive`. |
+| `created_at` / `updated_at` | `timestamp` | Sí | |
+
+**Índices:** `index(supplier_id)`, `index(company_id)`, `index(status)`.
 
 ### 1.2 Direcciones — `app_supplier_addresses`
 
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `uuid` | No | PK. |
+| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado del proveedor. |
 | `supplier_id` | `uuid` | No | FK → `app_suppliers.id` (`cascadeOnDelete`). |
 | `type` | `enum` | No | `billing`, `pickup`, `warehouse`. |
 | `address` | `string(500)` | No | |
 | `city` / `state` / `country` | `string(100)` | Sí | |
-| `is_default` | `boolean` | No | |
+| `is_default` | `enum` | No | `yes` / `no`, default `'no'`. Dirección sugerida. |
+| `status` | `enum` | No | `active` / `inactive`. |
+| `created_at` / `updated_at` | `timestamp` | Sí | |
+
+**Índices:** `index(supplier_id)`, `index(company_id)`, `index(status)`.
 
 ---
 
@@ -163,7 +172,7 @@ Documento de deuda con el proveedor. Genera cuenta por pagar y, si no hubo entra
 | `due_date` | `date` | No | | Vencimiento = `invoice_date + payment_term_days`. |
 | `currency` | `string(3)` | No | `'USD'` | |
 | `exchange_rate` | `decimal(18,8)` | No | `1` | |
-| `affects_inventory` | `boolean` | No | `true` | `false` cuando el stock ya entró con una Entrada previa. |
+| `affects_inventory` | `enum` | No | `'yes'` | `no` cuando el stock ya entró con una Entrada previa. |
 | `subtotal` | `decimal(18,2)` | No | `0` | |
 | `discount_amount` | `decimal(18,2)` | No | `0` | |
 | `tax_amount` | `decimal(18,2)` | No | `0` | |
@@ -196,7 +205,7 @@ Además de las columnas comunes de línea:
 | `returned_quantity` | `decimal(18,4)` | No | `0` | Cantidad devuelta al proveedor. |
 
 **Reglas**
-- Al confirmar: si `affects_inventory = true`, genera movimientos `in` en el kardex y recalcula el
+- Al confirmar: si `affects_inventory = 'yes'`, genera movimientos `in` en el kardex y recalcula el
   costo promedio del artículo con `landed_cost`.
 - Aumenta `current_balance` del proveedor por `total - withholding_amount`.
 - `supplier_invoice_number` es único por proveedor y empresa: bloquea el registro duplicado.
@@ -221,7 +230,7 @@ Disminuye la deuda con el proveedor: descuentos posteriores, devoluciones o corr
 | `note_date` | `date` | No | | |
 | `reason` | `enum` | No | `'return'` | `return` (devolución), `discount`, `price_correction`, `damaged`, `other`. |
 | `reason_detail` | `string(500)` | Sí | | Obligatorio si `reason = other`. |
-| `affects_inventory` | `boolean` | No | `false` | `true` cuando la nota implica salida física de mercancía. |
+| `affects_inventory` | `enum` | No | `'no'` | `yes` cuando la nota implica salida física de mercancía. |
 | `currency` | `string(3)` | No | `'USD'` | |
 | `exchange_rate` | `decimal(18,8)` | No | `1` | |
 | `subtotal` | `decimal(18,2)` | No | `0` | |
@@ -317,6 +326,7 @@ notas de crédito.
 ### 6.2 Aplicaciones — `app_supplier_payment_applications`
 
 Tabla puente que registra **qué documento paga qué factura**. La usan pagos, anticipos y notas de crédito.
+Es tabla de detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la factura y su origen).
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|

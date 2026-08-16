@@ -79,7 +79,7 @@ Además de las columnas comunes de línea (los importes son informativos: el des
 - Si `delivered_quantity < quantity`, la diferencia reingresa a bodega con un movimiento `in`
   y el despacho queda en `partial_delivered`.
 - Un despacho rechazado completo (`rejected`) reingresa toda la mercancía.
-- Se factura después (`app_sales_invoices.dispatch_id`), con `affects_inventory = false`.
+- Se factura después (`app_sales_invoices.dispatch_id`), con `affects_inventory = 'no'`.
 
 ---
 
@@ -166,7 +166,7 @@ cubre entradas sin documento previo (producción, donación, hallazgo).
 | `freight_amount` | `decimal(18,2)` | No | `0` | Flete a prorratear al costo. |
 | `other_charges` | `decimal(18,2)` | No | `0` | Otros gastos capitalizables (aduana, seguro). |
 | `total_cost` | `decimal(18,2)` | No | `0` | Valor total ingresado. |
-| `is_invoiced` | `boolean` | No | `false` | `true` cuando ya existe factura de compra asociada. |
+| `is_invoiced` | `enum` | No | `'no'` | `yes` cuando ya existe factura de compra asociada. |
 | `cancelled_at` | `timestamp` | Sí | | |
 | `notes` | `text` | Sí | | |
 
@@ -264,13 +264,15 @@ Asignación fija de clientes a una ruta (plantilla desde la que se generan las p
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `uuid` | No | PK. |
+| `company_id` | `uuid` | Sí | FK → `app_companies.id`. Heredado de la ruta. |
 | `route_id` | `uuid` | No | FK → `app_routes.id` (`cascadeOnDelete`). |
 | `client_id` | `uuid` | No | FK → `app_clients.id` (`cascadeOnDelete`). |
 | `client_address_id` | `uuid` | Sí | FK → `app_client_addresses.id`. |
 | `sequence` | `integer` | No | Orden habitual de visita. |
 | `status` | `enum` | No | `active` / `inactive`. |
+| `created_at` / `updated_at` | `timestamp` | Sí | |
 
-**Índices:** `unique(route_id, client_id, client_address_id)`.
+**Índices:** `unique(route_id, client_id, client_address_id)`, `index(company_id)`, `index(status)`.
 
 **Reglas**
 - Las paradas de una fecha se generan a partir de `app_route_clients` más los despachos pendientes
@@ -317,6 +319,7 @@ y autorización.
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
 | `id` | `uuid` | No | | PK. |
+| `company_id` | `uuid` | Sí | | FK → `app_companies.id`. Heredado del ajuste. |
 | `adjustment_id` | `uuid` | No | | FK → `app_adjustments.id` (`cascadeOnDelete`). |
 | `line_number` | `integer` | No | | |
 | `item_id` | `uuid` | No | | FK → `app_items.id` (`restrictOnDelete`). |
@@ -333,11 +336,12 @@ y autorización.
 | `total_cost` | `decimal(18,2)` | No | `0` | `abs(base_quantity) * unit_cost`. |
 | `reason` | `string(500)` | Sí | | Motivo específico de la línea. |
 | `counted_by` | `uuid` | Sí | | FK → `users.id`. Quién contó. |
+| `status` | `enum` | No | `'active'` | `active` / `inactive`. Los totales suman solo líneas activas. |
 | `notes` | `string(500)` | Sí | | |
 | `created_at` / `updated_at` | `timestamp` | Sí | | |
 
 **Índices:** `index(adjustment_id)`, `index(item_id)`, `unique(adjustment_id, line_number)`,
-`index(lot_id)`.
+`index(lot_id)`, `index(company_id)`, `index(status)`.
 
 **Reglas**
 - `system_quantity` se captura al **crear** la línea y se revalida al confirmar: si el stock cambió
