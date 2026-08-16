@@ -1,12 +1,11 @@
-export type ExchangeRateCurrency = 'USD' | 'EUR';
-
 export type ExchangeRateType = 'legal' | 'manual';
 
 export interface ExchangeRate {
     id: string;
     company_id: string | null;
     code: string;
-    currency: ExchangeRateCurrency;
+    /** Código ISO 4217; las opciones salen del catálogo global de monedas. */
+    currency: string;
     rate_date: string;
     rate: string;
     type: ExchangeRateType;
@@ -37,11 +36,6 @@ export interface ExchangeRateFilters {
 
 /** Decimales de `app_exchange_rates.rate` — decimal(18,8). */
 export const RATE_DECIMALS = 8;
-
-export const CURRENCY_LABELS: Record<ExchangeRateCurrency, string> = {
-    USD: 'Dólar (USD)',
-    EUR: 'Euro (EUR)',
-};
 
 export const TYPE_LABELS: Record<ExchangeRateType, string> = {
     legal: 'Legal',

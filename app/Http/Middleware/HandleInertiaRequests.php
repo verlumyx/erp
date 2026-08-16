@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Currency\Services\CurrencyOptionsService;
 use App\Modules\Menu\Services\GetActiveMenusService;
 use App\Modules\Shared\Models\UserCompany;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class HandleInertiaRequests extends Middleware
         $currentCompany = null;
         $defaultCompanyId = null;
         $userCompanies = [];
+        $currencies = [];
 
         if ($request->user()) {
             $isSystemOwner = $request->user()->is_system_owner;
@@ -89,6 +91,8 @@ class HandleInertiaRequests extends Middleware
             if ($currentCompanyId) {
                 $menus = $this->prefixMenuUrls($menus, $currentCompanyId);
             }
+
+            $currencies = app(CurrencyOptionsService::class)->execute();
         }
 
         return [
@@ -107,6 +111,7 @@ class HandleInertiaRequests extends Middleware
             'currentCompany' => $currentCompany,
             'defaultCompanyId' => $defaultCompanyId,
             'userCompanies' => $userCompanies,
+            'currencies' => $currencies,
         ];
     }
 

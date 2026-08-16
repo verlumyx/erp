@@ -29,8 +29,6 @@ class ItemPrice extends Model
         'price_list_id',
         'price',
         'currency',
-        'valid_from',
-        'valid_to',
         'status',
     ];
 
@@ -41,8 +39,6 @@ class ItemPrice extends Model
     {
         return [
             'price' => 'decimal:6',
-            'valid_from' => 'date',
-            'valid_to' => 'date',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

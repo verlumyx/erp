@@ -93,7 +93,9 @@ comprar en caja y vender en unidad para un mismo artículo.
 ### 1.2 Precios por lista — `app_item_prices`
 
 Precio del artículo en cada lista de precio. La lista solo nombra el conjunto
-(ver [Catálogo](catalogo.md)); el precio, la moneda y la vigencia se definen aquí.
+(ver [Catálogo](catalogo.md)); el precio y la moneda se definen aquí. Hay **un solo
+precio por artículo y lista**: no se guarda vigencia, el histórico vive en los
+documentos ya emitidos.
 
 | Columna | Tipo | Nulo | Default | Descripción |
 |---|---|---|---|---|
@@ -102,13 +104,11 @@ Precio del artículo en cada lista de precio. La lista solo nombra el conjunto
 | `item_id` | `uuid` | No | | FK → `app_items.id` (`cascadeOnDelete`). |
 | `price_list_id` | `uuid` | No | | FK → `app_price_lists.id` (`restrictOnDelete`). |
 | `price` | `decimal(18,6)` | No | `0` | Precio unitario en la unidad base del artículo. |
-| `currency` | `string(3)` | No | | Moneda ISO 4217 del precio. |
-| `valid_from` | `date` | Sí | | Inicio de vigencia. Nulo = vigente desde siempre. |
-| `valid_to` | `date` | Sí | | Fin de vigencia. Nulo = sin vencimiento. |
+| `currency` | `string(3)` | No | | Moneda del catálogo global `app_currencies`. |
 | `status` | `enum` | No | `'active'` | `active` / `inactive`. |
 | `created_at` / `updated_at` | `timestamp` | Sí | | |
 
-**Índices:** `unique(item_id, price_list_id, valid_from)`, `index(company_id)`, `index(price_list_id)`, `index(status)`.
+**Índices:** `unique(item_id, price_list_id)`, `index(company_id)`, `index(price_list_id)`, `index(status)`.
 
 **Reglas**
 - `price` nunca puede quedar por debajo de `app_items.min_price`.

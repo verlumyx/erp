@@ -241,14 +241,6 @@ export default function ItemsShow({ item }: Props) {
                                     <span className="truncate font-bold">
                                         {price.price_list_name ?? '—'}
                                     </span>
-                                    <span className="text-[12.5px] text-muted-foreground">
-                                        {price.valid_from
-                                            ? `Desde ${price.valid_from}`
-                                            : 'Vigente desde siempre'}
-                                        {price.valid_to
-                                            ? ` hasta ${price.valid_to}`
-                                            : ' · sin vencimiento'}
-                                    </span>
                                 </div>
                                 <b className="font-bold tabular-nums">
                                     {price.price} {price.currency}

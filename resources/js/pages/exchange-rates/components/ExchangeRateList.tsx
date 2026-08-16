@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Power, Search } from 'lucide-react';
 import { useState } from 'react';
+import { useCurrencies } from '@/components/currency-select';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,6 +46,7 @@ export function ExchangeRateList({
     filters: initialFilters,
 }: ExchangeRateListProps) {
     const { currentCompany } = usePage<PageProps>().props;
+    const currencies = useCurrencies();
     const companyId = currentCompany!.id;
 
     const [filters, setFilters] = useState<ExchangeRateFilters>(initialFilters);
@@ -154,8 +156,14 @@ export function ExchangeRateList({
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="todas">Todas</SelectItem>
-                                <SelectItem value="USD">USD</SelectItem>
-                                <SelectItem value="EUR">EUR</SelectItem>
+                                {currencies.map((currency) => (
+                                    <SelectItem
+                                        key={currency.code}
+                                        value={currency.code}
+                                    >
+                                        {currency.code}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>

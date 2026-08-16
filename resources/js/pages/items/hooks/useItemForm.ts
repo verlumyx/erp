@@ -19,8 +19,6 @@ export interface ItemPriceRow {
     price_list_id: string;
     price: number;
     currency: string;
-    valid_from: string;
-    valid_to: string;
 }
 
 interface ItemFormData {
@@ -61,8 +59,6 @@ const emptyPrice: ItemPriceRow = {
     price_list_id: '',
     price: 0,
     currency: 'USD',
-    valid_from: '',
-    valid_to: '',
 };
 
 /**
@@ -88,8 +84,6 @@ function priceRows(item?: Item): ItemPriceRow[] {
             price_list_id: price.price_list_id,
             price: Number(price.price),
             currency: price.currency,
-            valid_from: price.valid_from ?? '',
-            valid_to: price.valid_to ?? '',
         }));
 }
 

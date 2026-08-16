@@ -29,8 +29,6 @@ export interface ItemPrice {
     price_list_name?: string;
     price: string;
     currency: string;
-    valid_from: string | null;
-    valid_to: string | null;
     status: 'active' | 'inactive';
     created_at: string;
     updated_at: string | null;

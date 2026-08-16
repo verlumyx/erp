@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { CurrencySelect } from '@/components/currency-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -13,15 +14,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useExchangeRateFormContext } from '../contexts/ExchangeRateFormContext';
-import type {
-    ExchangeRateCurrency,
-    ExchangeRateType,
-} from '../types/ExchangeRate';
-import {
-    CURRENCY_LABELS,
-    RATE_DECIMALS,
-    TYPE_LABELS,
-} from '../types/ExchangeRate';
+import type { ExchangeRateType } from '../types/ExchangeRate';
+import { RATE_DECIMALS, TYPE_LABELS } from '../types/ExchangeRate';
 
 interface FormSectionHeadProps {
     step: number;
@@ -74,33 +68,14 @@ export function ExchangeRateForm() {
                                 >
                                     Moneda *
                                 </Label>
-                                <Select
+                                <CurrencySelect
+                                    id="currency"
                                     value={data.currency}
+                                    error={errors.currency}
                                     onValueChange={(value) =>
                                         setData('currency', value)
                                     }
-                                >
-                                    <SelectTrigger
-                                        id="currency"
-                                        className={`h-[42px] w-full rounded-[10px] ${errors.currency ? 'border-bad' : ''}`}
-                                    >
-                                        <SelectValue placeholder="Moneda" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(
-                                            Object.keys(
-                                                CURRENCY_LABELS,
-                                            ) as ExchangeRateCurrency[]
-                                        ).map((currency) => (
-                                            <SelectItem
-                                                key={currency}
-                                                value={currency}
-                                            >
-                                                {CURRENCY_LABELS[currency]}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                />
                                 {errors.currency && (
                                     <p className="text-sm text-bad">
                                         {errors.currency}

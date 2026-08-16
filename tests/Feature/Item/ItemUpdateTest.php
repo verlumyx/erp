@@ -133,20 +133,18 @@ test('prices are updated and the ones removed are deactivated', function () {
         'company_id' => $company->id,
         'price_list_id' => $kept->id,
         'price' => 10,
-        'valid_from' => null,
     ]);
     ItemPrice::factory()->create([
         'item_id' => $item->id,
         'company_id' => $company->id,
         'price_list_id' => $dropped->id,
         'price' => 20,
-        'valid_from' => null,
     ]);
 
     $payload = itemPayload($unit, [
         'sku' => $item->sku,
         'prices' => [
-            ['price_list_id' => $kept->id, 'price' => 99.5, 'currency' => 'USD', 'valid_from' => null],
+            ['price_list_id' => $kept->id, 'price' => 99.5, 'currency' => 'USD'],
         ],
     ]);
     unset($payload['id']);

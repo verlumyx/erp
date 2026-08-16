@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Supplier\Requests\Concerns;
 
+use App\Modules\Currency\Rules\ActiveCurrency;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Supplier\Models\SupplierAddress;
 use Illuminate\Validation\Rule;
@@ -41,7 +42,7 @@ trait ValidatesSupplierPayload
             'city' => ['nullable', 'string', 'max:100'],
             'state' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
-            'currency' => ['required', 'string', 'size:3', 'alpha'],
+            'currency' => ['required', 'string', new ActiveCurrency],
             'payment_term_days' => ['nullable', 'integer', 'min:0'],
             'credit_limit' => ['nullable', 'numeric', 'min:0'],
             'lead_time_days' => ['nullable', 'integer', 'min:0'],
@@ -82,7 +83,6 @@ trait ValidatesSupplierPayload
             'document_number.unique' => 'Ya existe un proveedor con ese RIF en la empresa.',
             'email.unique' => 'Ya existe un proveedor con ese correo en la empresa.',
             'currency.required' => 'La moneda de compra es obligatoria.',
-            'currency.size' => 'La moneda debe ser un código ISO 4217 de 3 letras.',
             'contacts.*.name.required' => 'El nombre del contacto es obligatorio.',
             'contacts.*.email.email' => 'El correo del contacto no tiene un formato válido.',
             'addresses.*.address.required' => 'La dirección es obligatoria.',

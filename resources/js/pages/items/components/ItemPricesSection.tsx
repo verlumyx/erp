@@ -1,7 +1,7 @@
 import { Plus, X } from 'lucide-react';
+import { CurrencySelect } from '@/components/currency-select';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -13,8 +13,8 @@ import {
 import { useItemFormContext } from '../contexts/ItemFormContext';
 
 /**
- * 1.2 Precios por lista. La lista solo nombra el conjunto; el precio, la
- * moneda y la vigencia se definen aquí.
+ * 1.2 Precios por lista. La lista solo nombra el conjunto; el precio y la
+ * moneda se definen aquí. Un solo precio por lista.
  */
 export function ItemPricesSection() {
     const { data, errors, options, addPrice, removePrice, updatePrice } =
@@ -37,7 +37,7 @@ export function ItemPricesSection() {
             {data.prices.map((price, index) => (
                 <div
                     key={index}
-                    className="grid grid-cols-1 items-end gap-3 rounded-[12px] border p-4 sm:grid-cols-[1.6fr_1fr_0.7fr_1fr_1fr_auto]"
+                    className="grid grid-cols-1 items-end gap-3 rounded-[12px] border p-4 sm:grid-cols-[1.6fr_1fr_1fr_auto]"
                 >
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
@@ -98,51 +98,16 @@ export function ItemPricesSection() {
                         <Label className="text-[13px] font-semibold">
                             Moneda *
                         </Label>
-                        <Input
-                            type="text"
-                            maxLength={3}
+                        <CurrencySelect
                             value={price.currency}
-                            onChange={(e) =>
-                                updatePrice(
-                                    index,
-                                    'currency',
-                                    e.target.value.toUpperCase(),
-                                )
+                            onValueChange={(value) =>
+                                updatePrice(index, 'currency', value)
                             }
-                            placeholder="USD"
-                            className={`h-[42px] rounded-[10px] uppercase ${fieldError(index, 'currency') ? 'border-bad' : ''}`}
+                            error={fieldError(index, 'currency')}
                         />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Vigente desde
-                        </Label>
-                        <Input
-                            type="date"
-                            value={price.valid_from}
-                            onChange={(e) =>
-                                updatePrice(index, 'valid_from', e.target.value)
-                            }
-                            className="h-[42px] rounded-[10px]"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Vigente hasta
-                        </Label>
-                        <Input
-                            type="date"
-                            value={price.valid_to}
-                            onChange={(e) =>
-                                updatePrice(index, 'valid_to', e.target.value)
-                            }
-                            className={`h-[42px] rounded-[10px] ${fieldError(index, 'valid_to') ? 'border-bad' : ''}`}
-                        />
-                        {fieldError(index, 'valid_to') && (
+                        {fieldError(index, 'currency') && (
                             <p className="text-sm text-bad">
-                                {fieldError(index, 'valid_to')}
+                                {fieldError(index, 'currency')}
                             </p>
                         )}
                     </div>

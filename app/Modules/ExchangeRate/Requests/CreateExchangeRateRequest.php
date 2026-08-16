@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ExchangeRate\Requests;
 
+use App\Modules\Currency\Rules\ActiveCurrency;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateExchangeRateRequest extends FormRequest
@@ -23,7 +24,7 @@ class CreateExchangeRateRequest extends FormRequest
     {
         return [
             'id' => ['required', 'uuid'],
-            'currency' => ['required', 'string', 'size:3', 'in:USD,EUR'],
+            'currency' => ['required', 'string', new ActiveCurrency],
             'rate_date' => ['required', 'date_format:Y-m-d'],
             'rate' => ['required', 'numeric', 'min:0'],
             'type' => ['required', 'string', 'in:legal,manual'],
@@ -39,7 +40,6 @@ class CreateExchangeRateRequest extends FormRequest
     {
         return [
             'currency.required' => 'La moneda es obligatoria.',
-            'currency.in' => 'La moneda debe ser USD o EUR.',
             'rate_date.required' => 'La fecha de vigencia es obligatoria.',
             'rate_date.date_format' => 'La fecha de vigencia debe tener el formato AAAA-MM-DD.',
             'rate.required' => 'El valor de la tasa es obligatorio.',

@@ -173,8 +173,8 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
     /**
      * Alinea `app_item_prices` con lo enviado desde la pantalla del artículo.
      *
-     * Las filas se identifican por lista de precio + inicio de vigencia, que es
-     * la clave única de la tabla. Las que dejan de venir se desactivan.
+     * Las filas se identifican por lista de precio, que es la clave única de la
+     * tabla: un solo precio por lista. Las que dejan de venir se desactivan.
      *
      * @param  array<int, ItemPriceData>  $prices
      */
@@ -183,27 +183,22 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
         $existing = ItemPrice::query()
             ->where('item_id', $item->id)
             ->get()
-            ->keyBy(fn (ItemPrice $price): string => $this->priceKey(
-                $price->price_list_id,
-                $price->valid_from?->format('Y-m-d'),
-            ));
+            ->keyBy(fn (ItemPrice $price): string => $price->price_list_id);
 
         $keep = [];
 
         foreach ($prices as $price) {
-            $key = $this->priceKey($price->priceListId, $price->validFrom);
-            $keep[] = $key;
+            $keep[] = $price->priceListId;
 
             $attributes = [
                 'company_id' => $item->company_id,
                 'price' => $price->price,
                 'currency' => $price->currency,
-                'valid_to' => $price->validTo,
                 'status' => $price->status,
             ];
 
-            if ($existing->has($key)) {
-                $existing->get($key)->update($attributes);
+            if ($existing->has($price->priceListId)) {
+                $existing->get($price->priceListId)->update($attributes);
 
                 continue;
             }
@@ -212,7 +207,6 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
                 ...$attributes,
                 'item_id' => $item->id,
                 'price_list_id' => $price->priceListId,
-                'valid_from' => $price->validFrom,
             ]);
         }
 
@@ -223,11 +217,6 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
                 ->whereIn('id', $obsolete->pluck('id')->all())
                 ->update(['status' => 'inactive']);
         }
-    }
-
-    private function priceKey(string $priceListId, ?string $validFrom): string
-    {
-        return $priceListId.'|'.($validFrom ?? '');
     }
 
     /**

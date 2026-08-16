@@ -26,8 +26,6 @@ class ItemPriceFactory extends Factory
             'price_list_id' => PriceList::factory(),
             'price' => fake()->randomFloat(2, 1, 500),
             'currency' => 'USD',
-            'valid_from' => null,
-            'valid_to' => null,
             'status' => 'active',
         ];
     }

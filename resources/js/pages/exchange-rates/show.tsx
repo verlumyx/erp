@@ -9,6 +9,7 @@ import {
     Power,
     StickyNote,
 } from 'lucide-react';
+import { useCurrencies } from '@/components/currency-select';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -16,7 +17,7 @@ import AppLayout from '@/layouts/app-layout';
 import exchangeRates from '@/routes/exchange-rates';
 import type { BreadcrumbItem } from '@/types';
 import type { ExchangeRate } from './types/ExchangeRate';
-import { CURRENCY_LABELS, TYPE_LABELS } from './types/ExchangeRate';
+import { TYPE_LABELS } from './types/ExchangeRate';
 
 interface Props {
     exchangeRate: ExchangeRate;
@@ -30,6 +31,11 @@ interface PageProps {
 export default function ExchangeRatesShow({ exchangeRate }: Props) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
+
+    const currencies = useCurrencies();
+    const currencyLabel =
+        currencies.find((currency) => currency.code === exchangeRate.currency)
+            ?.name ?? exchangeRate.currency;
 
     const title = `${exchangeRate.currency} · ${exchangeRate.rate_date}`;
 
@@ -97,7 +103,7 @@ export default function ExchangeRatesShow({ exchangeRate }: Props) {
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
                                     <Coins className="size-3.5 opacity-80" />
-                                    {CURRENCY_LABELS[exchangeRate.currency]}
+                                    {currencyLabel}
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
                                     <CalendarDays className="size-3.5 opacity-80" />

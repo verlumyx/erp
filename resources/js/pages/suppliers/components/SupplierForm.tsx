@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { CurrencySelect } from '@/components/currency-select';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -335,17 +336,27 @@ export function SupplierForm() {
                         sub="Moneda, crédito y tiempo de entrega acordados"
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-                        <TextField
-                            id="currency"
-                            label="Moneda *"
-                            value={data.currency}
-                            error={errors.currency}
-                            placeholder="USD"
-                            maxLength={3}
-                            onChange={(value) =>
-                                setData('currency', value.toUpperCase())
-                            }
-                        />
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="currency"
+                                className="text-[13px] font-semibold"
+                            >
+                                Moneda *
+                            </Label>
+                            <CurrencySelect
+                                id="currency"
+                                value={data.currency}
+                                error={errors.currency}
+                                onValueChange={(value) =>
+                                    setData('currency', value)
+                                }
+                            />
+                            {errors.currency && (
+                                <p className="text-sm text-bad">
+                                    {errors.currency}
+                                </p>
+                            )}
+                        </div>
 
                         <div className="flex flex-col gap-1.5">
                             <Label

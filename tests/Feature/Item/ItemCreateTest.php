@@ -72,8 +72,6 @@ test('an item can be created with its units and prices', function () {
                 'price_list_id' => $priceList->id,
                 'price' => 25.5,
                 'currency' => 'USD',
-                'valid_from' => '2026-01-01',
-                'valid_to' => null,
             ],
         ],
     ]);
@@ -92,7 +90,6 @@ test('an item can be created with its units and prices', function () {
     $price = $item->prices->first();
     expect((float) $price->price)->toBe(25.5);
     expect($price->currency)->toBe('USD');
-    expect($price->valid_from->format('Y-m-d'))->toBe('2026-01-01');
     expect($price->company_id)->toBe($company->id);
 });
 

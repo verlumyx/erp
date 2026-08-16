@@ -16,6 +16,9 @@ pest()->extend(Tests\TestCase::class)
     ->beforeEach(function () {
         $this->withoutVite();
         $this->withoutMiddleware(Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+        // El catálogo de monedas es global y lo valida cualquier campo `currency`.
+        $this->seed(Database\Seeders\CurrencySeeder::class);
     })
     ->in('Feature');
 

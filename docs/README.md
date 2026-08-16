@@ -24,12 +24,13 @@ solo se listan las propias del módulo.
 
 ### Clasificación de tablas
 
-Hay dos tipos de tabla, y de ahí depende qué columnas base lleva:
+Hay tres tipos de tabla, y de ahí depende qué columnas base lleva:
 
 | Tipo | Qué es | Lleva |
 |---|---|---|
 | **Tabla de módulo** | Entidad con pantalla y CRUD propio: se lista, se crea y se edita por sí sola. | `id`, `company_id`, `code`, `status`, `created_by`, timestamps |
 | **Tabla de detalle** | Filas que solo existen dentro de un padre: líneas de documento, contactos, direcciones, precios de una lista, aplicaciones de pago, saldos. Se editan desde la pantalla del padre. | `id`, `company_id`, `status`, timestamps (**sin `code`**) |
+| **Catálogo global** | Lista fija del sistema, igual para todas las empresas y sin pantalla de captura. Hoy solo `app_currencies`. | `id`, `status`, timestamps (**sin `company_id` ni `code`**) |
 
 Las de detalle **no** llevan `code` porque no se numeran de forma independiente: se identifican por su
 padre más su `line_number` o su combinación única. Sí llevan `company_id` (para filtrar y reportar sin
@@ -57,6 +58,11 @@ alcanza: una línea o un contacto que ya no aplica se desactiva, no se elimina.
 
 `app_item_stocks` es un caso especial: es una tabla **derivada** (el saldo calculado del kardex).
 No se captura ni se edita a mano, pero lleva `company_id` y `status` como el resto.
+
+**Catálogo global:** `app_currencies` (`code`, `name`, `symbol`, `order`, `status`) con `USD`, `EUR`
+y `VES`. Es la fuente única de todo campo `currency` del sistema: el backend valida contra ella
+(`ActiveCurrency`) y el frontend la recibe en las props compartidas de Inertia, así que cualquier
+campo de moneda nuevo es un select alimentado desde aquí, no una lista propia.
 
 ### Columnas base (presentes en toda tabla de módulo)
 

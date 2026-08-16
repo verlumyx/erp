@@ -13,8 +13,6 @@ class ItemPriceData
         public readonly string $priceListId,
         public readonly string $price,
         public readonly string $currency,
-        public readonly ?string $validFrom = null,
-        public readonly ?string $validTo = null,
         public readonly string $status = 'active',
     ) {}
 
@@ -27,8 +25,6 @@ class ItemPriceData
             priceListId: (string) $row['price_list_id'],
             price: (string) ($row['price'] ?? 0),
             currency: strtoupper((string) $row['currency']),
-            validFrom: $row['valid_from'] ?? null,
-            validTo: $row['valid_to'] ?? null,
             status: (string) ($row['status'] ?? 'active'),
         );
     }

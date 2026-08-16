@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Item\Requests\Concerns;
 
+use App\Modules\Currency\Rules\ActiveCurrency;
 use App\Modules\Item\Models\Item;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -60,9 +61,7 @@ trait ValidatesItemPayload
                 Rule::exists('app_price_lists', 'id')->where('company_id', $companyId),
             ],
             'prices.*.price' => ['required', 'numeric', 'min:0'],
-            'prices.*.currency' => ['required', 'string', 'size:3', 'alpha'],
-            'prices.*.valid_from' => ['nullable', 'date'],
-            'prices.*.valid_to' => ['nullable', 'date'],
+            'prices.*.currency' => ['required', 'string', new ActiveCurrency],
             'prices.*.status' => ['nullable', 'string', 'in:active,inactive'],
         ];
     }
@@ -86,7 +85,6 @@ trait ValidatesItemPayload
             'units.*.conversion_factor.gt' => 'El factor de conversión debe ser mayor que cero.',
             'prices.*.price_list_id.required' => 'Selecciona la lista de precio.',
             'prices.*.currency.required' => 'La moneda del precio es obligatoria.',
-            'prices.*.currency.size' => 'La moneda debe ser un código ISO 4217 de 3 letras.',
         ];
     }
 
@@ -116,31 +114,21 @@ trait ValidatesItemPayload
         $seen = [];
 
         foreach ($this->input('prices', []) as $index => $price) {
-            $key = ($price['price_list_id'] ?? '').'|'.($price['valid_from'] ?? '');
+            $priceListId = $price['price_list_id'] ?? '';
 
-            if (in_array($key, $seen, true)) {
+            if (in_array($priceListId, $seen, true)) {
                 $validator->errors()->add(
                     "prices.{$index}.price_list_id",
-                    'Ya hay un precio para esa lista con la misma fecha de inicio de vigencia.',
+                    'Ya hay un precio para esa lista de precio.',
                 );
             }
 
-            $seen[] = $key;
+            $seen[] = $priceListId;
 
             if (isset($price['price']) && (float) $price['price'] < $minPrice) {
                 $validator->errors()->add(
                     "prices.{$index}.price",
                     'El precio no puede ser menor que el precio mínimo del artículo.',
-                );
-            }
-
-            $from = $price['valid_from'] ?? null;
-            $to = $price['valid_to'] ?? null;
-
-            if ($from !== null && $to !== null && strtotime((string) $to) < strtotime((string) $from)) {
-                $validator->errors()->add(
-                    "prices.{$index}.valid_to",
-                    'El fin de vigencia no puede ser anterior al inicio.',
                 );
             }
         }

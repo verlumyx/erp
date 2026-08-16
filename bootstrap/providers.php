@@ -17,6 +17,7 @@ return [
     App\Modules\ClientType\Providers\ClientTypeServiceProvider::class,
     App\Modules\SupplierType\Providers\SupplierTypeServiceProvider::class,
     App\Modules\ExchangeRate\Providers\ExchangeRateServiceProvider::class,
+    App\Modules\Currency\Providers\CurrencyServiceProvider::class,
     App\Modules\Warehouse\Providers\WarehouseServiceProvider::class,
     App\Modules\WarehouseLocation\Providers\WarehouseLocationServiceProvider::class,
     App\Modules\Item\Providers\ItemServiceProvider::class,
