@@ -7,6 +7,8 @@ namespace App\Modules\Company\Services;
 use App\Modules\Company\Commands\CreateCompanyCommand;
 use App\Modules\Company\Models\Company;
 use App\Modules\Company\Repositories\Contracts\CompanyRepositoryInterface;
+use App\Modules\Configuration\Commands\CreateConfigurationCommand;
+use App\Modules\Configuration\Services\ConfigurationCreateService;
 use App\Modules\Role\Commands\CreateRoleCommand;
 use App\Modules\Role\Repositories\Contracts\RoleRepositoryInterface;
 use App\Modules\Shared\Commands\CreateUserCompanyCommand;
@@ -20,6 +22,7 @@ class CompanyCreateService
         private readonly CompanyRepositoryInterface $companyRepository,
         private readonly RoleRepositoryInterface $roleRepository,
         private readonly UserCompanyRepositoryInterface $userCompanyRepository,
+        private readonly ConfigurationCreateService $configurationCreateService,
     ) {}
 
     public function execute(CreateCompanyCommand $command): Company
@@ -45,6 +48,11 @@ class CompanyCreateService
                 status: 'active',
                 isDefault: true,
             ));
+
+            /** Ninguna empresa existe sin configuración: nace con los valores por defecto. */
+            $this->configurationCreateService->execute(
+                CreateConfigurationCommand::defaults($command->id, $command->createdBy),
+            );
 
             return $this->companyRepository->findOrFail($command->id);
         });

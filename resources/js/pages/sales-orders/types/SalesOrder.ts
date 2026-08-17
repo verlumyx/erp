@@ -181,9 +181,15 @@ export function isEditable(order: SalesOrder): boolean {
     return order.status === 'draft';
 }
 
-export function formatAmount(value: string | number): string {
-    return Number(value).toLocaleString('es-VE', {
+/** Con `currency` antepone el código (USD 1.234,00); sin él deja solo el número. */
+export function formatAmount(
+    value: string | number,
+    currency?: string,
+): string {
+    const amount = Number(value).toLocaleString('es-VE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
+
+    return currency ? `${currency} ${amount}` : amount;
 }

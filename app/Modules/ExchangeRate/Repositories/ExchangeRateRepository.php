@@ -80,6 +80,18 @@ class ExchangeRateRepository extends ExchangeRateFilters implements ExchangeRate
             ->first();
     }
 
+    public function findLatestUpTo(string $companyId, string $currency, string $date, string $type): ?ExchangeRate
+    {
+        return ExchangeRate::query()
+            ->where('company_id', $companyId)
+            ->where('currency', strtoupper($currency))
+            ->where('type', $type)
+            ->where('status', 'active')
+            ->whereDate('rate_date', '<=', $date)
+            ->orderByDesc('rate_date')
+            ->first();
+    }
+
     public function update(ExchangeRate $model, UpdateExchangeRateCommand $command): void
     {
         $model->update([

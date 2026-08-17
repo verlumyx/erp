@@ -11,6 +11,7 @@ un conjunto de módulos relacionados.
 | [compras.md](compras.md)       | Compras    | Proveedores, Órdenes de compra, Facturas de compra, Notas de crédito a proveedor, Anticipos a proveedor, Pagos a proveedor, Devoluciones de compras |
 | [ventas.md](ventas.md)         | Ventas     | Clientes, Órdenes de venta, Facturas de venta, Notas de crédito a cliente, Anticipos de clientes, Cobros a clientes, Devoluciones de ventas         |
 | [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (pendiente de definir)                                                                                                            |
+| [monedas.md](monedas.md)       | Transversal | Monedas, tasas de cambio y configuración por empresa. Atraviesa todos los grupos.                                                                   |
 
 El orden de implementación recomendado es: **Catálogo → Inventario → Compras → Ventas → Logística → Reportes**, porque
 cada grupo depende de los anteriores.
@@ -31,6 +32,7 @@ Hay tres tipos de tabla, y de ahí depende qué columnas base lleva:
 | **Tabla de módulo**  | Entidad con pantalla y CRUD propio: se lista, se crea y se edita por sí sola.                                                                                                      | `id`, `company_id`, `code`, `status`, `created_by`, timestamps |
 | **Tabla de detalle** | Filas que solo existen dentro de un padre: líneas de documento, contactos, direcciones, precios de una lista, aplicaciones de pago, saldos. Se editan desde la pantalla del padre. | `id`, `company_id`, `status`, timestamps (**sin `code`**)      |
 | **Catálogo global**  | Lista fija del sistema, igual para todas las empresas y sin pantalla de captura. Hoy solo `app_currencies`.                                                                        | `id`, `status`, timestamps (**sin `company_id` ni `code`**)    |
+| **Singleton por empresa** | Una sola fila por empresa: no se lista, no se crea a mano y no se elimina ni se desactiva. Hoy solo `app_configurations`. Ver [monedas.md](monedas.md).                        | `id`, `company_id` (`unique`), `created_by`, timestamps (**sin `code` ni `status`**) |
 
 Las de detalle **no** llevan `code` porque no se numeran de forma independiente: se identifican por su padre más su
 `line_number` o su combinación única. Sí llevan `company_id` (para filtrar y reportar sin join contra el padre) y
@@ -139,6 +141,10 @@ tercer valor se agrega al enum sin cambiar el tipo de la columna.
 Todos los importes se guardan en la **moneda del documento** más el campo `exchange_rate`, para poder reexpresar en
 moneda base sin recalcular históricos. Ese `exchange_rate` se copia desde
 `app_exchange_rates` (módulo Tasas, ver [catalogo.md](catalogo.md)) al confirmar el documento.
+
+La tasa siempre significa lo mismo —**cuántos bolívares vale 1 unidad de la moneda extranjera**— y el bolívar nunca
+lleva tasa propia. El detalle completo (moneda principal por empresa, resolución de la tasa, congelado y diferencial
+cambiario) está en [monedas.md](monedas.md).
 
 ### Identificación fiscal (RIF / cédula)
 

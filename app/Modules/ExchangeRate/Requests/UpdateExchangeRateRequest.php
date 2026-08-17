@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ExchangeRate\Requests;
 
-use App\Modules\Currency\Rules\ActiveCurrency;
+use App\Modules\Currency\Rules\ForeignCurrency;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +22,7 @@ class UpdateExchangeRateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'currency' => ['required', 'string', new ActiveCurrency],
+            'currency' => ['required', 'string', new ForeignCurrency],
             'rate_date' => [
                 'required',
                 'date_format:Y-m-d',

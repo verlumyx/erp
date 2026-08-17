@@ -80,6 +80,18 @@ function createUserWithCompany(): array
         'status' => 'active',
     ]);
 
+    /** Ninguna empresa existe sin configuración: la fixture refleja lo mismo. */
+    \App\Modules\Configuration\Models\Configuration::create([
+        'company_id' => $company->id,
+        'base_currency' => 'USD',
+        'secondary_currency' => \App\Modules\Currency\Models\Currency::LOCAL_CODE,
+        'rate_type' => 'legal',
+        'allows_rate_override' => 'yes',
+        'amount_decimals' => 2,
+        'price_decimals' => 6,
+        'created_by' => $user->id,
+    ]);
+
     return [$user, $company];
 }
 

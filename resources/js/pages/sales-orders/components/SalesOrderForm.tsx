@@ -319,7 +319,25 @@ export function SalesOrderForm() {
                                 Cambiarla revalúa las líneas sin precio pactado
                             </span>
                         </div>
+                    </div>
+                </Card>
 
+                <Card className="gap-0 overflow-hidden rounded-2xl py-0">
+                    <FormSectionHead
+                        step={2}
+                        title="Líneas"
+                        sub="Artículos pedidos: el precio queda congelado al guardar"
+                    />
+                    <SalesOrderLinesSection />
+                </Card>
+
+                <Card className="gap-0 overflow-hidden rounded-2xl py-0">
+                    <FormSectionHead
+                        step={3}
+                        title="Condiciones"
+                        sub="Moneda, tasa y crédito"
+                    />
+                    <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
                             <Label
                                 htmlFor="currency"
@@ -359,6 +377,9 @@ export function SalesOrderForm() {
                                 decimals={8}
                                 className={`h-[42px] rounded-[10px] ${errors.exchange_rate ? 'border-bad' : ''}`}
                             />
+                            <span className="text-[12px] text-muted-foreground">
+                                Tasa a moneda base del documento
+                            </span>
                             {errors.exchange_rate && (
                                 <p className="text-sm text-bad">
                                     {errors.exchange_rate}
@@ -381,11 +402,16 @@ export function SalesOrderForm() {
                                 }
                                 min={0}
                                 decimals={0}
-                                className="h-[42px] rounded-[10px]"
+                                className={`h-[42px] rounded-[10px] ${errors.payment_term_days ? 'border-bad' : ''}`}
                             />
                             <span className="text-[12px] text-muted-foreground">
                                 0 = contado
                             </span>
+                            {errors.payment_term_days && (
+                                <p className="text-sm text-bad">
+                                    {errors.payment_term_days}
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -407,15 +433,6 @@ export function SalesOrderForm() {
                             />
                         </div>
                     </div>
-                </Card>
-
-                <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                    <FormSectionHead
-                        step={2}
-                        title="Líneas"
-                        sub="Artículos pedidos: el precio queda congelado al guardar"
-                    />
-                    <SalesOrderLinesSection />
                 </Card>
             </div>
 
@@ -444,7 +461,7 @@ export function SalesOrderForm() {
                             Subtotal
                         </span>
                         <b className="font-bold tabular-nums">
-                            {formatAmount(totals.subtotal)}
+                            {formatAmount(totals.subtotal, data.currency)}
                         </b>
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
@@ -452,7 +469,7 @@ export function SalesOrderForm() {
                             Descuento
                         </span>
                         <b className="font-bold tabular-nums">
-                            {formatAmount(totals.discountAmount)}
+                            {formatAmount(totals.discountAmount, data.currency)}
                         </b>
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
@@ -460,13 +477,13 @@ export function SalesOrderForm() {
                             Impuesto
                         </span>
                         <b className="font-bold tabular-nums">
-                            {formatAmount(totals.taxAmount)}
+                            {formatAmount(totals.taxAmount, data.currency)}
                         </b>
                     </div>
                     <div className="flex items-center justify-between border-t pt-2.5 text-[15px]">
                         <span className="font-semibold">Total</span>
                         <b className="font-extrabold tabular-nums">
-                            {data.currency} {formatAmount(totals.total)}
+                            {formatAmount(totals.total, data.currency)}
                         </b>
                     </div>
                 </div>

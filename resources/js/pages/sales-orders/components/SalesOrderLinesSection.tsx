@@ -164,13 +164,20 @@ export function SalesOrderLinesSection() {
                                     line.unit_price !== line.list_price && (
                                         <span className="text-[12px] text-muted-foreground">
                                             Lista:{' '}
-                                            {formatAmount(line.list_price)}
+                                            {formatAmount(
+                                                line.list_price,
+                                                data.currency,
+                                            )}
                                         </span>
                                     )}
                                 {belowMinPrice && (
                                     <span className="text-[12px] font-semibold text-warn">
                                         Por debajo del precio mínimo (
-                                        {formatAmount(item.min_price)})
+                                        {formatAmount(
+                                            item.min_price,
+                                            data.currency,
+                                        )}
+                                        )
                                     </span>
                                 )}
                                 {priceError && (
@@ -270,19 +277,25 @@ export function SalesOrderLinesSection() {
                             <span className="text-muted-foreground">
                                 Base{' '}
                                 <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.subtotal)}
+                                    {formatAmount(
+                                        amounts.subtotal,
+                                        data.currency,
+                                    )}
                                 </b>
                             </span>
                             <span className="text-muted-foreground">
                                 Impuesto{' '}
                                 <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.taxAmount)}
+                                    {formatAmount(
+                                        amounts.taxAmount,
+                                        data.currency,
+                                    )}
                                 </b>
                             </span>
                             <span className="text-muted-foreground">
                                 Total{' '}
                                 <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.total)}
+                                    {formatAmount(amounts.total, data.currency)}
                                 </b>
                             </span>
                         </div>

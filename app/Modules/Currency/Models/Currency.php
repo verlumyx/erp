@@ -20,6 +20,13 @@ class Currency extends Model
 
     protected $table = 'app_currencies';
 
+    /**
+     * Moneda local. Toda tasa de cambio se expresa como "cuántos bolívares
+     * vale 1 unidad de la moneda extranjera", así que esta moneda nunca tiene
+     * tasa propia: su equivalencia es siempre 1.
+     */
+    public const LOCAL_CODE = 'VES';
+
     public $incrementing = false;
 
     protected $keyType = 'string';

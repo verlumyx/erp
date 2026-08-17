@@ -23,6 +23,12 @@ interface ExchangeRateRepositoryInterface
      */
     public function findByRateKey(string $companyId, string $currency, string $rateDate, string $type): ?ExchangeRate;
 
+    /**
+     * Última tasa activa con fecha igual o anterior a la dada. Es la que
+     * valora los documentos: cubre los días sin publicación.
+     */
+    public function findLatestUpTo(string $companyId, string $currency, string $date, string $type): ?ExchangeRate;
+
     public function update(ExchangeRate $model, UpdateExchangeRateCommand $command): void;
 
     public function updateStatus(ExchangeRate $model, UpdateStatusExchangeRateCommand $command): void;

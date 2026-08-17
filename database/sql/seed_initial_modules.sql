@@ -17,6 +17,7 @@ DECLARE
     v_mod_price_lists UUID;
     v_mod_exch_rates  UUID;
     v_mod_taxes       UUID;
+    v_mod_config      UUID;
     v_mod_items       UUID;
     v_mod_warehouses  UUID;
     v_mod_wh_locs     UUID;
@@ -48,7 +49,8 @@ BEGIN
         (gen_random_uuid(), 'suppliers', 'Proveedores', 'Maestro de proveedores y sus condiciones comerciales', 'Truck', true, 14, NOW(), NOW()),
         (gen_random_uuid(), 'sales-orders', 'Órdenes de venta', 'Pedidos del cliente: reservan inventario sin descargarlo', 'ClipboardList', true, 15, NOW(), NOW()),
         (gen_random_uuid(), 'purchase-orders', 'Órdenes de compra', 'Solicitudes de mercancía al proveedor: reservan la entrada esperada', 'ClipboardList', true, 16, NOW(), NOW()),
-        (gen_random_uuid(), 'taxes', 'Impuestos', 'Catálogo de impuestos y retenciones', 'Percent', true, 17, NOW(), NOW())
+        (gen_random_uuid(), 'taxes', 'Impuestos', 'Catálogo de impuestos y retenciones', 'Percent', true, 17, NOW(), NOW()),
+        (gen_random_uuid(), 'configuration', 'Configuración', 'Moneda principal, tasa y decimales de la empresa', 'Settings', true, 18, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -69,6 +71,7 @@ BEGIN
     SELECT id INTO v_mod_sales_ord   FROM app_modules WHERE name = 'sales-orders';
     SELECT id INTO v_mod_purch_ord   FROM app_modules WHERE name = 'purchase-orders';
     SELECT id INTO v_mod_taxes       FROM app_modules WHERE name = 'taxes';
+    SELECT id INTO v_mod_config      FROM app_modules WHERE name = 'configuration';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -245,6 +248,14 @@ BEGIN
         (gen_random_uuid(), v_mod_taxes, 'taxes.show',          'Ver detalle de impuesto',     true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_taxes, 'taxes.update',        'Editar impuestos',            true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_taxes, 'taxes.update-status', 'Cambiar estado de impuesto',  true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Configuración
+    -- Singleton por empresa: solo se consulta y se edita, nunca se crea ni se lista.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_config, 'configuration.show',   'Ver la configuración de la empresa',    true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_config, 'configuration.update', 'Editar la configuración de la empresa', true, 2, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
 END $$;

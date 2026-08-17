@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Configuration\Resources\ConfigurationResource;
+use App\Modules\Configuration\Services\ConfigurationFindService;
 use App\Modules\Currency\Services\CurrencyOptionsService;
 use App\Modules\Menu\Services\GetActiveMenusService;
 use App\Modules\Shared\Models\UserCompany;
@@ -44,6 +46,7 @@ class HandleInertiaRequests extends Middleware
         $defaultCompanyId = null;
         $userCompanies = [];
         $currencies = [];
+        $configuration = null;
 
         if ($request->user()) {
             $isSystemOwner = $request->user()->is_system_owner;
@@ -83,6 +86,14 @@ class HandleInertiaRequests extends Middleware
                 $found = $companies->firstWhere('id', $currentCompanyId);
                 if ($found) {
                     $currentCompany = ['id' => $found->id, 'name' => $found->name];
+
+                    /**
+                     * La moneda principal se comparte con todas las páginas: los
+                     * formularios e importes no la piden a su controlador.
+                     */
+                    $configuration = (new ConfigurationResource(
+                        app(ConfigurationFindService::class)->execute($found->id)
+                    ))->resolve();
                 }
             }
 
@@ -112,6 +123,7 @@ class HandleInertiaRequests extends Middleware
             'defaultCompanyId' => $defaultCompanyId,
             'userCompanies' => $userCompanies,
             'currencies' => $currencies,
+            'configuration' => $configuration,
         ];
     }
 

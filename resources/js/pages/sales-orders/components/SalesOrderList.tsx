@@ -281,7 +281,7 @@ export function SalesOrderList({
                                 {order.order_date}
                             </div>
                             <div className="hidden text-[13.5px] font-semibold tabular-nums lg:block">
-                                {order.currency} {formatAmount(order.total)}
+                                {formatAmount(order.total, order.currency)}
                             </div>
                             <div className="hidden lg:block">
                                 <SalesOrderStatusPill

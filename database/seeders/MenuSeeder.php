@@ -234,6 +234,16 @@ class MenuSeeder extends Seeder
                 'is_active' => true,
                 'section' => 'footer',
             ],
+            [
+                'parent_id' => null,
+                'title' => 'Configuración',
+                'icon' => 'Settings',
+                'url' => '/configuration',
+                'permission' => 'configuration.show',
+                'order' => 3,
+                'is_active' => true,
+                'section' => 'footer',
+            ],
             /**
              * 'system_owner' es un permiso reservado: este menú solo lo ve el dueño del sistema.
              */
@@ -243,7 +253,7 @@ class MenuSeeder extends Seeder
                 'icon' => 'Building2',
                 'url' => '/companies',
                 'permission' => 'system_owner',
-                'order' => 3,
+                'order' => 4,
                 'is_active' => true,
                 'section' => 'footer',
             ],

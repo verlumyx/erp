@@ -100,22 +100,26 @@ test('an item price accepts bolivares', function () {
     expect(Item::find($payload['id'])->prices->first()->currency)->toBe('VES');
 });
 
-test('an exchange rate can now be registered in bolivares', function () {
+/**
+ * La tasa mide cuántos bolívares vale 1 unidad de la moneda extranjera, así
+ * que el propio bolívar no lleva tasa: su valor es siempre 1.
+ */
+test('an exchange rate cannot be registered in bolivares', function () {
     [$user, $company] = createUserWithCompany();
-
-    $id = (string) Str::uuid7();
 
     $response = actingAs($user)
         ->withSession(['current_company_id' => $company->id])
         ->post(route('exchange-rates.store', ['company' => $company->id]), [
-            'id' => $id,
+            'id' => (string) Str::uuid7(),
             'currency' => 'VES',
             'rate_date' => '2026-08-15',
             'rate' => '36.5',
             'type' => 'legal',
         ]);
 
-    $response->assertSessionHasNoErrors();
+    $response->assertSessionHasErrors([
+        'currency' => 'El bolívar no lleva tasa de cambio: su valor es siempre 1.',
+    ]);
 });
 
 test('an exchange rate rejects a currency outside the catalog', function () {

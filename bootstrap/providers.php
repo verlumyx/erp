@@ -19,6 +19,7 @@ return [
     App\Modules\ExchangeRate\Providers\ExchangeRateServiceProvider::class,
     App\Modules\Tax\Providers\TaxServiceProvider::class,
     App\Modules\Currency\Providers\CurrencyServiceProvider::class,
+    App\Modules\Configuration\Providers\ConfigurationServiceProvider::class,
     App\Modules\Warehouse\Providers\WarehouseServiceProvider::class,
     App\Modules\WarehouseLocation\Providers\WarehouseLocationServiceProvider::class,
     App\Modules\Item\Providers\ItemServiceProvider::class,

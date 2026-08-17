@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ExchangeRate\Requests;
 
-use App\Modules\Currency\Rules\ActiveCurrency;
+use App\Modules\Currency\Rules\ForeignCurrency;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateExchangeRateRequest extends FormRequest
@@ -24,7 +24,7 @@ class CreateExchangeRateRequest extends FormRequest
     {
         return [
             'id' => ['required', 'uuid'],
-            'currency' => ['required', 'string', new ActiveCurrency],
+            'currency' => ['required', 'string', new ForeignCurrency],
             'rate_date' => ['required', 'date_format:Y-m-d'],
             'rate' => ['required', 'numeric', 'min:0'],
             'type' => ['required', 'string', 'in:legal,manual'],
