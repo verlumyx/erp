@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import { AmountDual } from '@/components/amount-dual';
 import { CurrencySelect } from '@/components/currency-select';
 import { ExchangeRateField } from '@/components/exchange-rate-field';
+import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -50,19 +51,13 @@ export function SalesOrderForm() {
         mode,
         options,
         totals,
+        client,
+        clientLookupUrl,
+        clientOption,
         selectClient,
         selectPriceList,
         selectCurrency,
     } = useSalesOrderFormContext();
-
-    const client = options.clients.find(
-        (candidate) => candidate.id === data.client_id,
-    );
-
-    const clientOptions: OptionType[] = options.clients.map((option) => ({
-        value: option.id,
-        label: `${option.code ? `${option.code} — ` : ''}${option.name}`,
-    }));
 
     const addressOptions: OptionType[] = [
         { value: NO_ADDRESS, label: 'Dirección fiscal del cliente' },
@@ -106,23 +101,20 @@ export function SalesOrderForm() {
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
+                            <Label
+                                htmlFor="client_id"
+                                className="text-[13px] font-semibold"
+                            >
                                 Cliente *
                             </Label>
-                            <Select2
-                                options={clientOptions}
-                                value={
-                                    clientOptions.find(
-                                        (option) =>
-                                            option.value === data.client_id,
-                                    ) ?? null
-                                }
-                                onChange={(option) =>
-                                    selectClient(option?.value ?? '')
-                                }
+                            <Select2Ajax
+                                inputId="client_id"
+                                url={clientLookupUrl}
+                                value={clientOption}
+                                onChange={selectClient}
                                 error={!!errors.client_id}
                                 size="md"
-                                placeholder="Selecciona un cliente"
+                                placeholder="Busca un cliente"
                             />
                             {client?.credit_blocked === 'yes' && (
                                 <span className="text-[12px] font-semibold text-warn">
@@ -158,7 +150,7 @@ export function SalesOrderForm() {
                                             : option.value,
                                     )
                                 }
-                                isDisabled={client === undefined}
+                                isDisabled={clientOption === null}
                                 error={!!errors.client_address_id}
                                 size="md"
                                 placeholder="Dirección fiscal del cliente"
@@ -429,7 +421,7 @@ export function SalesOrderForm() {
                             Cliente
                         </span>
                         <b className="text-right font-bold">
-                            {client?.name ??
+                            {clientOption?.label ??
                                 (mode === 'create' ? 'Sin elegir' : '—')}
                         </b>
                     </div>

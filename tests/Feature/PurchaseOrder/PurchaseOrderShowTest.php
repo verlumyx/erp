@@ -66,9 +66,10 @@ test('the edit form loads the order and its catalogs', function () {
             fn (AssertableInertia $page) => $page
                 ->component('purchase-orders/edit')
                 ->where('purchaseOrder.id', $order->id)
-                ->has('options.suppliers')
                 ->has('options.warehouses')
+                /* Ni los artículos ni los proveedores viajan: se buscan contra su lookup. */
                 ->missing('options.items')
+                ->missing('options.suppliers')
         );
 });
 

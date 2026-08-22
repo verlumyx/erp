@@ -5,14 +5,22 @@ import {
     useItemCatalog,
     type ItemCatalogEntry,
 } from '@/hooks/use-item-catalog';
+import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { convertAmount } from '@/lib/money';
 import { generateUUID } from '@/lib/utils';
 import purchaseOrders from '@/routes/purchase-orders';
-import type { PurchaseOrder } from '../types/PurchaseOrder';
+import suppliers from '@/routes/suppliers';
+import { taxWithholdingPercent, type TaxOption } from '@/types/tax';
+import type {
+    PurchaseOrder,
+    PurchaseOrderOptions,
+    SupplierOptionMeta,
+} from '../types/PurchaseOrder';
 
 interface UsePurchaseOrderFormProps {
     mode: 'create' | 'edit';
+    options: PurchaseOrderOptions;
     initialData?: PurchaseOrder;
     onSuccess?: () => void;
 }
@@ -24,6 +32,8 @@ export interface PurchaseOrderLineRow {
     quantity: number;
     unit_price: number;
     discount_percent: number;
+    /** Impuesto del catálogo. De él salen los dos porcentajes de abajo. */
+    tax_id: string;
     tax_percent: number;
     withholding_percent: number;
     notes: string;
@@ -53,9 +63,46 @@ interface PageProps {
     [key: string]: unknown;
 }
 
+/**
+ * El proveedor de la orden que se edita, con la etiqueta que trae su Resource:
+ * así el select lo muestra desde el primer render, sin ir al servidor.
+ */
+function supplierSeed(order?: PurchaseOrder): AjaxOption | null {
+    if (!order?.supplier_id) {
+        return null;
+    }
+
+    const name = order.supplier_name ?? '';
+
+    return {
+        value: order.supplier_id,
+        label: order.supplier_code ? `${order.supplier_code} · ${name}` : name,
+    };
+}
+
 /** En compras el artículo se reconoce por su código. */
 function itemLabel(entry: ItemCatalogEntry): string {
     return entry.code ? `${entry.code} · ${entry.name}` : entry.name;
+}
+
+/**
+ * La línea con un impuesto del catálogo aplicado: sus dos porcentajes salen de
+ * ahí y ya no se capturan a mano. Sin impuesto, ambos vuelven a cero.
+ */
+function withTax(
+    line: PurchaseOrderLineRow,
+    tax: TaxOption | undefined,
+): PurchaseOrderLineRow {
+    if (!tax) {
+        return { ...line, tax_id: '', tax_percent: 0, withholding_percent: 0 };
+    }
+
+    return {
+        ...line,
+        tax_id: tax.id,
+        tax_percent: Number(tax.percentage),
+        withholding_percent: taxWithholdingPercent(tax),
+    };
 }
 
 /** La unidad en la que se pide por defecto: la base del artículo. */
@@ -89,6 +136,7 @@ function emptyLine(): PurchaseOrderLineRow {
         quantity: 1,
         unit_price: 0,
         discount_percent: 0,
+        tax_id: '',
         tax_percent: 0,
         withholding_percent: 0,
         notes: '',
@@ -110,6 +158,7 @@ function lineRows(order?: PurchaseOrder): PurchaseOrderLineRow[] {
             quantity: Number(line.quantity),
             unit_price: Number(line.unit_price),
             discount_percent: Number(line.discount_percent),
+            tax_id: line.tax_id ?? '',
             tax_percent: Number(line.tax_percent),
             withholding_percent: Number(line.withholding_percent),
             notes: line.notes ?? '',
@@ -150,6 +199,7 @@ function round2(value: number): number {
 
 export function usePurchaseOrderForm({
     mode,
+    options,
     initialData,
     onSuccess,
 }: UsePurchaseOrderFormProps) {
@@ -172,6 +222,15 @@ export function usePurchaseOrderForm({
                 code: line.item_code,
                 name: line.item_name,
             })),
+    });
+
+    /**
+     * El padrón de proveedores tampoco viaja en las props: la cabecera lo busca
+     * contra su endpoint de opciones y solo recuerda el elegido.
+     */
+    const supplier = useRemoteOption({
+        url: suppliers.lookup(companyId).url,
+        seed: supplierSeed(initialData),
     });
 
     const initialCurrency =
@@ -222,6 +281,28 @@ export function usePurchaseOrderForm({
             exchange_rate: catalogRate(currency),
         }));
 
+    /**
+     * Elegir el proveedor arrastra sus condiciones: sus días de crédito y su
+     * moneda, que entra por la misma puerta que el select de moneda para que
+     * traiga su tasa. Ambos quedan editables.
+     */
+    const selectSupplier = (option: AjaxOption | null) => {
+        supplier.select(option);
+
+        const meta = (option?.meta ?? {}) as Partial<SupplierOptionMeta>;
+
+        setData((current) => ({
+            ...current,
+            supplier_id: option?.value ?? '',
+            payment_term_days:
+                meta.payment_term_days ?? current.payment_term_days,
+        }));
+
+        if (meta.currency) {
+            selectCurrency(meta.currency);
+        }
+    };
+
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);
 
     const removeLine = (index: number) =>
@@ -263,9 +344,14 @@ export function usePurchaseOrderForm({
         );
     };
 
+    /** El impuesto del catálogo con ese id, si sigue activo. */
+    const taxOf = (taxId: string | null | undefined): TaxOption | undefined =>
+        taxId ? options.taxes.find((tax) => tax.id === taxId) : undefined;
+
     /**
      * Cambiar de artículo invalida la unidad elegida: se resuelve en una sola
-     * pasada con lo que trae la opción del select remoto (unidades y costo).
+     * pasada con lo que trae la opción del select remoto (unidades, costo e
+     * impuesto de compra).
      */
     const setLineItem = (index: number, option: AjaxOption | null) => {
         const item = option ? catalog.remember(option) : undefined;
@@ -275,17 +361,29 @@ export function usePurchaseOrderForm({
             'lines',
             data.lines.map((line, i) =>
                 i === index
-                    ? {
-                          ...line,
-                          item_id: item?.id ?? '',
-                          measurement_unit_id: baseUnitId(item),
-                          unit_price:
-                              line.unit_price > 0 ? line.unit_price : cost,
-                      }
+                    ? withTax(
+                          {
+                              ...line,
+                              item_id: item?.id ?? '',
+                              measurement_unit_id: baseUnitId(item),
+                              unit_price:
+                                  line.unit_price > 0 ? line.unit_price : cost,
+                          },
+                          taxOf(item?.purchase_tax_id),
+                      )
                     : line,
             ),
         );
     };
+
+    /** Cambiar el impuesto de una línea trae su porcentaje y su retención. */
+    const setLineTax = (index: number, taxId: string) =>
+        setData(
+            'lines',
+            data.lines.map((line, i) =>
+                i === index ? withTax(line, taxOf(taxId)) : line,
+            ),
+        );
 
     const totals: PurchaseOrderTotals = data.lines.reduce(
         (accumulator, line) => {
@@ -351,11 +449,15 @@ export function usePurchaseOrderForm({
         reset,
         mode,
         totals,
+        supplierLookupUrl: supplier.url,
+        supplierOption: supplier.optionOf(data.supplier_id),
+        selectSupplier,
         selectCurrency,
         addLine,
         removeLine,
         updateLine,
         setLineItem,
+        setLineTax,
         catalog,
     };
 }

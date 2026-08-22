@@ -43,7 +43,7 @@ GET /{company}/{módulo}/lookup?q=&page=&per_page=&ids=&<filtros propios>
 | `q`              | El componente         | Término de búsqueda libre. Vacío devuelve la primera página del catálogo.                  |
 | `page`           | El componente         | Página, base 1. La pide al llegar al final del menú.                                        |
 | `per_page`       | El componente         | Tamaño de página. El backend lo acota a su tope (50).                                       |
-| `ids`            | El hook de catálogo   | Ids separados por coma, para resolver lo que un documento ya tenía elegido.                 |
+| `ids`            | El hook de memoria    | Ids separados por coma, para resolver lo que un documento ya tenía elegido.                 |
 | Filtros propios  | La pantalla           | Acotan el catálogo al caso: `is_sellable`, `is_purchasable`, `category_id`, `type`.        |
 
 **Respuesta**
@@ -182,6 +182,31 @@ el tope del endpoint) para completar unidades y precios.
 se sabe», no «no tiene», y esa distinción importa: revaluar una línea contra una entrada sin hidratar pondría su
 precio en 0. Por eso `repriceLine` deja intacta la línea cuyo artículo aún no conoce.
 
+### `useRemoteOption` — la memoria de un solo valor
+
+Vive en `resources/js/hooks/use-remote-option.ts`. Es la versión mínima de lo anterior para el caso de la cabecera:
+un único valor elegido, no una colección de líneas. Lo usan el cliente del pedido de venta, el proveedor de la orden
+de compra y el filtro de proveedor del listado de compras.
+
+| Devuelve       | Qué es                                                                              |
+|----------------|---------------------------------------------------------------------------------------|
+| `url`          | La URL del lookup, ya con la empresa                                                  |
+| `optionOf(id)` | La opción, **solo mientras siga siendo la del id vigente** del formulario             |
+| `select(option)` | Guarda la opción recién elegida                                                     |
+
+Recibe `seed` —la opción de partida que la pantalla arma con lo que ya trae el Resource del documento
+(`client_code` + `client_name`, `supplier_code` + `supplier_name`)— y `hydrate`, que pide su `meta` por `ids`.
+
+**Cuándo hidratar.** Solo si la pantalla usa algo del valor además de su etiqueta. El proveedor no se hidrata: su
+`meta` (moneda y días de crédito) se copia en la cabecera al elegirlo y ahí queda; al abrir una orden ya guardada
+esos campos vienen de la orden, no del proveedor. El cliente sí se hidrata: de su `meta` salen las direcciones de
+entrega que el select de al lado ofrece y el aviso de crédito bloqueado, y ambos tienen que estar al editar. Lo que
+solo se copia al elegir —lista de precio, vendedor, días de crédito— no obliga a hidratar: ya está en el pedido.
+
+**Por qué `optionOf(id)` y no la opción a secas.** El id vive en `useForm`, la opción en el hook. Preguntar por el id
+mantiene los dos alineados sin sincronizarlos a mano: un `reset()` tras guardar vacía el formulario y el select queda
+vacío con él.
+
 ---
 
 ## 6. Cómo lo hereda un módulo nuevo
@@ -197,7 +222,7 @@ Un módulo que necesite un select remoto de su propio catálogo (clientes, prove
 | 5 | `lookup()` con el permiso `.list`, tope de `per_page` y `has_more`                                 | `<Módulo>GetController`            |
 | 6 | Ruta `{módulo}.lookup`, antes de `/{id}`. **Nunca `options`** (§3)                                 | `routes.php`                       |
 | 7 | Quitar el catálogo del `FormOptionsService` de las pantallas que lo consumían                       | `<Consumidor>FormOptionsService`   |
-| 8 | Hook de catálogo del módulo, si las pantallas necesitan recordar lo elegido                        | `resources/js/hooks/`              |
+| 8 | Memoria de lo elegido: `useRemoteOption` para un valor de cabecera; un hook de catálogo propio si son muchos (líneas) | `resources/js/hooks/`   |
 | 9 | Sustituir `Select2` por `Select2Ajax` en la pantalla                                               | `components/`                      |
 | 10 | Tests: forma de la opción, búsqueda por cada campo, aislamiento por empresa y estado, paginación con `has_more`, hidratación por `ids` incluido un registro desactivado, tope de `per_page` | `tests/Feature/<Módulo>/` |
 | 11 | En las pantallas que dejaron de recibir el catálogo: `->missing('options.<catálogo>')`             | Tests del consumidor               |
@@ -217,9 +242,13 @@ servidor para saber algo que cabía en el `meta`.
 | `useItemCatalog` con hidratación por `ids` y `hydrated`                       | Hecho      |
 | Líneas de órdenes de venta y de compra                                        | Hecho      |
 | Artículos fuera de las props de `SalesOrder` y `PurchaseOrder`                | Hecho      |
-| Select remoto de clientes (cabecera de la orden de venta)                     | Pendiente  |
-| Select remoto de proveedores (cabecera de la orden de compra)                 | Pendiente  |
+| Endpoint `clients.lookup` y `suppliers.lookup` (mismas piezas que `items`)    | Hecho      |
+| `useRemoteOption` para el valor único de una cabecera                         | Hecho      |
+| Select remoto de clientes (cabecera de la orden de venta)                     | Hecho      |
+| Select remoto de proveedores (cabecera de la orden de compra y su listado)    | Hecho      |
+| Clientes y proveedores fuera de las props de `SalesOrder` y `PurchaseOrder`   | Hecho      |
 
-> **Por qué las cabeceras siguen con `Select2`.** El select de cliente arrastra sus condiciones comerciales (lista de
-> precio, días de crédito, direcciones de entrega) y hoy las lee del catálogo en props. Migrarlo es el mismo patrón
-> más mover esas condiciones al `meta` de la opción, con el mismo cuidado de `hydrated` de §5.
+> **Las condiciones comerciales viajan en el `meta`.** Elegir al cliente sigue arrastrando su lista de precio, su
+> vendedor asignado, sus días de crédito y su dirección de entrega sugerida; lo que cambió es de dónde salen: del `meta` de la opción y no
+> del catálogo en props. Igual el proveedor con su moneda —que entra por la misma puerta que el select de moneda,
+> para que arrastre su tasa— y sus días de crédito.

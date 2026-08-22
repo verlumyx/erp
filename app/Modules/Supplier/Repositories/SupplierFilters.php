@@ -46,6 +46,33 @@ class SupplierFilters extends EloquentQueryFilters
         return $this->builder->where('supplier_type_id', $value);
     }
 
+    /**
+     * Búsqueda libre del select remoto: un solo término contra todo lo que el
+     * usuario reconoce de un proveedor. Va agrupada para no romper el resto de
+     * los filtros con el `or`.
+     *
+     * Se llama `q` —como el parámetro que manda `Select2Ajax`— y no `search`
+     * porque el repositorio, que hereda de esta clase, ya define `search()`.
+     */
+    public function q(string $value): Builder
+    {
+        return $this->builder->where(function (Builder $query) use ($value): void {
+            $query->where('name', 'like', "%{$value}%")
+                ->orWhere('legal_name', 'like', "%{$value}%")
+                ->orWhere('code', 'like', "%{$value}%")
+                ->orWhere('document_number', 'like', "%{$value}%");
+        });
+    }
+
+    /**
+     * Hidratación de los valores ya elegidos en un formulario de edición:
+     * ids separados por coma, tal como los manda `Select2Ajax`.
+     */
+    public function ids(string $value): Builder
+    {
+        return $this->builder->whereIn('id', array_filter(explode(',', $value)));
+    }
+
     public function status(string $value): Builder
     {
         return $this->builder->where('status', $value);

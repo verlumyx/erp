@@ -1,4 +1,5 @@
 import { formatAmount as formatNumber, formatMoney } from '@/lib/money';
+import type { TaxOption } from '@/types/tax';
 
 export type SalesOrderStatus =
     | 'draft'
@@ -112,20 +113,30 @@ export interface ClientAddressOption {
     is_default: 'yes' | 'no';
 }
 
-export interface ClientOption {
-    id: string;
+/**
+ * Lo que el pedido sabe de un cliente con solo haberlo elegido: viaja en el
+ * `meta` de la opción que devuelve `clients.lookup`.
+ */
+export interface ClientOptionMeta {
     code: string | null;
     name: string;
     price_list_id: string | null;
+    /** Vendedor asignado al cliente: el pedido nace con él. */
+    salesperson_id: string | null;
     payment_term_days: number;
     discount_percent: string;
     credit_blocked: 'yes' | 'no';
+    status: 'active' | 'inactive';
     addresses: ClientAddressOption[];
 }
 
-/** Catálogos que alimentan los selects del formulario. */
+/**
+ * Catálogos que alimentan los selects del formulario.
+ *
+ * Los clientes no están aquí: la cartera es demasiado grande para las props y
+ * la cabecera la busca contra `clients.lookup` con `Select2Ajax`.
+ */
 export interface SalesOrderOptions {
-    clients: ClientOption[];
     warehouses: Array<{
         id: string;
         code: string | null;
@@ -134,6 +145,7 @@ export interface SalesOrderOptions {
     }>;
     priceLists: Array<{ id: string; name: string }>;
     salespeople: Array<{ id: string; name: string }>;
+    taxes: TaxOption[];
 }
 
 export const STATUS_LABELS: Record<SalesOrderStatus, string> = {

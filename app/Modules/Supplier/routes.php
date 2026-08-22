@@ -17,6 +17,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
         Route::prefix('suppliers')->group(function () use ($uuid) {
             Route::get('/', [SupplierGetController::class, 'index'])->name('suppliers.index');
             Route::get('/create', [SupplierGetController::class, 'create'])->name('suppliers.create');
+            Route::get('/lookup', [SupplierGetController::class, 'lookup'])->name('suppliers.lookup');
             Route::post('/', SupplierPostController::class)->name('suppliers.store');
             Route::get('/{id}', [SupplierGetController::class, 'show'])->where('id', $uuid)->name('suppliers.show');
             Route::get('/{id}/edit', [SupplierGetController::class, 'edit'])->where('id', $uuid)->name('suppliers.edit');

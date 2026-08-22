@@ -8,7 +8,9 @@ use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\SalesOrder\Models\SalesOrder;
+use App\Modules\Tax\Models\Tax;
 use App\Modules\Warehouse\Models\Warehouse;
+use Inertia\Testing\AssertableInertia;
 
 use function Pest\Laravel\actingAs;
 
@@ -347,4 +349,101 @@ test('a user without permission cannot create a sales order', function () {
             salesOrderPayload($client, $warehouse, $item, $unit),
         )
         ->assertForbidden();
+});
+
+test('the form only offers the active taxes of the active company', function () {
+    [$user, $company] = createUserWithCompany();
+
+    Tax::factory()->create(['company_id' => $company->id]);
+    Tax::factory()->inactive()->create(['company_id' => $company->id]);
+    Tax::factory()->create();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('sales-orders.create', ['company' => $company->id]))
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->component('sales-orders/create')
+                ->has('options.taxes', 1),
+        );
+});
+
+test('the tax chosen for a line is kept with its percentages', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $tax = Tax::factory()->withWithholding(75)->create([
+        'company_id' => $company->id,
+        'percentage' => 16,
+    ]);
+
+    $payload = salesOrderPayload($client, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1,
+                'unit_price' => 100,
+                'tax_id' => $tax->id,
+                'tax_percent' => 16,
+                'withholding_percent' => 75,
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $line = SalesOrder::with('lines')->find($payload['id'])->lines->first();
+
+    expect($line->tax_id)->toBe($tax->id);
+    expect((float) $line->tax_percent)->toBe(16.0);
+    expect((float) $line->tax_amount)->toBe(16.0);
+    expect((float) $line->withholding_percent)->toBe(75.0);
+});
+
+test('a tax of another company cannot be used in a line', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $foreignTax = Tax::factory()->create();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-orders.store', ['company' => $company->id]),
+            salesOrderPayload($client, $warehouse, $item, $unit, [
+                'lines' => [
+                    [
+                        'item_id' => $item->id,
+                        'measurement_unit_id' => $unit->id,
+                        'quantity' => 1,
+                        'unit_price' => 100,
+                        'tax_id' => $foreignTax->id,
+                    ],
+                ],
+            ]),
+        )
+        ->assertSessionHasErrors('lines.0.tax_id');
+});
+
+test('an inactive tax cannot be used in a line', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $tax = Tax::factory()->inactive()->create(['company_id' => $company->id]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-orders.store', ['company' => $company->id]),
+            salesOrderPayload($client, $warehouse, $item, $unit, [
+                'lines' => [
+                    [
+                        'item_id' => $item->id,
+                        'measurement_unit_id' => $unit->id,
+                        'quantity' => 1,
+                        'unit_price' => 100,
+                        'tax_id' => $tax->id,
+                    ],
+                ],
+            ]),
+        )
+        ->assertSessionHasErrors('lines.0.tax_id');
 });

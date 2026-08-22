@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import { AmountDual } from '@/components/amount-dual';
 import { CurrencySelect } from '@/components/currency-select';
 import { ExchangeRateField } from '@/components/exchange-rate-field';
+import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -47,36 +48,15 @@ export function PurchaseOrderForm() {
         mode,
         options,
         totals,
+        supplierLookupUrl,
+        supplierOption,
+        selectSupplier,
         selectCurrency,
     } = usePurchaseOrderFormContext();
-
-    const supplierOptions: OptionType[] = options.suppliers.map((supplier) => ({
-        value: supplier.id,
-        label: `${supplier.code} · ${supplier.name}`,
-    }));
 
     const warehouseOptions: OptionType[] = options.warehouses.map(
         (warehouse) => ({ value: warehouse.id, label: warehouse.name }),
     );
-
-    /** El proveedor arrastra su moneda y sus días de crédito; ambos quedan editables. */
-    const handleSupplierChange = (supplierId: string) => {
-        const supplier = options.suppliers.find(
-            (option) => option.id === supplierId,
-        );
-
-        setData((current) => ({
-            ...current,
-            supplier_id: supplierId,
-            payment_term_days:
-                supplier?.payment_term_days ?? current.payment_term_days,
-        }));
-
-        /** Su moneda entra por la misma puerta que el select: arrastra la tasa. */
-        if (supplier?.currency) {
-            selectCurrency(supplier.currency);
-        }
-    };
 
     return (
         <form
@@ -92,23 +72,20 @@ export function PurchaseOrderForm() {
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
+                            <Label
+                                htmlFor="supplier_id"
+                                className="text-[13px] font-semibold"
+                            >
                                 Proveedor *
                             </Label>
-                            <Select2
-                                options={supplierOptions}
-                                value={
-                                    supplierOptions.find(
-                                        (option) =>
-                                            option.value === data.supplier_id,
-                                    ) ?? null
-                                }
-                                onChange={(option) =>
-                                    handleSupplierChange(option?.value ?? '')
-                                }
+                            <Select2Ajax
+                                inputId="supplier_id"
+                                url={supplierLookupUrl}
+                                value={supplierOption}
+                                onChange={selectSupplier}
                                 error={!!errors.supplier_id}
                                 size="md"
-                                placeholder="Selecciona un proveedor"
+                                placeholder="Busca un proveedor"
                             />
                             {errors.supplier_id && (
                                 <p className="text-sm text-bad">

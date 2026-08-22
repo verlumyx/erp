@@ -53,10 +53,10 @@ test('the create form is rendered with its catalogs', function () {
         ->assertInertia(
             fn (AssertableInertia $page) => $page
                 ->component('sales-orders/create')
-                ->has('options.clients', 1)
                 ->has('options.warehouses', 1)
-                /* El catálogo de artículos ya no viaja: la línea lo busca contra items.options. */
-                ->missing('options.items'),
+                /* Ni los artículos ni los clientes viajan: se buscan contra su lookup. */
+                ->missing('options.items')
+                ->missing('options.clients'),
         );
 });
 

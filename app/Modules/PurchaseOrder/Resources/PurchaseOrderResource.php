@@ -20,6 +20,7 @@ class PurchaseOrderResource extends JsonResource
             'code' => $this->code,
             'supplier_id' => $this->supplier_id,
             'supplier_name' => $this->whenLoaded('supplier', fn () => $this->supplier?->name),
+            'supplier_code' => $this->whenLoaded('supplier', fn () => $this->supplier?->code),
             'warehouse_id' => $this->warehouse_id,
             'warehouse_name' => $this->whenLoaded('warehouse', fn () => $this->warehouse?->name),
             'order_date' => $this->order_date?->format('Y-m-d'),

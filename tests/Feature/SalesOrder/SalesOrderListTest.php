@@ -27,10 +27,10 @@ test('the sales order list is rendered', function () {
                 ->component('sales-orders/index')
                 ->has('salesOrders', 3)
                 ->where('meta.total', 3)
-                ->has('options.clients')
                 ->has('options.warehouses')
-                /* El catálogo de artículos ya no viaja: la línea lo busca contra items.options. */
-                ->missing('options.items'),
+                /* Ni los artículos ni los clientes viajan: se buscan contra su lookup. */
+                ->missing('options.items')
+                ->missing('options.clients'),
         );
 });
 

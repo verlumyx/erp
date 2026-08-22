@@ -8,9 +8,13 @@ import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { cn } from '@/lib/utils';
+import { taxOptionLabel } from '@/types/tax';
 import { usePurchaseOrderFormContext } from '../contexts/PurchaseOrderFormContext';
 import { lineAmounts } from '../hooks/usePurchaseOrderForm';
 import { formatAmount } from '../types/PurchaseOrder';
+
+/** Valor del select cuando la línea no lleva impuesto: '' no lo distingue. */
+const NO_TAX = 'none';
 
 /**
  * 2.2 Líneas de la orden. Cada fila fija artículo, unidad, cantidad y costo; el
@@ -25,7 +29,18 @@ export function PurchaseOrderLinesSection() {
         removeLine,
         updateLine,
         setLineItem,
+        setLineTax,
+        options,
     } = usePurchaseOrderFormContext();
+
+    /** El catálogo de impuestos es el mismo para todas las líneas. */
+    const taxOptions: OptionType[] = [
+        { value: NO_TAX, label: 'Sin impuesto' },
+        ...options.taxes.map((tax) => ({
+            value: tax.id,
+            label: taxOptionLabel(tax),
+        })),
+    ];
 
     const [openCharges, setOpenCharges] = useState<Record<string, boolean>>({});
 
@@ -55,9 +70,7 @@ export function PurchaseOrderLinesSection() {
                 }));
                 const chargesOpen = openCharges[line.id] === true;
                 const hasCharges =
-                    line.discount_percent > 0 ||
-                    line.tax_percent > 0 ||
-                    line.withholding_percent > 0;
+                    line.discount_percent > 0 || line.tax_id !== '';
 
                 return (
                     <div
@@ -70,7 +83,6 @@ export function PurchaseOrderLinesSection() {
                                     Artículo *
                                 </Label>
                                 <div className="flex items-center gap-2">
-
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -233,7 +245,46 @@ export function PurchaseOrderLinesSection() {
                         </div>
 
                         {chargesOpen && (
-                            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+                                <div className="flex flex-col gap-1.5">
+                                    <Label className="text-[13px] font-semibold">
+                                        Impuesto
+                                    </Label>
+                                    <Select2
+                                        options={taxOptions}
+                                        value={
+                                            taxOptions.find(
+                                                (option) =>
+                                                    option.value ===
+                                                    (line.tax_id || NO_TAX),
+                                            ) ?? null
+                                        }
+                                        onChange={(option) =>
+                                            setLineTax(
+                                                index,
+                                                !option ||
+                                                    option.value === NO_TAX
+                                                    ? ''
+                                                    : option.value,
+                                            )
+                                        }
+                                        error={!!fieldError(index, 'tax_id')}
+                                        size="md"
+                                        placeholder="Sin impuesto"
+                                    />
+                                    {line.withholding_percent > 0 && (
+                                        <span className="text-[12px] text-muted-foreground">
+                                            Retiene {line.withholding_percent}%
+                                            del impuesto
+                                        </span>
+                                    )}
+                                    {fieldError(index, 'tax_id') && (
+                                        <p className="text-sm text-bad">
+                                            {fieldError(index, 'tax_id')}
+                                        </p>
+                                    )}
+                                </div>
+
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
                                         Descuento %
@@ -244,46 +295,6 @@ export function PurchaseOrderLinesSection() {
                                             updateLine(
                                                 index,
                                                 'discount_percent',
-                                                value,
-                                            )
-                                        }
-                                        min={0}
-                                        max={100}
-                                        decimals={4}
-                                        className="h-[42px] rounded-[10px]"
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[13px] font-semibold">
-                                        Impuesto %
-                                    </Label>
-                                    <NumberInput
-                                        value={line.tax_percent}
-                                        onValueChange={(value) =>
-                                            updateLine(
-                                                index,
-                                                'tax_percent',
-                                                value,
-                                            )
-                                        }
-                                        min={0}
-                                        max={100}
-                                        decimals={4}
-                                        className="h-[42px] rounded-[10px]"
-                                    />
-                                </div>
-
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[13px] font-semibold">
-                                        Retención %
-                                    </Label>
-                                    <NumberInput
-                                        value={line.withholding_percent}
-                                        onValueChange={(value) =>
-                                            updateLine(
-                                                index,
-                                                'withholding_percent',
                                                 value,
                                             )
                                         }

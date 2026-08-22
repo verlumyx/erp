@@ -28,6 +28,9 @@ export type ItemCatalogEntry = {
     name: string;
     min_price: string;
     standard_cost: string;
+    /** Impuesto con el que el artículo se vende y con el que se compra. */
+    sale_tax_id: string | null;
+    purchase_tax_id: string | null;
     units: ItemCatalogUnit[];
     prices: ItemCatalogPrice[];
     /**
@@ -67,6 +70,8 @@ function entryFromOption(option: AjaxOption): ItemCatalogEntry {
         name: meta.name ?? option.label,
         min_price: meta.min_price ?? '0',
         standard_cost: meta.standard_cost ?? '0',
+        sale_tax_id: meta.sale_tax_id ?? null,
+        purchase_tax_id: meta.purchase_tax_id ?? null,
         units: meta.units ?? [],
         prices: meta.prices ?? [],
         hydrated: true,
@@ -86,6 +91,8 @@ function entryFromSeed(seed: ItemCatalogSeed): ItemCatalogEntry {
         name: seed.name ?? '',
         min_price: '0',
         standard_cost: '0',
+        sale_tax_id: null,
+        purchase_tax_id: null,
         units: [],
         prices: [],
         hydrated: false,

@@ -80,7 +80,13 @@ trait ValidatesSalesOrderPayload
             'lines.*.unit_price' => ['required', 'numeric', 'min:0'],
             'lines.*.list_price' => ['nullable', 'numeric', 'min:0'],
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'lines.*.tax_id' => ['nullable', 'uuid'],
+            'lines.*.tax_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('app_taxes', 'id')
+                    ->where('company_id', $companyId)
+                    ->where('status', 'active'),
+            ],
             'lines.*.tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.withholding_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.notes' => ['nullable', 'string', 'max:500'],
@@ -110,6 +116,7 @@ trait ValidatesSalesOrderPayload
             'lines.*.quantity.gt' => 'La cantidad de la línea debe ser mayor que cero.',
             'lines.*.unit_price.min' => 'El precio de la línea no puede ser negativo.',
             'lines.*.discount_percent.max' => 'El descuento de la línea no puede superar el 100%.',
+            'lines.*.tax_id.exists' => 'El impuesto de la línea no existe o está inactivo.',
         ];
     }
 

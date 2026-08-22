@@ -48,6 +48,7 @@ export default function PurchaseOrdersEdit({ purchaseOrder, options }: Props) {
 
     const formMethods = usePurchaseOrderForm({
         mode: 'edit',
+        options,
         initialData: purchaseOrder,
     });
 

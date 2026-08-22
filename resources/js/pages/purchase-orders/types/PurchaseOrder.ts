@@ -1,4 +1,6 @@
+import type { StatusKind } from '@/components/status-pill';
 import { formatMoney } from '@/lib/money';
+import type { TaxOption } from '@/types/tax';
 
 export type PurchaseOrderStatus =
     | 'draft'
@@ -41,6 +43,7 @@ export interface PurchaseOrder {
     code: string;
     supplier_id: string;
     supplier_name?: string;
+    supplier_code?: string;
     warehouse_id: string;
     warehouse_name?: string;
     order_date: string;
@@ -89,19 +92,28 @@ export interface PurchaseOrderFilters {
     offset?: number;
 }
 
-/** Catálogos que alimentan los selects del formulario. */
-export interface PurchaseOrderOptions {
-    suppliers: Array<{
-        id: string;
-        code: string;
-        name: string;
-        currency: string;
-        payment_term_days: number;
-    }>;
-    warehouses: Array<{ id: string; name: string }>;
+/**
+ * Lo que la orden sabe de un proveedor con solo haberlo elegido: viaja en el
+ * `meta` de la opción que devuelve `suppliers.lookup`.
+ */
+export interface SupplierOptionMeta {
+    code: string;
+    name: string;
+    currency: string;
+    payment_term_days: number;
+    status: 'active' | 'inactive';
 }
 
-import type { StatusKind } from '@/components/status-pill';
+/**
+ * Catálogos que alimentan los selects del formulario.
+ *
+ * Los proveedores no están aquí: el padrón es demasiado grande para las props
+ * y la cabecera lo busca contra `suppliers.lookup` con `Select2Ajax`.
+ */
+export interface PurchaseOrderOptions {
+    warehouses: Array<{ id: string; name: string }>;
+    taxes: TaxOption[];
+}
 
 export const STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
     draft: 'Borrador',

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseOrder\Services;
 
-use App\Modules\Supplier\Commands\SearchSupplierCommand;
-use App\Modules\Supplier\Models\Supplier;
-use App\Modules\Supplier\Repositories\Contracts\SupplierRepositoryInterface;
+use App\Modules\Tax\Commands\SearchTaxCommand;
+use App\Modules\Tax\Models\Tax;
+use App\Modules\Tax\Repositories\Contracts\TaxRepositoryInterface;
 use App\Modules\Warehouse\Commands\SearchWarehouseCommand;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\Warehouse\Repositories\Contracts\WarehouseRepositoryInterface;
@@ -17,57 +17,32 @@ use App\Modules\Warehouse\Repositories\Contracts\WarehouseRepositoryInterface;
  * Se resuelven a través de los repositorios de sus módulos: el módulo de
  * órdenes nunca consulta sus tablas directamente.
  *
- * Los artículos NO viajan aquí: el catálogo es demasiado grande para las props
- * de cada pantalla. La línea los busca contra `items.lookup` con `Select2Ajax`,
- * que ya trae unidades y costo de la opción elegida.
+ * Los artículos y los proveedores NO viajan aquí: ambos padrones son demasiado
+ * grandes para las props de cada pantalla. La línea busca el artículo contra
+ * `items.lookup` y la cabecera el proveedor contra `suppliers.lookup`, los dos
+ * con `Select2Ajax`: la opción elegida ya trae lo que la pantalla necesita.
  */
 class PurchaseOrderFormOptionsService
 {
     private const MAX_OPTIONS = 500;
 
     public function __construct(
-        private readonly SupplierRepositoryInterface $suppliers,
         private readonly WarehouseRepositoryInterface $warehouses,
+        private readonly TaxRepositoryInterface $taxes,
     ) {}
 
     /**
      * @return array{
-     *     suppliers: array<int, array<string, mixed>>,
-     *     warehouses: array<int, array{id: string, name: string}>
+     *     warehouses: array<int, array{id: string, name: string}>,
+     *     taxes: array<int, array<string, string>>
      * }
      */
     public function execute(?string $companyId): array
     {
         return [
-            'suppliers' => $this->supplierOptions($companyId),
             'warehouses' => $this->warehouseOptions($companyId),
+            'taxes' => $this->taxOptions($companyId),
         ];
-    }
-
-    /**
-     * El proveedor arrastra su moneda y sus días de crédito: la pantalla los
-     * copia en la cabecera al seleccionarlo, y ahí quedan editables.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function supplierOptions(?string $companyId): array
-    {
-        $result = $this->suppliers->search(new SearchSupplierCommand(
-            filters: ['status' => 'active'],
-            limit: self::MAX_OPTIONS,
-            companyId: $companyId,
-        ));
-
-        return array_map(
-            fn (Supplier $supplier): array => [
-                'id' => $supplier->id,
-                'code' => $supplier->code,
-                'name' => $supplier->name,
-                'currency' => $supplier->currency,
-                'payment_term_days' => $supplier->payment_term_days,
-            ],
-            $result['data'],
-        );
     }
 
     /**
@@ -85,6 +60,34 @@ class PurchaseOrderFormOptionsService
             fn (Warehouse $warehouse): array => [
                 'id' => $warehouse->id,
                 'name' => $warehouse->name,
+            ],
+            $result['data'],
+        );
+    }
+
+    /**
+     * El impuesto de la línea sale de aquí: la pantalla ya no captura el
+     * porcentaje a mano. La retención viaja con él porque se practica sobre el
+     * impuesto y el usuario no la elige por separado.
+     *
+     * @return array<int, array{id: string, code: string, name: string, percentage: string, has_withholding: string, withholding_percentage: string}>
+     */
+    private function taxOptions(?string $companyId): array
+    {
+        $result = $this->taxes->search(new SearchTaxCommand(
+            filters: ['status' => 'active'],
+            limit: self::MAX_OPTIONS,
+            companyId: $companyId,
+        ));
+
+        return array_map(
+            fn (Tax $tax): array => [
+                'id' => $tax->id,
+                'code' => $tax->code,
+                'name' => $tax->name,
+                'percentage' => (string) $tax->percentage,
+                'has_withholding' => $tax->has_withholding,
+                'withholding_percentage' => (string) $tax->withholding_percentage,
             ],
             $result['data'],
         );

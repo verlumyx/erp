@@ -67,10 +67,10 @@ test('the list carries the catalogs that feed the form selects', function () {
         ->assertOk()
         ->assertInertia(
             fn (AssertableInertia $page) => $page
-                ->has('options.suppliers', 1)
                 ->has('options.warehouses', 1)
-                /* El catálogo de artículos ya no viaja: la línea lo busca contra items.options. */
+                /* Ni los artículos ni los proveedores viajan: se buscan contra su lookup. */
                 ->missing('options.items')
+                ->missing('options.suppliers')
         );
 });
 

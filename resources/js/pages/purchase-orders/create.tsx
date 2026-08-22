@@ -29,7 +29,7 @@ export default function PurchaseOrdersCreate({ options }: Props) {
         { title: 'Nueva orden', href: purchaseOrders.create(companyId).url },
     ];
 
-    const formMethods = usePurchaseOrderForm({ mode: 'create' });
+    const formMethods = usePurchaseOrderForm({ mode: 'create', options });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

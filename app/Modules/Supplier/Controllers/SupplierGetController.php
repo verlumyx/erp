@@ -7,16 +7,22 @@ namespace App\Modules\Supplier\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Supplier\Commands\SearchSupplierCommand;
 use App\Modules\Supplier\Models\Supplier;
+use App\Modules\Supplier\Resources\SupplierOptionResource;
 use App\Modules\Supplier\Resources\SupplierResource;
 use App\Modules\Supplier\Services\SupplierFindService;
 use App\Modules\Supplier\Services\SupplierFormOptionsService;
 use App\Modules\Supplier\Services\SupplierSearchService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SupplierGetController extends Controller
 {
+    private const LOOKUP_PER_PAGE = 20;
+
+    private const LOOKUP_MAX_PER_PAGE = 50;
+
     public function __construct(
         private readonly SupplierSearchService $searchService,
         private readonly SupplierFindService $findService,
@@ -63,6 +69,54 @@ class SupplierGetController extends Controller
 
         return Inertia::render('suppliers/create', [
             'options' => $this->formOptionsService->execute(session('current_company_id')),
+        ]);
+    }
+
+    /**
+     * Página de opciones para el select remoto de proveedores.
+     *
+     * Devuelve JSON, no Inertia: la consume `Select2Ajax` por `fetch`. El
+     * padrón de proveedores es demasiado grande para viajar entero en las props
+     * de cada pantalla que lo necesita.
+     *
+     * Se llama `lookup` y no `options` porque Wayfinder nombra la función
+     * generada como la ruta, y ahí `options` choca con su propio parámetro de
+     * query: el TypeScript generado no compila.
+     */
+    public function lookup(Request $request, string $company): JsonResponse
+    {
+        abort_unless($request->user()?->hasPermission('suppliers.list') ?? false, 403);
+
+        $perPage = min(max($request->integer('per_page', self::LOOKUP_PER_PAGE), 1), self::LOOKUP_MAX_PER_PAGE);
+        $page = max($request->integer('page', 1), 1);
+        $ids = $request->string('ids')->toString();
+
+        $command = new SearchSupplierCommand(
+            filters: [
+                'q' => $request->string('q')->toString(),
+                'ids' => $ids,
+                /*
+                 * Buscar ofrece solo proveedores activos; hidratar lo ya
+                 * elegido no filtra por estado: un proveedor desactivado
+                 * después sigue estando en la orden que se está editando.
+                 */
+                'status' => $ids === ''
+                    ? $request->string('status', 'active')->toString()
+                    : $request->string('status')->toString(),
+            ],
+            limit: $perPage,
+            offset: ($page - 1) * $perPage,
+            companyId: $company,
+        );
+
+        $result = $this->searchService->execute($command);
+
+        return response()->json([
+            'data' => array_map(
+                fn (Supplier $supplier): array => (new SupplierOptionResource($supplier))->resolve(),
+                $result['data'],
+            ),
+            'has_more' => $result['total'] > $command->offset + $command->limit,
         ]);
     }
 

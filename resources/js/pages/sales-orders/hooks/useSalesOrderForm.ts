@@ -5,12 +5,19 @@ import {
     useItemCatalog,
     type ItemCatalogEntry,
 } from '@/hooks/use-item-catalog';
+import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { convertAmount } from '@/lib/money';
 import { generateUUID } from '@/lib/utils';
+import clients from '@/routes/clients';
 import salesOrders from '@/routes/sales-orders';
 import type { TodayRates } from '@/types';
-import type { SalesOrder, SalesOrderOptions } from '../types/SalesOrder';
+import { taxWithholdingPercent, type TaxOption } from '@/types/tax';
+import type {
+    ClientOptionMeta,
+    SalesOrder,
+    SalesOrderOptions,
+} from '../types/SalesOrder';
 
 interface UseSalesOrderFormProps {
     mode: 'create' | 'edit';
@@ -27,6 +34,8 @@ export interface SalesOrderLineRow {
     unit_price: number;
     list_price: number;
     discount_percent: number;
+    /** Impuesto del catálogo. De él salen los dos porcentajes de abajo. */
+    tax_id: string;
     tax_percent: number;
     withholding_percent: number;
     notes: string;
@@ -97,6 +106,7 @@ function emptyLine(): SalesOrderLineRow {
         unit_price: 0,
         list_price: 0,
         discount_percent: 0,
+        tax_id: '',
         tax_percent: 0,
         withholding_percent: 0,
         notes: '',
@@ -119,6 +129,7 @@ function lineRows(order?: SalesOrder): SalesOrderLineRow[] {
             unit_price: Number(line.unit_price),
             list_price: Number(line.list_price),
             discount_percent: Number(line.discount_percent),
+            tax_id: line.tax_id ?? '',
             tax_percent: Number(line.tax_percent),
             withholding_percent: Number(line.withholding_percent),
             notes: line.notes ?? '',
@@ -175,6 +186,26 @@ function resolvePrice(
     );
 }
 
+/**
+ * La línea con un impuesto del catálogo aplicado: sus dos porcentajes salen de
+ * ahí y ya no se capturan a mano. Sin impuesto, ambos vuelven a cero.
+ */
+function withTax(
+    line: SalesOrderLineRow,
+    tax: TaxOption | undefined,
+): SalesOrderLineRow {
+    if (!tax) {
+        return { ...line, tax_id: '', tax_percent: 0, withholding_percent: 0 };
+    }
+
+    return {
+        ...line,
+        tax_id: tax.id,
+        tax_percent: Number(tax.percentage),
+        withholding_percent: taxWithholdingPercent(tax),
+    };
+}
+
 function baseUnitId(item: ItemCatalogEntry | undefined): string {
     if (!item) {
         return '';
@@ -185,6 +216,23 @@ function baseUnitId(item: ItemCatalogEntry | undefined): string {
     return (
         base?.measurement_unit_id ?? item.units[0]?.measurement_unit_id ?? ''
     );
+}
+
+/**
+ * El cliente del pedido que se edita, con la etiqueta que trae su Resource: así
+ * el select lo muestra desde el primer render, mientras llega su `meta`.
+ */
+function clientSeed(order?: SalesOrder): AjaxOption | null {
+    if (!order?.client_id) {
+        return null;
+    }
+
+    const name = order.client_name ?? '';
+
+    return {
+        value: order.client_id,
+        label: order.client_code ? `${order.client_code} — ${name}` : name,
+    };
 }
 
 /** En ventas el artículo se reconoce por su sku. */
@@ -217,6 +265,17 @@ export function useSalesOrderForm({
                 sku: line.item_sku,
                 name: line.item_name,
             })),
+    });
+
+    /**
+     * La cartera de clientes tampoco viaja en las props. Se hidrata porque la
+     * pantalla usa más que la etiqueta del elegido: de su `meta` salen las
+     * direcciones de entrega y el aviso de crédito bloqueado.
+     */
+    const client = useRemoteOption({
+        url: clients.lookup(companyId).url,
+        seed: clientSeed(initialData),
+        hydrate: true,
     });
 
     const initialCurrency =
@@ -291,26 +350,28 @@ export function useSalesOrderForm({
 
     /**
      * Elegir el cliente arrastra sus condiciones comerciales: lista de precio,
-     * días de crédito y su dirección de entrega sugerida.
+     * vendedor asignado, días de crédito y su dirección de entrega sugerida.
+     * Todo eso llega en el `meta` de la opción del select remoto.
      */
-    const selectClient = (clientId: string) => {
-        const client = options.clients.find(
-            (candidate) => candidate.id === clientId,
-        );
+    const selectClient = (option: AjaxOption | null) => {
+        client.select(option);
 
-        const priceListId = client?.price_list_id ?? data.price_list_id;
-        const defaultAddress = client?.addresses.find(
+        const meta = (option?.meta ?? {}) as Partial<ClientOptionMeta>;
+        const priceListId = meta.price_list_id ?? data.price_list_id;
+        const defaultAddress = (meta.addresses ?? []).find(
             (address) =>
                 address.type === 'shipping' && address.is_default === 'yes',
         );
 
         setData((current) => ({
             ...current,
-            client_id: clientId,
+            client_id: option?.value ?? '',
             client_address_id: defaultAddress?.id ?? '',
             price_list_id: priceListId ?? '',
+            /** Sin vendedor asignado se respeta el que la pantalla ya tenga. */
+            salesperson_id: meta.salesperson_id ?? current.salesperson_id,
             payment_term_days:
-                client?.payment_term_days ?? current.payment_term_days,
+                meta.payment_term_days ?? current.payment_term_days,
             /** Cambiar de lista revalúa las líneas que aún no tienen precio pactado. */
             lines: current.lines.map((line) =>
                 repriceLine(line, priceListId ?? '', current.currency),
@@ -367,6 +428,10 @@ export function useSalesOrderForm({
             ),
         );
 
+    /** El impuesto del catálogo con ese id, si sigue activo. */
+    const taxOf = (taxId: string | null | undefined): TaxOption | undefined =>
+        taxId ? options.taxes.find((tax) => tax.id === taxId) : undefined;
+
     /**
      * Elegir el artículo trae su unidad base y su precio de la lista aplicada.
      * La opción llega del select remoto con todo eso dentro, así que basta con
@@ -385,17 +450,29 @@ export function useSalesOrderForm({
             'lines',
             data.lines.map((line, i) =>
                 i === index
-                    ? {
-                          ...line,
-                          item_id: item?.id ?? '',
-                          measurement_unit_id: baseUnitId(item),
-                          list_price: price,
-                          unit_price: price,
-                      }
+                    ? withTax(
+                          {
+                              ...line,
+                              item_id: item?.id ?? '',
+                              measurement_unit_id: baseUnitId(item),
+                              list_price: price,
+                              unit_price: price,
+                          },
+                          taxOf(item?.sale_tax_id),
+                      )
                     : line,
             ),
         );
     };
+
+    /** Cambiar el impuesto de una línea trae su porcentaje y su retención. */
+    const selectLineTax = (index: number, taxId: string) =>
+        setData(
+            'lines',
+            data.lines.map((line, i) =>
+                i === index ? withTax(line, taxOf(taxId)) : line,
+            ),
+        );
 
     const totals = data.lines.reduce(
         (accumulator, line) => {
@@ -461,6 +538,12 @@ export function useSalesOrderForm({
         mode,
         totals,
         catalog,
+        clientLookupUrl: client.url,
+        clientOption: client.optionOf(data.client_id),
+        /** Las condiciones del cliente elegido: direcciones, crédito, descuento. */
+        client: client.optionOf(data.client_id)?.meta as
+            | ClientOptionMeta
+            | undefined,
         selectClient,
         selectPriceList,
         selectCurrency,
@@ -468,5 +551,6 @@ export function useSalesOrderForm({
         removeLine,
         updateLine,
         selectLineItem,
+        selectLineTax,
     };
 }

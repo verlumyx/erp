@@ -17,6 +17,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
         Route::prefix('clients')->group(function () use ($uuid) {
             Route::get('/', [ClientGetController::class, 'index'])->name('clients.index');
             Route::get('/create', [ClientGetController::class, 'create'])->name('clients.create');
+            Route::get('/lookup', [ClientGetController::class, 'lookup'])->name('clients.lookup');
             Route::post('/', ClientPostController::class)->name('clients.store');
             Route::get('/{id}', [ClientGetController::class, 'show'])->where('id', $uuid)->name('clients.show');
             Route::get('/{id}/edit', [ClientGetController::class, 'edit'])->where('id', $uuid)->name('clients.edit');

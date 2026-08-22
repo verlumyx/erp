@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
+import { Select2Ajax } from '@/components/select2-ajax';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,7 +14,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
+import { useRemoteOption } from '@/hooks/use-remote-option';
 import purchaseOrders from '@/routes/purchase-orders';
+import suppliers from '@/routes/suppliers';
 import {
     isEditable,
     STATUS_LABELS,
@@ -59,13 +62,25 @@ export function PurchaseOrderList({
     const [filters, setFilters] =
         useState<PurchaseOrderFilters>(initialFilters);
 
-    const supplierOptions: OptionType[] = [
-        { value: ALL, label: 'Todos' },
-        ...options.suppliers.map((supplier) => ({
-            value: supplier.id,
-            label: supplier.name,
-        })),
-    ];
+    /**
+     * El filtro de proveedor busca contra el servidor, así que de un id que
+     * llega en la URL solo sabemos su etiqueta si alguna orden listada lo
+     * nombra; el resto lo resuelve la hidratación del propio select.
+     */
+    const supplier = useRemoteOption({
+        url: suppliers.lookup(companyId).url,
+        seed: initialFilters.supplier_id
+            ? {
+                  value: initialFilters.supplier_id,
+                  label:
+                      rows.find(
+                          (order) =>
+                              order.supplier_id === initialFilters.supplier_id,
+                      )?.supplier_name ?? 'Proveedor',
+              }
+            : null,
+        hydrate: true,
+    });
 
     const warehouseOptions: OptionType[] = [
         { value: ALL, label: 'Todas' },
@@ -183,26 +198,19 @@ export function PurchaseOrderList({
 
                     <div className="space-y-2">
                         <Label htmlFor="filter-supplier">Proveedor</Label>
-                        <Select2
+                        <Select2Ajax
                             inputId="filter-supplier"
-                            options={supplierOptions}
-                            value={
-                                supplierOptions.find(
-                                    (option) =>
-                                        option.value ===
-                                        (filters.supplier_id ?? ALL),
-                                ) ?? null
-                            }
-                            onChange={(option) =>
+                            url={supplier.url}
+                            value={supplier.optionOf(filters.supplier_id ?? '')}
+                            onChange={(option) => {
+                                supplier.select(option);
                                 applyFilters({
                                     ...filters,
-                                    supplier_id:
-                                        !option || option.value === ALL
-                                            ? undefined
-                                            : option.value,
-                                })
-                            }
-                            placeholder="Proveedor"
+                                    supplier_id: option?.value ?? undefined,
+                                });
+                            }}
+                            isClearable
+                            placeholder="Todos"
                         />
                     </div>
 
