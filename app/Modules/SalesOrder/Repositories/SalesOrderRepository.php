@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\SalesOrder\Repositories;
 
+use App\Modules\ExchangeRate\Commands\DocumentRatesData;
+use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
+use App\Modules\Item\Models\ItemPrice;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\SalesOrder\Commands\CreateSalesOrderCommand;
 use App\Modules\SalesOrder\Commands\SalesOrderLineData;
@@ -28,9 +31,13 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
         'salesperson',
     ];
 
-    public function create(CreateSalesOrderCommand $command): void
+    public function __construct(
+        private readonly DocumentRatesResolverInterface $rates,
+    ) {}
+
+    public function create(CreateSalesOrderCommand $command, DocumentRatesData $rates): void
     {
-        DB::transaction(function () use ($command): void {
+        DB::transaction(function () use ($command, $rates): void {
             $order = SalesOrder::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
@@ -43,8 +50,7 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
                 'order_date' => $command->orderDate,
                 'expected_date' => $command->expectedDate,
                 'client_reference' => $command->clientReference,
-                'currency' => $command->currency,
-                'exchange_rate' => $command->exchangeRate,
+                ...$rates->toAttributes(),
                 'payment_term_days' => $command->paymentTermDays,
                 /** Los avances nacen en cero: los mueven el despacho y la factura. */
                 'dispatched_percent' => 0,
@@ -54,7 +60,7 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
                 'created_by' => $command->createdBy,
             ]);
 
-            $this->syncLines($order, $command->lines);
+            $this->syncLines($order, $command->lines, $rates);
             $this->refreshTotals($order);
         });
     }
@@ -75,9 +81,9 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
             ->findOrFail($id);
     }
 
-    public function update(SalesOrder $model, UpdateSalesOrderCommand $command): void
+    public function update(SalesOrder $model, UpdateSalesOrderCommand $command, DocumentRatesData $rates): void
     {
-        DB::transaction(function () use ($model, $command): void {
+        DB::transaction(function () use ($model, $command, $rates): void {
             /** Los avances y el estado quedan fuera: no se capturan desde el formulario. */
             $model->update([
                 'client_id' => $command->clientId,
@@ -88,13 +94,12 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
                 'order_date' => $command->orderDate,
                 'expected_date' => $command->expectedDate,
                 'client_reference' => $command->clientReference,
-                'currency' => $command->currency,
-                'exchange_rate' => $command->exchangeRate,
+                ...$rates->toAttributes(),
                 'payment_term_days' => $command->paymentTermDays,
                 'notes' => $command->notes,
             ]);
 
-            $this->syncLines($model, $command->lines);
+            $this->syncLines($model, $command->lines, $rates);
             $this->refreshTotals($model);
         });
     }
@@ -152,7 +157,7 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
      *
      * @param  array<int, SalesOrderLineData>  $lines
      */
-    private function syncLines(SalesOrder $order, array $lines): void
+    private function syncLines(SalesOrder $order, array $lines, DocumentRatesData $rates): void
     {
         $existing = SalesOrderLine::query()
             ->where('sales_order_id', $order->id)
@@ -170,13 +175,14 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
         }
 
         $factors = $this->conversionFactors($order->company_id, $lines);
+        $listPrices = $this->listPrices($order, $lines, $rates);
 
         $keep = [];
         $lineNumber = 0;
 
         foreach ($lines as $line) {
             $attributes = [
-                ...$this->lineAmounts($line, $factors),
+                ...$this->lineAmounts($line, $factors, $listPrices),
                 'company_id' => $order->company_id,
                 'line_number' => ++$lineNumber,
                 'item_id' => $line->itemId,
@@ -206,13 +212,20 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
      * Importes de una línea. Se calculan aquí y nunca se aceptan del cliente:
      * el precio y el descuento quedan congelados en la línea.
      *
+     * El precio de lista tampoco: sale de la lista aplicada al pedido, ya
+     * convertido a la moneda del documento. El del formulario solo manda
+     * cuando el vendedor pactó otro distinto del de lista.
+     *
      * @param  array<string, string>  $factors
+     * @param  array<string, float>  $listPrices
      * @return array<string, string|float>
      */
-    private function lineAmounts(SalesOrderLineData $line, array $factors): array
+    private function lineAmounts(SalesOrderLineData $line, array $factors, array $listPrices): array
     {
         $quantity = (float) $line->quantity;
-        $unitPrice = (float) $line->unitPrice;
+        $agreedPrice = (float) $line->unitPrice !== (float) $line->listPrice;
+        $listPrice = $listPrices[$line->itemId] ?? (float) $line->listPrice;
+        $unitPrice = $agreedPrice ? (float) $line->unitPrice : $listPrice;
         $discountPercent = (float) $line->discountPercent;
         $taxPercent = (float) $line->taxPercent;
         $withholdingPercent = (float) $line->withholdingPercent;
@@ -228,8 +241,8 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
         return [
             'quantity' => $line->quantity,
             'base_quantity' => round($quantity * $factor, 4),
-            'unit_price' => $line->unitPrice,
-            'list_price' => $line->listPrice,
+            'unit_price' => $unitPrice,
+            'list_price' => $listPrice,
             'discount_percent' => $line->discountPercent,
             'discount_amount' => $discountAmount,
             'tax_percent' => $line->taxPercent,
@@ -241,6 +254,47 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
             /** Nada se ha despachado todavía: todo el pedido está pendiente. */
             'pending_quantity' => $line->quantity,
         ];
+    }
+
+    /**
+     * Precio de cada artículo en la lista aplicada al pedido, reexpresado en la
+     * moneda del documento e indexado por `item_id`.
+     *
+     * Una lista puede estar en una moneda distinta de la del pedido: la
+     * conversión ocurre una sola vez, aquí, y la línea guarda el resultado. Sin
+     * lista o sin precio registrado no hay nada que imponer y manda el
+     * formulario.
+     *
+     * @param  array<int, SalesOrderLineData>  $lines
+     * @return array<string, float>
+     */
+    private function listPrices(SalesOrder $order, array $lines, DocumentRatesData $rates): array
+    {
+        if ($order->price_list_id === null || $lines === []) {
+            return [];
+        }
+
+        $date = $order->order_date->format('Y-m-d');
+
+        return ItemPrice::query()
+            ->where('company_id', $order->company_id)
+            ->where('price_list_id', $order->price_list_id)
+            ->where('status', 'active')
+            ->whereIn('item_id', array_map(fn (SalesOrderLineData $line): string => $line->itemId, $lines))
+            ->get()
+            ->mapWithKeys(fn (ItemPrice $price): array => [
+                $price->item_id => round(
+                    $this->rates->priceInDocumentCurrency(
+                        $rates,
+                        $order->company_id,
+                        $date,
+                        (float) $price->price,
+                        $price->currency,
+                    ),
+                    $rates->priceDecimals,
+                ),
+            ])
+            ->all();
     }
 
     /**

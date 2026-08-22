@@ -1,3 +1,5 @@
+import { formatAmount as formatNumber, formatMoney } from '@/lib/money';
+
 export type SalesOrderStatus =
     | 'draft'
     | 'confirmed'
@@ -58,6 +60,9 @@ export interface SalesOrder {
     client_reference: string | null;
     currency: string;
     exchange_rate: string;
+    /** Moneda principal de la empresa congelada al emitir, con su tasa. */
+    base_currency: string | null;
+    base_exchange_rate: string | null;
     payment_term_days: number;
     subtotal: string;
     discount_amount: string;
@@ -186,10 +191,5 @@ export function formatAmount(
     value: string | number,
     currency?: string,
 ): string {
-    const amount = Number(value).toLocaleString('es-VE', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
-
-    return currency ? `${currency} ${amount}` : amount;
+    return currency ? formatMoney(value, currency) : formatNumber(value);
 }

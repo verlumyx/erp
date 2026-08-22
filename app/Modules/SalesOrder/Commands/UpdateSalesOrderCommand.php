@@ -21,8 +21,10 @@ class UpdateSalesOrderCommand
         public readonly ?string $salespersonId = null,
         public readonly ?string $expectedDate = null,
         public readonly ?string $clientReference = null,
+        /** El request siempre la exige: la pantalla la estrena con la de la empresa. */
         public readonly string $currency = 'USD',
-        public readonly string $exchangeRate = '1',
+        /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
+        public readonly ?string $exchangeRateOverride = null,
         public readonly int $paymentTermDays = 0,
         public readonly ?string $notes = null,
     ) {}
@@ -39,8 +41,10 @@ class UpdateSalesOrderCommand
             salespersonId: $request->input('salesperson_id'),
             expectedDate: $request->input('expected_date'),
             clientReference: $request->input('client_reference'),
-            currency: strtoupper($request->string('currency', 'USD')->toString()),
-            exchangeRate: (string) $request->input('exchange_rate', 1),
+            currency: strtoupper($request->string('currency')->toString()),
+            exchangeRateOverride: $request->filled('exchange_rate')
+                ? (string) $request->input('exchange_rate')
+                : null,
             paymentTermDays: $request->integer('payment_term_days'),
             notes: $request->input('notes'),
         );

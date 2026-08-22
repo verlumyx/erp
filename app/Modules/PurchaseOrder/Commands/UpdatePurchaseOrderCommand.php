@@ -18,8 +18,10 @@ class UpdatePurchaseOrderCommand
         public readonly array $lines = [],
         public readonly ?string $expectedDate = null,
         public readonly ?string $supplierReference = null,
+        /** El request siempre la exige: la pantalla la estrena con la de la empresa. */
         public readonly string $currency = 'USD',
-        public readonly float $exchangeRate = 1,
+        /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
+        public readonly ?string $exchangeRateOverride = null,
         public readonly int $paymentTermDays = 0,
         public readonly float $discountAmount = 0,
         public readonly ?string $notes = null,
@@ -34,8 +36,10 @@ class UpdatePurchaseOrderCommand
             lines: PurchaseOrderLineData::collection($request->input('lines', [])),
             expectedDate: $request->input('expected_date'),
             supplierReference: $request->input('supplier_reference'),
-            currency: strtoupper($request->string('currency', 'USD')->toString()),
-            exchangeRate: (float) $request->input('exchange_rate', 1),
+            currency: strtoupper($request->string('currency')->toString()),
+            exchangeRateOverride: $request->filled('exchange_rate')
+                ? (string) $request->input('exchange_rate')
+                : null,
             paymentTermDays: $request->integer('payment_term_days'),
             discountAmount: (float) $request->input('discount_amount', 0),
             notes: $request->input('notes'),

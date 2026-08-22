@@ -6,6 +6,7 @@ use App\Modules\Company\Models\Company;
 use App\Modules\Configuration\Resources\ConfigurationResource;
 use App\Modules\Configuration\Services\ConfigurationFindService;
 use App\Modules\Currency\Services\CurrencyOptionsService;
+use App\Modules\ExchangeRate\Services\TodayRatesService;
 use App\Modules\Menu\Services\GetActiveMenusService;
 use App\Modules\Shared\Models\UserCompany;
 use Illuminate\Http\Request;
@@ -47,6 +48,7 @@ class HandleInertiaRequests extends Middleware
         $userCompanies = [];
         $currencies = [];
         $configuration = null;
+        $todayRates = [];
 
         if ($request->user()) {
             $isSystemOwner = $request->user()->is_system_owner;
@@ -94,6 +96,13 @@ class HandleInertiaRequests extends Middleware
                     $configuration = (new ConfigurationResource(
                         app(ConfigurationFindService::class)->execute($found->id)
                     ))->resolve();
+
+                    /**
+                     * Con las tasas de hoy una pantalla enseña el equivalente
+                     * de lo que se está capturando. Lo ya guardado usa la tasa
+                     * congelada del propio documento.
+                     */
+                    $todayRates = app(TodayRatesService::class)->execute($found->id);
                 }
             }
 
@@ -124,6 +133,7 @@ class HandleInertiaRequests extends Middleware
             'userCompanies' => $userCompanies,
             'currencies' => $currencies,
             'configuration' => $configuration,
+            'todayRates' => $todayRates,
         ];
     }
 

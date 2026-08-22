@@ -44,6 +44,7 @@ trait ValidatesPurchaseOrderPayload
             'expected_date' => ['nullable', 'date', 'after_or_equal:order_date'],
             'supplier_reference' => ['nullable', 'string', 'max:60'],
             'currency' => ['required', 'string', new ActiveCurrency],
+            /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],
             'payment_term_days' => ['nullable', 'integer', 'min:0'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],

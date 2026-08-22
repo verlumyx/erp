@@ -12,7 +12,8 @@ import {
     User,
     Warehouse,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { AmountDual } from '@/components/amount-dual';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,12 +39,30 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-function DataRow({ label, value }: { label: string; value: string }) {
+function DataRow({ label, value }: { label: string; value: ReactNode }) {
     return (
         <div className="flex items-center justify-between gap-4 text-[13.5px]">
             <span className="font-medium text-muted-foreground">{label}</span>
             <b className="text-right font-bold">{value}</b>
         </div>
+    );
+}
+
+/**
+ * Un importe del pedido con su equivalente debajo. Las cuatro columnas de
+ * moneda que congeló el pedido se atan aquí una vez, en vez de repetirlas en
+ * cada fila.
+ */
+function Amount({ order, value }: { order: SalesOrder; value: string }) {
+    return (
+        <AmountDual
+            amount={value}
+            currency={order.currency}
+            rate={order.exchange_rate}
+            baseCurrency={order.base_currency}
+            baseRate={order.base_exchange_rate}
+            className="items-end"
+        />
     );
 }
 
@@ -72,6 +91,7 @@ export default function SalesOrdersShow({ salesOrder: order }: Props) {
     const activeLines = (order.lines ?? []).filter(
         (line) => line.status === 'active',
     );
+
     const allowed = STATUS_TRANSITIONS[order.status];
     const canConfirm = allowed.includes('confirmed');
     const canCancel = allowed.includes('cancelled');
@@ -278,23 +298,43 @@ export default function SalesOrdersShow({ salesOrder: order }: Props) {
                         </div>
                         <DataRow
                             label="Subtotal"
-                            value={formatAmount(order.subtotal)}
+                            value={
+                                <Amount order={order} value={order.subtotal} />
+                            }
                         />
                         <DataRow
                             label="Descuento"
-                            value={formatAmount(order.discount_amount)}
+                            value={
+                                <Amount
+                                    order={order}
+                                    value={order.discount_amount}
+                                />
+                            }
                         />
                         <DataRow
                             label="Impuesto"
-                            value={formatAmount(order.tax_amount)}
+                            value={
+                                <Amount
+                                    order={order}
+                                    value={order.tax_amount}
+                                />
+                            }
                         />
                         <DataRow
                             label="Total"
-                            value={formatAmount(order.total)}
+                            value={<Amount order={order} value={order.total} />}
                         />
                         <DataRow
                             label="Tasa de cambio"
                             value={order.exchange_rate}
+                        />
+                        <DataRow
+                            label="Moneda de la empresa"
+                            value={
+                                order.base_currency
+                                    ? `${order.base_currency} (tasa ${order.base_exchange_rate})`
+                                    : '—'
+                            }
                         />
                         <DataRow
                             label="Despachado"

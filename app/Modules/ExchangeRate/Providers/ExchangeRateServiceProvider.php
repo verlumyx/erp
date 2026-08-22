@@ -6,7 +6,9 @@ namespace App\Modules\ExchangeRate\Providers;
 
 use App\Modules\ExchangeRate\Repositories\Contracts\ExchangeRateRepositoryInterface;
 use App\Modules\ExchangeRate\Repositories\ExchangeRateRepository;
+use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
 use App\Modules\ExchangeRate\Services\Contracts\ExchangeRateResolverInterface;
+use App\Modules\ExchangeRate\Services\DocumentRatesResolver;
 use App\Modules\ExchangeRate\Services\ExchangeRateResolver;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +25,11 @@ class ExchangeRateServiceProvider extends ServiceProvider
         $this->app->scoped(
             ExchangeRateResolverInterface::class,
             ExchangeRateResolver::class,
+        );
+
+        $this->app->scoped(
+            DocumentRatesResolverInterface::class,
+            DocumentRatesResolver::class,
         );
     }
 

@@ -49,6 +49,7 @@ This project has domain-specific skills available. You MUST activate the relevan
 - `laravel-module-models` — Activates when creating or modifying Eloquent Model classes inside any module's Models/ folder. All models use UUID v7 as primary key.
 - `laravel-module-exceptions` — Activates when creating or modifying Exception classes inside any module's Exceptions/ folder.
 - `laravel-module-sequential-code` — Activates when adding an auto-generated human-readable code (e.g. CLI000001): a module-prefixed, zero-padded sequential identifier that is generated on the backend and unique per company.
+- `laravel-module-currency` — Activates whenever a module holds amounts: adding a currency, exchange_rate, total or price column, resolving a rate, converting a listed price, or showing an amount in two currencies.
 - `react-modular-frontend` — Activates when creating React pages, components, hooks, Context providers, or adding permissions for a new module.
 - `no-delete-policy` — Activates whenever implementing delete functionality. Records are NEVER physically deleted.
 

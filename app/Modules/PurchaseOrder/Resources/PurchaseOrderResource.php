@@ -27,6 +27,8 @@ class PurchaseOrderResource extends JsonResource
             'supplier_reference' => $this->supplier_reference,
             'currency' => $this->currency,
             'exchange_rate' => $this->exchange_rate,
+            'base_currency' => $this->base_currency,
+            'base_exchange_rate' => $this->base_exchange_rate,
             'payment_term_days' => $this->payment_term_days,
             'subtotal' => $this->subtotal,
             'discount_amount' => $this->discount_amount,

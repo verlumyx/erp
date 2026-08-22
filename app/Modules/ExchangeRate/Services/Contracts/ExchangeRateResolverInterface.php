@@ -23,6 +23,17 @@ interface ExchangeRateResolverInterface
     public function rateFor(string $companyId, string $currency, string $date, string $type = 'legal'): float;
 
     /**
+     * La misma tasa que `rateFor()`, pero devuelve `null` en vez de bloquear.
+     *
+     * Es para quien muestra: una pantalla que enseña el equivalente de un
+     * importe se queda sin él, no se cae. Quien emite un documento usa
+     * `rateFor()`, que sí bloquea.
+     *
+     * @param  string  $date  Fecha del documento en formato Y-m-d.
+     */
+    public function tryRateFor(string $companyId, string $currency, string $date, string $type = 'legal'): ?float;
+
+    /**
      * Convierte un monto entre dos monedas cualesquiera cruzando por bolívares.
      *
      * El resultado no viene redondeado: redondea quien lo persiste, según los

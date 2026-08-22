@@ -1,3 +1,5 @@
+import { formatMoney } from '@/lib/money';
+
 export type PurchaseOrderStatus =
     | 'draft'
     | 'confirmed'
@@ -46,6 +48,9 @@ export interface PurchaseOrder {
     supplier_reference: string | null;
     currency: string;
     exchange_rate: string;
+    /** Moneda principal de la empresa congelada al emitir, con su tasa. */
+    base_currency: string | null;
+    base_exchange_rate: string | null;
     payment_term_days: number;
     subtotal: string;
     discount_amount: string;
@@ -151,8 +156,5 @@ export function isEditable(status: PurchaseOrderStatus): boolean {
 }
 
 export function formatAmount(value: number, currency: string): string {
-    return `${currency} ${value.toLocaleString('es-VE', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
+    return formatMoney(value, currency);
 }

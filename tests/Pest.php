@@ -210,7 +210,30 @@ function purchaseOrderScenario(): array
         'measurement_unit_id' => $unit->id,
     ]);
 
+    todayExchangeRate($company, $user);
+
     return [$user, $company, $supplier, $warehouse, $item, $unit];
+}
+
+/**
+ * Tasa del día para la moneda por defecto de la empresa. Sin ella ningún
+ * documento se emite: el resolver bloquea la emisión antes que inventar una.
+ */
+function todayExchangeRate(
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\User\Models\User $user,
+    string $currency = 'USD',
+    float $rate = 36.5,
+): \App\Modules\ExchangeRate\Models\ExchangeRate {
+    return \App\Modules\ExchangeRate\Models\ExchangeRate::factory()->create([
+        'company_id' => $company->id,
+        'currency' => $currency,
+        'rate_date' => now()->toDateString(),
+        'rate' => $rate,
+        'type' => 'legal',
+        'status' => 'active',
+        'created_by' => $user->id,
+    ]);
 }
 
 /**
@@ -232,7 +255,6 @@ function purchaseOrderPayload(
         'warehouse_id' => $warehouse->id,
         'order_date' => now()->toDateString(),
         'currency' => 'USD',
-        'exchange_rate' => 1,
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -280,6 +302,8 @@ function salesOrderScenario(): array
         'measurement_unit_id' => $unit->id,
     ]);
 
+    todayExchangeRate($company, $user);
+
     return [$user, $company, $client, $warehouse, $item, $unit];
 }
 
@@ -303,7 +327,6 @@ function salesOrderPayload(
         'warehouse_id' => $warehouse->id,
         'order_date' => now()->toDateString(),
         'currency' => 'USD',
-        'exchange_rate' => 1,
         'lines' => [
             [
                 'item_id' => $item->id,

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Modules\ExchangeRate\Exceptions\ExchangeRateNotFoundException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -44,6 +45,25 @@ return Application::configure(basePath: dirname(__DIR__))
                 return Inertia::render('errors/403', [
                     'message' => 'No tienes permiso para acceder a esta sección.',
                 ])->toResponse($request)->setStatusCode(403);
+            }
+
+            /**
+             * Falta la tasa para valorar el documento. Es un error de captura,
+             * no un recurso inexistente: vuelve al formulario con el mensaje
+             * que dice qué moneda y qué fecha hay que cargar. Va antes del
+             * bloque siguiente, que lo tomaría por un 404 por su nombre.
+             */
+            if ($exception instanceof ExchangeRateNotFoundException) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => $exception->getMessage(),
+                        'errors' => ['exchange_rate' => [$exception->getMessage()]],
+                    ], 422);
+                }
+
+                return back()
+                    ->withInput()
+                    ->withErrors(['exchange_rate' => $exception->getMessage()]);
             }
 
             $isModuleNotFound = str_starts_with($exception::class, 'App\\Modules\\')

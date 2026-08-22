@@ -1,6 +1,10 @@
 import { useForm, usePage } from '@inertiajs/react';
+import { useConfiguration } from '@/hooks/use-configuration';
+import { useTodayRates } from '@/hooks/use-today-rates';
+import { convertAmount } from '@/lib/money';
 import { generateUUID } from '@/lib/utils';
 import salesOrders from '@/routes/sales-orders';
+import type { TodayRates } from '@/types';
 import type {
     ItemOption,
     SalesOrder,
@@ -38,7 +42,11 @@ interface SalesOrderFormData {
     expected_date: string;
     client_reference: string;
     currency: string;
-    exchange_rate: number;
+    /**
+     * Corrección manual de la tasa. Vacío —el caso normal— hace que la resuelva
+     * el backend con el catálogo a la fecha del pedido.
+     */
+    exchange_rate: string;
     payment_term_days: number;
     notes: string;
     lines: SalesOrderLineRow[];
@@ -127,12 +135,19 @@ function defaultWarehouseId(options: SalesOrderOptions): string {
 }
 
 /**
- * Precio del artículo en la lista indicada. Sin lista o sin precio registrado
- * cae en 0 y el usuario lo captura a mano.
+ * Precio del artículo en la lista indicada, reexpresado en la moneda del
+ * pedido: cada lista lleva su propia moneda y el pedido puede emitirse en otra.
+ *
+ * Es una sugerencia para la pantalla; al guardar, el backend vuelve a resolver
+ * el precio contra la tasa de la fecha del pedido y congela ese. Sin lista, sin
+ * precio registrado o sin tasa para convertirlo cae en 0 y el usuario lo
+ * captura a mano.
  */
 function resolvePrice(
     item: ItemOption | undefined,
     priceListId: string,
+    currency: string,
+    rates: TodayRates,
 ): number {
     if (!item) {
         return 0;
@@ -142,7 +157,21 @@ function resolvePrice(
         (candidate) => candidate.price_list_id === priceListId,
     );
 
-    return Number(price?.price ?? 0);
+    if (!price) {
+        return 0;
+    }
+
+    if (price.currency === currency) {
+        return Number(price.price);
+    }
+
+    return (
+        convertAmount(
+            Number(price.price),
+            rates[price.currency],
+            rates[currency],
+        ) ?? 0
+    );
 }
 
 function baseUnitId(item: ItemOption | undefined): string {
@@ -165,6 +194,8 @@ export function useSalesOrderForm({
 }: UseSalesOrderFormProps) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
+    const configuration = useConfiguration();
+    const todayRates = useTodayRates();
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<SalesOrderFormData>({
@@ -180,8 +211,10 @@ export function useSalesOrderForm({
                 new Date().toISOString().slice(0, 10),
             expected_date: initialData?.expected_date ?? '',
             client_reference: initialData?.client_reference ?? '',
-            currency: initialData?.currency ?? 'USD',
-            exchange_rate: Number(initialData?.exchange_rate ?? 1),
+            /** Un pedido nace en la moneda en la que la empresa lleva sus cifras. */
+            currency:
+                initialData?.currency ?? configuration?.base_currency ?? '',
+            exchange_rate: '',
             payment_term_days: Number(initialData?.payment_term_days ?? 0),
             notes: initialData?.notes ?? '',
             lines: lineRows(initialData),
@@ -190,6 +223,7 @@ export function useSalesOrderForm({
     const repriceLine = (
         line: SalesOrderLineRow,
         priceListId: string,
+        currency: string,
     ): SalesOrderLineRow => {
         if (line.item_id === '') {
             return line;
@@ -198,7 +232,7 @@ export function useSalesOrderForm({
         const item = options.items.find(
             (candidate) => candidate.id === line.item_id,
         );
-        const price = resolvePrice(item, priceListId);
+        const price = resolvePrice(item, priceListId, currency, todayRates);
 
         /** Un precio pactado a mano (distinto del de lista) se respeta. */
         if (line.unit_price !== line.list_price) {
@@ -232,7 +266,7 @@ export function useSalesOrderForm({
                 client?.payment_term_days ?? current.payment_term_days,
             /** Cambiar de lista revalúa las líneas que aún no tienen precio pactado. */
             lines: current.lines.map((line) =>
-                repriceLine(line, priceListId ?? ''),
+                repriceLine(line, priceListId ?? '', current.currency),
             ),
         }));
     };
@@ -242,7 +276,23 @@ export function useSalesOrderForm({
         setData((current) => ({
             ...current,
             price_list_id: priceListId,
-            lines: current.lines.map((line) => repriceLine(line, priceListId)),
+            lines: current.lines.map((line) =>
+                repriceLine(line, priceListId, current.currency),
+            ),
+        }));
+    };
+
+    /**
+     * Cambiar la moneda del pedido reexpresa los precios de lista: el mismo
+     * artículo cuesta otro número en otra moneda.
+     */
+    const selectCurrency = (currency: string) => {
+        setData((current) => ({
+            ...current,
+            currency,
+            lines: current.lines.map((line) =>
+                repriceLine(line, current.price_list_id, currency),
+            ),
         }));
     };
 
@@ -273,7 +323,12 @@ export function useSalesOrderForm({
      */
     const selectLineItem = (index: number, itemId: string) => {
         const item = options.items.find((candidate) => candidate.id === itemId);
-        const price = resolvePrice(item, data.price_list_id);
+        const price = resolvePrice(
+            item,
+            data.price_list_id,
+            data.currency,
+            todayRates,
+        );
 
         setData(
             'lines',
@@ -342,6 +397,7 @@ export function useSalesOrderForm({
         totals,
         selectClient,
         selectPriceList,
+        selectCurrency,
         addLine,
         removeLine,
         updateLine,

@@ -1,5 +1,7 @@
 import { Check } from 'lucide-react';
+import { AmountDual } from '@/components/amount-dual';
 import { CurrencySelect } from '@/components/currency-select';
+import { ExchangeRateField } from '@/components/exchange-rate-field';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,7 +10,6 @@ import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useSalesOrderFormContext } from '../contexts/SalesOrderFormContext';
-import { formatAmount } from '../types/SalesOrder';
 import { SalesOrderLinesSection } from './SalesOrderLinesSection';
 
 const NO_ADDRESS = 'none';
@@ -51,6 +52,7 @@ export function SalesOrderForm() {
         totals,
         selectClient,
         selectPriceList,
+        selectCurrency,
     } = useSalesOrderFormContext();
 
     const client = options.clients.find(
@@ -348,9 +350,7 @@ export function SalesOrderForm() {
                             <CurrencySelect
                                 id="currency"
                                 value={data.currency}
-                                onValueChange={(value) =>
-                                    setData('currency', value)
-                                }
+                                onValueChange={selectCurrency}
                                 error={errors.currency}
                             />
                             {errors.currency && (
@@ -360,32 +360,15 @@ export function SalesOrderForm() {
                             )}
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                            <Label
-                                htmlFor="exchange_rate"
-                                className="text-[13px] font-semibold"
-                            >
-                                Tasa de cambio *
-                            </Label>
-                            <NumberInput
-                                id="exchange_rate"
-                                value={data.exchange_rate}
-                                onValueChange={(value) =>
-                                    setData('exchange_rate', value)
-                                }
-                                min={0}
-                                decimals={8}
-                                className={`h-[42px] rounded-[10px] ${errors.exchange_rate ? 'border-bad' : ''}`}
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Tasa a moneda base del documento
-                            </span>
-                            {errors.exchange_rate && (
-                                <p className="text-sm text-bad">
-                                    {errors.exchange_rate}
-                                </p>
-                            )}
-                        </div>
+                        <ExchangeRateField
+                            value={data.exchange_rate}
+                            onValueChange={(value) =>
+                                setData('exchange_rate', value)
+                            }
+                            currency={data.currency}
+                            dateLabel="la fecha del pedido"
+                            error={errors.exchange_rate}
+                        />
 
                         <div className="flex flex-col gap-1.5">
                             <Label
@@ -461,7 +444,12 @@ export function SalesOrderForm() {
                             Subtotal
                         </span>
                         <b className="font-bold tabular-nums">
-                            {formatAmount(totals.subtotal, data.currency)}
+                            <AmountDual
+                                amount={totals.subtotal}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
                         </b>
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
@@ -469,7 +457,12 @@ export function SalesOrderForm() {
                             Descuento
                         </span>
                         <b className="font-bold tabular-nums">
-                            {formatAmount(totals.discountAmount, data.currency)}
+                            <AmountDual
+                                amount={totals.discountAmount}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
                         </b>
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
@@ -477,13 +470,23 @@ export function SalesOrderForm() {
                             Impuesto
                         </span>
                         <b className="font-bold tabular-nums">
-                            {formatAmount(totals.taxAmount, data.currency)}
+                            <AmountDual
+                                amount={totals.taxAmount}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
                         </b>
                     </div>
                     <div className="flex items-center justify-between border-t pt-2.5 text-[15px]">
                         <span className="font-semibold">Total</span>
                         <b className="font-extrabold tabular-nums">
-                            {formatAmount(totals.total, data.currency)}
+                            <AmountDual
+                                amount={totals.total}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
                         </b>
                     </div>
                 </div>

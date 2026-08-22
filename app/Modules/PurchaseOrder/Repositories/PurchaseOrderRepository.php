@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseOrder\Repositories;
 
+use App\Modules\ExchangeRate\Commands\DocumentRatesData;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
@@ -23,9 +24,9 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
         private readonly ItemRepositoryInterface $items,
     ) {}
 
-    public function create(CreatePurchaseOrderCommand $command): void
+    public function create(CreatePurchaseOrderCommand $command, DocumentRatesData $rates): void
     {
-        DB::transaction(function () use ($command): void {
+        DB::transaction(function () use ($command, $rates): void {
             $order = PurchaseOrder::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
@@ -35,8 +36,7 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
                 'order_date' => $command->orderDate,
                 'expected_date' => $command->expectedDate,
                 'supplier_reference' => $command->supplierReference,
-                'currency' => $command->currency,
-                'exchange_rate' => $command->exchangeRate,
+                ...$rates->toAttributes(),
                 'payment_term_days' => $command->paymentTermDays,
                 ...$this->totals($command->lines, $command->discountAmount),
                 /** Los avances nacen en cero: los mueven Entradas y Facturas de compra. */
@@ -67,9 +67,9 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
             ->findOrFail($id);
     }
 
-    public function update(PurchaseOrder $model, UpdatePurchaseOrderCommand $command): void
+    public function update(PurchaseOrder $model, UpdatePurchaseOrderCommand $command, DocumentRatesData $rates): void
     {
-        DB::transaction(function () use ($model, $command): void {
+        DB::transaction(function () use ($model, $command, $rates): void {
             /** Los avances y las marcas de aprobación/anulación no se editan aquí. */
             $model->update([
                 'supplier_id' => $command->supplierId,
@@ -77,8 +77,7 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
                 'order_date' => $command->orderDate,
                 'expected_date' => $command->expectedDate,
                 'supplier_reference' => $command->supplierReference,
-                'currency' => $command->currency,
-                'exchange_rate' => $command->exchangeRate,
+                ...$rates->toAttributes(),
                 'payment_term_days' => $command->paymentTermDays,
                 ...$this->totals($command->lines, $command->discountAmount),
                 'notes' => $command->notes,

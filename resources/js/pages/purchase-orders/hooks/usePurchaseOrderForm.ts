@@ -1,4 +1,7 @@
 import { useForm, usePage } from '@inertiajs/react';
+import { useConfiguration } from '@/hooks/use-configuration';
+import { useTodayRates } from '@/hooks/use-today-rates';
+import { convertAmount } from '@/lib/money';
 import { generateUUID } from '@/lib/utils';
 import purchaseOrders from '@/routes/purchase-orders';
 import type { PurchaseOrder } from '../types/PurchaseOrder';
@@ -29,7 +32,11 @@ interface PurchaseOrderFormData {
     expected_date: string;
     supplier_reference: string;
     currency: string;
-    exchange_rate: number;
+    /**
+     * Corrección manual de la tasa. Vacío —el caso normal— hace que la resuelva
+     * el backend con el catálogo a la fecha de la orden.
+     */
+    exchange_rate: string;
     payment_term_days: number;
     discount_amount: number;
     notes: string;
@@ -113,6 +120,8 @@ export function usePurchaseOrderForm({
 }: UsePurchaseOrderFormProps) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
+    const configuration = useConfiguration();
+    const todayRates = useTodayRates();
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<PurchaseOrderFormData>({
@@ -124,8 +133,10 @@ export function usePurchaseOrderForm({
                 new Date().toISOString().slice(0, 10),
             expected_date: initialData?.expected_date ?? '',
             supplier_reference: initialData?.supplier_reference ?? '',
-            currency: initialData?.currency ?? 'USD',
-            exchange_rate: Number(initialData?.exchange_rate ?? 1),
+            /** Una orden nace en la moneda en la que la empresa lleva sus cifras. */
+            currency:
+                initialData?.currency ?? configuration?.base_currency ?? '',
+            exchange_rate: '',
             payment_term_days: Number(initialData?.payment_term_days ?? 0),
             discount_amount: Number(initialData?.discount_amount ?? 0),
             notes: initialData?.notes ?? '',
@@ -152,13 +163,36 @@ export function usePurchaseOrderForm({
             ),
         );
 
+    /**
+     * El costo estándar del artículo se lleva en la moneda de la empresa: si la
+     * orden se emite en otra, se reexpresa antes de ofrecerlo. Es una
+     * sugerencia y el usuario puede pactar otro precio con el proveedor.
+     */
+    const costInOrderCurrency = (cost: number): number => {
+        const baseCurrency = configuration?.base_currency;
+
+        if (!baseCurrency || baseCurrency === data.currency) {
+            return cost;
+        }
+
+        return (
+            convertAmount(
+                cost,
+                todayRates[baseCurrency],
+                todayRates[data.currency],
+            ) ?? 0
+        );
+    };
+
     /** Cambiar de artículo invalida la unidad elegida: se resuelve en una sola pasada. */
     const setLineItem = (
         index: number,
         itemId: string,
         measurementUnitId: string,
         unitPrice: number,
-    ) =>
+    ) => {
+        const cost = costInOrderCurrency(unitPrice);
+
         setData(
             'lines',
             data.lines.map((line, i) =>
@@ -168,11 +202,12 @@ export function usePurchaseOrderForm({
                           item_id: itemId,
                           measurement_unit_id: measurementUnitId,
                           unit_price:
-                              line.unit_price > 0 ? line.unit_price : unitPrice,
+                              line.unit_price > 0 ? line.unit_price : cost,
                       }
                     : line,
             ),
         );
+    };
 
     const totals: PurchaseOrderTotals = data.lines.reduce(
         (accumulator, line) => {

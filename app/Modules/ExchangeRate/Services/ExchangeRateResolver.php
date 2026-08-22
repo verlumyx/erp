@@ -46,6 +46,15 @@ class ExchangeRateResolver implements ExchangeRateResolverInterface
         return $this->cache[$key] = (float) $rate->rate;
     }
 
+    public function tryRateFor(string $companyId, string $currency, string $date, string $type = 'legal'): ?float
+    {
+        try {
+            return $this->rateFor($companyId, $currency, $date, $type);
+        } catch (ExchangeRateNotFoundException) {
+            return null;
+        }
+    }
+
     public function convert(float $amount, string $from, string $to, string $companyId, string $date, string $type = 'legal'): float
     {
         $from = strtoupper($from);

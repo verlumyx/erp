@@ -94,8 +94,12 @@ mano.**
 
 ```php
 public function rateFor(string $companyId, string $currency, string $date, string $type = 'legal'): float;
+public function tryRateFor(string $companyId, string $currency, string $date, string $type = 'legal'): ?float;
 public function convert(float $amount, string $from, string $to, string $companyId, string $date, string $type = 'legal'): float;
 ```
+
+`tryRateFor()` es el mismo `rateFor()` sin bloquear: devuelve `null` cuando falta la tasa. Lo usa quien **muestra** —las
+tasas compartidas con el frontend—, nunca quien **emite**.
 
 `rateFor()` resuelve en este orden:
 
@@ -204,6 +208,21 @@ una línea, el precio se convierte con `convert()` a la moneda del documento y q
 Un artículo con precio en euros vendido en una orden en dólares se convierte **una vez**, al capturar la línea. La línea
 no recuerda que el precio venía en euros: eso pertenece a la lista, no al documento.
 
+### Reglas
+
+- **La conversión la hace el backend, no el formulario.** Al guardar, el repositorio del pedido lee el precio del
+  artículo en la lista aplicada y lo reexpresa con `DocumentRatesResolver::priceInDocumentCurrency()`. La pantalla hace
+  la misma cuenta con las tasas de hoy para ofrecer el precio mientras se captura, pero lo que queda congelado en la
+  línea es lo que resolvió el servidor.
+- **Se cruza contra la tasa que congeló el documento**, no contra la del catálogo: dentro de un documento solo manda una
+  tasa, incluida la que el usuario haya corregido a mano.
+- **El precio pactado gana.** Si el vendedor escribe uno distinto del de lista, ese se respeta; el de lista se guarda
+  igual en `list_price`, que es contra el que se mide el descuento.
+- **Sin tasa para convertir, el pedido no se emite.** Misma regla que la tasa de la cabecera.
+- **Las órdenes de compra no tienen lista de precio.** La pantalla ofrece el `standard_cost` del artículo, que se lleva
+  en la moneda de la empresa y se reexpresa a la moneda de la orden antes de ofrecerlo. Es una sugerencia —el precio lo
+  pacta el proveedor—, así que el backend no lo impone.
+
 ---
 
 ## 7. Presentación
@@ -211,12 +230,52 @@ no recuerda que el precio venía en euros: eso pertenece a la lista, no al docum
 - El símbolo de cada moneda sale del catálogo global (`app_currencies.symbol`), compartido por Inertia. Ninguna pantalla
   declara símbolos propios.
 - Cuando `dual_currency` es `true`, cada importe se muestra en dos líneas: la moneda del documento arriba y el
-  equivalente en bolívares debajo, en tono atenuado.
+  equivalente en la moneda de presentación debajo, en tono atenuado.
 - Cuando es `false`, una sola línea. La decisión se toma en un solo componente, no en cada pantalla.
+
+### Las piezas
+
+| Pieza                            | Qué hace                                                                                  |
+|----------------------------------|---------------------------------------------------------------------------------------------|
+| `lib/money.ts`                   | Formato, símbolo y cruce por bolívares. Ninguna pantalla repite esta aritmética.            |
+| `components/amount-dual.tsx`     | El único sitio que decide una línea o dos. Recibe el importe y las tasas del documento.     |
+| `todayRates` (prop compartida)   | Tasas de hoy de la empresa, para lo que todavía se está capturando.                         |
+| `components/exchange-rate-field` | El campo de tasa: editable solo si `allows_rate_override` lo permite; vacío es «automática». |
+
+- **Un importe guardado usa la tasa que congeló su documento; uno que se está capturando usa la de hoy.** Es la misma
+  distinción de §5, aplicada a la pantalla.
+- **El doble importe va en los totales** —el resumen del formulario y la tarjeta de importes del detalle—. Las líneas
+  salen en la moneda del documento, que la cabecera ya declara: duplicar cada celda de una tabla no aporta nada.
+- **Si falta alguna tasa no hay segunda línea.** Antes ningún equivalente que uno inventado.
 
 ---
 
-## 8. Estado de implementación
+## 8. Cómo lo hereda un módulo nuevo
+
+Todo módulo que guarde un importe —facturas, pagos, notas de crédito, gastos— repite estos pasos. El detalle con código
+está en la skill `laravel-module-currency`; el módulo **SalesOrder** es la implementación de referencia.
+
+| # | Paso | Dónde |
+|---|------|-------|
+| 1 | Las cuatro columnas: `currency`, `exchange_rate`, `base_currency`, `base_exchange_rate` | Migración |
+| 2 | `fillable` + cast `decimal:8` de las dos tasas | Modelo |
+| 3 | `exchangeRateOverride` (nullable) en vez de una tasa; sin `'USD'` por defecto al leer el request | Command |
+| 4 | `currency` con `ActiveCurrency`; `exchange_rate` **nullable** | Request |
+| 5 | Inyectar `DocumentRatesResolverInterface` y llamar a `forDocument()` en create y update, nunca en update-status | Service |
+| 6 | Persistir con `...$rates->toAttributes()` | Repositorio |
+| 7 | Exponer las cuatro columnas | Resource |
+| 8 | Si las líneas toman precio de una lista: `priceInDocumentCurrency()` y el precio pactado gana (§6) | Repositorio |
+| 9 | Si el documento tiene valor legal: `subtotal_ves`, `tax_amount_ves`, `total_ves` **en la cabecera** (§4) | Migración + Repositorio |
+| 10 | `AmountDual`, `ExchangeRateField`, `useConfiguration()`, `@/lib/money` (§7) | Frontend |
+| 11 | Los seis casos de tasa: congelado, otra moneda, sin tasa, override sí/no, borrador que refresca | Tests |
+
+**Lo que un módulo nunca hace:** consultar `app_exchange_rates`, multiplicar un monto a mano, aceptar la tasa del
+formulario, capturar `ExchangeRateNotFoundException` (ya está mapeada en `bootstrap/app.php`) o formatear dinero en una
+pantalla.
+
+---
+
+## 9. Estado de implementación
 
 | Pieza                                                                     | Estado     |
 |---------------------------------------------------------------------------|------------|
@@ -224,12 +283,15 @@ no recuerda que el precio venía en euros: eso pertenece a la lista, no al docum
 | Semántica de la tasa + regla `ForeignCurrency` + `Currency::LOCAL_CODE`    | Hecho      |
 | `ExchangeRateResolver` (`rateFor`, `convert`, caché por request)           | Hecho      |
 | Módulo `Configuration` + creación automática + props compartidas           | Hecho      |
-| `lib/money.ts` + componente de importe dual + `todayRates` compartidas     | Pendiente  |
-| `base_currency` / `base_exchange_rate` en órdenes de venta y compra        | Pendiente  |
-| Órdenes que piden la tasa al resolver en vez de aceptarla del formulario   | Pendiente  |
+| `base_currency` / `base_exchange_rate` en órdenes de venta y compra        | Hecho      |
+| Órdenes que piden la tasa al resolver en vez de aceptarla del formulario   | Hecho      |
+| `lib/money.ts` + componente de importe dual + `todayRates` compartidas     | Hecho      |
+| Conversión del precio de lista a la moneda del documento (§6)              | Hecho      |
 | Facturas y pagos (con `_ves` congelados)                                   | Pendiente  |
 | Registro del diferencial cambiario                                         | Por definir |
 
-> **Hueco conocido:** hasta que las órdenes pidan la tasa al resolver, `exchange_rate` es el número que manda el
-> formulario (`required|numeric|gt:0`, por defecto `1`) y nadie lo contrasta contra el catálogo. Un usuario puede
-> registrar una orden en euros con tasa 1 y el sistema la acepta.
+> **Cómo llega la tasa a una orden.** `DocumentRatesResolver` (módulo ExchangeRate) lee la configuración de la empresa y
+> resuelve los dos pares contra la fecha del documento. El campo `exchange_rate` del formulario pasó a ser opcional: si
+> viene vacío —el caso normal— manda el catálogo; si viene con valor solo se respeta cuando
+> `allows_rate_override = yes` —y solo entonces la pantalla ofrece el campo para escribirla—. La moneda de la empresa
+> nunca se corrige a mano. Faltar la tasa devuelve el mensaje accionable al formulario y la orden no se guarda.

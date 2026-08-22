@@ -10,7 +10,8 @@ import {
     Truck,
     Warehouse,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { AmountDual } from '@/components/amount-dual';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -45,12 +46,30 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-function DataRow({ label, value }: { label: string; value: string }) {
+function DataRow({ label, value }: { label: string; value: ReactNode }) {
     return (
         <div className="flex items-center justify-between gap-4 text-[13.5px]">
             <span className="font-medium text-muted-foreground">{label}</span>
             <b className="text-right font-bold">{value}</b>
         </div>
+    );
+}
+
+/**
+ * Un importe de la orden con su equivalente debajo. Las cuatro columnas de
+ * moneda que congeló la orden se atan aquí una vez, en vez de repetirlas en
+ * cada fila.
+ */
+function Amount({ order, value }: { order: PurchaseOrder; value: string }) {
+    return (
+        <AmountDual
+            amount={value}
+            currency={order.currency}
+            rate={order.exchange_rate}
+            baseCurrency={order.base_currency}
+            baseRate={order.base_exchange_rate}
+            className="items-end"
+        />
     );
 }
 
@@ -238,18 +257,49 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
                             value={`${purchaseOrder.currency} (tasa ${purchaseOrder.exchange_rate})`}
                         />
                         <DataRow
+                            label="Moneda de la empresa"
+                            value={
+                                purchaseOrder.base_currency
+                                    ? `${purchaseOrder.base_currency} (tasa ${purchaseOrder.base_exchange_rate})`
+                                    : '—'
+                            }
+                        />
+                        <DataRow
                             label="Subtotal"
-                            value={purchaseOrder.subtotal}
+                            value={
+                                <Amount
+                                    order={purchaseOrder}
+                                    value={purchaseOrder.subtotal}
+                                />
+                            }
                         />
                         <DataRow
                             label="Descuento global"
-                            value={purchaseOrder.discount_amount}
+                            value={
+                                <Amount
+                                    order={purchaseOrder}
+                                    value={purchaseOrder.discount_amount}
+                                />
+                            }
                         />
                         <DataRow
                             label="Impuesto"
-                            value={purchaseOrder.tax_amount}
+                            value={
+                                <Amount
+                                    order={purchaseOrder}
+                                    value={purchaseOrder.tax_amount}
+                                />
+                            }
                         />
-                        <DataRow label="Total" value={purchaseOrder.total} />
+                        <DataRow
+                            label="Total"
+                            value={
+                                <Amount
+                                    order={purchaseOrder}
+                                    value={purchaseOrder.total}
+                                />
+                            }
+                        />
                         <DataRow
                             label="Días de crédito"
                             value={
