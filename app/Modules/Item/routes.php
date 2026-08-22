@@ -17,6 +17,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
         Route::prefix('items')->group(function () use ($uuid) {
             Route::get('/', [ItemGetController::class, 'index'])->name('items.index');
             Route::get('/create', [ItemGetController::class, 'create'])->name('items.create');
+            Route::get('/lookup', [ItemGetController::class, 'lookup'])->name('items.lookup');
             Route::post('/', ItemPostController::class)->name('items.store');
             Route::get('/{id}', [ItemGetController::class, 'show'])->where('id', $uuid)->name('items.show');
             Route::get('/{id}/edit', [ItemGetController::class, 'edit'])->where('id', $uuid)->name('items.edit');

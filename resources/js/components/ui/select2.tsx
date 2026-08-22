@@ -13,7 +13,7 @@ export interface OptionType {
     label: string;
 }
 
-type Select2Size = 'sm' | 'md';
+export type Select2Size = 'sm' | 'md';
 
 interface Select2Props
     extends Omit<
@@ -30,29 +30,31 @@ const SIZES: Record<Select2Size, { height: string; radius: string }> = {
     md: { height: '42px', radius: '10px' },
 };
 
-const DropdownIndicator = (
-    props: DropdownIndicatorProps<OptionType, false, GroupBase<OptionType>>,
-) => {
+export function Select2DropdownIndicator<Option extends OptionType>(
+    props: DropdownIndicatorProps<Option, false, GroupBase<Option>>,
+) {
     return (
         <components.DropdownIndicator {...props}>
             <ChevronDown className="h-4 w-4 opacity-50" />
         </components.DropdownIndicator>
     );
-};
+}
 
-function Select2({
-    error = false,
-    className,
+/**
+ * Estilos compartidos por todos los selects de la aplicación: `Select2` y
+ * `Select2Ajax` los consumen para que un select con búsqueda remota se vea
+ * exactamente igual que uno con opciones en memoria.
+ */
+export function createSelect2Styles<Option extends OptionType>({
     size = 'sm',
-    ...props
-}: Select2Props) {
+    error = false,
+}: {
+    size?: Select2Size;
+    error?: boolean;
+} = {}): StylesConfig<Option, false, GroupBase<Option>> {
     const { height, radius } = SIZES[size];
 
-    const customStyles: StylesConfig<
-        OptionType,
-        false,
-        GroupBase<OptionType>
-    > = {
+    return {
         control: (base, state) => {
             const getBorderColor = () => {
                 if (error) {
@@ -182,11 +184,20 @@ function Select2({
             padding: '0.5rem 0.75rem',
         }),
     };
+}
+
+function Select2({
+    error = false,
+    className,
+    size = 'sm',
+    ...props
+}: Select2Props) {
+    const customStyles = createSelect2Styles<OptionType>({ size, error });
 
     return (
         <ReactSelect<OptionType, false, GroupBase<OptionType>>
             styles={customStyles}
-            components={{ DropdownIndicator }}
+            components={{ DropdownIndicator: Select2DropdownIndicator }}
             className={cn('react-select-container', className)}
             classNamePrefix="react-select"
             menuPortalTarget={

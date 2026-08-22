@@ -29,7 +29,8 @@ test('the sales order list is rendered', function () {
                 ->where('meta.total', 3)
                 ->has('options.clients')
                 ->has('options.warehouses')
-                ->has('options.items'),
+                /* El catálogo de artículos ya no viaja: la línea lo busca contra items.options. */
+                ->missing('options.items'),
         );
 });
 

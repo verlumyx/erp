@@ -123,28 +123,6 @@ export interface ClientOption {
     addresses: ClientAddressOption[];
 }
 
-export interface ItemUnitOption {
-    measurement_unit_id: string;
-    name: string | null;
-    is_base: 'yes' | 'no';
-    conversion_factor: string;
-}
-
-export interface ItemPriceOption {
-    price_list_id: string;
-    price: string;
-    currency: string;
-}
-
-export interface ItemOption {
-    id: string;
-    sku: string;
-    name: string;
-    min_price: string;
-    units: ItemUnitOption[];
-    prices: ItemPriceOption[];
-}
-
 /** Catálogos que alimentan los selects del formulario. */
 export interface SalesOrderOptions {
     clients: ClientOption[];
@@ -155,7 +133,6 @@ export interface SalesOrderOptions {
         is_default: 'yes' | 'no';
     }>;
     priceLists: Array<{ id: string; name: string }>;
-    items: ItemOption[];
     salespeople: Array<{ id: string; name: string }>;
 }
 

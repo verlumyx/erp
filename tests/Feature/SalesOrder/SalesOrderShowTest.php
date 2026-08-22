@@ -40,7 +40,7 @@ test('the edit form is rendered for a draft order', function () {
             fn (AssertableInertia $page) => $page
                 ->component('sales-orders/edit')
                 ->where('salesOrder.id', $order->id)
-                ->has('options.items'),
+                ->missing('options.items'),
         );
 });
 
@@ -55,8 +55,8 @@ test('the create form is rendered with its catalogs', function () {
                 ->component('sales-orders/create')
                 ->has('options.clients', 1)
                 ->has('options.warehouses', 1)
-                ->has('options.items', 1)
-                ->has('options.items.0.units', 1),
+                /* El catálogo de artículos ya no viaja: la línea lo busca contra items.options. */
+                ->missing('options.items'),
         );
 });
 

@@ -69,8 +69,8 @@ test('the list carries the catalogs that feed the form selects', function () {
             fn (AssertableInertia $page) => $page
                 ->has('options.suppliers', 1)
                 ->has('options.warehouses', 1)
-                ->has('options.items', 1)
-                ->has('options.items.0.units', 1)
+                /* El catálogo de artículos ya no viaja: la línea lo busca contra items.options. */
+                ->missing('options.items')
         );
 });
 

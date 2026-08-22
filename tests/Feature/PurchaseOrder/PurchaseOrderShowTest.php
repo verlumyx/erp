@@ -68,7 +68,7 @@ test('the edit form loads the order and its catalogs', function () {
                 ->where('purchaseOrder.id', $order->id)
                 ->has('options.suppliers')
                 ->has('options.warehouses')
-                ->has('options.items')
+                ->missing('options.items')
         );
 });
 

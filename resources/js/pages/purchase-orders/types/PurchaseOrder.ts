@@ -89,21 +89,6 @@ export interface PurchaseOrderFilters {
     offset?: number;
 }
 
-export interface PurchaseOrderItemUnitOption {
-    measurement_unit_id: string;
-    name: string;
-    is_base: 'yes' | 'no';
-    conversion_factor: string;
-}
-
-export interface PurchaseOrderItemOption {
-    id: string;
-    code: string;
-    name: string;
-    standard_cost: string;
-    units: PurchaseOrderItemUnitOption[];
-}
-
 /** Catálogos que alimentan los selects del formulario. */
 export interface PurchaseOrderOptions {
     suppliers: Array<{
@@ -114,7 +99,6 @@ export interface PurchaseOrderOptions {
         payment_term_days: number;
     }>;
     warehouses: Array<{ id: string; name: string }>;
-    items: PurchaseOrderItemOption[];
 }
 
 import type { StatusKind } from '@/components/status-pill';

@@ -1,15 +1,16 @@
 import { useForm, usePage } from '@inertiajs/react';
+import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
+import {
+    useItemCatalog,
+    type ItemCatalogEntry,
+} from '@/hooks/use-item-catalog';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { convertAmount } from '@/lib/money';
 import { generateUUID } from '@/lib/utils';
 import salesOrders from '@/routes/sales-orders';
 import type { TodayRates } from '@/types';
-import type {
-    ItemOption,
-    SalesOrder,
-    SalesOrderOptions,
-} from '../types/SalesOrder';
+import type { SalesOrder, SalesOrderOptions } from '../types/SalesOrder';
 
 interface UseSalesOrderFormProps {
     mode: 'create' | 'edit';
@@ -144,7 +145,7 @@ function defaultWarehouseId(options: SalesOrderOptions): string {
  * captura a mano.
  */
 function resolvePrice(
-    item: ItemOption | undefined,
+    item: ItemCatalogEntry | undefined,
     priceListId: string,
     currency: string,
     rates: TodayRates,
@@ -174,7 +175,7 @@ function resolvePrice(
     );
 }
 
-function baseUnitId(item: ItemOption | undefined): string {
+function baseUnitId(item: ItemCatalogEntry | undefined): string {
     if (!item) {
         return '';
     }
@@ -184,6 +185,11 @@ function baseUnitId(item: ItemOption | undefined): string {
     return (
         base?.measurement_unit_id ?? item.units[0]?.measurement_unit_id ?? ''
     );
+}
+
+/** En ventas el artículo se reconoce por su sku. */
+function itemLabel(entry: ItemCatalogEntry): string {
+    return entry.sku ? `${entry.sku} — ${entry.name}` : entry.name;
 }
 
 export function useSalesOrderForm({
@@ -196,6 +202,22 @@ export function useSalesOrderForm({
     const companyId = currentCompany!.id;
     const configuration = useConfiguration();
     const todayRates = useTodayRates();
+
+    /**
+     * El catálogo de artículos ya no viaja en las props: la pantalla solo
+     * conoce los que trae el pedido y los que el usuario va eligiendo.
+     */
+    const catalog = useItemCatalog({
+        companyId,
+        formatLabel: itemLabel,
+        seed: (initialData?.lines ?? [])
+            .filter((line) => line.status === 'active')
+            .map((line) => ({
+                id: line.item_id,
+                sku: line.item_sku,
+                name: line.item_name,
+            })),
+    });
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<SalesOrderFormData>({
@@ -229,9 +251,17 @@ export function useSalesOrderForm({
             return line;
         }
 
-        const item = options.items.find(
-            (candidate) => candidate.id === line.item_id,
-        );
+        const item = catalog.itemOf(line.item_id);
+
+        /*
+         * Un artículo que la pantalla todavía no conoce —una línea del pedido
+         * cuya hidratación no ha llegado— se deja intacta: revaluarla con lo
+         * que no sabemos borraría el precio que ya tiene.
+         */
+        if (!item?.hydrated) {
+            return line;
+        }
+
         const price = resolvePrice(item, priceListId, currency, todayRates);
 
         /** Un precio pactado a mano (distinto del de lista) se respeta. */
@@ -320,9 +350,11 @@ export function useSalesOrderForm({
 
     /**
      * Elegir el artículo trae su unidad base y su precio de la lista aplicada.
+     * La opción llega del select remoto con todo eso dentro, así que basta con
+     * recordarla para que el resto de la pantalla la conozca.
      */
-    const selectLineItem = (index: number, itemId: string) => {
-        const item = options.items.find((candidate) => candidate.id === itemId);
+    const selectLineItem = (index: number, option: AjaxOption | null) => {
+        const item = option ? catalog.remember(option) : undefined;
         const price = resolvePrice(
             item,
             data.price_list_id,
@@ -336,7 +368,7 @@ export function useSalesOrderForm({
                 i === index
                     ? {
                           ...line,
-                          item_id: itemId,
+                          item_id: item?.id ?? '',
                           measurement_unit_id: baseUnitId(item),
                           list_price: price,
                           unit_price: price,
@@ -395,6 +427,7 @@ export function useSalesOrderForm({
         reset,
         mode,
         totals,
+        catalog,
         selectClient,
         selectPriceList,
         selectCurrency,

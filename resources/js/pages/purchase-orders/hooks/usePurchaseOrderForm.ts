@@ -1,5 +1,10 @@
 import { useForm, usePage } from '@inertiajs/react';
+import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
+import {
+    useItemCatalog,
+    type ItemCatalogEntry,
+} from '@/hooks/use-item-catalog';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { convertAmount } from '@/lib/money';
 import { generateUUID } from '@/lib/utils';
@@ -46,6 +51,24 @@ interface PurchaseOrderFormData {
 interface PageProps {
     currentCompany?: { id: string; name: string } | null;
     [key: string]: unknown;
+}
+
+/** En compras el artículo se reconoce por su código. */
+function itemLabel(entry: ItemCatalogEntry): string {
+    return entry.code ? `${entry.code} · ${entry.name}` : entry.name;
+}
+
+/** La unidad en la que se pide por defecto: la base del artículo. */
+function baseUnitId(item: ItemCatalogEntry | undefined): string {
+    if (!item) {
+        return '';
+    }
+
+    const base = item.units.find((unit) => unit.is_base === 'yes');
+
+    return (
+        base?.measurement_unit_id ?? item.units[0]?.measurement_unit_id ?? ''
+    );
 }
 
 export interface PurchaseOrderTotals {
@@ -123,6 +146,22 @@ export function usePurchaseOrderForm({
     const configuration = useConfiguration();
     const todayRates = useTodayRates();
 
+    /**
+     * El catálogo de artículos ya no viaja en las props: la pantalla solo
+     * conoce los que trae la orden y los que el usuario va eligiendo.
+     */
+    const catalog = useItemCatalog({
+        companyId,
+        formatLabel: itemLabel,
+        seed: (initialData?.lines ?? [])
+            .filter((line) => line.status === 'active')
+            .map((line) => ({
+                id: line.item_id,
+                code: line.item_code,
+                name: line.item_name,
+            })),
+    });
+
     const { data, setData, post, put, processing, errors, reset } =
         useForm<PurchaseOrderFormData>({
             id: initialData?.id ?? generateUUID(),
@@ -184,14 +223,13 @@ export function usePurchaseOrderForm({
         );
     };
 
-    /** Cambiar de artículo invalida la unidad elegida: se resuelve en una sola pasada. */
-    const setLineItem = (
-        index: number,
-        itemId: string,
-        measurementUnitId: string,
-        unitPrice: number,
-    ) => {
-        const cost = costInOrderCurrency(unitPrice);
+    /**
+     * Cambiar de artículo invalida la unidad elegida: se resuelve en una sola
+     * pasada con lo que trae la opción del select remoto (unidades y costo).
+     */
+    const setLineItem = (index: number, option: AjaxOption | null) => {
+        const item = option ? catalog.remember(option) : undefined;
+        const cost = costInOrderCurrency(Number(item?.standard_cost ?? 0));
 
         setData(
             'lines',
@@ -199,8 +237,8 @@ export function usePurchaseOrderForm({
                 i === index
                     ? {
                           ...line,
-                          item_id: itemId,
-                          measurement_unit_id: measurementUnitId,
+                          item_id: item?.id ?? '',
+                          measurement_unit_id: baseUnitId(item),
                           unit_price:
                               line.unit_price > 0 ? line.unit_price : cost,
                       }
@@ -260,5 +298,6 @@ export function usePurchaseOrderForm({
         removeLine,
         updateLine,
         setLineItem,
+        catalog,
     };
 }

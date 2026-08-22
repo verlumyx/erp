@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { LineNotePopover } from '@/components/line-note-popover';
+import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ export function PurchaseOrderLinesSection() {
     const {
         data,
         errors,
-        options,
+        catalog,
         addLine,
         removeLine,
         updateLine,
@@ -29,27 +30,7 @@ export function PurchaseOrderLinesSection() {
             `lines.${index}.${field}`
         ];
 
-    const unitsOf = (itemId: string) =>
-        options.items.find((item) => item.id === itemId)?.units ?? [];
-
-    const itemOptions: OptionType[] = options.items.map((item) => ({
-        value: item.id,
-        label: `${item.code} · ${item.name}`,
-    }));
-
-    const handleItemChange = (index: number, itemId: string) => {
-        const item = options.items.find((option) => option.id === itemId);
-        const baseUnit =
-            item?.units.find((unit) => unit.is_base === 'yes') ??
-            item?.units[0];
-
-        setLineItem(
-            index,
-            itemId,
-            baseUnit?.measurement_unit_id ?? '',
-            Number(item?.standard_cost ?? 0),
-        );
-    };
+    const unitsOf = (itemId: string) => catalog.itemOf(itemId)?.units ?? [];
 
     return (
         <div className="flex flex-col gap-4 p-5">
@@ -73,23 +54,17 @@ export function PurchaseOrderLinesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
                                 </Label>
-                                <Select2
-                                    options={itemOptions}
-                                    value={
-                                        itemOptions.find(
-                                            (option) =>
-                                                option.value === line.item_id,
-                                        ) ?? null
-                                    }
+                                <Select2Ajax
+                                    url={catalog.url}
+                                    params={{ is_purchasable: 'yes' }}
+                                    value={catalog.optionOf(line.item_id)}
                                     onChange={(option) =>
-                                        handleItemChange(
-                                            index,
-                                            option?.value ?? '',
-                                        )
+                                        setLineItem(index, option)
                                     }
+                                    formatLabel={catalog.labelOf}
                                     error={!!fieldError(index, 'item_id')}
                                     size="md"
-                                    placeholder="Selecciona un artículo"
+                                    placeholder="Busca por código o nombre"
                                 />
                                 {fieldError(index, 'item_id') && (
                                     <p className="text-sm text-bad">

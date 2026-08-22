@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { LineNotePopover } from '@/components/line-note-popover';
+import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +18,7 @@ export function SalesOrderLinesSection() {
     const {
         data,
         errors,
-        options,
+        catalog,
         addLine,
         removeLine,
         updateLine,
@@ -29,19 +30,12 @@ export function SalesOrderLinesSection() {
             `lines.${index}.${field}`
         ];
 
-    const itemOptions: OptionType[] = options.items.map((option) => ({
-        value: option.id,
-        label: `${option.sku} — ${option.name}`,
-    }));
-
     return (
         <div className="flex flex-col gap-4 p-5">
             {errors.lines && <p className="text-sm text-bad">{errors.lines}</p>}
 
             {data.lines.map((line, index) => {
-                const item = options.items.find(
-                    (candidate) => candidate.id === line.item_id,
-                );
+                const item = catalog.itemOf(line.item_id);
                 const amounts = lineAmounts(line);
                 const itemError = fieldError(index, 'item_id');
                 const unitError = fieldError(index, 'measurement_unit_id');
@@ -70,23 +64,17 @@ export function SalesOrderLinesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
                                 </Label>
-                                <Select2
-                                    options={itemOptions}
-                                    value={
-                                        itemOptions.find(
-                                            (option) =>
-                                                option.value === line.item_id,
-                                        ) ?? null
-                                    }
+                                <Select2Ajax
+                                    url={catalog.url}
+                                    params={{ is_sellable: 'yes' }}
+                                    value={catalog.optionOf(line.item_id)}
                                     onChange={(option) =>
-                                        selectLineItem(
-                                            index,
-                                            option?.value ?? '',
-                                        )
+                                        selectLineItem(index, option)
                                     }
+                                    formatLabel={catalog.labelOf}
                                     error={!!itemError}
                                     size="md"
-                                    placeholder="Selecciona un artículo"
+                                    placeholder="Busca por sku, código o nombre"
                                 />
                                 {itemError && (
                                     <p className="text-sm text-bad">
@@ -115,7 +103,7 @@ export function SalesOrderLinesSection() {
                                             option?.value ?? '',
                                         )
                                     }
-                                    isDisabled={item === undefined}
+                                    isDisabled={unitOptions.length === 0}
                                     error={!!unitError}
                                     size="md"
                                     placeholder="Unidad"
