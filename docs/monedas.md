@@ -287,7 +287,8 @@ pantalla.
 | Órdenes que piden la tasa al resolver en vez de aceptarla del formulario   | Hecho      |
 | `lib/money.ts` + componente de importe dual + `todayRates` compartidas     | Hecho      |
 | Conversión del precio de lista a la moneda del documento (§6)              | Hecho      |
-| Facturas y pagos (con `_ves` congelados)                                   | Pendiente  |
+| Facturas de compra (con `_ves` congelados en la cabecera)                  | Hecho      |
+| Facturas de venta y pagos (con `_ves` congelados)                          | Pendiente  |
 | Registro del diferencial cambiario                                         | Por definir |
 
 > **Cómo llega la tasa a una orden.** `DocumentRatesResolver` (módulo ExchangeRate) lee la configuración de la empresa y

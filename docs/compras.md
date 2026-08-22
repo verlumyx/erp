@@ -162,7 +162,8 @@ costo**.
 | Columna                   | Tipo            | Nulo | Default     | Descripción                                                  |
 |---------------------------|-----------------|------|-------------|--------------------------------------------------------------|
 | `supplier_id`             | `uuid`          | No   |             | FK → `app_suppliers.id` (`restrictOnDelete`).                |
-| `purchase_order_id`       | `uuid`          | Sí   |             | FK → `app_purchase_orders.id`. Orden que origina la factura. |
+| `sourceable_type`         | `string(255)`   | Sí   |             | Alias del documento origen en el morph map. Hoy solo `purchase_order`. |
+| `sourceable_id`           | `uuid`          | Sí   |             | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`. |
 | `entry_id`                | `uuid`          | Sí   |             | FK → `app_entries.id`. Entrada de mercancía asociada.        |
 | `warehouse_id`            | `uuid`          | No   |             | FK → `app_warehouses.id`.                                    |
 | `supplier_invoice_number` | `string(60)`    | No   |             | Número impreso de la factura del proveedor.                  |
@@ -190,7 +191,27 @@ costo**.
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
 
 **Índices:** `unique(company_id, supplier_id, supplier_invoice_number)`, `index(supplier_id)`,
-`index(invoice_date)`, `index(due_date)`, `index(payment_status)`, `index(purchase_order_id)`.
+`index(invoice_date)`, `index(due_date)`, `index(payment_status)`,
+`index(sourceable_type, sourceable_id)`.
+
+**Documento origen (`sourceable`)**
+
+La factura no apunta a la orden con un FK directo: lo hace con una relación polimórfica `sourceable`
+(`morphTo`), y la orden de compra la expone con `morphMany`. Así el mismo par de columnas admite mañana otros
+documentos de origen (solicitud de compra, contrato de suministro) sin agregar una columna por cada uno.
+
+- `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
+  `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
+  datos ya guardados.
+- Tipos admitidos hoy: `purchase_order` → `app_purchase_orders`. Cualquier otro valor es inválido y se rechaza
+  en el Request.
+- Ambas columnas son nulas: una factura directa (sin orden previa) las deja vacías. Si una viene informada, la
+  otra es obligatoria.
+- El documento origen debe pertenecer a la misma empresa y al mismo proveedor que la factura.
+- Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
+  origen se protege por la política de no borrado.
+- `entry_id` **no** entra en el morph: sigue siendo un FK directo, porque la entrada de mercancía es un
+  documento paralelo (la recepción física), no el documento que origina la factura.
 
 ### 3.2 Líneas — `app_purchase_invoice_lines`
 
@@ -198,7 +219,8 @@ Además de las columnas comunes de línea:
 
 | Columna                  | Tipo            | Nulo | Default | Descripción                                                      |
 |--------------------------|-----------------|------|---------|------------------------------------------------------------------|
-| `purchase_order_line_id` | `uuid`          | Sí   |         | FK → `app_purchase_order_lines.id`. Trazabilidad al pedido.      |
+| `sourceable_type`        | `string(255)`   | Sí   |         | Alias de la línea origen (`purchase_order_line`).                |
+| `sourceable_id`          | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad al pedido.                   |
 | `warehouse_id`           | `uuid`          | Sí   |         | Bodega de la línea si difiere de la cabecera.                    |
 | `lot_id`                 | `uuid`          | Sí   |         | FK → `app_item_lots.id`. Obligatorio si el artículo maneja lote. |
 | `landed_cost`            | `decimal(18,6)` | No   | `0`     | Costo unitario final incluyendo flete y gastos prorrateados.     |

@@ -25,7 +25,9 @@ return [
     App\Modules\Item\Providers\ItemServiceProvider::class,
     App\Modules\Supplier\Providers\SupplierServiceProvider::class,
     App\Modules\PurchaseOrder\Providers\PurchaseOrderServiceProvider::class,
+    App\Modules\PurchaseInvoice\Providers\PurchaseInvoiceServiceProvider::class,
     App\Modules\SalesOrder\Providers\SalesOrderServiceProvider::class,
+    App\Modules\SalesInvoice\Providers\SalesInvoiceServiceProvider::class,
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,
 ];

@@ -17,6 +17,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
         Route::prefix('sales-orders')->group(function () use ($uuid) {
             Route::get('/', [SalesOrderGetController::class, 'index'])->name('sales-orders.index');
             Route::get('/create', [SalesOrderGetController::class, 'create'])->name('sales-orders.create');
+            Route::get('/lookup', [SalesOrderGetController::class, 'lookup'])->name('sales-orders.lookup');
             Route::post('/', SalesOrderPostController::class)->name('sales-orders.store');
             Route::get('/{id}', [SalesOrderGetController::class, 'show'])->where('id', $uuid)->name('sales-orders.show');
             Route::get('/{id}/edit', [SalesOrderGetController::class, 'edit'])->where('id', $uuid)->name('sales-orders.edit');

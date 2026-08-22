@@ -188,7 +188,8 @@ Documento fiscal que genera la cuenta por cobrar y descarga inventario si no hub
 | Columna               | Tipo            | Nulo | Default     | Descripción                                                              |
 |-----------------------|-----------------|------|-------------|--------------------------------------------------------------------------|
 | `client_id`           | `uuid`          | No   |             | FK → `app_clients.id` (`restrictOnDelete`).                              |
-| `sales_order_id`      | `uuid`          | Sí   |             | FK → `app_sales_orders.id`.                                              |
+| `sourceable_type`     | `string(255)`   | Sí   |             | Alias del documento origen en el morph map. Hoy solo `sales_order`.      |
+| `sourceable_id`       | `uuid`          | Sí   |             | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`. |
 | `dispatch_id`         | `uuid`          | Sí   |             | FK → `app_dispatches.id`. Despacho asociado.                             |
 | `client_address_id`   | `uuid`          | Sí   |             | FK → `app_client_addresses.id`.                                          |
 | `warehouse_id`        | `uuid`          | No   |             | FK → `app_warehouses.id`.                                                |
@@ -222,7 +223,26 @@ Documento fiscal que genera la cuenta por cobrar y descarga inventario si no hub
 
 **Índices:** `unique(company_id, invoice_series, invoice_number)`, `index(client_id)`,
 `index(invoice_date)`, `index(due_date)`, `index(payment_status)`, `index(salesperson_id)`,
-`index(sales_order_id)`.
+`index(sourceable_type, sourceable_id)`.
+
+**Documento origen (`sourceable`)**
+
+La factura no apunta a la orden con un FK directo: lo hace con una relación polimórfica `sourceable`
+(`morphTo`), y la orden de venta la expone con `morphMany`. Así el mismo par de columnas admite mañana otros
+documentos de origen (cotización, contrato, ticket de punto de venta) sin agregar una columna por cada uno.
+
+- `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
+  `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
+  datos ya guardados.
+- Tipos admitidos hoy: `sales_order` → `app_sales_orders`. Cualquier otro valor es inválido y se rechaza en el
+  Request.
+- Ambas columnas son nulas: una factura directa (sin orden previa) las deja vacías. Si una viene informada, la
+  otra es obligatoria.
+- El documento origen debe pertenecer a la misma empresa y al mismo cliente que la factura.
+- Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
+  origen se protege por la política de no borrado.
+- `dispatch_id` **no** entra en el morph: sigue siendo un FK directo, porque el despacho es un documento
+  paralelo (la logística de entrega), no el documento que origina la factura.
 
 ### 3.2 Líneas — `app_sales_invoice_lines`
 
@@ -230,7 +250,8 @@ Además de las columnas comunes de línea:
 
 | Columna               | Tipo            | Nulo | Default | Descripción                                        |
 |-----------------------|-----------------|------|---------|----------------------------------------------------|
-| `sales_order_line_id` | `uuid`          | Sí   |         | FK → `app_sales_order_lines.id`.                   |
+| `sourceable_type`     | `string(255)`   | Sí   |         | Alias de la línea origen (`sales_order_line`).     |
+| `sourceable_id`       | `uuid`          | Sí   |         | ID de la línea origen.                             |
 | `warehouse_id`        | `uuid`          | Sí   |         | Bodega de la línea si difiere.                     |
 | `lot_id`              | `uuid`          | Sí   |         | FK → `app_item_lots.id`.                           |
 | `serial_id`           | `uuid`          | Sí   |         | FK → `app_item_serials.id`.                        |

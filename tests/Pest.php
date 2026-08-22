@@ -365,6 +365,83 @@ function createSalesOrder(
 }
 
 /**
+ * User + company + the minimum masters a sales invoice needs. It is the same
+ * scenario as a sales order: a client, a warehouse and one sellable item with
+ * its base unit.
+ *
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Client\Models\Client,
+ *     3: \App\Modules\Warehouse\Models\Warehouse,
+ *     4: \App\Modules\Item\Models\Item,
+ *     5: \App\Modules\MeasurementUnit\Models\MeasurementUnit
+ * }
+ */
+function salesInvoiceScenario(): array
+{
+    return salesOrderScenario();
+}
+
+/**
+ * A valid `sales-invoices.store` / `sales-invoices.update` payload, overridable
+ * per test. Without explicit lines it carries one line of the given item.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function salesInvoicePayload(
+    \App\Modules\Client\Models\Client $client,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'client_id' => $client->id,
+        'warehouse_id' => $warehouse->id,
+        'invoice_date' => now()->toDateString(),
+        'due_date' => now()->toDateString(),
+        'currency' => 'USD',
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 2,
+                'unit_price' => 100,
+            ],
+        ],
+        ...$overrides,
+    ];
+}
+
+/**
+ * Creates a sales invoice over HTTP and returns the freshly saved model, so
+ * the tests that need an existing invoice do not rebuild the payload each time.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function createSalesInvoice(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Client\Models\Client $client,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): \App\Modules\SalesInvoice\Models\SalesInvoice {
+    $payload = salesInvoicePayload($client, $warehouse, $item, $unit, $overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\SalesInvoice\Models\SalesInvoice::with('lines')->findOrFail($payload['id']);
+}
+
+/**
  * A valid `items.store` / `items.update` payload, overridable per test.
  *
  * @param  array<string, mixed>  $overrides
@@ -387,4 +464,111 @@ function itemPayload(
         ],
         ...$overrides,
     ];
+}
+
+/**
+ * User + company + the minimum masters a purchase invoice needs. It is the
+ * same scenario as a purchase order: a supplier, a warehouse and a purchasable
+ * item with its base unit.
+ *
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Supplier\Models\Supplier,
+ *     3: \App\Modules\Warehouse\Models\Warehouse,
+ *     4: \App\Modules\Item\Models\Item,
+ *     5: \App\Modules\MeasurementUnit\Models\MeasurementUnit
+ * }
+ */
+function purchaseInvoiceScenario(): array
+{
+    return purchaseOrderScenario();
+}
+
+/**
+ * A valid `purchase-invoices.store` / `purchase-invoices.update` payload.
+ *
+ * `due_date` is left out on purpose: without it the backend derives it from the
+ * supplier's credit days, which is the normal path.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function purchaseInvoicePayload(
+    \App\Modules\Supplier\Models\Supplier $supplier,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'supplier_id' => $supplier->id,
+        'warehouse_id' => $warehouse->id,
+        'supplier_invoice_number' => '00-'.fake()->unique()->numerify('######'),
+        'invoice_date' => now()->toDateString(),
+        'currency' => 'USD',
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 10,
+                'unit_price' => 25,
+            ],
+        ],
+        ...$overrides,
+    ];
+}
+
+/**
+ * Creates a purchase order over HTTP and returns the freshly saved model, so
+ * the tests that need a source document do not rebuild the payload each time.
+ *
+ * It is not called `createPurchaseOrder`: that name is already taken by a
+ * helper local to the purchase order update test, and Pest loads every test
+ * file into the same global scope.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function sourcePurchaseOrder(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Supplier\Models\Supplier $supplier,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): \App\Modules\PurchaseOrder\Models\PurchaseOrder {
+    $payload = purchaseOrderPayload($supplier, $warehouse, $item, $unit, $overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\PurchaseOrder\Models\PurchaseOrder::with('lines')->findOrFail($payload['id']);
+}
+
+/**
+ * Creates a purchase invoice over HTTP and returns the freshly saved model.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function createPurchaseInvoice(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Supplier\Models\Supplier $supplier,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): \App\Modules\PurchaseInvoice\Models\PurchaseInvoice {
+    $payload = purchaseInvoicePayload($supplier, $warehouse, $item, $unit, $overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\PurchaseInvoice\Models\PurchaseInvoice::with('lines')->findOrFail($payload['id']);
 }

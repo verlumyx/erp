@@ -7,11 +7,13 @@ namespace App\Modules\SalesOrder\Models;
 use App\Modules\Company\Models\Company;
 use App\Modules\Item\Models\Item;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
+use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
 use Database\Factories\SalesOrderLineFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class SalesOrderLine extends Model
 {
@@ -22,6 +24,9 @@ class SalesOrderLine extends Model
     public $incrementing = false;
 
     protected $keyType = 'string';
+
+    /** Alias del morph map con el que la línea se referencia desde otros documentos. */
+    public const MORPH_ALIAS = 'sales_order_line';
 
     protected $fillable = [
         'id',
@@ -97,6 +102,12 @@ class SalesOrderLine extends Model
     public function measurementUnit(): BelongsTo
     {
         return $this->belongsTo(MeasurementUnit::class, 'measurement_unit_id', 'id');
+    }
+
+    /** Líneas de factura emitidas contra esta línea del pedido. */
+    public function salesInvoiceLines(): MorphMany
+    {
+        return $this->morphMany(SalesInvoiceLine::class, 'sourceable');
     }
 
     protected static function newFactory(): SalesOrderLineFactory

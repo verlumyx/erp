@@ -66,4 +66,41 @@ class SalesOrderFilters extends EloquentQueryFilters
     {
         return $this->builder->where('status', $value);
     }
+
+    /**
+     * Búsqueda libre del select remoto: el usuario escribe el código del
+     * pedido, la orden de compra del cliente o el nombre del cliente.
+     */
+    public function q(string $value): Builder
+    {
+        return $this->builder->where(function (Builder $query) use ($value): void {
+            $query->where('code', 'like', "%{$value}%")
+                ->orWhere('client_reference', 'like', "%{$value}%")
+                ->orWhereHas(
+                    'client',
+                    fn (Builder $client) => $client->where('name', 'like', "%{$value}%")
+                        ->orWhere('legal_name', 'like', "%{$value}%"),
+                );
+        });
+    }
+
+    /**
+     * Hidratación de los valores ya elegidos en un formulario de edición:
+     * ids separados por coma, tal como los manda `Select2Ajax`.
+     */
+    public function ids(string $value): Builder
+    {
+        return $this->builder->whereIn('id', array_filter(explode(',', $value)));
+    }
+
+    /**
+     * Pedidos que todavía admiten factura. Un borrador no compromete nada y
+     * uno anulado o cumplido ya no genera documentos nuevos.
+     */
+    public function invoiceable(string $value): Builder
+    {
+        return $value === 'yes'
+            ? $this->builder->whereIn('status', ['confirmed', 'partial'])
+            : $this->builder;
+    }
 }

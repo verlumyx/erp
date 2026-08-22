@@ -143,42 +143,49 @@ export function useItemCatalog({
         .filter((id) => id !== '')
         .join(',');
 
-    const hydrated = useRef(false);
+    /**
+     * Ids ya pedidos al servidor. Es un conjunto y no un booleano porque la
+     * semilla crece: al facturar un pedido, sus artículos entran de golpe y
+     * hay que hidratar solo los que aún no se conocen.
+     */
+    const requested = useRef<Set<string>>(new Set());
 
     useEffect(() => {
-        if (hydrated.current || seedIds === '') {
+        const missing = seedIds
+            .split(',')
+            .filter((id) => id !== '' && !requested.current.has(id));
+
+        if (missing.length === 0) {
             return;
         }
 
-        hydrated.current = true;
+        missing.forEach((id) => requested.current.add(id));
 
         const abort = new AbortController();
 
         void (async () => {
             try {
                 const pages = await Promise.all(
-                    chunk(seedIds.split(','), MAX_IDS_PER_REQUEST).map(
-                        async (ids) => {
-                            const response = await fetch(
-                                `${url}?ids=${ids.join(',')}&per_page=${ids.length}`,
-                                {
-                                    headers: {
-                                        Accept: 'application/json',
-                                        'X-Requested-With': 'XMLHttpRequest',
-                                    },
-                                    signal: abort.signal,
+                    chunk(missing, MAX_IDS_PER_REQUEST).map(async (ids) => {
+                        const response = await fetch(
+                            `${url}?ids=${ids.join(',')}&per_page=${ids.length}`,
+                            {
+                                headers: {
+                                    Accept: 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
                                 },
-                            );
+                                signal: abort.signal,
+                            },
+                        );
 
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}`);
-                            }
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
 
-                            return (await response.json()) as {
-                                data: AjaxOption[];
-                            };
-                        },
-                    ),
+                        return (await response.json()) as {
+                            data: AjaxOption[];
+                        };
+                    }),
                 );
 
                 const hydratedEntries = pages
@@ -197,7 +204,7 @@ export function useItemCatalog({
                  * documento; lo que se pierde es su unidad y su precio, que el
                  * usuario puede recapturar reeligiendo el artículo.
                  */
-                hydrated.current = false;
+                missing.forEach((id) => requested.current.delete(id));
             }
         })();
 

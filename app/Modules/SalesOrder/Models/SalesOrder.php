@@ -8,6 +8,7 @@ use App\Modules\Client\Models\Client;
 use App\Modules\Client\Models\ClientAddress;
 use App\Modules\Company\Models\Company;
 use App\Modules\PriceList\Models\PriceList;
+use App\Modules\SalesInvoice\Models\SalesInvoice;
 use App\Modules\User\Models\User;
 use App\Modules\Warehouse\Models\Warehouse;
 use Database\Factories\SalesOrderFactory;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class SalesOrder extends Model
 {
@@ -28,6 +30,13 @@ class SalesOrder extends Model
     protected $keyType = 'string';
 
     public const CODE_PREFIX = 'OVE';
+
+    /**
+     * Alias del morph map con el que el pedido se referencia desde otros
+     * documentos. Se guarda el alias y no el nombre de la clase para que
+     * mover o renombrar esta clase no invalide los datos ya escritos.
+     */
+    public const MORPH_ALIAS = 'sales_order';
 
     public const STATUSES = ['draft', 'confirmed', 'partial', 'completed', 'cancelled'];
 
@@ -147,6 +156,18 @@ class SalesOrder extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(SalesOrderLine::class, 'sales_order_id', 'id');
+    }
+
+    /**
+     * Facturas emitidas contra este pedido.
+     *
+     * La factura no apunta al pedido con un FK: lo hace con la relación
+     * polimórfica `sourceable`, de modo que el mismo par de columnas admita
+     * mañana otros documentos de origen.
+     */
+    public function salesInvoices(): MorphMany
+    {
+        return $this->morphMany(SalesInvoice::class, 'sourceable');
     }
 
     protected static function newFactory(): SalesOrderFactory

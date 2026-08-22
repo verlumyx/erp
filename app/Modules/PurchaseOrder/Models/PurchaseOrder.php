@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\PurchaseOrder\Models;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\User\Models\User;
 use App\Modules\Warehouse\Models\Warehouse;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class PurchaseOrder extends Model
 {
@@ -26,6 +28,13 @@ class PurchaseOrder extends Model
     protected $keyType = 'string';
 
     public const CODE_PREFIX = 'OCO';
+
+    /**
+     * Alias con el que la orden viaja en las columnas `sourceable_type` de
+     * los documentos que origina. Se guarda el alias y no el FQCN para que
+     * mover o renombrar esta clase no invalide los datos ya escritos.
+     */
+    public const MORPH_ALIAS = 'purchase_order';
 
     public const STATUSES = ['draft', 'confirmed', 'partial', 'completed', 'cancelled'];
 
@@ -124,6 +133,12 @@ class PurchaseOrder extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(PurchaseOrderLine::class, 'purchase_order_id', 'id');
+    }
+
+    /** Facturas que nacieron de esta orden. */
+    public function purchaseInvoices(): MorphMany
+    {
+        return $this->morphMany(PurchaseInvoice::class, 'sourceable');
     }
 
     protected static function newFactory(): PurchaseOrderFactory

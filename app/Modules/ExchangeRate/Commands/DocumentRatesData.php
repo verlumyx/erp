@@ -25,6 +25,12 @@ class DocumentRatesData
         public readonly string $rateType = 'legal',
         /** Decimales con los que la empresa persiste un precio unitario. */
         public readonly int $priceDecimals = 6,
+        /**
+         * Decimales con los que la empresa persiste un importe. Los usan
+         * los documentos con valor legal al congelar sus montos en
+         * bolívares.
+         */
+        public readonly int $amountDecimals = 2,
     ) {}
 
     /**

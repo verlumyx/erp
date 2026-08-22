@@ -46,6 +46,7 @@ class DocumentRatesResolver implements DocumentRatesResolverInterface
                 : $this->rates->rateFor($companyId, $baseCurrency, $date, $type),
             rateType: $type,
             priceDecimals: $configuration->price_decimals,
+            amountDecimals: $configuration->amount_decimals,
         );
     }
 

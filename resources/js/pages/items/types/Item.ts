@@ -103,7 +103,7 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
     inventoried: 'Inventariado',
     non_inventoried: 'No inventariado',
     service: 'Servicio',
-    kit: 'Kit',
+    kit: 'Lotes',
     serialized: 'Serializado',
 };
 

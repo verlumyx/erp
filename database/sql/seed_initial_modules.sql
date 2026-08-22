@@ -24,6 +24,8 @@ DECLARE
     v_mod_suppliers   UUID;
     v_mod_sales_ord   UUID;
     v_mod_purch_ord   UUID;
+    v_mod_purch_inv   UUID;
+    v_mod_sales_inv   UUID;
 BEGIN
 
     -- ==========================================================
@@ -50,7 +52,9 @@ BEGIN
         (gen_random_uuid(), 'sales-orders', 'Órdenes de venta', 'Pedidos del cliente: reservan inventario sin descargarlo', 'ClipboardList', true, 15, NOW(), NOW()),
         (gen_random_uuid(), 'purchase-orders', 'Órdenes de compra', 'Solicitudes de mercancía al proveedor: reservan la entrada esperada', 'ClipboardList', true, 16, NOW(), NOW()),
         (gen_random_uuid(), 'taxes', 'Impuestos', 'Catálogo de impuestos y retenciones', 'Percent', true, 17, NOW(), NOW()),
-        (gen_random_uuid(), 'configuration', 'Configuración', 'Moneda principal, tasa y decimales de la empresa', 'Settings', true, 18, NOW(), NOW())
+        (gen_random_uuid(), 'configuration', 'Configuración', 'Moneda principal, tasa y decimales de la empresa', 'Settings', true, 18, NOW(), NOW()),
+        (gen_random_uuid(), 'purchase-invoices', 'Facturas de compra', 'Deuda con el proveedor: genera la cuenta por pagar y el costo de la mercancía', 'ReceiptText', true, 19, NOW(), NOW()),
+        (gen_random_uuid(), 'sales-invoices', 'Facturas de venta', 'Documento fiscal: genera la cuenta por cobrar y descarga inventario', 'ReceiptText', true, 20, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -72,6 +76,8 @@ BEGIN
     SELECT id INTO v_mod_purch_ord   FROM app_modules WHERE name = 'purchase-orders';
     SELECT id INTO v_mod_taxes       FROM app_modules WHERE name = 'taxes';
     SELECT id INTO v_mod_config      FROM app_modules WHERE name = 'configuration';
+    SELECT id INTO v_mod_purch_inv   FROM app_modules WHERE name = 'purchase-invoices';
+    SELECT id INTO v_mod_sales_inv   FROM app_modules WHERE name = 'sales-invoices';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -238,6 +244,26 @@ BEGIN
         (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.show',          'Ver detalle de orden de compra',  true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.update',        'Editar órdenes de compra',        true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_purch_ord, 'purchase-orders.update-status', 'Confirmar o anular una orden',    true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Facturas de compra
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_purch_inv, 'purchase-invoices.list',          'Listar facturas de compra',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_inv, 'purchase-invoices.create',        'Crear facturas de compra',         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_inv, 'purchase-invoices.show',          'Ver detalle de factura de compra', true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_inv, 'purchase-invoices.update',        'Editar facturas de compra',        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_inv, 'purchase-invoices.update-status', 'Confirmar o anular una factura',   true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Facturas de venta
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.list',          'Listar facturas de venta',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.create',        'Crear facturas de venta',         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.show',          'Ver detalle de factura de venta', true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.update',        'Editar facturas de venta',        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.update-status', 'Emitir o anular una factura',     true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Impuestos
