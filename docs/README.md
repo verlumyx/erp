@@ -12,6 +12,7 @@ un conjunto de módulos relacionados.
 | [ventas.md](ventas.md)         | Ventas     | Clientes, Órdenes de venta, Facturas de venta, Notas de crédito a cliente, Anticipos de clientes, Cobros a clientes, Devoluciones de ventas         |
 | [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (pendiente de definir)                                                                                                            |
 | [monedas.md](monedas.md)       | Transversal | Monedas, tasas de cambio y configuración por empresa. Atraviesa todos los grupos.                                                                   |
+| [selects-remotos.md](selects-remotos.md) | Transversal | Selects que buscan contra el servidor (`Select2Ajax`) y el endpoint de lookup de cada módulo. Atraviesa todos los grupos. |
 
 El orden de implementación recomendado es: **Catálogo → Inventario → Compras → Ventas → Logística → Reportes**, porque
 cada grupo depende de los anteriores.
