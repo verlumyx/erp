@@ -441,11 +441,11 @@ export function SalesOrderForm() {
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
                         <span className="font-medium text-muted-foreground">
-                            Subtotal
+                            Bruto
                         </span>
                         <b className="font-bold tabular-nums">
                             <AmountDual
-                                amount={totals.subtotal}
+                                amount={totals.gross}
                                 currency={data.currency}
                                 rate={data.exchange_rate || undefined}
                                 className="items-end"
@@ -454,11 +454,24 @@ export function SalesOrderForm() {
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
                         <span className="font-medium text-muted-foreground">
-                            Descuento
+                            Descuento de líneas
                         </span>
                         <b className="font-bold tabular-nums">
                             <AmountDual
                                 amount={totals.discountAmount}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
+                        </b>
+                    </div>
+                    <div className="flex items-center justify-between text-[13.5px]">
+                        <span className="font-medium text-muted-foreground">
+                            Subtotal
+                        </span>
+                        <b className="font-bold tabular-nums">
+                            <AmountDual
+                                amount={totals.subtotal}
                                 currency={data.currency}
                                 rate={data.exchange_rate || undefined}
                                 className="items-end"

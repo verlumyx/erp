@@ -402,16 +402,17 @@ export function useSalesOrderForm({
             const amounts = lineAmounts(line);
 
             return {
-                subtotal: round(accumulator.subtotal + amounts.subtotal, 2),
+                gross: round(accumulator.gross + amounts.gross, 2),
                 discountAmount: round(
                     accumulator.discountAmount + amounts.discountAmount,
                     2,
                 ),
+                subtotal: round(accumulator.subtotal + amounts.subtotal, 2),
                 taxAmount: round(accumulator.taxAmount + amounts.taxAmount, 2),
                 total: round(accumulator.total + amounts.total, 2),
             };
         },
-        { subtotal: 0, discountAmount: 0, taxAmount: 0, total: 0 },
+        { gross: 0, discountAmount: 0, subtotal: 0, taxAmount: 0, total: 0 },
     );
 
     const handleSubmit = (e: React.FormEvent) => {

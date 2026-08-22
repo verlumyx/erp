@@ -72,6 +72,10 @@ function baseUnitId(item: ItemCatalogEntry | undefined): string {
 }
 
 export interface PurchaseOrderTotals {
+    /** Cantidad por precio, antes de cualquier rebaja. */
+    gross: number;
+    /** Suma de las rebajas de línea; el descuento global va aparte. */
+    discountAmount: number;
     subtotal: number;
     taxAmount: number;
     total: number;
@@ -120,16 +124,24 @@ function lineRows(order?: PurchaseOrder): PurchaseOrderLineRow[] {
  * el servidor.
  */
 export function lineAmounts(line: PurchaseOrderLineRow): {
+    gross: number;
+    discountAmount: number;
     subtotal: number;
     taxAmount: number;
     total: number;
 } {
     const gross = line.quantity * line.unit_price;
-    const discount = round2((gross * line.discount_percent) / 100);
-    const subtotal = round2(gross - discount);
+    const discountAmount = round2((gross * line.discount_percent) / 100);
+    const subtotal = round2(gross - discountAmount);
     const taxAmount = round2((subtotal * line.tax_percent) / 100);
 
-    return { subtotal, taxAmount, total: round2(subtotal + taxAmount) };
+    return {
+        gross: round2(gross),
+        discountAmount,
+        subtotal,
+        taxAmount,
+        total: round2(subtotal + taxAmount),
+    };
 }
 
 function round2(value: number): number {
@@ -280,12 +292,16 @@ export function usePurchaseOrderForm({
             const amounts = lineAmounts(line);
 
             return {
+                gross: round2(accumulator.gross + amounts.gross),
+                discountAmount: round2(
+                    accumulator.discountAmount + amounts.discountAmount,
+                ),
                 subtotal: round2(accumulator.subtotal + amounts.subtotal),
                 taxAmount: round2(accumulator.taxAmount + amounts.taxAmount),
                 total: 0,
             };
         },
-        { subtotal: 0, taxAmount: 0, total: 0 },
+        { gross: 0, discountAmount: 0, subtotal: 0, taxAmount: 0, total: 0 },
     );
 
     totals.total = round2(

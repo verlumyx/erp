@@ -350,6 +350,32 @@ export function PurchaseOrderForm() {
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
                         <span className="font-medium text-muted-foreground">
+                            Bruto
+                        </span>
+                        <b className="font-bold tabular-nums">
+                            <AmountDual
+                                amount={totals.gross}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
+                        </b>
+                    </div>
+                    <div className="flex items-center justify-between text-[13.5px]">
+                        <span className="font-medium text-muted-foreground">
+                            Descuento de líneas
+                        </span>
+                        <b className="font-bold tabular-nums">
+                            <AmountDual
+                                amount={totals.discountAmount}
+                                currency={data.currency}
+                                rate={data.exchange_rate || undefined}
+                                className="items-end"
+                            />
+                        </b>
+                    </div>
+                    <div className="flex items-center justify-between text-[13.5px]">
+                        <span className="font-medium text-muted-foreground">
                             Subtotal
                         </span>
                         <b className="font-bold tabular-nums">
@@ -363,7 +389,7 @@ export function PurchaseOrderForm() {
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
                         <span className="font-medium text-muted-foreground">
-                            Descuento
+                            Descuento global
                         </span>
                         <b className="font-bold tabular-nums">
                             <AmountDual
