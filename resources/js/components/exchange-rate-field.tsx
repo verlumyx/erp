@@ -2,10 +2,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useConfiguration } from '@/hooks/use-configuration';
 import { useTodayRates } from '@/hooks/use-today-rates';
-import { formatAmount } from '@/lib/money';
 
 interface ExchangeRateFieldProps {
-    /** Corrección manual. Vacío —el caso normal— la resuelve el sistema. */
+    /**
+     * Tasa que viaja en el formulario. Con la corrección permitida nace con la
+     * del catálogo a la vista; vacía se la deja resolver al backend.
+     */
     value: string;
     onValueChange: (value: string) => void;
     /** Moneda del documento: de ella sale la tasa de hoy que se ofrece. */
@@ -19,9 +21,10 @@ interface ExchangeRateFieldProps {
 /**
  * Tasa de cambio de un documento.
  *
- * La tasa la resuelve el backend con el catálogo a la fecha del documento; el
- * campo solo existe para corregirla, y únicamente si la empresa lo permite
- * (`allows_rate_override`). Dejarlo vacío es lo normal.
+ * La tasa sale del catálogo a la fecha del documento. Si la empresa permite
+ * corregirla (`allows_rate_override`), el campo se muestra editable y con la
+ * tasa cargada a la vista; si no, es una casilla de solo lectura y la resuelve
+ * el backend. Un campo vacío también la deja en manos del backend.
  */
 export function ExchangeRateField({
     value,
@@ -35,7 +38,7 @@ export function ExchangeRateField({
     const todayRates = useTodayRates();
 
     const canOverride = configuration?.allows_rate_override === 'yes';
-    const todayRate = todayRates[currency];
+    const hasRate = todayRates[currency] !== undefined;
 
     return (
         <div className="flex flex-col gap-1.5">
@@ -51,9 +54,7 @@ export function ExchangeRateField({
                     id={id}
                     value={value}
                     inputMode="decimal"
-                    placeholder={
-                        todayRate ? formatAmount(todayRate, 4) : 'Automática'
-                    }
+                    placeholder="Automática"
                     onChange={(event) =>
                         onValueChange(
                             event.target.value
@@ -72,9 +73,11 @@ export function ExchangeRateField({
             )}
 
             <span className="text-[12px] text-muted-foreground">
-                {canOverride
-                    ? `Vacía: la resuelve el sistema con la tasa del catálogo a ${dateLabel}`
-                    : `La resuelve el sistema con la tasa del catálogo a ${dateLabel}`}
+                {!canOverride
+                    ? `La resuelve el sistema con la tasa del catálogo a ${dateLabel}`
+                    : hasRate
+                      ? `Tasa del catálogo; corrígela si hace falta. Vacía la vuelve a resolver el sistema a ${dateLabel}`
+                      : `No hay tasa cargada para ${currency}: escríbela o cárgala en el catálogo`}
             </span>
 
             {error && <p className="text-sm text-bad">{error}</p>}

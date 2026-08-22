@@ -118,3 +118,19 @@ test('saving the draft again refreshes the rate', function () {
 
     expect((float) PurchaseOrder::find($payload['id'])->exchange_rate)->toBe(37.8);
 });
+
+/**
+ * El formulario enseña la tasa del catálogo en el campo, pero la manda vacía
+ * mientras el usuario no la corrija: vacía significa «resuélvela tú».
+ */
+test('an empty rate is not a manual correction', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $payload = purchaseOrderPayload($supplier, $warehouse, $item, $unit, ['exchange_rate' => '']);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-orders.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    expect((float) PurchaseOrder::find($payload['id'])->exchange_rate)->toBe(36.5);
+});

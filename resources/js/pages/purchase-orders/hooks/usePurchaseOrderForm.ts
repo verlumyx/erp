@@ -162,7 +162,25 @@ export function usePurchaseOrderForm({
             })),
     });
 
-    const { data, setData, post, put, processing, errors, reset } =
+    const initialCurrency =
+        initialData?.currency ?? configuration?.base_currency ?? '';
+
+    /**
+     * Con la corrección permitida el campo nace con la tasa del catálogo a la
+     * vista, no vacío: el usuario ve con qué se va a valorar la orden antes de
+     * guardarla. Prohibida la corrección, viaja vacía y la resuelve el backend.
+     */
+    const catalogRate = (currency: string): string => {
+        if (configuration?.allows_rate_override !== 'yes') {
+            return '';
+        }
+
+        const rate = todayRates[currency];
+
+        return rate === undefined ? '' : String(rate);
+    };
+
+    const { data, setData, post, put, transform, processing, errors, reset } =
         useForm<PurchaseOrderFormData>({
             id: initialData?.id ?? generateUUID(),
             supplier_id: initialData?.supplier_id ?? '',
@@ -173,14 +191,24 @@ export function usePurchaseOrderForm({
             expected_date: initialData?.expected_date ?? '',
             supplier_reference: initialData?.supplier_reference ?? '',
             /** Una orden nace en la moneda en la que la empresa lleva sus cifras. */
-            currency:
-                initialData?.currency ?? configuration?.base_currency ?? '',
-            exchange_rate: '',
+            currency: initialCurrency,
+            exchange_rate: catalogRate(initialCurrency),
             payment_term_days: Number(initialData?.payment_term_days ?? 0),
             discount_amount: Number(initialData?.discount_amount ?? 0),
             notes: initialData?.notes ?? '',
             lines: lineRows(initialData),
         });
+
+    /**
+     * Cambiar la moneda de la orden trae la tasa del catálogo de esa moneda.
+     * Los costos ya capturados no se tocan: los pactó el usuario.
+     */
+    const selectCurrency = (currency: string) =>
+        setData((current) => ({
+            ...current,
+            currency,
+            exchange_rate: catalogRate(currency),
+        }));
 
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);
 
@@ -267,6 +295,19 @@ export function usePurchaseOrderForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        /**
+         * El campo enseña la tasa del catálogo, pero solo viaja como corrección
+         * si el usuario escribió otra: así una orden con fecha anterior se sigue
+         * valorando con la tasa de su día y no con la de hoy.
+         */
+        transform((payload) => ({
+            ...payload,
+            exchange_rate:
+                payload.exchange_rate === catalogRate(payload.currency)
+                    ? ''
+                    : payload.exchange_rate,
+        }));
+
         if (mode === 'create') {
             post(purchaseOrders.store(companyId).url, {
                 onSuccess: () => {
@@ -294,6 +335,7 @@ export function usePurchaseOrderForm({
         reset,
         mode,
         totals,
+        selectCurrency,
         addLine,
         removeLine,
         updateLine,

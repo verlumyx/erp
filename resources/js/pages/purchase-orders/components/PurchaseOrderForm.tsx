@@ -47,6 +47,7 @@ export function PurchaseOrderForm() {
         mode,
         options,
         totals,
+        selectCurrency,
     } = usePurchaseOrderFormContext();
 
     const supplierOptions: OptionType[] = options.suppliers.map((supplier) => ({
@@ -67,10 +68,14 @@ export function PurchaseOrderForm() {
         setData((current) => ({
             ...current,
             supplier_id: supplierId,
-            currency: supplier?.currency ?? current.currency,
             payment_term_days:
                 supplier?.payment_term_days ?? current.payment_term_days,
         }));
+
+        /** Su moneda entra por la misma puerta que el select: arrastra la tasa. */
+        if (supplier?.currency) {
+            selectCurrency(supplier.currency);
+        }
     };
 
     return (
@@ -241,9 +246,7 @@ export function PurchaseOrderForm() {
                                 id="currency"
                                 value={data.currency}
                                 error={errors.currency}
-                                onValueChange={(value) =>
-                                    setData('currency', value)
-                                }
+                                onValueChange={selectCurrency}
                             />
                             {errors.currency && (
                                 <p className="text-sm text-bad">
