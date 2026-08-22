@@ -1,4 +1,5 @@
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, Plus, X } from 'lucide-react';
+import { useState } from 'react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
+import { cn } from '@/lib/utils';
 import { useSalesOrderFormContext } from '../contexts/SalesOrderFormContext';
 import { lineAmounts } from '../hooks/useSalesOrderForm';
 import { formatAmount } from '../types/SalesOrder';
@@ -24,6 +26,14 @@ export function SalesOrderLinesSection() {
         updateLine,
         selectLineItem,
     } = useSalesOrderFormContext();
+
+    const [openCharges, setOpenCharges] = useState<Record<string, boolean>>({});
+
+    const toggleCharges = (lineId: string) =>
+        setOpenCharges((current) => ({
+            ...current,
+            [lineId]: !current[lineId],
+        }));
 
     const fieldError = (index: number, field: string) =>
         (errors as Record<string, string | undefined>)[
@@ -49,6 +59,11 @@ export function SalesOrderLinesSection() {
                         }`,
                     }),
                 );
+                const chargesOpen = openCharges[line.id] === true;
+                const hasCharges =
+                    line.discount_percent > 0 ||
+                    line.tax_percent > 0 ||
+                    line.withholding_percent > 0;
                 const belowMinPrice =
                     item !== undefined &&
                     Number(item.min_price) > 0 &&
@@ -64,18 +79,49 @@ export function SalesOrderLinesSection() {
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
                                 </Label>
-                                <Select2Ajax
-                                    url={catalog.url}
-                                    params={{ is_sellable: 'yes' }}
-                                    value={catalog.optionOf(line.item_id)}
-                                    onChange={(option) =>
-                                        selectLineItem(index, option)
-                                    }
-                                    formatLabel={catalog.labelOf}
-                                    error={!!itemError}
-                                    size="md"
-                                    placeholder="Busca por sku, código o nombre"
-                                />
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className={cn(
+                                            'relative size-[42px] shrink-0 rounded-[10px] bg-card',
+                                            hasCharges && 'text-primary',
+                                        )}
+                                        onClick={() => toggleCharges(line.id)}
+                                        aria-expanded={chargesOpen}
+                                        aria-label={`${
+                                            chargesOpen ? 'Ocultar' : 'Mostrar'
+                                        } descuento, impuesto y retención de la línea ${index + 1}`}
+                                    >
+                                        <ChevronDown
+                                            className={cn(
+                                                'size-4 transition-transform',
+                                                chargesOpen && 'rotate-180',
+                                            )}
+                                        />
+                                        {hasCharges && !chargesOpen && (
+                                            <span className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-primary ring-2 ring-card" />
+                                        )}
+                                    </Button>
+
+                                    <div className="min-w-0 flex-1">
+                                        <Select2Ajax
+                                            url={catalog.url}
+                                            params={{ is_sellable: 'yes' }}
+                                            value={catalog.optionOf(
+                                                line.item_id,
+                                            )}
+                                            onChange={(option) =>
+                                                selectLineItem(index, option)
+                                            }
+                                            formatLabel={catalog.labelOf}
+                                            error={!!itemError}
+                                            size="md"
+                                            placeholder="Busca por sku, código o nombre"
+                                        />
+                                    </div>
+                                </div>
                                 {itemError && (
                                     <p className="text-sm text-bad">
                                         {itemError}
@@ -198,68 +244,77 @@ export function SalesOrderLinesSection() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]">
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Descuento %
-                                </Label>
-                                <NumberInput
-                                    value={line.discount_percent}
-                                    onValueChange={(value) =>
-                                        updateLine(
-                                            index,
-                                            'discount_percent',
-                                            value,
-                                        )
-                                    }
-                                    min={0}
-                                    max={100}
-                                    decimals={4}
-                                    className="h-[42px] rounded-[10px]"
-                                />
-                                {fieldError(index, 'discount_percent') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'discount_percent')}
-                                    </p>
-                                )}
-                            </div>
+                        {chargesOpen && (
+                            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1.3fr]">
+                                <div className="flex flex-col gap-1.5">
+                                    <Label className="text-[13px] font-semibold">
+                                        Descuento %
+                                    </Label>
+                                    <NumberInput
+                                        value={line.discount_percent}
+                                        onValueChange={(value) =>
+                                            updateLine(
+                                                index,
+                                                'discount_percent',
+                                                value,
+                                            )
+                                        }
+                                        min={0}
+                                        max={100}
+                                        decimals={4}
+                                        className="h-[42px] rounded-[10px]"
+                                    />
+                                    {fieldError(index, 'discount_percent') && (
+                                        <p className="text-sm text-bad">
+                                            {fieldError(
+                                                index,
+                                                'discount_percent',
+                                            )}
+                                        </p>
+                                    )}
+                                </div>
 
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Impuesto %
-                                </Label>
-                                <NumberInput
-                                    value={line.tax_percent}
-                                    onValueChange={(value) =>
-                                        updateLine(index, 'tax_percent', value)
-                                    }
-                                    min={0}
-                                    max={100}
-                                    decimals={4}
-                                    className="h-[42px] rounded-[10px]"
-                                />
-                            </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label className="text-[13px] font-semibold">
+                                        Impuesto %
+                                    </Label>
+                                    <NumberInput
+                                        value={line.tax_percent}
+                                        onValueChange={(value) =>
+                                            updateLine(
+                                                index,
+                                                'tax_percent',
+                                                value,
+                                            )
+                                        }
+                                        min={0}
+                                        max={100}
+                                        decimals={4}
+                                        className="h-[42px] rounded-[10px]"
+                                    />
+                                </div>
 
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Retención %
-                                </Label>
-                                <NumberInput
-                                    value={line.withholding_percent}
-                                    onValueChange={(value) =>
-                                        updateLine(
-                                            index,
-                                            'withholding_percent',
-                                            value,
-                                        )
-                                    }
-                                    min={0}
-                                    max={100}
-                                    decimals={4}
-                                    className="h-[42px] rounded-[10px]"
-                                />
+                                <div className="flex flex-col gap-1.5">
+                                    <Label className="text-[13px] font-semibold">
+                                        Retención %
+                                    </Label>
+                                    <NumberInput
+                                        value={line.withholding_percent}
+                                        onValueChange={(value) =>
+                                            updateLine(
+                                                index,
+                                                'withholding_percent',
+                                                value,
+                                            )
+                                        }
+                                        min={0}
+                                        max={100}
+                                        decimals={4}
+                                        className="h-[42px] rounded-[10px]"
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex flex-wrap justify-end gap-x-5 gap-y-1 border-t pt-3 text-[13px]">
                             <span className="text-muted-foreground">
