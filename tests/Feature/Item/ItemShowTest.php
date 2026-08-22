@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Configuration\Models\Configuration;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemPrice;
 use App\Modules\Item\Models\ItemUnit;
@@ -106,6 +107,27 @@ test('the create form only offers active taxes of the active company', function 
     $response->assertInertia(
         fn ($page) => $page->component('items/create')->has('options.taxes', 1)
     );
+});
+
+/**
+ * Los precios estrenan la moneda de la empresa, no un `USD` fijo: la pantalla
+ * la toma de la configuración compartida por Inertia.
+ */
+test('the create form receives the company currency', function () {
+    [$user, $company] = createUserWithCompany();
+
+    Configuration::query()
+        ->where('company_id', $company->id)
+        ->update(['base_currency' => 'EUR']);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('items.create', ['company' => $company->id]))
+        ->assertInertia(
+            fn ($page) => $page
+                ->component('items/create')
+                ->where('configuration.base_currency', 'EUR')
+        );
 });
 
 test('a user without permission cannot see an item', function () {

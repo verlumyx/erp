@@ -39,6 +39,22 @@ test('a supplier can be created', function () {
     expect($supplier->created_by)->toBe($user->id);
 });
 
+/**
+ * La moneda viaja del formulario: el backend no la sustituye por un `USD`
+ * fijo cuando la empresa lleva sus cifras en otra.
+ */
+test('the supplier keeps the currency chosen in the form', function () {
+    [$user, $company] = createUserWithCompany();
+
+    $payload = supplierPayload(['currency' => 'EUR']);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('suppliers.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    expect(Supplier::find($payload['id'])->currency)->toBe('EUR');
+});
+
 test('the balances always start at zero and cannot be sent from the client', function () {
     [$user, $company] = createUserWithCompany();
 

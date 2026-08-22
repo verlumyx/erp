@@ -28,6 +28,7 @@ class UpdateSupplierCommand
         public readonly ?string $city = null,
         public readonly ?string $state = null,
         public readonly ?string $country = null,
+        /** El request siempre la exige: la pantalla la estrena con la de la empresa. */
         public readonly string $currency = 'USD',
         public readonly int $paymentTermDays = 0,
         public readonly string $creditLimit = '0',
@@ -53,7 +54,7 @@ class UpdateSupplierCommand
             city: $request->input('city'),
             state: $request->input('state'),
             country: $request->input('country'),
-            currency: strtoupper($request->string('currency', 'USD')->toString()),
+            currency: strtoupper($request->string('currency')->toString()),
             paymentTermDays: $request->integer('payment_term_days'),
             creditLimit: (string) $request->input('credit_limit', 0),
             leadTimeDays: $request->integer('lead_time_days'),

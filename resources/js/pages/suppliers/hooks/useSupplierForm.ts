@@ -1,4 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
+import { useConfiguration } from '@/hooks/use-configuration';
 import { generateUUID } from '@/lib/utils';
 import suppliers from '@/routes/suppliers';
 import type {
@@ -123,6 +124,7 @@ export function useSupplierForm({
 }: UseSupplierFormProps) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
+    const configuration = useConfiguration();
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<SupplierFormData>({
@@ -140,7 +142,9 @@ export function useSupplierForm({
             city: initialData?.city ?? '',
             state: initialData?.state ?? '',
             country: initialData?.country ?? '',
-            currency: initialData?.currency ?? 'USD',
+            /** Un proveedor nace en la moneda en la que la empresa lleva sus cifras. */
+            currency:
+                initialData?.currency ?? configuration?.base_currency ?? '',
             payment_term_days: Number(initialData?.payment_term_days ?? 0),
             credit_limit: Number(initialData?.credit_limit ?? 0),
             lead_time_days: Number(initialData?.lead_time_days ?? 0),

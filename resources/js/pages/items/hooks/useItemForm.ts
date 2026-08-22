@@ -1,4 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
+import { useConfiguration } from '@/hooks/use-configuration';
 import { generateUUID } from '@/lib/utils';
 import items from '@/routes/items';
 import type { CostMethod, Item, ItemType, YesNo } from '../types/Item';
@@ -57,11 +58,14 @@ const emptyUnit: ItemUnitRow = {
     conversion_factor: 1,
 };
 
-const emptyPrice: ItemPriceRow = {
-    price_list_id: '',
-    price: 0,
-    currency: 'USD',
-};
+/** Un precio nace en la moneda en la que la empresa lleva sus cifras. */
+function emptyPrice(currency: string): ItemPriceRow {
+    return {
+        price_list_id: '',
+        price: 0,
+        currency,
+    };
+}
 
 /**
  * Solo se editan las filas activas del detalle: las inactivas se conservan en
@@ -96,6 +100,8 @@ export function useItemForm({
 }: UseItemFormProps) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
+    const configuration = useConfiguration();
+    const baseCurrency = configuration?.base_currency ?? '';
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<ItemFormData>({
@@ -159,7 +165,7 @@ export function useItemForm({
         );
 
     const addPrice = () =>
-        setData('prices', [...data.prices, { ...emptyPrice }]);
+        setData('prices', [...data.prices, emptyPrice(baseCurrency)]);
 
     const removePrice = (index: number) =>
         setData(

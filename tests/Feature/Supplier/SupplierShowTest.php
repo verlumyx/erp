@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\Configuration\Models\Configuration;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Supplier\Models\SupplierAddress;
 use App\Modules\Supplier\Models\SupplierContact;
@@ -63,6 +64,27 @@ test('the edit form is rendered with the supplier and its options', function () 
                 ->component('suppliers/edit')
                 ->where('supplier.id', $supplier->id)
                 ->has('options.supplierTypes')
+        );
+});
+
+/**
+ * El formulario estrena la moneda de la empresa, no un `USD` fijo: la toma de
+ * la configuración compartida por Inertia.
+ */
+test('the create form receives the company currency', function () {
+    [$user, $company] = createUserWithCompany();
+
+    Configuration::query()
+        ->where('company_id', $company->id)
+        ->update(['base_currency' => 'EUR']);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('suppliers.create', ['company' => $company->id]))
+        ->assertInertia(
+            fn ($page) => $page
+                ->component('suppliers/create')
+                ->where('configuration.base_currency', 'EUR')
         );
 });
 
