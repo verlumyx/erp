@@ -21,10 +21,18 @@ DECLARE
     v_mod_items       UUID;
     v_mod_warehouses  UUID;
     v_mod_wh_locs     UUID;
+    v_mod_item_lots   UUID;
+    v_mod_item_serial UUID;
+    v_mod_item_stocks UUID;
+    v_mod_inv_moves   UUID;
     v_mod_suppliers   UUID;
     v_mod_sales_ord   UUID;
     v_mod_purch_ord   UUID;
     v_mod_purch_inv   UUID;
+    v_mod_purch_ncp   UUID;
+    v_mod_sup_adv     UUID;
+    v_mod_sup_pay     UUID;
+    v_mod_purch_ret   UUID;
     v_mod_sales_inv   UUID;
 BEGIN
 
@@ -54,7 +62,15 @@ BEGIN
         (gen_random_uuid(), 'taxes', 'Impuestos', 'Catálogo de impuestos y retenciones', 'Percent', true, 17, NOW(), NOW()),
         (gen_random_uuid(), 'configuration', 'Configuración', 'Moneda principal, tasa y decimales de la empresa', 'Settings', true, 18, NOW(), NOW()),
         (gen_random_uuid(), 'purchase-invoices', 'Facturas de compra', 'Deuda con el proveedor: genera la cuenta por pagar y el costo de la mercancía', 'ReceiptText', true, 19, NOW(), NOW()),
-        (gen_random_uuid(), 'sales-invoices', 'Facturas de venta', 'Documento fiscal: genera la cuenta por cobrar y descarga inventario', 'ReceiptText', true, 20, NOW(), NOW())
+        (gen_random_uuid(), 'sales-invoices', 'Facturas de venta', 'Documento fiscal: genera la cuenta por cobrar y descarga inventario', 'ReceiptText', true, 20, NOW(), NOW()),
+        (gen_random_uuid(), 'item-lots', 'Lotes', 'Lotes de artículos con fabricación y vencimiento', 'Layers', true, 21, NOW(), NOW()),
+        (gen_random_uuid(), 'item-serials', 'Series', 'Números de serie: cada unidad se controla por separado', 'Barcode', true, 22, NOW(), NOW()),
+        (gen_random_uuid(), 'item-stocks', 'Existencias', 'Saldo actual por artículo, bodega, ubicación y lote', 'Boxes', true, 23, NOW(), NOW()),
+        (gen_random_uuid(), 'inventory-movements', 'Kardex', 'Libro mayor del inventario: una fila por cada afectación de existencia', 'ArrowLeftRight', true, 24, NOW(), NOW()),
+        (gen_random_uuid(), 'purchase-credit-notes', 'Notas de crédito a proveedor', 'Disminuye la deuda con el proveedor: devoluciones, descuentos y correcciones de precio', 'FileMinus', true, 25, NOW(), NOW()),
+        (gen_random_uuid(), 'supplier-advances', 'Anticipos a proveedor', 'Dinero entregado antes de la factura: queda como saldo a favor del proveedor', 'HandCoins', true, 26, NOW(), NOW()),
+        (gen_random_uuid(), 'supplier-payments', 'Pagos a proveedor', 'Salida de dinero que cancela una o varias facturas de compra', 'Banknote', true, 27, NOW(), NOW()),
+        (gen_random_uuid(), 'purchase-returns', 'Devoluciones de compras', 'Salida física de mercancía hacia el proveedor por defectos, exceso o error de despacho', 'Undo2', true, 28, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -77,7 +93,15 @@ BEGIN
     SELECT id INTO v_mod_taxes       FROM app_modules WHERE name = 'taxes';
     SELECT id INTO v_mod_config      FROM app_modules WHERE name = 'configuration';
     SELECT id INTO v_mod_purch_inv   FROM app_modules WHERE name = 'purchase-invoices';
+    SELECT id INTO v_mod_purch_ncp   FROM app_modules WHERE name = 'purchase-credit-notes';
+    SELECT id INTO v_mod_sup_adv     FROM app_modules WHERE name = 'supplier-advances';
+    SELECT id INTO v_mod_sup_pay     FROM app_modules WHERE name = 'supplier-payments';
+    SELECT id INTO v_mod_purch_ret   FROM app_modules WHERE name = 'purchase-returns';
     SELECT id INTO v_mod_sales_inv   FROM app_modules WHERE name = 'sales-invoices';
+    SELECT id INTO v_mod_item_lots   FROM app_modules WHERE name = 'item-lots';
+    SELECT id INTO v_mod_item_serial FROM app_modules WHERE name = 'item-serials';
+    SELECT id INTO v_mod_item_stocks FROM app_modules WHERE name = 'item-stocks';
+    SELECT id INTO v_mod_inv_moves   FROM app_modules WHERE name = 'inventory-movements';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -256,6 +280,46 @@ BEGIN
         (gen_random_uuid(), v_mod_purch_inv, 'purchase-invoices.update-status', 'Confirmar o anular una factura',   true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
+    -- Notas de crédito a proveedor
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_purch_ncp, 'purchase-credit-notes.list',          'Listar notas de crédito a proveedor',   true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ncp, 'purchase-credit-notes.create',        'Crear notas de crédito a proveedor',    true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ncp, 'purchase-credit-notes.show',          'Ver detalle de una nota de crédito',    true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ncp, 'purchase-credit-notes.update',        'Editar notas de crédito a proveedor',   true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ncp, 'purchase-credit-notes.update-status', 'Confirmar o anular una nota de crédito', true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Anticipos a proveedor
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_sup_adv, 'supplier-advances.list',          'Listar anticipos a proveedor',    true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_adv, 'supplier-advances.create',        'Registrar anticipos a proveedor', true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_adv, 'supplier-advances.show',          'Ver detalle de un anticipo',      true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_adv, 'supplier-advances.update',        'Editar anticipos a proveedor',    true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_adv, 'supplier-advances.update-status', 'Aprobar o anular un anticipo',    true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Pagos a proveedor
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_sup_pay, 'supplier-payments.list',          'Listar pagos a proveedor',       true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_pay, 'supplier-payments.create',        'Registrar pagos a proveedor',    true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_pay, 'supplier-payments.show',          'Ver detalle de un pago',         true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_pay, 'supplier-payments.update',        'Editar pagos a proveedor',       true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sup_pay, 'supplier-payments.update-status', 'Confirmar o anular un pago',     true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Devoluciones de compras
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_purch_ret, 'purchase-returns.list',          'Listar devoluciones de compras',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ret, 'purchase-returns.create',        'Crear devoluciones de compras',         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ret, 'purchase-returns.show',          'Ver detalle de una devolución',         true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ret, 'purchase-returns.update',        'Editar devoluciones de compras',        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_purch_ret, 'purchase-returns.update-status', 'Confirmar o anular una devolución',     true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
     -- Facturas de venta
     INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
     VALUES
@@ -282,6 +346,47 @@ BEGIN
     VALUES
         (gen_random_uuid(), v_mod_config, 'configuration.show',   'Ver la configuración de la empresa',    true, 1, NOW(), NOW()),
         (gen_random_uuid(), v_mod_config, 'configuration.update', 'Editar la configuración de la empresa', true, 2, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Lotes
+    -- Sin permiso de creación: el lote nace en el documento que recibe la
+    -- mercancía, no en una pantalla propia.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_item_lots, 'item-lots.list',          'Listar lotes',            true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_lots, 'item-lots.show',          'Ver detalle de lote',     true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_lots, 'item-lots.update',        'Editar lotes',            true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_lots, 'item-lots.update-status', 'Retener o liberar lote',  true, 4, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Series
+    -- Sin permiso de creación: la serie nace al recibir la mercancía.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_item_serial, 'item-serials.list',          'Listar series',            true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_serial, 'item-serials.show',          'Ver detalle de serie',     true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_serial, 'item-serials.update',        'Editar series',            true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_serial, 'item-serials.update-status', 'Cambiar estado de serie',  true, 4, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Existencias
+    -- Tabla derivada: se consulta y, cuando el saldo queda en cero, se retira.
+    -- No lleva permisos de creación ni de edición.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_item_stocks, 'item-stocks.list',          'Listar existencias',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_stocks, 'item-stocks.show',          'Ver detalle de existencia', true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_item_stocks, 'item-stocks.update-status', 'Retirar un saldo en cero',  true, 3, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Kardex
+    -- Libro mayor inmutable: solo se consulta. El movimiento lo emite el
+    -- documento que afecta el inventario, así que no lleva permisos de
+    -- creación, edición ni cambio de estado.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_inv_moves, 'inventory-movements.list', 'Listar movimientos de inventario', true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_inv_moves, 'inventory-movements.show', 'Ver detalle de un movimiento',     true, 2, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
 END $$;

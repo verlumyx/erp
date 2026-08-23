@@ -308,14 +308,33 @@ Pagos entregados antes de recibir la factura. Quedan como saldo a favor aplicabl
 | `cancelled_at`      | `timestamp`     | Sí   |              |                                                              |
 | `notes`             | `text`          | Sí   |              |                                                              |
 
-**Estados (`status`):** `draft` → `confirmed` → `partial` → `completed` (agotado), o `cancelled`.
+**Estados (`status`):** `draft` → `pending_confirmation` → `confirmed` → `partial` → `completed` (agotado), o
+`cancelled` desde `draft` / `pending_confirmation`.
 
 **Índices:** `index(supplier_id)`, `index(advance_date)`, `index(balance)`, `index(purchase_order_id)`.
 
+### 5.1 Aprobación y pago espejo
+
+El anticipo no mueve dinero por sí solo: lo mueve el pago que genera. Aprobar un anticipo lo deja *comprometido*, no
+*entregado*, y esa distinción es la que sostiene el estado intermedio.
+
+1. **`draft`** — se captura el anticipo. Todavía es editable y no afecta ningún saldo.
+2. **Aprobar** — pasa a `pending_confirmation` y se crea automáticamente un pago `PGP` en `draft` con
+   `origin_type = 'advance'` y `origin_id` = id del anticipo, copiando `supplier_id`, `advance_date` →
+   `payment_date`, `payment_method`, `reference`, `bank_account`, `currency`, `exchange_rate` y `amount`. El pago nace
+   **sin aplicaciones a facturas**.
+3. **Confirmar el pago** — el anticipo pasa a `confirmed` y solo entonces aumenta el `advance_balance` del proveedor y
+   queda disponible para aplicarse a facturas.
+4. **Anular el pago** — el anticipo vuelve a `draft`. Puede corregirse y aprobarse de nuevo, lo que genera un pago
+   nuevo; conserva su `code` `ANP`.
+
 **Reglas**
 
-- Al confirmar, aumenta `advance_balance` del proveedor.
-- Se aplica a facturas mediante `app_supplier_payment_applications` (tipo `advance`).
+- En `pending_confirmation` el anticipo no suma al `advance_balance` del proveedor ni puede aplicarse a facturas.
+- Un anticipo no puede tener más de un pago asociado en estado distinto de `cancelled`.
+- El pago espejo no es editable: solo se confirma o se anula. Monto, moneda, tasa, proveedor y método son propiedad del
+  anticipo y se corrigen allí, con el anticipo de vuelta en `draft`.
+- Se aplica a facturas mediante `app_supplier_payment_applications` (tipo `advance`), solo desde `confirmed`.
 - No se puede anular si tiene `applied_amount > 0`.
 
 ---
@@ -324,11 +343,41 @@ Pagos entregados antes de recibir la factura. Quedan como saldo a favor aplicabl
 
 Salida de dinero que cancela una o varias facturas. Un pago puede combinar efectivo, anticipos y notas de crédito.
 
-### 6.1 Cabecera — `app_supplier_payments` — Prefijo `PGP`
+### 6.1 Origen del pago
+
+El formulario arranca con un selector **«Aplicar pago a»** que decide de dónde sale el trabajo y qué se ofrece en el
+resto de la pantalla. Un segundo select, dependiente del primero, elige el registro concreto.
+
+| «Aplicar pago a» | Segundo select                                           | Qué hace                                                                                         |
+|------------------|----------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| **Proveedor**    | Proveedores con `current_balance > 0`                    | Lista **todas** las facturas del proveedor con `balance > 0` para repartir el monto entre ellas. |
+| **Factura**      | Facturas `FCO` con `balance > 0`, de cualquier proveedor | Fija el proveedor y precarga esa factura en las aplicaciones. Pueden sumarse otras del mismo.    |
+| **Anticipo**     | —                                                        | Solo de lectura: identifica un pago espejo ya generado. Ver [5.1](#51-aprobación-y-pago-espejo). |
+
+Al crear, el selector ofrece únicamente **Proveedor** y **Factura**. **Anticipo** es el tercer valor posible de
+`origin_type`, pero no un camino de creación: esos pagos nacen al aprobar un `ANP` y el formulario los muestra con el
+origen fijo y en modo lectura.
+
+Junto al selector se muestran dos indicadores del proveedor elegido, que se recalculan al cambiarlo:
+
+- **Saldo por pagar** — suma de `balance` de sus facturas `FCO` abiertas; equivale a su `current_balance`.
+- **Crédito a favor** — `advance_balance` del proveedor más el saldo de sus notas de crédito `NCP`. Es lo aplicable sin
+  desembolsar dinero.
+
+**Reglas**
+
+- Solo se ofrecen facturas con `balance > 0` que no estén anuladas, y siempre de un único proveedor: un `PGP` no cruza
+  proveedores.
+- El origen se congela en la cabecera (`origin_type` / `origin_id`) al crear el pago; no se cambia después.
+- Con origen `advance` el pago se crea desde el módulo de anticipos, nunca desde esta pantalla.
+
+### 6.2 Cabecera — `app_supplier_payments` — Prefijo `PGP`
 
 | Columna               | Tipo            | Nulo | Default      | Descripción                                                             |
 |-----------------------|-----------------|------|--------------|-------------------------------------------------------------------------|
 | `supplier_id`         | `uuid`          | No   |              | FK → `app_suppliers.id` (`restrictOnDelete`).                           |
+| `origin_type`         | `enum`          | No   | `'supplier'` | `supplier`, `invoice`, `advance`. Desde dónde se inició el pago.        |
+| `origin_id`           | `uuid`          | Sí   |              | Id de la factura o del anticipo. Nulo cuando `origin_type = supplier`.  |
 | `payment_date`        | `date`          | No   |              |                                                                         |
 | `payment_method`      | `enum`          | No   | `'transfer'` | `cash`, `transfer`, `check`, `card`, `advance`, `credit_note`, `other`. |
 | `reference`           | `string(60)`    | Sí   |              | Número de cheque, transferencia o comprobante.                          |
@@ -338,16 +387,24 @@ Salida de dinero que cancela una o varias facturas. Un pago puede combinar efect
 | `amount`              | `decimal(18,2)` | No   | `0`          | Monto bruto del pago.                                                   |
 | `withholding_amount`  | `decimal(18,2)` | No   | `0`          | Retenciones practicadas al pagar.                                       |
 | `applied_amount`      | `decimal(18,2)` | No   | `0`          | Suma de aplicaciones a facturas.                                        |
-| `unapplied_amount`    | `decimal(18,2)` | No   | `0`          | Excedente; se convierte en anticipo.                                    |
+| `unapplied_amount`    | `decimal(18,2)` | No   | `0`          | Excedente sin aplicar. Ver reglas.                                      |
 | `cancelled_at`        | `timestamp`     | Sí   |              |                                                                         |
 | `cancellation_reason` | `string(500)`   | Sí   |              |                                                                         |
 | `notes`               | `text`          | Sí   |              |                                                                         |
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
 
-**Índices:** `index(supplier_id)`, `index(payment_date)`, `index(payment_method)`.
+**Índices:** `index(supplier_id)`, `index(payment_date)`, `index(payment_method)`, `index(origin_type, origin_id)`.
 
-### 6.2 Aplicaciones — `app_supplier_payment_applications`
+**Reglas**
+
+- Con `origin_type` `supplier` o `invoice`, el `unapplied_amount` que quede al confirmar genera un anticipo `ANP` por
+  ese excedente, ya en `confirmed` (el dinero salió con este pago; no vuelve a pedir aprobación ni genera otro `PGP`).
+- Con `origin_type = 'advance'` el pago es el espejo del anticipo: `applied_amount = 0` y
+  `unapplied_amount = amount` por definición, y queda **exento** de la regla anterior — el anticipo ya existe. Sus
+  únicas acciones son confirmar y anular.
+
+### 6.3 Aplicaciones — `app_supplier_payment_applications`
 
 Tabla puente que registra **qué documento paga qué factura**. La usan pagos, anticipos y notas de crédito. Es tabla de
 detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la factura y su origen).
@@ -441,6 +498,8 @@ app_suppliers
      ├──> app_purchase_invoices ──> app_purchase_invoice_lines
      │            │
      │            ├──< app_supplier_payment_applications >── app_supplier_payments
+     │            │                                       │        ▲
+     │            │                                       │        │ (aprobar → pago espejo)
      │            │                                       ├── app_supplier_advances
      │            │                                       └── app_purchase_credit_notes
      │            │

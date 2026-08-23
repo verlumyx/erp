@@ -13,6 +13,8 @@ use App\Modules\PurchaseInvoice\Commands\PurchaseInvoiceLineData;
 use App\Modules\PurchaseInvoice\Commands\SearchPurchaseInvoiceCommand;
 use App\Modules\PurchaseInvoice\Commands\UpdatePurchaseInvoiceCommand;
 use App\Modules\PurchaseInvoice\Commands\UpdateStatusPurchaseInvoiceCommand;
+use App\Modules\PurchaseInvoice\Commands\WritePurchaseInvoiceLineReturnCommand;
+use App\Modules\PurchaseInvoice\Commands\WritePurchaseInvoicePaymentCommand;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoiceLine;
 use App\Modules\PurchaseInvoice\Repositories\Contracts\PurchaseInvoiceRepositoryInterface;
@@ -128,6 +130,42 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
         }
 
         $model->update($attributes);
+    }
+
+    public function lockById(string $id, ?string $companyId = null): ?PurchaseInvoice
+    {
+        return PurchaseInvoice::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writePayment(PurchaseInvoice $model, WritePurchaseInvoicePaymentCommand $command): PurchaseInvoice
+    {
+        $model->update([
+            'paid_amount' => $command->paidAmount,
+            'balance' => $command->balance,
+            'payment_status' => $command->paymentStatus,
+        ]);
+
+        return $model;
+    }
+
+    public function lockLineById(string $id, ?string $companyId = null): ?PurchaseInvoiceLine
+    {
+        return PurchaseInvoiceLine::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeLineReturn(
+        PurchaseInvoiceLine $line,
+        WritePurchaseInvoiceLineReturnCommand $command,
+    ): PurchaseInvoiceLine {
+        $line->update(['returned_quantity' => $command->returnedQuantity]);
+
+        return $line;
     }
 
     /**

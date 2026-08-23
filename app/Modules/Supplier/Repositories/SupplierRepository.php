@@ -10,6 +10,7 @@ use App\Modules\Supplier\Commands\SupplierAddressData;
 use App\Modules\Supplier\Commands\SupplierContactData;
 use App\Modules\Supplier\Commands\UpdateStatusSupplierCommand;
 use App\Modules\Supplier\Commands\UpdateSupplierCommand;
+use App\Modules\Supplier\Commands\WriteSupplierBalancesCommand;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Supplier\Models\SupplierAddress;
 use App\Modules\Supplier\Models\SupplierContact;
@@ -106,6 +107,24 @@ class SupplierRepository extends SupplierFilters implements SupplierRepositoryIn
         $model->update([
             'status' => $command->status,
         ]);
+    }
+
+    public function lockById(string $id, ?string $companyId = null): ?Supplier
+    {
+        return Supplier::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeBalances(Supplier $model, WriteSupplierBalancesCommand $command): Supplier
+    {
+        $model->update([
+            'current_balance' => $command->currentBalance,
+            'advance_balance' => $command->advanceBalance,
+        ]);
+
+        return $model;
     }
 
     /**

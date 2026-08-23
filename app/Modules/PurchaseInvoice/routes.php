@@ -17,6 +17,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
         Route::prefix('purchase-invoices')->group(function () use ($uuid) {
             Route::get('/', [PurchaseInvoiceGetController::class, 'index'])->name('purchase-invoices.index');
             Route::get('/create', [PurchaseInvoiceGetController::class, 'create'])->name('purchase-invoices.create');
+            Route::get('/lookup', [PurchaseInvoiceGetController::class, 'lookup'])->name('purchase-invoices.lookup');
             Route::post('/', PurchaseInvoicePostController::class)->name('purchase-invoices.store');
             Route::get('/{id}', [PurchaseInvoiceGetController::class, 'show'])->where('id', $uuid)->name('purchase-invoices.show');
             Route::get('/{id}/edit', [PurchaseInvoiceGetController::class, 'edit'])->where('id', $uuid)->name('purchase-invoices.edit');

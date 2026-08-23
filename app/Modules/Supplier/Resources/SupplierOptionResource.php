@@ -29,6 +29,13 @@ class SupplierOptionResource extends JsonResource
                 'name' => $this->name,
                 'currency' => $this->currency,
                 'payment_term_days' => (int) $this->payment_term_days,
+                /**
+                 * Los dos indicadores que la pantalla de pagos muestra junto
+                 * al proveedor: lo que se le debe y el crédito que ya tiene a
+                 * favor.
+                 */
+                'current_balance' => (string) $this->current_balance,
+                'advance_balance' => (string) $this->advance_balance,
                 'status' => $this->status,
             ],
         ];

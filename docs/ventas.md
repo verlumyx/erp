@@ -347,14 +347,35 @@ Dinero recibido antes de facturar. Queda como saldo a favor del cliente.
 | `cancelled_at`    | `timestamp`     | Sí   |              |                                                            |
 | `notes`           | `text`          | Sí   |              |                                                            |
 
-**Estados (`status`):** `draft` → `confirmed` → `partial` → `completed`, o `cancelled`.
+**Estados (`status`):** `draft` → `pending_confirmation` → `confirmed` → `partial` → `completed`, o `cancelled` desde
+`draft` / `pending_confirmation`.
 
 **Índices:** `index(client_id)`, `index(advance_date)`, `index(balance)`, `index(sales_order_id)`.
 
+### 5.1 Aprobación y cobro espejo
+
+El anticipo no mueve dinero por sí solo: lo mueve el cobro que genera. Aprobar un anticipo lo deja *comprometido*, no
+*recibido*, y esa distinción es la que sostiene el estado intermedio.
+
+1. **`draft`** — se captura el anticipo. Todavía es editable y no afecta ningún saldo.
+2. **Aprobar** — pasa a `pending_confirmation` y se crea automáticamente un cobro `COB` en `draft` con
+   `origin_type = 'advance'` y `origin_id` = id del anticipo, copiando `client_id`, `advance_date` →
+   `collection_date`, `payment_method`, `reference`, `bank_account`, `currency`, `exchange_rate` y `amount`. El cobro
+   nace **sin aplicaciones a facturas**.
+3. **Confirmar el cobro** — el anticipo pasa a `confirmed` y solo entonces aumenta el `advance_balance` del cliente y
+   queda disponible para aplicarse a facturas.
+4. **Anular el cobro** — el anticipo vuelve a `draft`. Puede corregirse y aprobarse de nuevo, lo que genera un cobro
+   nuevo; conserva su `code` `ANC`.
+
 **Reglas**
 
-- Al confirmar, aumenta `advance_balance` del cliente.
-- Se aplica a facturas mediante `app_client_collection_applications` (tipo `advance`).
+- En `pending_confirmation` el anticipo no suma al `advance_balance` del cliente ni puede aplicarse a facturas.
+- Un anticipo no puede tener más de un cobro asociado en estado distinto de `cancelled`.
+- El cobro espejo no es editable: solo se confirma o se anula. Monto, moneda, tasa, cliente y método son propiedad del
+  anticipo y se corrigen allí, con el anticipo de vuelta en `draft`.
+- Si el cobro espejo se pagó con cheque y este rebota (`check_status = bounced`), el anticipo vuelve a `draft` igual que
+  al anularse: el dinero nunca entró.
+- Se aplica a facturas mediante `app_client_collection_applications` (tipo `advance`), solo desde `confirmed`.
 - No se puede anular con `applied_amount > 0`.
 
 ---
@@ -363,36 +384,74 @@ Dinero recibido antes de facturar. Queda como saldo a favor del cliente.
 
 Entrada de dinero que cancela una o varias facturas. Puede combinar efectivo, anticipos y notas de crédito.
 
-### 6.1 Cabecera — `app_client_collections` — Prefijo `COB`
+### 6.1 Origen del cobro
 
-| Columna               | Tipo            | Nulo | Default  | Descripción                                                             |
-|-----------------------|-----------------|------|----------|-------------------------------------------------------------------------|
-| `client_id`           | `uuid`          | No   |          | FK → `app_clients.id` (`restrictOnDelete`).                             |
-| `collection_date`     | `date`          | No   |          |                                                                         |
-| `payment_method`      | `enum`          | No   | `'cash'` | `cash`, `transfer`, `check`, `card`, `advance`, `credit_note`, `other`. |
-| `reference`           | `string(60)`    | Sí   |          | Número de cheque, voucher o transferencia.                              |
-| `bank_account`        | `string(60)`    | Sí   |          | Cuenta receptora.                                                       |
-| `collected_by`        | `uuid`          | Sí   |          | FK → `users.id`. Cobrador o vendedor que recibió.                       |
-| `route_id`            | `uuid`          | Sí   |          | FK → `app_routes.id`. Ruta en la que se cobró.                          |
-| `currency`            | `string(3)`     | No   | `'USD'`  |                                                                         |
-| `exchange_rate`       | `decimal(18,8)` | No   | `1`      |                                                                         |
-| `amount`              | `decimal(18,2)` | No   | `0`      | Monto recibido.                                                         |
-| `withholding_amount`  | `decimal(18,2)` | No   | `0`      | Retención soportada por el cliente.                                     |
-| `applied_amount`      | `decimal(18,2)` | No   | `0`      | Suma de aplicaciones.                                                   |
-| `unapplied_amount`    | `decimal(18,2)` | No   | `0`      | Excedente; se convierte en anticipo.                                    |
-| `check_number`        | `string(30)`    | Sí   |          |                                                                         |
-| `check_date`          | `date`          | Sí   |          | Fecha de cobro de cheques posfechados.                                  |
-| `check_status`        | `enum`          | Sí   |          | `pending`, `deposited`, `cleared`, `bounced`.                           |
-| `cancelled_at`        | `timestamp`     | Sí   |          |                                                                         |
-| `cancellation_reason` | `string(500)`   | Sí   |          |                                                                         |
-| `notes`               | `text`          | Sí   |          |                                                                         |
+El formulario arranca con un selector **«Aplicar cobro a»** que decide de dónde sale el trabajo y qué se ofrece en el
+resto de la pantalla. Un segundo select, dependiente del primero, elige el registro concreto.
+
+| «Aplicar cobro a» | Segundo select                                         | Qué hace                                                                                           |
+|-------------------|--------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| **Cliente**       | Clientes con `current_balance > 0`                     | Lista **todas** las facturas del cliente con `balance > 0` para repartir el monto entre ellas.     |
+| **Factura**       | Facturas `FVE` con `balance > 0`, de cualquier cliente | Fija el cliente y precarga esa factura en las aplicaciones. Pueden sumarse otras del mismo.        |
+| **Anticipo**      | —                                                      | Solo de lectura: identifica un cobro espejo ya generado. Ver [5.1](#51-aprobación-y-cobro-espejo). |
+
+Al crear, el selector ofrece únicamente **Cliente** y **Factura**. **Anticipo** es el tercer valor posible de
+`origin_type`, pero no un camino de creación: esos cobros nacen al aprobar un `ANC` y el formulario los muestra con el
+origen fijo y en modo lectura.
+
+Junto al selector se muestran dos indicadores del cliente elegido, que se recalculan al cambiarlo:
+
+- **Saldo por cobrar** — suma de `balance` de sus facturas `FVE` abiertas; equivale a su `current_balance`.
+- **Crédito a favor** — `advance_balance` del cliente más el saldo de sus notas de crédito `NCC`. Es lo aplicable sin
+  recibir dinero.
+
+**Reglas**
+
+- Solo se ofrecen facturas con `balance > 0` que no estén anuladas, y siempre de un único cliente: un `COB` no cruza
+  clientes.
+- El origen se congela en la cabecera (`origin_type` / `origin_id`) al crear el cobro; no se cambia después.
+- Con origen `advance` el cobro se crea desde el módulo de anticipos, nunca desde esta pantalla.
+
+### 6.2 Cabecera — `app_client_collections` — Prefijo `COB`
+
+| Columna               | Tipo            | Nulo | Default    | Descripción                                                             |
+|-----------------------|-----------------|------|------------|-------------------------------------------------------------------------|
+| `client_id`           | `uuid`          | No   |            | FK → `app_clients.id` (`restrictOnDelete`).                             |
+| `origin_type`         | `enum`          | No   | `'client'` | `client`, `invoice`, `advance`. Desde dónde se inició el cobro.         |
+| `origin_id`           | `uuid`          | Sí   |            | Id de la factura o del anticipo. Nulo cuando `origin_type = client`.    |
+| `collection_date`     | `date`          | No   |            |                                                                         |
+| `payment_method`      | `enum`          | No   | `'cash'`   | `cash`, `transfer`, `check`, `card`, `advance`, `credit_note`, `other`. |
+| `reference`           | `string(60)`    | Sí   |            | Número de cheque, voucher o transferencia.                              |
+| `bank_account`        | `string(60)`    | Sí   |            | Cuenta receptora.                                                       |
+| `collected_by`        | `uuid`          | Sí   |            | FK → `users.id`. Cobrador o vendedor que recibió.                       |
+| `route_id`            | `uuid`          | Sí   |            | FK → `app_routes.id`. Ruta en la que se cobró.                          |
+| `currency`            | `string(3)`     | No   | `'USD'`    |                                                                         |
+| `exchange_rate`       | `decimal(18,8)` | No   | `1`        |                                                                         |
+| `amount`              | `decimal(18,2)` | No   | `0`        | Monto recibido.                                                         |
+| `withholding_amount`  | `decimal(18,2)` | No   | `0`        | Retención soportada por el cliente.                                     |
+| `applied_amount`      | `decimal(18,2)` | No   | `0`        | Suma de aplicaciones.                                                   |
+| `unapplied_amount`    | `decimal(18,2)` | No   | `0`        | Excedente sin aplicar. Ver reglas.                                      |
+| `check_number`        | `string(30)`    | Sí   |            |                                                                         |
+| `check_date`          | `date`          | Sí   |            | Fecha de cobro de cheques posfechados.                                  |
+| `check_status`        | `enum`          | Sí   |            | `pending`, `deposited`, `cleared`, `bounced`.                           |
+| `cancelled_at`        | `timestamp`     | Sí   |            |                                                                         |
+| `cancellation_reason` | `string(500)`   | Sí   |            |                                                                         |
+| `notes`               | `text`          | Sí   |            |                                                                         |
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
 
 **Índices:** `index(client_id)`, `index(collection_date)`, `index(payment_method)`,
-`index(collected_by)`, `index(check_status)`.
+`index(collected_by)`, `index(check_status)`, `index(origin_type, origin_id)`.
 
-### 6.2 Aplicaciones — `app_client_collection_applications`
+**Reglas**
+
+- Con `origin_type` `client` o `invoice`, el `unapplied_amount` que quede al confirmar genera un anticipo `ANC` por ese
+  excedente, ya en `confirmed` (el dinero entró con este cobro; no vuelve a pedir aprobación ni genera otro `COB`).
+- Con `origin_type = 'advance'` el cobro es el espejo del anticipo: `applied_amount = 0` y
+  `unapplied_amount = amount` por definición, y queda **exento** de la regla anterior — el anticipo ya existe. Sus
+  únicas acciones son confirmar y anular.
+
+### 6.3 Aplicaciones — `app_client_collection_applications`
 
 Tabla puente que registra **qué documento abona qué factura**. La usan cobros, anticipos y notas de crédito. Es tabla de
 detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la factura y su origen).
@@ -492,6 +551,8 @@ app_price_lists ───┘                  ├──> app_client_addresses
      ├──> app_sales_invoices ──> app_sales_invoice_lines
      │            │
      │            ├──< app_client_collection_applications >── app_client_collections
+     │            │                                        │        ▲
+     │            │                                        │        │ (aprobar → cobro espejo)
      │            │                                        ├── app_client_advances
      │            │                                        └── app_sales_credit_notes
      │            │

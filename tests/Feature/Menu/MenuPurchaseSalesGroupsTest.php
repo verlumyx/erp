@@ -67,13 +67,29 @@ test('compras ships with proveedores as its first child', function () {
     expect($compras)->not->toBeNull()
         ->and($compras['url'])->toBeNull()
         ->and(collect($compras['children'])->pluck('title')->all())
-        ->toBe(['Proveedores', 'Órdenes de compra', 'Facturas de compra'])
+        ->toBe([
+            'Proveedores',
+            'Órdenes de compra',
+            'Facturas de compra',
+            'Notas de crédito a proveedor',
+            'Anticipos a proveedor',
+            'Pagos a proveedor',
+            'Devoluciones de compras',
+        ])
         ->and(collect($compras['children'])->firstWhere('title', 'Proveedores')['url'])
         ->toBe('/suppliers')
         ->and(collect($compras['children'])->firstWhere('title', 'Órdenes de compra')['url'])
         ->toBe('/purchase-orders')
         ->and(collect($compras['children'])->firstWhere('title', 'Facturas de compra')['url'])
-        ->toBe('/purchase-invoices');
+        ->toBe('/purchase-invoices')
+        ->and(collect($compras['children'])->firstWhere('title', 'Notas de crédito a proveedor')['url'])
+        ->toBe('/purchase-credit-notes')
+        ->and(collect($compras['children'])->firstWhere('title', 'Anticipos a proveedor')['url'])
+        ->toBe('/supplier-advances')
+        ->and(collect($compras['children'])->firstWhere('title', 'Pagos a proveedor')['url'])
+        ->toBe('/supplier-payments')
+        ->and(collect($compras['children'])->firstWhere('title', 'Devoluciones de compras')['url'])
+        ->toBe('/purchase-returns');
 });
 
 test('proveedores is hidden for a user without the suppliers.list permission', function () {
@@ -145,5 +161,5 @@ test('compras and ventas are ordered after inventario', function () {
         ->pluck('title')
         ->all();
 
-    expect($orders)->toBe(['Dashboard', 'Catálogo', 'Inventario', 'Compras', 'Ventas']);
+    expect($orders)->toBe(['Dashboard', 'Catálogo', 'Inventario', 'Compras', 'Ventas', 'Logística']);
 });

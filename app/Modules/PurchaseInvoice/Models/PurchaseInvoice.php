@@ -34,6 +34,14 @@ class PurchaseInvoice extends Model
     public const PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'overdue'];
 
     /**
+     * Estados en los que la factura ya generó su deuda y admite que se le
+     * aplique un pago. En borrador todavía no debe nada.
+     *
+     * @var array<int, string>
+     */
+    public const PAYABLE_STATUSES = ['confirmed', 'completed'];
+
+    /**
      * Alias del morph map admitidos como documento origen. Hoy solo la orden de
      * compra; mañana una solicitud o un contrato entran por aquí sin tocar la
      * tabla.

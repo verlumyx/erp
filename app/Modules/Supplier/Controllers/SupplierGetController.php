@@ -95,6 +95,8 @@ class SupplierGetController extends Controller
             filters: [
                 'q' => $request->string('q')->toString(),
                 'ids' => $ids,
+                /** Los pagos piden solo proveedores a los que se les debe algo. */
+                'with_balance' => $request->string('with_balance')->toString(),
                 /*
                  * Buscar ofrece solo proveedores activos; hidratar lo ya
                  * elegido no filtra por estado: un proveedor desactivado
