@@ -18,6 +18,8 @@ class CreateConfigurationCommand
         public readonly string $allowsRateOverride,
         public readonly int $amountDecimals,
         public readonly int $priceDecimals,
+        /** Impacto a partir del cual un ajuste necesita una segunda firma. */
+        public readonly float $adjustmentApprovalThreshold = 0.0,
         public readonly ?string $createdBy = null,
     ) {}
 
@@ -36,6 +38,7 @@ class CreateConfigurationCommand
             allowsRateOverride: 'yes',
             amountDecimals: 2,
             priceDecimals: 6,
+            adjustmentApprovalThreshold: 0.0,
             createdBy: $createdBy,
         );
     }

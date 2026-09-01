@@ -46,7 +46,11 @@ trait ValidatesSalesInvoicePayload
             ],
             'sourceable_id' => ['nullable', 'uuid', 'required_with:sourceable_type'],
             /** El despacho no entra al morph: es un documento paralelo. */
-            'dispatch_id' => ['nullable', 'uuid'],
+            'dispatch_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('app_dispatches', 'id')->where('company_id', $companyId),
+            ],
             'client_address_id' => [
                 'nullable',
                 'uuid',

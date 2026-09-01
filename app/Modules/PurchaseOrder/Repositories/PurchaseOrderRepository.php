@@ -13,6 +13,7 @@ use App\Modules\PurchaseOrder\Commands\PurchaseOrderLineData;
 use App\Modules\PurchaseOrder\Commands\SearchPurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Commands\UpdatePurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Commands\UpdateStatusPurchaseOrderCommand;
+use App\Modules\PurchaseOrder\Commands\WritePurchaseOrderLineReceiptCommand;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseOrder\Repositories\Contracts\PurchaseOrderRepositoryInterface;
@@ -102,6 +103,53 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
         }
 
         $model->update($attributes);
+    }
+
+    public function lockLineById(string $id, ?string $companyId = null): ?PurchaseOrderLine
+    {
+        return PurchaseOrderLine::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeLineReceipt(
+        PurchaseOrderLine $line,
+        WritePurchaseOrderLineReceiptCommand $command,
+    ): PurchaseOrderLine {
+        $line->update([
+            'received_quantity' => $command->receivedQuantity,
+            'pending_quantity' => $command->pendingQuantity,
+        ]);
+
+        return $line;
+    }
+
+    /**
+     * Avance de recepción de la orden: cuánto de lo pedido ya está en la
+     * bodega. Suma solo las líneas activas y no pasa del 100 % aunque el
+     * proveedor haya despachado de más.
+     */
+    public function refreshReceivedPercent(string $orderId): void
+    {
+        $order = PurchaseOrder::query()->find($orderId);
+
+        if ($order === null) {
+            return;
+        }
+
+        $lines = PurchaseOrderLine::query()
+            ->where('purchase_order_id', $order->id)
+            ->where('status', 'active')
+            ->get();
+
+        $ordered = (float) $lines->sum('quantity');
+
+        $order->update([
+            'received_percent' => $ordered > 0
+                ? min(round((float) $lines->sum('received_quantity') * 100 / $ordered, 4), 100)
+                : 0,
+        ]);
     }
 
     /**

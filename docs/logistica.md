@@ -29,7 +29,8 @@ Salida física de mercancía hacia el cliente. Descarga inventario y libera la r
 | Columna                  | Tipo            | Nulo | Default     | Descripción                                                                        |
 |--------------------------|-----------------|------|-------------|------------------------------------------------------------------------------------|
 | `client_id`              | `uuid`          | No   |             | FK → `app_clients.id` (`restrictOnDelete`).                                        |
-| `sales_order_id`         | `uuid`          | Sí   |             | FK → `app_sales_orders.id`. Pedido que se despacha.                                |
+| `sourceable_type`        | `string(255)`   | Sí   |             | Alias del documento origen en el morph map. Hoy solo `sales_order`.                |
+| `sourceable_id`          | `uuid`          | Sí   |             | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`.     |
 | `client_address_id`      | `uuid`          | Sí   |             | FK → `app_client_addresses.id`. Dirección de entrega.                              |
 | `warehouse_id`           | `uuid`          | No   |             | FK → `app_warehouses.id` (`restrictOnDelete`). Bodega de origen.                   |
 | `route_id`               | `uuid`          | Sí   |             | FK → `app_routes.id` (`nullOnDelete`). Ruta asignada.                              |
@@ -57,8 +58,32 @@ Salida física de mercancía hacia el cliente. Descarga inventario y libera la r
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
 
-**Índices:** `index(client_id)`, `index(sales_order_id)`, `index(dispatch_date)`, `index(route_id)`,
-`index(driver_id)`, `index(delivery_status)`, `index(warehouse_id)`.
+**Índices:** `index(client_id)`, `index(sourceable_type, sourceable_id)`, `index(dispatch_date)`,
+`index(route_id)`, `index(driver_id)`, `index(delivery_status)`, `index(warehouse_id)`.
+
+**Documento origen (`sourceable`)**
+
+El despacho no apunta al pedido con un FK directo: lo hace con una relación polimórfica `sourceable`
+(`morphTo`), y la orden de venta lo expone con `morphMany`. Así el mismo par de columnas admite mañana otros
+documentos de origen (contrato de suministro, traspaso a consignación) sin agregar una columna por cada uno.
+Es el mismo mecanismo que usan las facturas de venta ([Ventas](ventas.md)) y las facturas de compra
+([Compras](compras.md)).
+
+- `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
+  `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
+  datos ya guardados.
+- Tipos admitidos hoy: `sales_order` → `app_sales_orders`. Cualquier otro valor es inválido y se rechaza en el
+  Request.
+- Ambas columnas son nulas: un despacho directo (sin pedido previo) las deja vacías. Si una viene informada, la
+  otra es obligatoria.
+- El documento origen debe pertenecer a la misma empresa y al mismo cliente que el despacho.
+- Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
+  origen se protege por la política de no borrado.
+- `route_id` y `route_stop_id` **no** entran en el morph: siguen siendo FK directos, porque la ruta es la
+  planificación del viaje, no el documento que origina el despacho.
+- Las líneas repiten el par (`sourceable_type`, `sourceable_id`) apuntando a la línea del origen
+  (`sales_order_line`). El origen de la línea debe pertenecer al mismo documento que el `sourceable` de la
+  cabecera.
 
 ### 1.2 Líneas — `app_dispatch_lines`
 
@@ -66,7 +91,8 @@ Además de las columnas comunes de línea (los importes son informativos: el des
 
 | Columna               | Tipo            | Nulo | Default | Descripción                                                      |
 |-----------------------|-----------------|------|---------|------------------------------------------------------------------|
-| `sales_order_line_id` | `uuid`          | Sí   |         | FK → `app_sales_order_lines.id`.                                 |
+| `sourceable_type`     | `string(255)`   | Sí   |         | Alias de la línea origen (`sales_order_line`).                   |
+| `sourceable_id`       | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad al pedido.                   |
 | `lot_id`              | `uuid`          | Sí   |         | FK → `app_item_lots.id`. Obligatorio si el artículo maneja lote. |
 | `serial_id`           | `uuid`          | Sí   |         | FK → `app_item_serials.id`.                                      |
 | `location_id`         | `uuid`          | Sí   |         | Ubicación desde la que se toma.                                  |
@@ -152,7 +178,8 @@ documento previo (producción, donación, hallazgo).
 | Columna             | Tipo            | Nulo | Default      | Descripción                                                                              |
 |---------------------|-----------------|------|--------------|------------------------------------------------------------------------------------------|
 | `supplier_id`       | `uuid`          | Sí   |              | FK → `app_suppliers.id` (`restrictOnDelete`). Nulo si no viene de un proveedor.          |
-| `purchase_order_id` | `uuid`          | Sí   |              | FK → `app_purchase_orders.id`. Orden que se recibe.                                      |
+| `sourceable_type`   | `string(255)`   | Sí   |              | Alias del documento origen en el morph map. Hoy solo `purchase_order`.                   |
+| `sourceable_id`     | `uuid`          | Sí   |              | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`.           |
 | `warehouse_id`      | `uuid`          | No   |              | FK → `app_warehouses.id` (`restrictOnDelete`). Bodega de recepción.                      |
 | `entry_date`        | `date`          | No   |              | Fecha de recepción.                                                                      |
 | `entry_type`        | `enum`          | No   | `'purchase'` | `purchase`, `production`, `return`, `donation`, `initial` (inventario inicial), `other`. |
@@ -174,8 +201,30 @@ documento previo (producción, donación, hallazgo).
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
 
-**Índices:** `index(supplier_id)`, `index(purchase_order_id)`, `index(entry_date)`,
+**Índices:** `index(supplier_id)`, `index(sourceable_type, sourceable_id)`, `index(entry_date)`,
 `index(warehouse_id)`, `index(entry_type)`, `index(is_invoiced)`.
+
+**Documento origen (`sourceable`)**
+
+La entrada no apunta a la orden con un FK directo: lo hace con una relación polimórfica `sourceable`
+(`morphTo`), y la orden de compra la expone con `morphMany`. Así el mismo par de columnas admite mañana otros
+documentos de origen (orden de producción, devolución de cliente, contrato de suministro) sin agregar una
+columna por cada uno. Es el mismo mecanismo que usan las facturas de compra ([Compras](compras.md)).
+
+- `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
+  `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
+  datos ya guardados.
+- Tipos admitidos hoy: `purchase_order` → `app_purchase_orders`. Cualquier otro valor es inválido y se rechaza
+  en el Request.
+- Ambas columnas son nulas: las entradas sin documento previo (`production`, `donation`, `initial`) las dejan
+  vacías. Si una viene informada, la otra es obligatoria.
+- El documento origen debe pertenecer a la misma empresa y al mismo proveedor que la entrada. Si la entrada no
+  tiene `supplier_id`, tampoco puede tener origen.
+- Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
+  origen se protege por la política de no borrado.
+- Las líneas repiten el par (`sourceable_type`, `sourceable_id`) apuntando a la línea del origen
+  (`purchase_order_line`). El origen de la línea debe pertenecer al mismo documento que el `sourceable` de la
+  cabecera.
 
 ### 3.2 Líneas — `app_entry_lines`
 
@@ -183,7 +232,8 @@ Además de las columnas comunes de línea:
 
 | Columna                  | Tipo            | Nulo | Default | Descripción                                            |
 |--------------------------|-----------------|------|---------|--------------------------------------------------------|
-| `purchase_order_line_id` | `uuid`          | Sí   |         | FK → `app_purchase_order_lines.id`.                    |
+| `sourceable_type`        | `string(255)`   | Sí   |         | Alias de la línea origen (`purchase_order_line`).      |
+| `sourceable_id`          | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad a la orden.        |
 | `location_id`            | `uuid`          | Sí   |         | Ubicación donde se almacena.                           |
 | `lot_number`             | `string(60)`    | Sí   |         | Lote del proveedor; crea `app_item_lots` si no existe. |
 | `lot_id`                 | `uuid`          | Sí   |         | FK → `app_item_lots.id`.                               |

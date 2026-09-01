@@ -51,6 +51,9 @@ class SalesOrderOptionResource extends JsonResource
                         'measurement_unit_name' => $line->measurementUnit?->name,
                         'quantity' => (string) $line->quantity,
                         'invoiced_quantity' => (string) $line->invoiced_quantity,
+                        /** Lo ya despachado: de ahí sale cuánto queda por sacar. */
+                        'dispatched_quantity' => (string) $line->dispatched_quantity,
+                        'reserved_quantity' => (string) $line->reserved_quantity,
                         'unit_price' => (string) $line->unit_price,
                         'discount_percent' => (string) $line->discount_percent,
                         'tax_id' => $line->tax_id,

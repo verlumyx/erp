@@ -114,6 +114,20 @@ class ItemStockRepository extends ItemStockFilters implements ItemStockRepositor
         ];
     }
 
+    public function companyBalance(?string $companyId, string $itemId): array
+    {
+        $row = ItemStock::query()
+            ->selectRaw('COALESCE(SUM(quantity), 0) as quantity, COALESCE(SUM(total_value), 0) as value')
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->where('item_id', $itemId)
+            ->first();
+
+        return [
+            'quantity' => (float) ($row?->quantity ?? 0),
+            'value' => (float) ($row?->value ?? 0),
+        ];
+    }
+
     /**
      * @return array{ data: ItemStock[], total: int }
      */

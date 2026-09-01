@@ -27,6 +27,7 @@ class ConfigurationResource extends JsonResource
             'allows_rate_override' => $this->allows_rate_override,
             'amount_decimals' => $this->amount_decimals,
             'price_decimals' => $this->price_decimals,
+            'adjustment_approval_threshold' => $this->adjustment_approval_threshold,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

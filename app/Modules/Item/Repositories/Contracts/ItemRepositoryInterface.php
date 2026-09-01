@@ -8,6 +8,7 @@ use App\Modules\Item\Commands\CreateItemCommand;
 use App\Modules\Item\Commands\SearchItemCommand;
 use App\Modules\Item\Commands\UpdateItemCommand;
 use App\Modules\Item\Commands\UpdateStatusItemCommand;
+use App\Modules\Item\Commands\WriteItemAverageCostCommand;
 use App\Modules\Item\Models\Item;
 
 interface ItemRepositoryInterface
@@ -21,6 +22,12 @@ interface ItemRepositoryInterface
     public function update(Item $model, UpdateItemCommand $command): void;
 
     public function updateStatus(Item $model, UpdateStatusItemCommand $command): void;
+
+    /**
+     * Escribe el costo promedio ya resuelto. Solo lo llama
+     * `ItemApplyAverageCostService`.
+     */
+    public function writeAverageCost(Item $model, WriteItemAverageCostCommand $command): Item;
 
     /** @return array{ data: Item[], total: int } */
     public function search(SearchItemCommand $command): array;

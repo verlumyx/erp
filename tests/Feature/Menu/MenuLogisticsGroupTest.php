@@ -31,12 +31,29 @@ test('seeding twice does not duplicate the logistica group', function () {
 });
 
 /**
- * El grupo nace vacío: sus módulos (Despachos, Traslados, Entradas, Rutas y
- * Ajustes) aún no existen, así que no debe asomarse en el sidebar.
+ * El grupo se asoma en cuanto tiene un hijo visible. Despachos es el primero;
+ * faltan Traslados, Entradas, Rutas y Ajustes.
  */
-test('the logistica group is hidden while it has no children', function () {
+test('the logistica group shows up once it has a visible child', function () {
     [$user, $company] = createUserWithCompany();
     $this->seed(MenuSeeder::class);
+
+    session(['current_company_id' => $company->id]);
+
+    $menus = app(GetActiveMenusService::class)->execute($user->fresh());
+
+    $group = collect($menus['mainNavItems'])->firstWhere('title', 'Logística');
+
+    expect($group)->not->toBeNull();
+    expect(collect($group['children'])->pluck('title')->all())->toContain('Despachos');
+});
+
+test('the logistica group is hidden for a user who cannot see any of its modules', function () {
+    [$user, $company] = createUserWithCompany();
+    $this->seed(MenuSeeder::class);
+
+    /** Sin permisos de ningún módulo de Logística el grupo se queda sin hijos. */
+    assignRoleWithPermissions($user, $company, ['clients.list']);
 
     session(['current_company_id' => $company->id]);
 

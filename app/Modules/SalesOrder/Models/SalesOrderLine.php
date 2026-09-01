@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\SalesOrder\Models;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Dispatch\Models\DispatchLine;
 use App\Modules\Item\Models\Item;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
@@ -108,6 +109,12 @@ class SalesOrderLine extends Model
     public function salesInvoiceLines(): MorphMany
     {
         return $this->morphMany(SalesInvoiceLine::class, 'sourceable');
+    }
+
+    /** Líneas de despacho que sacaron mercancía de esta línea del pedido. */
+    public function dispatchLines(): MorphMany
+    {
+        return $this->morphMany(DispatchLine::class, 'sourceable');
     }
 
     protected static function newFactory(): SalesOrderLineFactory

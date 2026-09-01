@@ -37,6 +37,15 @@ class SalesInvoice extends Model
     public const EDITABLE_STATUSES = ['draft'];
 
     /**
+     * Estados en los que la factura ya generó su cuenta por cobrar y admite
+     * que un cobro, un anticipo o una nota de crédito la abone. En borrador
+     * todavía no debe nada; anulada ya no debe.
+     *
+     * @var array<int, string>
+     */
+    public const COLLECTIBLE_STATUSES = ['confirmed', 'completed'];
+
+    /**
      * Alias del morph map admitidos como documento origen. Hoy solo la orden
      * de venta; mañana una cotización o un ticket de punto de venta entran
      * aquí sin tocar la tabla.

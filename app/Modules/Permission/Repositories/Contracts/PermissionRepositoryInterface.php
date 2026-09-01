@@ -29,7 +29,7 @@ interface PermissionRepositoryInterface
     public function getAllPermissionsFlat(): array;
 
     /**
-     * @return array<array{id: string, name: string, label: string, icon: string|null, permissions: array<array{id: string, action: string, label: string}>}>
+     * @return array<array{id: string, name: string, label: string, icon: string|null, group: array{title: string, icon: string|null}|null, permissions: array<array{id: string, action: string, label: string}>}>
      */
     public function getAllGroupedByModule(): array;
 }

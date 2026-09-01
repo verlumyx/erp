@@ -300,12 +300,47 @@ class MenuSeeder extends Seeder
                         'is_active' => true,
                         'section' => 'main',
                     ],
+                    [
+                        'title' => 'Notas de crédito a cliente',
+                        'icon' => 'FileMinus',
+                        'url' => '/sales-credit-notes',
+                        'permission' => 'sales-credit-notes.list',
+                        'order' => 4,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Anticipos de clientes',
+                        'icon' => 'HandCoins',
+                        'url' => '/client-advances',
+                        'permission' => 'client-advances.list',
+                        'order' => 5,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Cobros a clientes',
+                        'icon' => 'Banknote',
+                        'url' => '/client-collections',
+                        'permission' => 'client-collections.list',
+                        'order' => 6,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Devoluciones de ventas',
+                        'icon' => 'Undo2',
+                        'url' => '/sales-returns',
+                        'permission' => 'sales-returns.list',
+                        'order' => 7,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
                 ],
             ],
             /**
-             * Logística: grupo padre sin URL ni permiso propio. Permanece oculto
-             * hasta que tenga al menos un hijo visible (Despachos, Traslados,
-             * Entradas, Rutas, Ajustes).
+             * Logística: grupo padre sin URL ni permiso propio. Se muestra solo
+             * si al menos uno de sus hijos es visible para el usuario.
              */
             [
                 'parent_id' => null,
@@ -316,6 +351,53 @@ class MenuSeeder extends Seeder
                 'order' => 7,
                 'is_active' => true,
                 'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Despachos',
+                        'icon' => 'Truck',
+                        'url' => '/dispatches',
+                        'permission' => 'dispatches.list',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Traslados',
+                        'icon' => 'ArrowLeftRight',
+                        'url' => '/transfers',
+                        'permission' => 'transfers.list',
+                        'order' => 2,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Entradas',
+                        'icon' => 'PackagePlus',
+                        'url' => '/entries',
+                        'permission' => 'entries.list',
+                        'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Rutas',
+                        'icon' => 'Route',
+                        'url' => '/routes',
+                        'permission' => 'routes.list',
+                        'order' => 4,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Ajustes',
+                        'icon' => 'ClipboardCheck',
+                        'url' => '/adjustments',
+                        'permission' => 'adjustments.list',
+                        'order' => 5,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
             ],
 
             // Footer navigation (admin section)
@@ -341,7 +423,7 @@ class MenuSeeder extends Seeder
             ],
             [
                 'parent_id' => null,
-                'title' => 'Configuración',
+                'title' => 'Configuración de empresa',
                 'icon' => 'Settings',
                 'url' => '/configuration',
                 'permission' => 'configuration.show',

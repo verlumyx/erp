@@ -26,6 +26,7 @@ class UpdateConfigurationRequest extends FormRequest
             'allows_rate_override' => ['required', 'string', 'in:yes,no'],
             'amount_decimals' => ['required', 'integer', 'between:0,6'],
             'price_decimals' => ['required', 'integer', 'between:0,8'],
+            'adjustment_approval_threshold' => ['required', 'numeric', 'min:0'],
         ];
     }
 
@@ -44,6 +45,8 @@ class UpdateConfigurationRequest extends FormRequest
             'amount_decimals.between' => 'Los importes admiten entre 0 y 6 decimales.',
             'price_decimals.required' => 'Los decimales de los precios son obligatorios.',
             'price_decimals.between' => 'Los precios admiten entre 0 y 8 decimales.',
+            'adjustment_approval_threshold.required' => 'El umbral de aprobación de ajustes es obligatorio.',
+            'adjustment_approval_threshold.min' => 'El umbral de aprobación de ajustes no puede ser negativo.',
         ];
     }
 }

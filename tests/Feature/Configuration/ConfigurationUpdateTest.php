@@ -19,6 +19,7 @@ function configurationPayload(array $overrides = []): array
         'allows_rate_override' => 'yes',
         'amount_decimals' => 2,
         'price_decimals' => 6,
+        'adjustment_approval_threshold' => 0,
         ...$overrides,
     ];
 }
@@ -44,6 +45,32 @@ test('the configuration can be updated', function () {
         ->and($configuration->rate_type)->toBe('manual')
         ->and($configuration->allows_rate_override)->toBe('no')
         ->and($configuration->amount_decimals)->toBe(4);
+});
+
+test('the adjustment approval threshold is part of the configuration', function () {
+    [$user, $company] = createUserWithCompany();
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(route('configuration.update', ['company' => $company->id]), configurationPayload([
+            'adjustment_approval_threshold' => 1500.5,
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $configuration = Configuration::query()->where('company_id', $company->id)->first();
+
+    expect((float) $configuration->adjustment_approval_threshold)->toBe(1500.5);
+});
+
+test('the adjustment approval threshold cannot be negative', function () {
+    [$user, $company] = createUserWithCompany();
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(route('configuration.update', ['company' => $company->id]), configurationPayload([
+            'adjustment_approval_threshold' => -10,
+        ]))
+        ->assertSessionHasErrors('adjustment_approval_threshold');
 });
 
 test('a company can work only in bolivares', function () {

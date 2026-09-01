@@ -36,6 +36,13 @@ class ClientOptionResource extends JsonResource
                 'payment_term_days' => (int) $this->payment_term_days,
                 'discount_percent' => (string) $this->discount_percent,
                 'credit_blocked' => $this->credit_blocked,
+                /**
+                 * Los dos indicadores que la pantalla de cobros muestra junto
+                 * al cliente: lo que nos debe y el crédito que ya tiene a
+                 * favor.
+                 */
+                'current_balance' => (string) $this->current_balance,
+                'advance_balance' => (string) $this->advance_balance,
                 'status' => $this->status,
                 'addresses' => $this->addresses
                     ->where('status', 'active')

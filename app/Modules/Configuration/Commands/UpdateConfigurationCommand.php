@@ -15,6 +15,8 @@ class UpdateConfigurationCommand
         public readonly string $allowsRateOverride,
         public readonly int $amountDecimals,
         public readonly int $priceDecimals,
+        /** Impacto a partir del cual un ajuste necesita una segunda firma. */
+        public readonly float $adjustmentApprovalThreshold,
     ) {}
 
     public static function fromRequest(UpdateConfigurationRequest $request): self
@@ -30,6 +32,7 @@ class UpdateConfigurationCommand
             allowsRateOverride: $request->string('allows_rate_override')->toString(),
             amountDecimals: $request->integer('amount_decimals'),
             priceDecimals: $request->integer('price_decimals'),
+            adjustmentApprovalThreshold: round((float) $request->input('adjustment_approval_threshold', 0), 2),
         );
     }
 }

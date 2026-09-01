@@ -13,6 +13,7 @@ use App\Modules\SalesOrder\Commands\SalesOrderLineData;
 use App\Modules\SalesOrder\Commands\SearchSalesOrderCommand;
 use App\Modules\SalesOrder\Commands\UpdateSalesOrderCommand;
 use App\Modules\SalesOrder\Commands\UpdateStatusSalesOrderCommand;
+use App\Modules\SalesOrder\Commands\WriteSalesOrderLineDispatchCommand;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
@@ -340,6 +341,50 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
                 'status' => 'inactive',
             ]);
         }
+    }
+
+    public function lockLineById(string $id, ?string $companyId = null): ?SalesOrderLine
+    {
+        return SalesOrderLine::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeLineDispatch(
+        SalesOrderLine $line,
+        WriteSalesOrderLineDispatchCommand $command,
+    ): SalesOrderLine {
+        $line->update([
+            'dispatched_quantity' => $command->dispatchedQuantity,
+            'pending_quantity' => $command->pendingQuantity,
+            'reserved_quantity' => $command->reservedQuantity,
+        ]);
+
+        return $line;
+    }
+
+    /**
+     * Avance de despacho de la cabecera: cuánto de lo pedido ya salió, medido
+     * sobre las líneas activas. Un pedido sin líneas no ha despachado nada.
+     */
+    public function refreshDispatchedPercent(string $orderId): void
+    {
+        $lines = SalesOrderLine::query()
+            ->where('sales_order_id', $orderId)
+            ->where('status', 'active')
+            ->get();
+
+        $ordered = round((float) $lines->sum('quantity'), 4);
+        $dispatched = round((float) $lines->sum('dispatched_quantity'), 4);
+
+        SalesOrder::query()
+            ->whereKey($orderId)
+            ->update([
+                'dispatched_percent' => $ordered > 0
+                    ? round($dispatched * 100 / $ordered, 4)
+                    : 0,
+            ]);
     }
 
     /**

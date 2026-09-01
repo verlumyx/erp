@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\ClientCollection\Commands;
+
+use App\Modules\ClientCollection\Requests\CreateClientCollectionRequest;
+
+class CreateClientCollectionCommand
+{
+    /**
+     * @param  array<int, ClientCollectionApplicationData>  $applications
+     */
+    public function __construct(
+        public readonly string $id,
+        public readonly string $companyId,
+        public readonly string $clientId,
+        public readonly string $collectionDate,
+        public readonly string $createdBy,
+        public readonly array $applications = [],
+        /** `client` o `invoice`: el cobro espejo de un anticipo no nace aquí. */
+        public readonly string $originType = 'client',
+        public readonly ?string $originId = null,
+        public readonly string $paymentMethod = 'cash',
+        public readonly ?string $reference = null,
+        public readonly ?string $bankAccount = null,
+        public readonly ?string $collectedBy = null,
+        public readonly ?string $routeId = null,
+        /** El request siempre la exige: la pantalla la estrena con la de la empresa. */
+        public readonly string $currency = 'USD',
+        /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
+        public readonly ?string $exchangeRateOverride = null,
+        public readonly float $amount = 0,
+        public readonly float $withholdingAmount = 0,
+        public readonly ?string $checkNumber = null,
+        public readonly ?string $checkDate = null,
+        public readonly ?string $checkStatus = null,
+        public readonly ?string $notes = null,
+    ) {}
+
+    public static function fromRequest(CreateClientCollectionRequest $request, ?string $companyId = null): self
+    {
+        return new self(
+            id: $request->string('id')->toString(),
+            companyId: $companyId ?? $request->route('company'),
+            clientId: $request->string('client_id')->toString(),
+            collectionDate: $request->string('collection_date')->toString(),
+            createdBy: $request->user()->id,
+            applications: ClientCollectionApplicationData::collection($request->input('applications', [])),
+            originType: $request->string('origin_type', 'client')->toString(),
+            originId: $request->input('origin_id'),
+            paymentMethod: $request->string('payment_method', 'cash')->toString(),
+            reference: $request->input('reference'),
+            bankAccount: $request->input('bank_account'),
+            collectedBy: $request->input('collected_by'),
+            routeId: $request->input('route_id'),
+            currency: strtoupper($request->string('currency')->toString()),
+            exchangeRateOverride: $request->filled('exchange_rate')
+                ? (string) $request->input('exchange_rate')
+                : null,
+            amount: (float) $request->input('amount', 0),
+            withholdingAmount: (float) $request->input('withholding_amount', 0),
+            checkNumber: $request->input('check_number'),
+            checkDate: $request->input('check_date'),
+            checkStatus: $request->input('check_status'),
+            notes: $request->input('notes'),
+        );
+    }
+}

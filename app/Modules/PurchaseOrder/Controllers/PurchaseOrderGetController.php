@@ -11,6 +11,7 @@ use App\Modules\PurchaseOrder\Resources\PurchaseOrderOptionResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderResource;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFindService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFormOptionsService;
+use App\Modules\PurchaseOrder\Services\PurchaseOrderOptionSearchService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderSearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,6 +40,7 @@ class PurchaseOrderGetController extends Controller
         private readonly PurchaseOrderSearchService $searchService,
         private readonly PurchaseOrderFindService $findService,
         private readonly PurchaseOrderFormOptionsService $formOptionsService,
+        private readonly PurchaseOrderOptionSearchService $optionSearchService,
     ) {}
 
     public function index(Request $request): Response
@@ -117,7 +119,7 @@ class PurchaseOrderGetController extends Controller
             companyId: $company,
         );
 
-        $result = $this->searchService->execute($command);
+        $result = $this->optionSearchService->execute($command);
 
         return response()->json([
             'data' => array_map(

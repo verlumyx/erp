@@ -36,6 +36,7 @@ class Configuration extends Model
         'allows_rate_override',
         'amount_decimals',
         'price_decimals',
+        'adjustment_approval_threshold',
         'created_by',
     ];
 
@@ -52,6 +53,7 @@ class Configuration extends Model
         return [
             'amount_decimals' => 'integer',
             'price_decimals' => 'integer',
+            'adjustment_approval_threshold' => 'decimal:2',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

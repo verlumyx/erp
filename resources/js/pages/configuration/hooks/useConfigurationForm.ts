@@ -14,6 +14,7 @@ interface ConfigurationFormData {
     allows_rate_override: 'yes' | 'no';
     amount_decimals: number;
     price_decimals: number;
+    adjustment_approval_threshold: number;
 }
 
 interface PageProps {
@@ -36,6 +37,9 @@ export function useConfigurationForm({
             allows_rate_override: initialData.allows_rate_override,
             amount_decimals: initialData.amount_decimals,
             price_decimals: initialData.price_decimals,
+            adjustment_approval_threshold: Number(
+                initialData.adjustment_approval_threshold ?? 0,
+            ),
         });
 
     /**

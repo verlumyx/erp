@@ -98,12 +98,17 @@ class SalesOrderGetController extends Controller
             filters: [
                 'q' => $request->string('q')->toString(),
                 'ids' => $ids,
+                /** Los anticipos piden solo los pedidos del cliente elegido. */
+                'client_id' => $request->string('client_id')->toString(),
                 /*
-                 * Buscar ofrece solo pedidos que todavía admiten factura;
-                 * hidratar lo ya elegido no filtra: un pedido cumplido después
-                 * sigue siendo el origen de la factura que se está editando.
+                 * Buscar ofrece solo pedidos que todavía admiten el documento
+                 * que los pide —factura por defecto, despacho si lo pide la
+                 * pantalla de despachos—; hidratar lo ya elegido no filtra: un
+                 * pedido cumplido después sigue siendo el origen del documento
+                 * que se está editando.
                  */
-                'invoiceable' => $ids === '' ? 'yes' : '',
+                'invoiceable' => $ids === '' && ! $request->boolean('dispatchable') ? 'yes' : '',
+                'dispatchable' => $ids === '' && $request->boolean('dispatchable') ? 'yes' : '',
             ],
             limit: $perPage,
             offset: ($page - 1) * $perPage,

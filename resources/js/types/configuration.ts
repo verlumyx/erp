@@ -19,6 +19,11 @@ export type Configuration = {
     allows_rate_override: 'yes' | 'no';
     amount_decimals: number;
     price_decimals: number;
+    /**
+     * Impacto en el valor del inventario a partir del cual un ajuste necesita
+     * la firma de alguien distinto de quien lo registró.
+     */
+    adjustment_approval_threshold: string;
     created_at: string | null;
     updated_at: string | null;
 };

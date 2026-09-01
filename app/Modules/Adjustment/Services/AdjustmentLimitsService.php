@@ -1,0 +1,206 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Adjustment\Services;
+
+use App\Modules\Adjustment\Commands\AdjustmentLineData;
+use App\Modules\Adjustment\Models\Adjustment;
+use App\Modules\Item\Models\Item;
+use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
+use App\Modules\ItemLot\Models\ItemLot;
+use App\Modules\ItemSerial\Models\ItemSerial;
+use Illuminate\Validation\ValidationException;
+
+/**
+ * Lo que el ajuste no puede comprobar sin haber resuelto la existencia ni leído
+ * el maestro de artículos: que la dirección declarada sea la que las líneas
+ * realmente producen, que el lote y la serie correspondan a artículos que los
+ * llevan, y que una revaluación tenga un costo nuevo y algo que revaluar.
+ *
+ * Vive aparte de los servicios de acción porque Crear y Actualizar la necesitan
+ * igual: el ajuste se edita en borrador y cada guardado vuelve a comprobar lo
+ * mismo.
+ */
+class AdjustmentLimitsService
+{
+    public function __construct(
+        private readonly ItemRepositoryInterface $items,
+    ) {}
+
+    /**
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @param  array<int, array{factor: float, system: float, base_system: float, average: float}>  $stock
+     *
+     * @throws ValidationException
+     */
+    public function guard(
+        string $type,
+        string $direction,
+        ?string $companyId,
+        array $lines,
+        array $stock,
+    ): void {
+        $items = $this->itemsOf($companyId, $lines);
+
+        $this->guardTraceability($lines, $items);
+
+        if ($type === Adjustment::REVALUATION_TYPE) {
+            $this->guardRevaluation($lines, $stock);
+
+            return;
+        }
+
+        $this->guardDirection($direction, $lines, $stock);
+    }
+
+    /**
+     * La dirección declarada es una promesa sobre lo que el ajuste hace: un
+     * ajuste de solo aumentos no puede esconder un faltante, y al revés. El
+     * `mixed` no promete nada, así que no comprueba nada.
+     *
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @param  array<int, array{system: float}>  $stock
+     *
+     * @throws ValidationException
+     */
+    private function guardDirection(string $direction, array $lines, array $stock): void
+    {
+        if ($direction === 'mixed') {
+            return;
+        }
+
+        $errors = [];
+
+        foreach ($lines as $index => $line) {
+            if ($line->status !== 'active') {
+                continue;
+            }
+
+            $difference = round($line->countedQuantity - round($stock[$index]['system'] ?? 0.0, 4), 4);
+
+            if ($direction === 'in' && $difference < 0.0) {
+                $errors["lines.{$index}.counted_quantity"] = 'Este ajuste es solo de aumentos: esa línea deja un faltante.';
+            }
+
+            if ($direction === 'out' && $difference > 0.0) {
+                $errors["lines.{$index}.counted_quantity"] = 'Este ajuste es solo de disminuciones: esa línea deja un sobrante.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Una revaluación no cuenta: reexpresa lo que ya está. Exige un costo nuevo
+     * y existencia sobre la que aplicarlo, y no admite que lo contado difiera
+     * de lo que dice el sistema —eso sería otro tipo de ajuste—.
+     *
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @param  array<int, array{system: float, base_system: float}>  $stock
+     *
+     * @throws ValidationException
+     */
+    private function guardRevaluation(array $lines, array $stock): void
+    {
+        $errors = [];
+
+        foreach ($lines as $index => $line) {
+            if ($line->status !== 'active') {
+                continue;
+            }
+
+            $system = round($stock[$index]['system'] ?? 0.0, 4);
+
+            if (round($line->countedQuantity, 4) !== $system) {
+                $errors["lines.{$index}.counted_quantity"] = 'Una revaluación no mueve cantidad: lo contado tiene que ser lo que dice el sistema.';
+            }
+
+            if (($line->unitCost ?? 0.0) <= 0.0) {
+                $errors["lines.{$index}.unit_cost"] = 'Indica el costo nuevo con el que se revalúa la línea.';
+            }
+
+            if (round($stock[$index]['base_system'] ?? 0.0, 4) <= 0.0) {
+                $errors["lines.{$index}.item_id"] = 'No hay existencia de ese artículo en la bodega: no hay nada que revaluar.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * El lote y la serie solo tienen sentido en artículos que los llevan, y una
+     * serie identifica una unidad: contar dos de la misma serie no significa
+     * nada.
+     *
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @param  array<string, Item>  $items
+     *
+     * @throws ValidationException
+     */
+    private function guardTraceability(array $lines, array $items): void
+    {
+        $errors = [];
+
+        foreach ($lines as $index => $line) {
+            if ($line->status !== 'active') {
+                continue;
+            }
+
+            $item = $items[$line->itemId] ?? null;
+
+            if (! $item instanceof Item) {
+                continue;
+            }
+
+            if (filled($line->lotId) && ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
+                $errors["lines.{$index}.lot_id"] = 'Ese artículo no se controla por lote.';
+            }
+
+            if (blank($line->serialId)) {
+                continue;
+            }
+
+            if ($item->type !== ItemSerial::TRACKABLE_ITEM_TYPE) {
+                $errors["lines.{$index}.serial_id"] = 'Ese artículo no se controla por serie.';
+
+                continue;
+            }
+
+            if (! in_array(round($line->countedQuantity, 4), [0.0, 1.0], true)) {
+                $errors["lines.{$index}.counted_quantity"] = 'Una serie es una unidad: cuenta 1 si está o 0 si no está.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Artículos de las líneas, indexados por id y resueltos a través del
+     * repositorio de artículos: este módulo nunca consulta las tablas del
+     * módulo de inventario directamente.
+     *
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @return array<string, Item>
+     */
+    private function itemsOf(?string $companyId, array $lines): array
+    {
+        $items = [];
+
+        foreach (array_unique(array_map(static fn (AdjustmentLineData $line): string => $line->itemId, $lines)) as $itemId) {
+            $item = $this->items->findById($itemId, $companyId);
+
+            if ($item instanceof Item) {
+                $items[$itemId] = $item;
+            }
+        }
+
+        return $items;
+    }
+}

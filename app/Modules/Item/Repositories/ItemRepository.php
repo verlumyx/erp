@@ -10,6 +10,7 @@ use App\Modules\Item\Commands\ItemUnitData;
 use App\Modules\Item\Commands\SearchItemCommand;
 use App\Modules\Item\Commands\UpdateItemCommand;
 use App\Modules\Item\Commands\UpdateStatusItemCommand;
+use App\Modules\Item\Commands\WriteItemAverageCostCommand;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemPrice;
 use App\Modules\Item\Models\ItemUnit;
@@ -105,6 +106,13 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
         $model->update([
             'status' => $command->status,
         ]);
+    }
+
+    public function writeAverageCost(Item $model, WriteItemAverageCostCommand $command): Item
+    {
+        $model->update(['average_cost' => $command->averageCost]);
+
+        return $model;
     }
 
     /**

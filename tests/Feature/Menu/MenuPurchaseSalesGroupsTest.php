@@ -116,13 +116,25 @@ test('ventas ships with clientes as its first child', function () {
     expect($ventas)->not->toBeNull()
         ->and($ventas['url'])->toBeNull()
         ->and(collect($ventas['children'])->pluck('title')->all())
-        ->toBe(['Clientes', 'Órdenes de venta', 'Facturas de venta'])
+        ->toBe([
+            'Clientes',
+            'Órdenes de venta',
+            'Facturas de venta',
+            'Notas de crédito a cliente',
+            'Anticipos de clientes',
+            'Cobros a clientes',
+            'Devoluciones de ventas',
+        ])
         ->and(collect($ventas['children'])->firstWhere('title', 'Clientes')['url'])
         ->toBe('/clients')
         ->and(collect($ventas['children'])->firstWhere('title', 'Órdenes de venta')['url'])
         ->toBe('/sales-orders')
         ->and(collect($ventas['children'])->firstWhere('title', 'Facturas de venta')['url'])
-        ->toBe('/sales-invoices');
+        ->toBe('/sales-invoices')
+        ->and(collect($ventas['children'])->firstWhere('title', 'Anticipos de clientes')['url'])
+        ->toBe('/client-advances')
+        ->and(collect($ventas['children'])->firstWhere('title', 'Cobros a clientes')['url'])
+        ->toBe('/client-collections');
 });
 
 test('clientes is hidden for a user without the clients.list permission', function () {

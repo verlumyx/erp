@@ -103,4 +103,16 @@ class SalesOrderFilters extends EloquentQueryFilters
             ? $this->builder->whereIn('status', ['confirmed', 'partial'])
             : $this->builder;
     }
+
+    /**
+     * Pedidos que todavía admiten despacho. Son los mismos estados que admiten
+     * factura, pero el filtro se llama por lo que hace: la pantalla de
+     * despachos no pide pedidos «facturables».
+     */
+    public function dispatchable(string $value): Builder
+    {
+        return $value === 'yes'
+            ? $this->builder->whereIn('status', ['confirmed', 'partial'])
+            : $this->builder;
+    }
 }

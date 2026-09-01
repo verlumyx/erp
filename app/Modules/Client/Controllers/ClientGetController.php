@@ -98,6 +98,8 @@ class ClientGetController extends Controller
             filters: [
                 'q' => $request->string('q')->toString(),
                 'ids' => $ids,
+                /** Los cobros piden solo los clientes que deben algo. */
+                'with_balance' => $request->string('with_balance')->toString(),
                 /*
                  * Buscar ofrece solo clientes activos; hidratar lo ya elegido
                  * no filtra por estado: un cliente desactivado después sigue

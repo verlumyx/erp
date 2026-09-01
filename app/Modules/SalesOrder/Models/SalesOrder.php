@@ -7,6 +7,7 @@ namespace App\Modules\SalesOrder\Models;
 use App\Modules\Client\Models\Client;
 use App\Modules\Client\Models\ClientAddress;
 use App\Modules\Company\Models\Company;
+use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\PriceList\Models\PriceList;
 use App\Modules\SalesInvoice\Models\SalesInvoice;
 use App\Modules\User\Models\User;
@@ -168,6 +169,15 @@ class SalesOrder extends Model
     public function salesInvoices(): MorphMany
     {
         return $this->morphMany(SalesInvoice::class, 'sourceable');
+    }
+
+    /**
+     * Despachos emitidos contra este pedido. Mismo mecanismo que las facturas:
+     * el despacho no apunta al pedido con un FK, sino con `sourceable`.
+     */
+    public function dispatches(): MorphMany
+    {
+        return $this->morphMany(Dispatch::class, 'sourceable');
     }
 
     protected static function newFactory(): SalesOrderFactory

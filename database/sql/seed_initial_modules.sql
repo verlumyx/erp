@@ -34,6 +34,14 @@ DECLARE
     v_mod_sup_pay     UUID;
     v_mod_purch_ret   UUID;
     v_mod_sales_inv   UUID;
+    v_mod_cli_coll    UUID;
+    v_mod_sales_ret   UUID;
+    v_mod_cli_adv     UUID;
+    v_mod_dispatches  UUID;
+    v_mod_entries     UUID;
+    v_mod_adjust      UUID;
+    v_mod_transfers   UUID;
+    v_mod_routes      UUID;
 BEGIN
 
     -- ==========================================================
@@ -70,7 +78,15 @@ BEGIN
         (gen_random_uuid(), 'purchase-credit-notes', 'Notas de crédito a proveedor', 'Disminuye la deuda con el proveedor: devoluciones, descuentos y correcciones de precio', 'FileMinus', true, 25, NOW(), NOW()),
         (gen_random_uuid(), 'supplier-advances', 'Anticipos a proveedor', 'Dinero entregado antes de la factura: queda como saldo a favor del proveedor', 'HandCoins', true, 26, NOW(), NOW()),
         (gen_random_uuid(), 'supplier-payments', 'Pagos a proveedor', 'Salida de dinero que cancela una o varias facturas de compra', 'Banknote', true, 27, NOW(), NOW()),
-        (gen_random_uuid(), 'purchase-returns', 'Devoluciones de compras', 'Salida física de mercancía hacia el proveedor por defectos, exceso o error de despacho', 'Undo2', true, 28, NOW(), NOW())
+        (gen_random_uuid(), 'purchase-returns', 'Devoluciones de compras', 'Salida física de mercancía hacia el proveedor por defectos, exceso o error de despacho', 'Undo2', true, 28, NOW(), NOW()),
+        (gen_random_uuid(), 'client-collections', 'Cobros a clientes', 'Entrada de dinero que cancela una o varias facturas de venta', 'Banknote', true, 29, NOW(), NOW()),
+        (gen_random_uuid(), 'client-advances', 'Anticipos de clientes', 'Dinero recibido antes de facturar: queda como saldo a favor del cliente', 'HandCoins', true, 30, NOW(), NOW()),
+        (gen_random_uuid(), 'sales-returns', 'Devoluciones de ventas', 'Reingreso físico de mercancía que el cliente devuelve por defectos, exceso o cancelación', 'Undo2', true, 31, NOW(), NOW()),
+        (gen_random_uuid(), 'dispatches', 'Despachos', 'Salida física de mercancía hacia el cliente: descarga inventario y libera la reserva del pedido', 'Truck', true, 32, NOW(), NOW()),
+        (gen_random_uuid(), 'entries', 'Entradas', 'Recepción física de mercancía en bodega: ingresa inventario al costo con flete y gastos prorrateados', 'PackagePlus', true, 33, NOW(), NOW()),
+        (gen_random_uuid(), 'transfers', 'Traslados', 'Movimiento de mercancía entre bodegas propias: cambia su ubicación, no el valor del inventario', 'ArrowLeftRight', true, 34, NOW(), NOW()),
+        (gen_random_uuid(), 'adjustments', 'Ajustes', 'Corrección de existencias por conteo físico, merma, daño o error de captura: el único documento que mueve inventario sin una operación comercial detrás', 'ClipboardCheck', true, 35, NOW(), NOW()),
+        (gen_random_uuid(), 'routes', 'Rutas', 'Recorridos de entrega y cobro: agrupan clientes y ordenan las paradas para despachar y cobrar', 'Route', true, 36, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -98,10 +114,18 @@ BEGIN
     SELECT id INTO v_mod_sup_pay     FROM app_modules WHERE name = 'supplier-payments';
     SELECT id INTO v_mod_purch_ret   FROM app_modules WHERE name = 'purchase-returns';
     SELECT id INTO v_mod_sales_inv   FROM app_modules WHERE name = 'sales-invoices';
+    SELECT id INTO v_mod_cli_coll    FROM app_modules WHERE name = 'client-collections';
+    SELECT id INTO v_mod_sales_ret   FROM app_modules WHERE name = 'sales-returns';
+    SELECT id INTO v_mod_cli_adv     FROM app_modules WHERE name = 'client-advances';
     SELECT id INTO v_mod_item_lots   FROM app_modules WHERE name = 'item-lots';
     SELECT id INTO v_mod_item_serial FROM app_modules WHERE name = 'item-serials';
     SELECT id INTO v_mod_item_stocks FROM app_modules WHERE name = 'item-stocks';
     SELECT id INTO v_mod_inv_moves   FROM app_modules WHERE name = 'inventory-movements';
+    SELECT id INTO v_mod_dispatches  FROM app_modules WHERE name = 'dispatches';
+    SELECT id INTO v_mod_entries     FROM app_modules WHERE name = 'entries';
+    SELECT id INTO v_mod_adjust      FROM app_modules WHERE name = 'adjustments';
+    SELECT id INTO v_mod_transfers   FROM app_modules WHERE name = 'transfers';
+    SELECT id INTO v_mod_routes      FROM app_modules WHERE name = 'routes';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -328,6 +352,109 @@ BEGIN
         (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.show',          'Ver detalle de factura de venta', true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.update',        'Editar facturas de venta',        true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.update-status', 'Emitir o anular una factura',     true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Cobros a clientes
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_cli_coll, 'client-collections.list',          'Listar cobros a clientes',    true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_coll, 'client-collections.create',        'Registrar cobros a clientes', true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_coll, 'client-collections.show',          'Ver detalle de un cobro',     true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_coll, 'client-collections.update',        'Editar cobros a clientes',    true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_coll, 'client-collections.update-status', 'Confirmar o anular un cobro', true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Devoluciones de ventas
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_sales_ret, 'sales-returns.list',          'Listar devoluciones de ventas',     true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ret, 'sales-returns.create',        'Crear devoluciones de ventas',      true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ret, 'sales-returns.show',          'Ver detalle de una devolución',     true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ret, 'sales-returns.update',        'Editar devoluciones de ventas',     true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ret, 'sales-returns.update-status', 'Confirmar o anular una devolución', true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Despachos
+    -- Lleva un permiso propio además de los cinco de siempre: registrar cómo
+    -- terminó la entrega no es un cambio de estado del documento.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.list',          'Listar despachos',                 true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.create',        'Crear despachos',                  true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.show',          'Ver detalle de un despacho',       true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.update',        'Editar despachos',                 true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.update-status', 'Confirmar o anular un despacho',   true, 5, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.deliver',       'Registrar la entrega al cliente',  true, 6, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Entradas
+    -- Lleva un permiso propio además de los cinco de siempre: aceptar más
+    -- mercancía de la que se pidió es una decisión de negocio, no un paso del
+    -- documento.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_entries, 'entries.list',               'Listar entradas',                    true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_entries, 'entries.create',             'Crear entradas',                     true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_entries, 'entries.show',               'Ver detalle de una entrada',         true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_entries, 'entries.update',             'Editar entradas',                    true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_entries, 'entries.update-status',      'Confirmar o anular una entrada',     true, 5, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_entries, 'entries.allow-over-receipt', 'Recibir más de lo pedido en la orden', true, 6, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Ajustes de inventario
+    -- Lleva un permiso propio además de los cinco de siempre: aprobar un ajuste
+    -- es lo que deja que el inventario cambie sin una operación comercial
+    -- detrás, y por encima del umbral configurado tiene que firmarlo alguien
+    -- distinto de quien lo registró.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_adjust, 'adjustments.list',          'Listar ajustes de inventario',        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_adjust, 'adjustments.create',        'Crear ajustes de inventario',         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_adjust, 'adjustments.show',          'Ver detalle de un ajuste',            true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_adjust, 'adjustments.update',        'Editar ajustes de inventario',        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_adjust, 'adjustments.update-status', 'Enviar a aprobación o anular',        true, 5, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_adjust, 'adjustments.approve',       'Aprobar y aplicar un ajuste',         true, 6, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Traslados
+    -- Lleva dos permisos propios además de los cinco de siempre: recibir la
+    -- mercancía en el destino es un hecho físico y no un paso del documento, y
+    -- cerrar un traslado al que le faltó mercancía es una decisión de negocio.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_transfers, 'transfers.list',                   'Listar traslados',                        true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_transfers, 'transfers.create',                 'Crear traslados',                         true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_transfers, 'transfers.show',                   'Ver detalle de un traslado',              true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_transfers, 'transfers.update',                 'Editar traslados',                        true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_transfers, 'transfers.update-status',          'Confirmar o anular un traslado',          true, 5, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_transfers, 'transfers.receive',                'Registrar la recepción en el destino',    true, 6, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_transfers, 'transfers.close-with-difference',  'Cerrar un traslado con faltante',         true, 7, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Rutas
+    -- Maestro, no documento: se activa y se desactiva. Lleva dos permisos
+    -- propios además de los cinco de siempre: planificar el día genera las
+    -- paradas desde la plantilla y los despachos pendientes, y registrar la
+    -- visita es un hecho de la calle que anota quien recorre, no quien edita.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_routes, 'routes.list',          'Listar rutas',                          true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_routes, 'routes.create',        'Crear rutas',                           true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_routes, 'routes.show',          'Ver detalle de una ruta',               true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_routes, 'routes.update',        'Editar rutas',                          true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_routes, 'routes.update-status', 'Activar o desactivar una ruta',         true, 5, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_routes, 'routes.plan',          'Planificar las paradas de una fecha',   true, 6, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_routes, 'routes.visit',         'Registrar la visita de una parada',     true, 7, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Anticipos de clientes
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_cli_adv, 'client-advances.list',          'Listar anticipos de clientes',    true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_adv, 'client-advances.create',        'Registrar anticipos de clientes', true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_adv, 'client-advances.show',          'Ver detalle de un anticipo',      true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_adv, 'client-advances.update',        'Editar anticipos de clientes',    true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_cli_adv, 'client-advances.update-status', 'Aprobar o anular un anticipo',    true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Impuestos

@@ -38,6 +38,15 @@ interface ItemStockRepositoryInterface
      */
     public function warehouseBalance(?string $companyId, string $itemId, string $warehouseId): array;
 
+    /**
+     * Saldo consolidado del artículo en toda la empresa: suma todas sus
+     * bodegas. Es el número del que sale el costo promedio del maestro de
+     * artículos, que no distingue bodegas.
+     *
+     * @return array{quantity: float, value: float}
+     */
+    public function companyBalance(?string $companyId, string $itemId): array;
+
     /** @return array{ data: ItemStock[], total: int } */
     public function search(SearchItemStockCommand $command): array;
 }

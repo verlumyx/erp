@@ -22,6 +22,7 @@ class ConfigurationRepository implements ConfigurationRepositoryInterface
             'allows_rate_override' => $command->allowsRateOverride,
             'amount_decimals' => $command->amountDecimals,
             'price_decimals' => $command->priceDecimals,
+            'adjustment_approval_threshold' => $command->adjustmentApprovalThreshold,
             'created_by' => $command->createdBy,
         ]);
     }
@@ -49,6 +50,7 @@ class ConfigurationRepository implements ConfigurationRepositoryInterface
             'allows_rate_override' => $command->allowsRateOverride,
             'amount_decimals' => $command->amountDecimals,
             'price_decimals' => $command->priceDecimals,
+            'adjustment_approval_threshold' => $command->adjustmentApprovalThreshold,
         ]);
     }
 }

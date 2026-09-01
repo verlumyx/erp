@@ -13,6 +13,8 @@ use App\Modules\SalesInvoice\Commands\SalesInvoiceLineData;
 use App\Modules\SalesInvoice\Commands\SearchSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\UpdateSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\UpdateStatusSalesInvoiceCommand;
+use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceCollectionCommand;
+use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceLineReturnCommand;
 use App\Modules\SalesInvoice\Models\SalesInvoice;
 use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
 use App\Modules\SalesInvoice\Repositories\Contracts\SalesInvoiceRepositoryInterface;
@@ -137,6 +139,42 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
     /**
      * @return array{ data: SalesInvoice[], total: int }
      */
+    public function lockById(string $id, ?string $companyId = null): ?SalesInvoice
+    {
+        return SalesInvoice::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeCollection(SalesInvoice $model, WriteSalesInvoiceCollectionCommand $command): SalesInvoice
+    {
+        $model->update([
+            'paid_amount' => $command->paidAmount,
+            'balance' => $command->balance,
+            'payment_status' => $command->paymentStatus,
+        ]);
+
+        return $model;
+    }
+
+    public function lockLineById(string $id, ?string $companyId = null): ?SalesInvoiceLine
+    {
+        return SalesInvoiceLine::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeLineReturn(
+        SalesInvoiceLine $line,
+        WriteSalesInvoiceLineReturnCommand $command,
+    ): SalesInvoiceLine {
+        $line->update(['returned_quantity' => $command->returnedQuantity]);
+
+        return $line;
+    }
+
     public function search(SearchSalesInvoiceCommand $command): array
     {
         $query = SalesInvoice::query()

@@ -21,6 +21,7 @@ test('it updates the configuration of the company', function () {
         allowsRateOverride: 'no',
         amountDecimals: 2,
         priceDecimals: 6,
+        adjustmentApprovalThreshold: 0.0,
     );
 
     $repository = Mockery::mock(ConfigurationRepositoryInterface::class);

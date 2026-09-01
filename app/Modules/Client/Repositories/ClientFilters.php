@@ -97,4 +97,18 @@ class ClientFilters extends EloquentQueryFilters
     {
         return $this->builder->where('status', $value);
     }
+
+    /**
+     * Clientes que deben algo. Es lo único que se ofrece al empezar un cobro
+     * por cliente: cobrarle a quien no debe nada solo genera un anticipo, y ese
+     * camino es el suyo propio.
+     */
+    public function with_balance(string $value): Builder
+    {
+        if ($value !== 'yes') {
+            return $this->builder;
+        }
+
+        return $this->builder->where('current_balance', '>', 0);
+    }
 }

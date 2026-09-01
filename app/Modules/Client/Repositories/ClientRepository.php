@@ -10,6 +10,7 @@ use App\Modules\Client\Commands\CreateClientCommand;
 use App\Modules\Client\Commands\SearchClientCommand;
 use App\Modules\Client\Commands\UpdateClientCommand;
 use App\Modules\Client\Commands\UpdateStatusClientCommand;
+use App\Modules\Client\Commands\WriteClientBalancesCommand;
 use App\Modules\Client\Models\Client;
 use App\Modules\Client\Models\ClientAddress;
 use App\Modules\Client\Models\ClientContact;
@@ -112,6 +113,24 @@ class ClientRepository extends ClientFilters implements ClientRepositoryInterfac
         $model->update([
             'status' => $command->status,
         ]);
+    }
+
+    public function lockById(string $id, ?string $companyId = null): ?Client
+    {
+        return Client::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeBalances(Client $model, WriteClientBalancesCommand $command): Client
+    {
+        $model->update([
+            'current_balance' => $command->currentBalance,
+            'advance_balance' => $command->advanceBalance,
+        ]);
+
+        return $model;
     }
 
     /**

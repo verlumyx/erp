@@ -26,6 +26,7 @@ class ConfigurationFactory extends Factory
             'allows_rate_override' => 'yes',
             'amount_decimals' => 2,
             'price_decimals' => 6,
+            'adjustment_approval_threshold' => 0,
             'created_by' => User::factory(),
         ];
     }
