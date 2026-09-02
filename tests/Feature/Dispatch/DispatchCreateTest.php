@@ -6,8 +6,12 @@ use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
+use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
+use App\Modules\SalesOrder\Models\SalesOrder;
+use App\Modules\SalesOrder\Models\SalesOrderLine;
+use App\Modules\Tax\Models\Tax;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Inertia\Testing\AssertableInertia;
@@ -40,7 +44,8 @@ test('a dispatch can be created', function () {
     expect($dispatch->delivery_status)->toBe('pending');
     expect($dispatch->company_id)->toBe($company->id);
     expect($dispatch->created_by)->toBe($user->id);
-    expect($dispatch->client_id)->toBe($client->id);
+    expect($dispatch->recipient_type)->toBe('client');
+    expect($dispatch->recipient_id)->toBe($client->id);
     expect($dispatch->warehouse_id)->toBe($warehouse->id);
     expect($dispatch->carrier)->toBe('Transporte Andino');
     expect((float) $dispatch->freight_amount)->toBe(25.5);
@@ -94,16 +99,40 @@ test('the header totals are derived from the lines and the item', function () {
 test('the line amounts are calculated on the backend and ignore what the client sends', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
 
+    $tax = Tax::factory()->create([
+        'company_id' => $company->id,
+        'percentage' => 16,
+        'withholding_percentage' => 75,
+    ]);
+
+    $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => 100,
+            'discount_percent' => 10,
+            'tax_id' => $tax->id,
+            'tax_percent' => 16,
+            'withholding_percent' => 75,
+        ]],
+    ]);
+
+    $orderLine = $order->lines->first();
+
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'sourceable_type' => SalesOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
         'lines' => [
             [
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 10,
-                'unit_price' => 100,
-                'discount_percent' => 10,
-                'tax_percent' => 16,
-                'withholding_percent' => 75,
+                'sourceable_type' => SalesOrderLine::MORPH_ALIAS,
+                'sourceable_id' => $orderLine->id,
+                /** Mentiras del cliente: la pantalla no decide el dinero. */
+                'unit_price' => 1,
+                'discount_percent' => 99,
                 'subtotal' => 1,
                 'total' => 1,
             ],
@@ -113,12 +142,34 @@ test('the line amounts are calculated on the backend and ignore what the client 
     $line = $dispatch->lines->first();
 
     // 10 × 100 = 1000, −10 % = 900 de base; 16 % de impuesto = 144.
+    expect((float) $line->unit_price)->toBe(100.0);
     expect((float) $line->discount_amount)->toBe(100.0);
     expect((float) $line->subtotal)->toBe(900.0);
     expect((float) $line->tax_amount)->toBe(144.0);
     expect((float) $line->total)->toBe(1044.0);
     /** La retención se practica sobre el impuesto, no sobre la base. */
     expect((float) $line->withholding_amount)->toBe(108.0);
+});
+
+test('a dispatch without a sales order is valued at the average cost of the item', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $item->update(['average_cost' => 40]);
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            /** Ignorado: sin pedido manda el promedio. */
+            'unit_price' => 999,
+        ]],
+    ]);
+
+    $line = $dispatch->lines->first();
+    expect((float) $line->unit_price)->toBe(40.0);
+    expect($line->tax_id)->toBeNull();
+    expect((float) $line->discount_percent)->toBe(0.0);
 });
 
 test('base_quantity converts the line to the base unit of the item', function () {
@@ -207,7 +258,7 @@ test('a client from another company is rejected', function () {
         ->assertSessionHasErrors('client_id');
 });
 
-test('a serialized item dispatches exactly one unit per line', function () {
+test('a serialized item needs one serial per unit that leaves', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
 
     Item::where('id', $item->id)->update(['type' => ItemSerial::TRACKABLE_ITEM_TYPE]);
@@ -217,37 +268,109 @@ test('a serialized item dispatches exactly one unit per line', function () {
         'item_id' => $item->id,
     ]);
 
+    /** Tres unidades y una sola serie: falta identificar las otras dos. */
     $payload = dispatchPayload($client, $warehouse, $item, $unit, [
         'lines' => [
             [
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 3,
-                'unit_price' => 10,
-                'serial_id' => $serial->id,
+                'serials' => [['serial_id' => $serial->id]],
             ],
         ],
     ]);
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->post(route('dispatches.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('lines.0.quantity');
+        ->assertSessionHasErrors('lines.0.serials');
 });
 
-test('a serialized item without its serial is rejected', function () {
+test('a serialized line can carry several serials at once', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    Item::where('id', $item->id)->update(['type' => ItemSerial::TRACKABLE_ITEM_TYPE]);
+
+    $serials = ItemSerial::factory()->count(3)->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 3,
+            'serials' => $serials->map(fn ($serial): array => ['serial_id' => $serial->id])->all(),
+        ]],
+    ]);
+
+    $line = $dispatch->lines->first();
+    expect((float) $line->quantity)->toBe(3.0);
+    expect($line->serials()->where('status', 'active')->count())->toBe(3);
+});
+
+test('a serialized item without its serials is rejected', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
 
     Item::where('id', $item->id)->update(['type' => ItemSerial::TRACKABLE_ITEM_TYPE]);
 
     $payload = dispatchPayload($client, $warehouse, $item, $unit, [
         'lines' => [
-            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'unit_price' => 10],
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1],
         ],
     ]);
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->post(route('dispatches.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('lines.0.serial_id');
+        ->assertSessionHasErrors('lines.0.serials');
+});
+
+test('a lot that is not from the item of the line is rejected', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $stranger = Item::factory()->create(['company_id' => $company->id]);
+
+    $lot = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $stranger->id,
+        'created_by' => $user->id,
+    ]);
+
+    $payload = dispatchPayload($client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 5,
+            'lots' => [['lot_id' => $lot->id, 'quantity' => 5]],
+        ]],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('dispatches.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('the lots of a line have to add up to what the line dispatches', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $lot = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'created_by' => $user->id,
+    ]);
+
+    $payload = dispatchPayload($client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'lots' => [['lot_id' => $lot->id, 'quantity' => 4]],
+        ]],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('dispatches.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.lots');
 });
 
 test('creating requires the create permission', function () {

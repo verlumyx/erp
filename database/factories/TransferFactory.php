@@ -31,7 +31,6 @@ class TransferFactory extends Factory
             'origin_warehouse_id' => Warehouse::factory(),
             'destination_warehouse_id' => Warehouse::factory(),
             /** Sin bodega de tránsito el traslado es inmediato: un solo paso. */
-            'transit_warehouse_id' => null,
             'transfer_date' => now()->toDateString(),
             'expected_date' => null,
             'received_date' => null,
@@ -68,7 +67,6 @@ class TransferFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'status' => 'confirmed',
             'transfer_status' => 'in_transit',
-            'transit_warehouse_id' => Warehouse::factory(),
             'received_date' => null,
         ]);
     }

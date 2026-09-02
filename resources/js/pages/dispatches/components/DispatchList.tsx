@@ -75,13 +75,14 @@ export function DispatchList({
      */
     const client = useRemoteOption({
         url: clients.lookup(companyId).url,
-        seed: initialFilters.client_id
+        seed: initialFilters.recipient_id
             ? {
-                  value: initialFilters.client_id,
+                  value: initialFilters.recipient_id,
                   label:
                       rows.find(
-                          (row) => row.client_id === initialFilters.client_id,
-                      )?.client_name ?? 'Cliente',
+                          (row) =>
+                              row.recipient_id === initialFilters.recipient_id,
+                      )?.recipient_name ?? 'Cliente',
               }
             : null,
         hydrate: true,
@@ -198,12 +199,12 @@ export function DispatchList({
                         <Select2Ajax
                             inputId="filter-client"
                             url={client.url}
-                            value={client.optionOf(filters.client_id ?? '')}
+                            value={client.optionOf(filters.recipient_id ?? '')}
                             onChange={(option) => {
                                 client.select(option);
                                 applyFilters({
                                     ...filters,
-                                    client_id: option?.value ?? undefined,
+                                    recipient_id: option?.value ?? undefined,
                                 });
                             }}
                             isClearable
@@ -317,7 +318,7 @@ export function DispatchList({
                             </div>
                             <div className="flex min-w-0 flex-col">
                                 <span className="truncate font-bold">
-                                    {row.client_name ?? '—'}
+                                    {row.recipient_name ?? '—'}
                                 </span>
                                 <span className="truncate text-[12.5px] text-muted-foreground">
                                     {row.driver_name ??

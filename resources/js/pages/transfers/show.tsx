@@ -18,12 +18,9 @@ import { useConfiguration } from '@/hooks/use-configuration';
 import AppLayout from '@/layouts/app-layout';
 import transferRoutes from '@/routes/transfers';
 import type { BreadcrumbItem } from '@/types';
-import { TransferReceiptCard } from './components/TransferReceiptCard';
 import {
-    canRegisterReceipt,
     formatAmount,
     isEditable,
-    isTwoStep,
     MOVEMENT_PILL_KIND,
     MOVEMENT_STATUS_LABELS,
     REASON_LABELS,
@@ -73,11 +70,6 @@ export default function TransfersShow({ transfer }: Props) {
     const transitions = STATUS_TRANSITIONS[transfer.status] ?? [];
     const activeLines = (transfer.lines ?? []).filter(
         (line) => line.status === 'active',
-    );
-
-    const difference = activeLines.reduce(
-        (sum, line) => sum + Number(line.difference_quantity),
-        0,
     );
 
     /** El estado destino viaja en el `transform`: la pantalla no captura nada. */
@@ -142,11 +134,6 @@ export default function TransfersShow({ transfer }: Props) {
                                 <ArrowRight className="size-3.5 opacity-60" />
                                 {transfer.destination_warehouse_name ?? '—'}
                             </span>
-                            {transfer.transit_warehouse_name && (
-                                <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
-                                    vía {transfer.transit_warehouse_name}
-                                </span>
-                            )}
                             <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
                                 <Calendar className="size-3.5 opacity-80" />
                                 {transfer.transfer_date}
@@ -227,10 +214,6 @@ export default function TransfersShow({ transfer }: Props) {
                             value={transfer.reason_detail ?? '—'}
                         />
                         <DataRow
-                            label="Pasos"
-                            value={isTwoStep(transfer) ? 'Dos' : 'Uno'}
-                        />
-                        <DataRow
                             label="Llegada estimada"
                             value={transfer.expected_date ?? '—'}
                         />
@@ -260,50 +243,30 @@ export default function TransfersShow({ transfer }: Props) {
                             label="Recibió"
                             value={transfer.received_by_name ?? '—'}
                         />
-                        {difference > 0 && (
-                            <DataRow
-                                label="Faltante en tránsito"
-                                value={
-                                    <span className="text-bad">
-                                        {difference}
-                                    </span>
-                                }
-                            />
-                        )}
                     </Card>
                 </div>
-
-                {canRegisterReceipt(transfer) && (
-                    <TransferReceiptCard transfer={transfer} />
-                )}
 
                 <Card className="gap-0 overflow-hidden rounded-2xl py-0">
                     <div className="border-b p-5 text-[13px] font-bold text-muted-foreground">
                         Líneas
                     </div>
-                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2.2fr_1.4fr_0.8fr_0.8fr_0.8fr_0.8fr]">
-                        {[
-                            '#',
-                            'Artículo',
-                            'Ubicaciones',
-                            'Salió',
-                            'Llegó',
-                            'Faltó',
-                            'Costo',
-                        ].map((header) => (
-                            <div
-                                key={header}
-                                className="text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase"
-                            >
-                                {header}
-                            </div>
-                        ))}
+                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_3.4fr_1fr_1fr]">
+                        {['#', 'Artículo', 'Cantidad', 'Costo'].map(
+                            (header) => (
+                                <div
+                                    key={header}
+                                    className="text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase"
+                                >
+                                    {header}
+                                </div>
+                            ),
+                        )}
                     </div>
                     <div className="flex flex-col">
                         {activeLines.map((line) => (
                             <div
                                 key={line.id}
-                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2.2fr_1.4fr_0.8fr_0.8fr_0.8fr_0.8fr] lg:items-center"
+                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_3.4fr_1fr_1fr] lg:items-center"
                             >
                                 <div className="text-[13.5px] font-semibold text-muted-foreground tabular-nums">
                                     {line.line_number}
@@ -317,36 +280,10 @@ export default function TransfersShow({ transfer }: Props) {
                                         {line.measurement_unit_name
                                             ? ` · ${line.measurement_unit_name}`
                                             : ''}
-                                        {line.lot_number
-                                            ? ` · lote ${line.lot_number}`
-                                            : ''}
-                                        {line.serial_number
-                                            ? ` · serie ${line.serial_number}`
-                                            : ''}
                                     </span>
                                 </div>
-                                <div className="truncate text-[13px] text-muted-foreground">
-                                    {line.origin_location_name ?? 'Por defecto'}
-                                    {' → '}
-                                    {line.destination_location_name ??
-                                        'Por defecto'}
-                                </div>
                                 <div className="text-[13.5px] tabular-nums">
-                                    {Number(line.sent_quantity) > 0
-                                        ? line.sent_quantity
-                                        : line.quantity}
-                                </div>
-                                <div className="text-[13.5px] tabular-nums">
-                                    {line.received_quantity}
-                                </div>
-                                <div
-                                    className={`text-[13.5px] tabular-nums ${
-                                        Number(line.difference_quantity) > 0
-                                            ? 'font-semibold text-bad'
-                                            : ''
-                                    }`}
-                                >
-                                    {line.difference_quantity}
+                                    {line.quantity}
                                 </div>
                                 <div className="text-[13.5px] font-semibold tabular-nums">
                                     {line.unit_cost}

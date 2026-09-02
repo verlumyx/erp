@@ -14,6 +14,7 @@ use App\Modules\SalesInvoice\Commands\SearchSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\UpdateSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\UpdateStatusSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceCollectionCommand;
+use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceLineCostCommand;
 use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceLineReturnCommand;
 use App\Modules\SalesInvoice\Models\SalesInvoice;
 use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
@@ -137,8 +138,49 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
     }
 
     /**
-     * @return array{ data: SalesInvoice[], total: int }
+     * @return array<int, SalesInvoiceLine>
      */
+    public function activeLines(SalesInvoice $model): array
+    {
+        return SalesInvoiceLine::query()
+            ->with(['item'])
+            ->where('sales_invoice_id', $model->id)
+            ->where('status', 'active')
+            ->orderBy('line_number')
+            ->get()
+            ->all();
+    }
+
+    public function writeLineCost(SalesInvoiceLine $line, WriteSalesInvoiceLineCostCommand $command): SalesInvoiceLine
+    {
+        $line->update([
+            'unit_cost' => $command->unitCost,
+            'total_cost' => $command->totalCost,
+            'margin_amount' => $command->marginAmount,
+        ]);
+
+        return $line;
+    }
+
+    /** El costo de la mercancía vendida de toda la factura. */
+    public function writeTotalCost(SalesInvoice $model, float $totalCost): SalesInvoice
+    {
+        $model->update(['total_cost' => $totalCost]);
+
+        return $model;
+    }
+
+    public function markOverdue(string $onDate, ?string $companyId = null): int
+    {
+        return SalesInvoice::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->whereIn('status', SalesInvoice::COLLECTIBLE_STATUSES)
+            ->whereIn('payment_status', ['pending', 'partial'])
+            ->where('balance', '>', 0)
+            ->whereDate('due_date', '<', $onDate)
+            ->update(['payment_status' => 'overdue']);
+    }
+
     public function lockById(string $id, ?string $companyId = null): ?SalesInvoice
     {
         return SalesInvoice::query()
@@ -175,6 +217,9 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
         return $line;
     }
 
+    /**
+     * @return array{ data: SalesInvoice[], total: int }
+     */
     public function search(SearchSalesInvoiceCommand $command): array
     {
         $query = SalesInvoice::query()

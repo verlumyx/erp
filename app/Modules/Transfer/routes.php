@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Modules\Transfer\Controllers\TransferGetController;
 use App\Modules\Transfer\Controllers\TransferPostController;
 use App\Modules\Transfer\Controllers\TransferPutController;
-use App\Modules\Transfer\Controllers\TransferReceiptController;
 use App\Modules\Transfer\Controllers\TransferUpdateStatusController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,7 +23,5 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/{id}/edit', [TransferGetController::class, 'edit'])->where('id', $uuid)->name('transfers.edit');
             Route::put('/{id}', TransferPutController::class)->where('id', $uuid)->name('transfers.update');
             Route::put('/{id}/status', TransferUpdateStatusController::class)->where('id', $uuid)->name('transfers.update-status');
-            /** La llegada al destino: se registra una vez, sobre un traslado confirmado. */
-            Route::put('/{id}/receipt', TransferReceiptController::class)->where('id', $uuid)->name('transfers.receipt');
         });
     });

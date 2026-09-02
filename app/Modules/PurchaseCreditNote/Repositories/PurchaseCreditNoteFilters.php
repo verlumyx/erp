@@ -52,4 +52,47 @@ class PurchaseCreditNoteFilters extends EloquentQueryFilters
     {
         return $this->builder->whereDate('note_date', '<=', $value);
     }
+
+    /**
+     * Búsqueda libre del select remoto: un solo término contra lo que el
+     * usuario reconoce de una nota.
+     *
+     * Se llama `q` —como el parámetro que manda `Select2Ajax`— y no `search`
+     * porque el repositorio, que hereda de esta clase, ya define `search()`.
+     */
+    public function q(string $value): Builder
+    {
+        return $this->builder->where(function (Builder $query) use ($value): void {
+            $query->where('code', 'like', "%{$value}%")
+                ->orWhere('supplier_document_number', 'like', "%{$value}%");
+        });
+    }
+
+    /**
+     * Hidratación de los valores ya elegidos en un formulario de edición:
+     * ids separados por coma, tal como los manda `Select2Ajax`.
+     */
+    public function ids(string $value): Builder
+    {
+        return $this->builder->whereIn('id', array_filter(explode(',', $value)));
+    }
+
+    /** Varios estados a la vez, separados por coma (`confirmed`). */
+    public function statuses(string $value): Builder
+    {
+        return $this->builder->whereIn('status', array_filter(explode(',', $value)));
+    }
+
+    /**
+     * Notas que todavía tienen crédito disponible: lo único que se puede
+     * aplicar a una factura.
+     */
+    public function open(string $value): Builder
+    {
+        if ($value !== 'yes') {
+            return $this->builder;
+        }
+
+        return $this->builder->where('balance', '>', 0);
+    }
 }

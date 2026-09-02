@@ -26,6 +26,8 @@ class SupplierPaymentResource extends JsonResource
             'supplier_advance_balance' => $this->whenLoaded('supplier', fn () => $this->supplier?->advance_balance),
             'origin_type' => $this->origin_type,
             'origin_id' => $this->origin_id,
+            /** De qué anticipo o nota sale el crédito, si no trae dinero. */
+            'credit_source_id' => $this->credit_source_id,
             'payment_date' => $this->payment_date?->format('Y-m-d'),
             'payment_method' => $this->payment_method,
             'reference' => $this->reference,

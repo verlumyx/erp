@@ -10,6 +10,7 @@ use App\Modules\ClientCollection\Commands\SearchClientCollectionCommand;
 use App\Modules\ClientCollection\Commands\UpdateCheckStatusClientCollectionCommand;
 use App\Modules\ClientCollection\Commands\UpdateClientCollectionCommand;
 use App\Modules\ClientCollection\Commands\UpdateStatusClientCollectionCommand;
+use App\Modules\ClientCollection\Commands\WriteClientCollectionApplicationCommand;
 use App\Modules\ClientCollection\Models\ClientCollection;
 use App\Modules\ClientCollection\Models\ClientCollectionApplication;
 use App\Modules\ExchangeRate\Commands\DocumentRatesData;
@@ -38,6 +39,29 @@ interface ClientCollectionRepositoryInterface
      * @return array<int, ClientCollectionApplication>
      */
     public function activeApplications(ClientCollection $model): array;
+
+    /**
+     * Las aplicaciones vivas de un origen cualquiera: un cobro, un anticipo o
+     * una nota de crédito.
+     *
+     * @return array<int, ClientCollectionApplication>
+     */
+    public function applicationsOf(string $sourceType, string $sourceId): array;
+
+    /** La fila con la que un origen abona una factura, viva o revertida. */
+    public function findApplication(
+        string $sourceType,
+        string $sourceId,
+        string $salesInvoiceId,
+    ): ?ClientCollectionApplication;
+
+    /**
+     * Escribe la fila con la que un anticipo o una nota de crédito abona una
+     * factura. Solo la llama `ClientCollectionApplyCreditService`.
+     */
+    public function writeApplication(
+        WriteClientCollectionApplicationCommand $command,
+    ): ClientCollectionApplication;
 
     /** Deja la aplicación abonada: es lo que hace el cobro al confirmarse. */
     public function postApplication(

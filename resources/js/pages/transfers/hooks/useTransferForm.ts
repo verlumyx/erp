@@ -7,13 +7,7 @@ import {
     type ItemCatalogEntry,
     type ItemCatalogSeed,
 } from '@/hooks/use-item-catalog';
-import {
-    useRemoteOptionSet,
-    type RemoteOptionSeed,
-} from '@/hooks/use-remote-option-set';
 import { generateUUID } from '@/lib/utils';
-import itemLots from '@/routes/item-lots';
-import itemSerials from '@/routes/item-serials';
 import transfers from '@/routes/transfers';
 import type {
     Transfer,
@@ -33,11 +27,6 @@ export interface TransferLineRow {
     item_id: string;
     measurement_unit_id: string;
     quantity: number;
-    /** Vacías dejan que el kardex tome la ubicación por defecto de cada bodega. */
-    origin_location_id: string;
-    destination_location_id: string;
-    lot_id: string;
-    serial_id: string;
     notes: string;
 }
 
@@ -45,7 +34,6 @@ interface TransferFormData {
     id: string;
     origin_warehouse_id: string;
     destination_warehouse_id: string;
-    transit_warehouse_id: string;
     transfer_date: string;
     expected_date: string;
     reason: TransferReason;
@@ -85,10 +73,6 @@ function emptyLine(): TransferLineRow {
         item_id: '',
         measurement_unit_id: '',
         quantity: 1,
-        origin_location_id: '',
-        destination_location_id: '',
-        lot_id: '',
-        serial_id: '',
         notes: '',
     };
 }
@@ -106,10 +90,6 @@ function lineRows(model?: Transfer): TransferLineRow[] {
             item_id: line.item_id,
             measurement_unit_id: line.measurement_unit_id,
             quantity: Number(line.quantity),
-            origin_location_id: line.origin_location_id ?? '',
-            destination_location_id: line.destination_location_id ?? '',
-            lot_id: line.lot_id ?? '',
-            serial_id: line.serial_id ?? '',
             notes: line.notes ?? '',
         }));
 
@@ -144,7 +124,6 @@ export function useTransferForm({
             origin_warehouse_id: initialData?.origin_warehouse_id ?? '',
             destination_warehouse_id:
                 initialData?.destination_warehouse_id ?? '',
-            transit_warehouse_id: initialData?.transit_warehouse_id ?? '',
             transfer_date:
                 initialData?.transfer_date ??
                 new Date().toISOString().slice(0, 10),
@@ -189,41 +168,6 @@ export function useTransferForm({
         seed: catalogSeed,
     });
 
-    /** Lotes y series elegidos en las líneas. */
-    const lotSeed: RemoteOptionSeed[] = useMemo(
-        () =>
-            optionSeeds(
-                (initialData?.lines ?? []).map((line) => ({
-                    id: line.lot_id,
-                    label: line.lot_number,
-                })),
-                data.lines.map((line) => line.lot_id),
-            ),
-        [initialData, data.lines],
-    );
-
-    const serialSeed: RemoteOptionSeed[] = useMemo(
-        () =>
-            optionSeeds(
-                (initialData?.lines ?? []).map((line) => ({
-                    id: line.serial_id,
-                    label: line.serial_number,
-                })),
-                data.lines.map((line) => line.serial_id),
-            ),
-        [initialData, data.lines],
-    );
-
-    const lots = useRemoteOptionSet({
-        url: itemLots.lookup(companyId).url,
-        seed: lotSeed,
-    });
-
-    const serials = useRemoteOptionSet({
-        url: itemSerials.lookup(companyId).url,
-        seed: serialSeed,
-    });
-
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);
 
     const removeLine = (index: number) =>
@@ -244,10 +188,7 @@ export function useTransferForm({
             ),
         );
 
-    /**
-     * Cambiar de artículo invalida la unidad, el lote y la serie: ya no es la
-     * misma mercancía.
-     */
+    /** Cambiar de artículo invalida la unidad: ya no es la misma mercancía. */
     const setLineItem = (index: number, option: AjaxOption | null) => {
         const item = option ? catalog.remember(option) : undefined;
 
@@ -259,50 +200,18 @@ export function useTransferForm({
                           ...line,
                           item_id: item?.id ?? '',
                           measurement_unit_id: baseUnitId(item),
-                          lot_id: '',
-                          serial_id: '',
                       }
                     : line,
             ),
         );
     };
 
-    const setLineLot = (index: number, option: AjaxOption | null) => {
-        if (option) {
-            lots.remember(option);
-        }
-
-        updateLine(index, 'lot_id', option?.value ?? '');
-    };
-
-    const setLineSerial = (index: number, option: AjaxOption | null) => {
-        if (option) {
-            serials.remember(option);
-        }
-
-        updateLine(index, 'serial_id', option?.value ?? '');
-    };
-
-    const locationsOf = (warehouseId: string) =>
-        options.locations.filter(
-            (location) => location.warehouse_id === warehouseId,
-        );
-
-    /** Las ubicaciones de cada extremo del viaje. */
-    const originLocations = locationsOf(data.origin_warehouse_id);
-    const destinationLocations = locationsOf(data.destination_warehouse_id);
-
-    /**
-     * Cambiar una bodega invalida las ubicaciones ya elegidas de ese lado:
-     * eran de la anterior.
-     */
     const selectOriginWarehouse = (warehouseId: string) =>
         setData((current) => ({
             ...current,
             origin_warehouse_id: warehouseId,
             lines: current.lines.map((line) => ({
                 ...line,
-                origin_location_id: '',
             })),
         }));
 
@@ -312,7 +221,6 @@ export function useTransferForm({
             destination_warehouse_id: warehouseId,
             lines: current.lines.map((line) => ({
                 ...line,
-                destination_location_id: '',
             })),
         }));
 
@@ -371,41 +279,11 @@ export function useTransferForm({
         selectOriginWarehouse,
         selectDestinationWarehouse,
         warehousesExcept,
-        originLocations,
-        destinationLocations,
         addLine,
         removeLine,
         updateLine,
         setLineItem,
-        setLineLot,
-        setLineSerial,
         catalog,
-        lots,
-        serials,
     };
 }
 
-/**
- * Une lo que trajo el documento con lo que las líneas tienen ahora, sin
- * repetidos y sin vacíos. Las etiquetas de lo nuevo las resuelve la hidratación.
- */
-function optionSeeds(
-    saved: Array<{ id: string | null; label?: string | null }>,
-    current: string[],
-): RemoteOptionSeed[] {
-    const seeds = new Map<string, RemoteOptionSeed>();
-
-    saved.forEach((entry) => {
-        if (entry.id) {
-            seeds.set(entry.id, { id: entry.id, label: entry.label });
-        }
-    });
-
-    current.forEach((id) => {
-        if (id !== '' && !seeds.has(id)) {
-            seeds.set(id, { id });
-        }
-    });
-
-    return [...seeds.values()];
-}

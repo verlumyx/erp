@@ -29,6 +29,9 @@ class PurchaseInvoice extends Model
 
     public const CODE_PREFIX = 'FCO';
 
+    /** Con este tipo viaja la factura en `app_inventory_movements`. */
+    public const MOVEMENT_ORIGIN_TYPE = 'purchase_invoice';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     public const PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'overdue'];

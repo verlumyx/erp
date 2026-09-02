@@ -22,8 +22,6 @@ class TransferResource extends JsonResource
             'origin_warehouse_name' => $this->whenLoaded('originWarehouse', fn () => $this->originWarehouse?->name),
             'destination_warehouse_id' => $this->destination_warehouse_id,
             'destination_warehouse_name' => $this->whenLoaded('destinationWarehouse', fn () => $this->destinationWarehouse?->name),
-            'transit_warehouse_id' => $this->transit_warehouse_id,
-            'transit_warehouse_name' => $this->whenLoaded('transitWarehouse', fn () => $this->transitWarehouse?->name),
             'transfer_date' => $this->transfer_date?->format('Y-m-d'),
             'expected_date' => $this->expected_date?->format('Y-m-d'),
             'received_date' => $this->received_date?->format('Y-m-d'),

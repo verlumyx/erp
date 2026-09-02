@@ -81,12 +81,13 @@ class RoutePlanService
         }
 
         foreach ($dispatches as $dispatch) {
-            if (isset($stops[$dispatch->client_id])) {
+            /** Una parada es la visita a un cliente: un traslado no hace ninguna. */
+            if (! $dispatch->goesToClient() || isset($stops[$dispatch->recipient_id])) {
                 continue;
             }
 
-            $stops[$dispatch->client_id] = new RouteStopData(
-                clientId: $dispatch->client_id,
+            $stops[$dispatch->recipient_id] = new RouteStopData(
+                clientId: $dispatch->recipient_id,
                 clientAddressId: $dispatch->client_address_id,
                 sequence: ++$sequence,
             );
@@ -112,7 +113,9 @@ class RoutePlanService
         }
 
         foreach ($dispatches as $dispatch) {
-            $stopId = $stopOf[$dispatch->client_id] ?? null;
+            $stopId = $dispatch->goesToClient()
+                ? ($stopOf[$dispatch->recipient_id] ?? null)
+                : null;
 
             if ($stopId === null || $dispatch->route_stop_id === $stopId) {
                 continue;

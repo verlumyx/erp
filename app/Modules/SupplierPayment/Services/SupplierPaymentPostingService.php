@@ -30,9 +30,14 @@ use Illuminate\Support\Facades\DB;
  * facturas, así que confirmarlo o anularlo no mueve saldos aquí sino el estado
  * del anticipo que lo generó (`docs/compras.md` §5.1).
  *
- * Pendiente: con `origin_type` `supplier` o `invoice`, el `unapplied_amount`
- * que quede al confirmar debe generar un anticipo `ANP` ya confirmado por ese
- * excedente (`docs/compras.md` §6.2).
+ * Un pago que no saca dinero —`payment_method` `advance` o `credit_note`— sí
+ * reparte: lo que gasta es el crédito que ya se tenía con el proveedor, y sus
+ * filas viajan con el `source_type` de ese crédito en vez de con el suyo
+ * (`docs/compras.md` §6.3).
+ *
+ * Lo que sale y no se reparte tampoco se queda en el aire: al confirmar se
+ * convierte en un anticipo `ANP` ya confirmado
+ * (`SupplierPaymentSurplusService`, `docs/compras.md` §6.2).
  */
 class SupplierPaymentPostingService
 {
@@ -43,6 +48,8 @@ class SupplierPaymentPostingService
         private readonly PurchaseInvoiceApplyPaymentService $applyToInvoice,
         private readonly SupplierApplyBalanceService $applyToSupplier,
         private readonly SupplierAdvancePaymentSyncService $advances,
+        private readonly SupplierPaymentCreditSourceService $creditSources,
+        private readonly SupplierPaymentSurplusService $surplus,
     ) {}
 
     /**
@@ -94,7 +101,13 @@ class SupplierPaymentPostingService
                 $applied += $amount;
             }
 
-            $this->moveSupplierBalance($payment, -round($applied, 2));
+            $applied = round($applied, 2);
+
+            $this->moveSupplierBalance($payment, -$applied);
+            $this->creditSources->consume($payment, $applied);
+
+            /** Lo que salió y no cancela ninguna factura queda como anticipo. */
+            $this->surplus->capture($payment);
         });
     }
 
@@ -128,7 +141,12 @@ class SupplierPaymentPostingService
                 $applied += $amount;
             }
 
-            $this->moveSupplierBalance($payment, round($applied, 2));
+            $applied = round($applied, 2);
+
+            $this->surplus->release($payment);
+
+            $this->moveSupplierBalance($payment, $applied);
+            $this->creditSources->release($payment, $applied);
         });
     }
 
@@ -162,10 +180,17 @@ class SupplierPaymentPostingService
         return round($amount * ((float) $payment->exchange_rate - (float) $invoice->exchange_rate), 2);
     }
 
-    /** Un pago sin reparto no mueve nada: no hay deuda que cancelar. */
+    /**
+     * Un pago sin reparto no mueve nada: no hay deuda que cancelar.
+     *
+     * Pagar con una nota de crédito tampoco la mueve: la nota ya bajó el
+     * `current_balance` del proveedor al confirmarse, y volver a bajarlo aquí
+     * cancelaría la misma deuda dos veces. El anticipo sí, porque quedó como
+     * crédito a favor y no como pago de una factura.
+     */
     private function moveSupplierBalance(SupplierPayment $payment, float $delta): void
     {
-        if ($delta === 0.0) {
+        if ($delta === 0.0 || $payment->payment_method === 'credit_note') {
             return;
         }
 

@@ -5,23 +5,37 @@ declare(strict_types=1);
 namespace App\Modules\Entry\Repositories\Contracts;
 
 use App\Modules\Entry\Commands\CreateEntryCommand;
+use App\Modules\Entry\Commands\EntryLineData;
 use App\Modules\Entry\Commands\SearchEntryCommand;
 use App\Modules\Entry\Commands\UpdateEntryCommand;
 use App\Modules\Entry\Commands\UpdateStatusEntryCommand;
-use App\Modules\Entry\Commands\WriteEntryLineTraceabilityCommand;
+use App\Modules\Entry\Commands\WriteEntryLineLotCommand;
+use App\Modules\Entry\Commands\WriteEntryLineSerialCommand;
 use App\Modules\Entry\Models\Entry;
 use App\Modules\Entry\Models\EntryLine;
+use App\Modules\Entry\Models\EntryLineLot;
+use App\Modules\Entry\Models\EntryLineSerial;
 use App\Modules\ExchangeRate\Commands\DocumentRatesData;
 
 interface EntryRepositoryInterface
 {
-    public function create(CreateEntryCommand $command, DocumentRatesData $rates): void;
+    /**
+     * Las líneas llegan aparte del comando porque antes pasan por
+     * `EntryPricingService`: la pantalla no captura el costo, lo pone el
+     * sistema. Mismo criterio que el `unitCosts` de los despachos.
+     *
+     * @param  array<int, EntryLineData>  $lines
+     */
+    public function create(CreateEntryCommand $command, DocumentRatesData $rates, array $lines): void;
 
     public function findById(string $id, ?string $companyId = null): ?Entry;
 
     public function findOrFail(string $id, ?string $companyId = null): Entry;
 
-    public function update(Entry $model, UpdateEntryCommand $command, DocumentRatesData $rates): void;
+    /**
+     * @param  array<int, EntryLineData>  $lines
+     */
+    public function update(Entry $model, UpdateEntryCommand $command, DocumentRatesData $rates, array $lines): void;
 
     public function updateStatus(Entry $model, UpdateStatusEntryCommand $command): void;
 
@@ -30,21 +44,22 @@ interface EntryRepositoryInterface
 
     /**
      * Líneas activas de la entrada, con lo que el kardex necesita para valorar
-     * el ingreso: el artículo y su unidad.
+     * el ingreso: el artículo, su unidad y la trazabilidad con la que se parte
+     * el asiento.
      *
      * @return array<int, EntryLine>
      */
     public function activeLines(Entry $model): array;
 
     /**
-     * Escribe el lote ya resuelto de una línea. Solo lo llama
+     * Escribe el lote ya resuelto de una fila de trazabilidad. Solo lo llama
      * `EntryTraceabilityService`, al confirmar la entrada: hasta entonces la
-     * línea solo conoce el número que puso el proveedor.
+     * fila solo conoce el número que puso el proveedor.
      */
-    public function writeLineTraceability(
-        EntryLine $line,
-        WriteEntryLineTraceabilityCommand $command,
-    ): EntryLine;
+    public function writeLineLot(EntryLineLot $row, WriteEntryLineLotCommand $command): EntryLineLot;
+
+    /** Escribe la serie ya resuelta de una fila de trazabilidad. */
+    public function writeLineSerial(EntryLineSerial $row, WriteEntryLineSerialCommand $command): EntryLineSerial;
 
     /**
      * Cantidad ya recibida de cada línea de documento origen por entradas

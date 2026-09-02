@@ -132,6 +132,31 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
         $model->update($attributes);
     }
 
+    /**
+     * @return array<int, PurchaseInvoiceLine>
+     */
+    public function activeLines(PurchaseInvoice $model): array
+    {
+        return PurchaseInvoiceLine::query()
+            ->with(['item'])
+            ->where('purchase_invoice_id', $model->id)
+            ->where('status', 'active')
+            ->orderBy('line_number')
+            ->get()
+            ->all();
+    }
+
+    public function markOverdue(string $onDate, ?string $companyId = null): int
+    {
+        return PurchaseInvoice::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->whereIn('status', PurchaseInvoice::PAYABLE_STATUSES)
+            ->whereIn('payment_status', ['pending', 'partial'])
+            ->where('balance', '>', 0)
+            ->whereDate('due_date', '<', $onDate)
+            ->update(['payment_status' => 'overdue']);
+    }
+
     public function lockById(string $id, ?string $companyId = null): ?PurchaseInvoice
     {
         return PurchaseInvoice::query()

@@ -11,6 +11,7 @@ use App\Modules\ClientCollection\Commands\SearchClientCollectionCommand;
 use App\Modules\ClientCollection\Commands\UpdateCheckStatusClientCollectionCommand;
 use App\Modules\ClientCollection\Commands\UpdateClientCollectionCommand;
 use App\Modules\ClientCollection\Commands\UpdateStatusClientCollectionCommand;
+use App\Modules\ClientCollection\Commands\WriteClientCollectionApplicationCommand;
 use App\Modules\ClientCollection\Models\ClientCollection;
 use App\Modules\ClientCollection\Models\ClientCollectionApplication;
 use App\Modules\ClientCollection\Repositories\Contracts\ClientCollectionRepositoryInterface;
@@ -29,6 +30,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
                 'client_id' => $command->clientId,
                 'origin_type' => $command->originType,
                 'origin_id' => $command->originId,
+                'credit_source_id' => $this->creditSource($command->paymentMethod, $command->creditSourceId),
                 'collection_date' => $command->collectionDate,
                 'payment_method' => $command->paymentMethod,
                 'reference' => $command->reference,
@@ -69,6 +71,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
             /** El origen se congeló al crear el cobro: no se reescribe aquí. */
             $model->update([
                 'client_id' => $command->clientId,
+                'credit_source_id' => $this->creditSource($command->paymentMethod, $command->creditSourceId),
                 'collection_date' => $command->collectionDate,
                 'payment_method' => $command->paymentMethod,
                 'reference' => $command->reference,
@@ -110,12 +113,80 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
     public function activeApplications(ClientCollection $model): array
     {
         return ClientCollectionApplication::query()
-            ->where('source_type', ClientCollection::APPLICATION_SOURCE)
-            ->where('source_id', $model->id)
+            ->where('source_type', $model->applicationSource())
+            ->where('source_id', $model->applicationSourceId())
             ->where('status', 'active')
             ->orderBy('created_at')
             ->get()
             ->all();
+    }
+
+    /**
+     * Las aplicaciones vivas de cualquier origen —cobro, anticipo o nota de
+     * crédito—, en el orden en que se escribieron.
+     *
+     * @return array<int, ClientCollectionApplication>
+     */
+    public function applicationsOf(string $sourceType, string $sourceId): array
+    {
+        return ClientCollectionApplication::query()
+            ->where('source_type', $sourceType)
+            ->where('source_id', $sourceId)
+            ->where('status', 'active')
+            ->orderBy('created_at')
+            ->get()
+            ->all();
+    }
+
+    public function findApplication(
+        string $sourceType,
+        string $sourceId,
+        string $salesInvoiceId,
+    ): ?ClientCollectionApplication {
+        return ClientCollectionApplication::query()
+            ->where('source_type', $sourceType)
+            ->where('source_id', $sourceId)
+            ->where('sales_invoice_id', $salesInvoiceId)
+            ->first();
+    }
+
+    /**
+     * Escribe —o reactiva— la fila con la que un anticipo o una nota abona una
+     * factura. La tabla es única por `(factura, origen)`, así que una segunda
+     * aplicación del mismo documento a la misma factura reescribe su fila en vez
+     * de agregar otra.
+     */
+    public function writeApplication(
+        WriteClientCollectionApplicationCommand $command,
+    ): ClientCollectionApplication {
+        $attributes = [
+            'company_id' => $command->companyId,
+            'applied_amount' => $command->appliedAmount,
+            'applied_at' => now(),
+            'exchange_rate' => $command->exchangeRate,
+            'exchange_difference' => $command->exchangeDifference,
+            'status' => 'active',
+        ];
+
+        $existing = $this->findApplication(
+            $command->sourceType,
+            $command->sourceId,
+            $command->salesInvoiceId,
+        );
+
+        if ($existing !== null) {
+            $existing->update($attributes);
+
+            return $existing;
+        }
+
+        return ClientCollectionApplication::create([
+            ...$attributes,
+            'sales_invoice_id' => $command->salesInvoiceId,
+            'source_type' => $command->sourceType,
+            'source_id' => $command->sourceId,
+            'created_by' => $command->createdBy,
+        ]);
     }
 
     public function postApplication(
@@ -162,7 +233,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
      */
     private function detailRelations(): array
     {
-        return ['client', 'collector', 'applications.salesInvoice'];
+        return ['client', 'collector', 'route', 'applications.salesInvoice'];
     }
 
     /**
@@ -180,9 +251,12 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
      */
     private function syncApplications(ClientCollection $collection, array $applications, ?string $createdBy): void
     {
+        $source = $collection->applicationSource();
+        $sourceId = $collection->applicationSourceId();
+
         $existing = ClientCollectionApplication::query()
-            ->where('source_type', ClientCollection::APPLICATION_SOURCE)
-            ->where('source_id', $collection->id)
+            ->where('source_type', $source)
+            ->where('source_id', $sourceId)
             ->get()
             ->keyBy('sales_invoice_id');
 
@@ -209,18 +283,27 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
             $keep[] = ClientCollectionApplication::create([
                 ...$attributes,
                 'sales_invoice_id' => $row->salesInvoiceId,
-                'source_type' => ClientCollection::APPLICATION_SOURCE,
-                'source_id' => $collection->id,
+                'source_type' => $source,
+                'source_id' => $sourceId,
                 'exchange_difference' => 0,
                 'created_by' => $createdBy,
             ])->id;
         }
 
         ClientCollectionApplication::query()
-            ->where('source_type', ClientCollection::APPLICATION_SOURCE)
-            ->where('source_id', $collection->id)
+            ->where('source_type', $source)
+            ->where('source_id', $sourceId)
             ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
             ->update(['status' => 'reversed']);
+    }
+
+    /**
+     * De qué crédito sale el cobro. Solo tiene sentido cobrando con un anticipo
+     * o con una nota; con dinero de por medio se limpia.
+     */
+    private function creditSource(string $paymentMethod, ?string $creditSourceId): ?string
+    {
+        return isset(ClientCollection::CREDIT_METHODS[$paymentMethod]) ? $creditSourceId : null;
     }
 
     /**

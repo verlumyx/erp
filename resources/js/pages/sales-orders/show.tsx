@@ -8,16 +8,23 @@ import {
     Edit,
     Hash,
     Package,
+    Truck,
     StickyNote,
     User,
     Warehouse,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { AmountDual } from '@/components/amount-dual';
+import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import {
+    STATUS_LABELS as DISPATCH_STATUS_LABELS,
+    STATUS_PILL_KIND as DISPATCH_STATUS_PILL_KIND,
+} from '@/pages/dispatches/types/Dispatch';
+import dispatches from '@/routes/dispatches';
 import salesOrders from '@/routes/sales-orders';
 import type { BreadcrumbItem } from '@/types';
 import { SalesOrderStatusPill } from './components/SalesOrderStatusPill';
@@ -416,6 +423,46 @@ export default function SalesOrdersShow({ salesOrder: order }: Props) {
                         )}
                     </div>
                 </Card>
+
+                {(order.dispatches?.length ?? 0) > 0 && (
+                    <Card className="gap-3 rounded-2xl px-[18px] py-4">
+                        <div className="flex items-center gap-2 text-[13px] font-bold text-muted-foreground">
+                            <Truck className="size-[15px]" />
+                            Despachos
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            {order.dispatches?.map((dispatch) => (
+                                <Link
+                                    key={dispatch.id}
+                                    href={
+                                        dispatches.show({
+                                            company: companyId,
+                                            id: dispatch.id,
+                                        }).url
+                                    }
+                                    className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm hover:bg-accent"
+                                >
+                                    <span className="font-medium">
+                                        {dispatch.code}
+                                    </span>
+                                    <StatusPill
+                                        kind={
+                                            DISPATCH_STATUS_PILL_KIND[
+                                                dispatch.status
+                                            ]
+                                        }
+                                    >
+                                        {
+                                            DISPATCH_STATUS_LABELS[
+                                                dispatch.status
+                                            ]
+                                        }
+                                    </StatusPill>
+                                </Link>
+                            ))}
+                        </div>
+                    </Card>
+                )}
 
                 {order.cancellation_reason && (
                     <Card className="gap-2 rounded-2xl px-[18px] py-4">

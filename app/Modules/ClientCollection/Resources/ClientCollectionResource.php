@@ -26,6 +26,8 @@ class ClientCollectionResource extends JsonResource
             'client_advance_balance' => $this->whenLoaded('client', fn () => $this->client?->advance_balance),
             'origin_type' => $this->origin_type,
             'origin_id' => $this->origin_id,
+            /** De qué anticipo o nota sale el crédito, si no trae dinero. */
+            'credit_source_id' => $this->credit_source_id,
             'collection_date' => $this->collection_date?->format('Y-m-d'),
             'payment_method' => $this->payment_method,
             'reference' => $this->reference,
@@ -33,6 +35,7 @@ class ClientCollectionResource extends JsonResource
             'collected_by' => $this->collected_by,
             'collected_by_name' => $this->whenLoaded('collector', fn () => $this->collector?->name),
             'route_id' => $this->route_id,
+            'route_name' => $this->whenLoaded('route', fn () => $this->route?->name),
             'currency' => $this->currency,
             'exchange_rate' => $this->exchange_rate,
             'base_currency' => $this->base_currency,

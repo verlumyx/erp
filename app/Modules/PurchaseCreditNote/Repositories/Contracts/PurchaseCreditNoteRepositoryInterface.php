@@ -9,7 +9,9 @@ use App\Modules\PurchaseCreditNote\Commands\CreatePurchaseCreditNoteCommand;
 use App\Modules\PurchaseCreditNote\Commands\SearchPurchaseCreditNoteCommand;
 use App\Modules\PurchaseCreditNote\Commands\UpdatePurchaseCreditNoteCommand;
 use App\Modules\PurchaseCreditNote\Commands\UpdateStatusPurchaseCreditNoteCommand;
+use App\Modules\PurchaseCreditNote\Commands\WritePurchaseCreditNoteAppliedCommand;
 use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNote;
+use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNoteLine;
 
 interface PurchaseCreditNoteRepositoryInterface
 {
@@ -26,6 +28,29 @@ interface PurchaseCreditNoteRepositoryInterface
     ): void;
 
     public function updateStatus(PurchaseCreditNote $model, UpdateStatusPurchaseCreditNoteCommand $command): void;
+
+    /**
+     * La nota con su fila bloqueada, para que dos documentos que gastan su
+     * crédito a la vez no lean el mismo disponible.
+     */
+    public function lockById(string $id, ?string $companyId = null): ?PurchaseCreditNote;
+
+    /**
+     * Escribe lo aplicado y lo disponible ya resueltos. Solo lo llama
+     * `PurchaseCreditNoteApplicationService`.
+     */
+    public function writeApplied(
+        PurchaseCreditNote $model,
+        WritePurchaseCreditNoteAppliedCommand $command,
+    ): PurchaseCreditNote;
+
+    /**
+     * Las líneas vivas de la nota, en el orden en que se capturaron. Son las
+     * únicas que salen del kardex.
+     *
+     * @return array<int, PurchaseCreditNoteLine>
+     */
+    public function activeLines(PurchaseCreditNote $model): array;
 
     /** @return array{ data: PurchaseCreditNote[], total: int } */
     public function search(SearchPurchaseCreditNoteCommand $command): array;

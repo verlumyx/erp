@@ -91,6 +91,7 @@ class ClientAdvance extends Model
         'code',
         'client_id',
         'sales_order_id',
+        'origin_collection_id',
         'advance_date',
         'payment_method',
         'reference',
@@ -136,6 +137,15 @@ class ClientAdvance extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'client_id', 'id');
+    }
+
+    /**
+     * El cobro que lo hizo nacer, cuando el anticipo salió del excedente de un
+     * `COB` en vez de capturarse a mano (`docs/ventas.md` §6.2).
+     */
+    public function originCollection(): BelongsTo
+    {
+        return $this->belongsTo(ClientCollection::class, 'origin_collection_id', 'id');
     }
 
     /** Pedido que motiva el anticipo; vacío en un anticipo sin pedido previo. */

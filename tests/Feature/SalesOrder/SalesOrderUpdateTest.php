@@ -141,6 +141,8 @@ test('the active lines are renumbered from one', function () {
 test('a confirmed sales order cannot be updated', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
 
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item);
+
     $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 
     actingAs($user)->withSession(['current_company_id' => $company->id])

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 
@@ -25,6 +26,8 @@ function putStatus(
 
 test('a draft sales order can be confirmed', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item);
 
     $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 
@@ -57,22 +60,65 @@ test('a sales order can be cancelled with a reason', function () {
     expect($cancelled->cancellation_reason)->toBe('El cliente desistió del pedido.');
 });
 
-test('cancelling releases the stock reservation of every line', function () {
+test('confirming reserves the stock and cancelling releases it', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $location = stockSalesOrderWarehouse($user, $company, $warehouse, $item);
 
     $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 
-    /** Simula la reserva que hará el confirmado cuando exista el kardex. */
-    SalesOrderLine::where('sales_order_id', $order->id)->update(['reserved_quantity' => 2]);
+    $stock = ItemStock::where('item_id', $item->id)->where('location_id', $location->id)->firstOrFail();
+    expect((float) $stock->reserved_quantity)->toBe(0.0);
+    expect((float) $stock->available_quantity)->toBe(100.0);
 
     putStatus($user, $company, $order, ['status' => 'confirmed'])->assertSessionHasNoErrors();
+
+    /** El pedido no descarga: compromete. */
+    $stock->refresh();
+    expect((float) $stock->quantity)->toBe(100.0);
+    expect((float) $stock->reserved_quantity)->toBe(2.0);
+    expect((float) $stock->available_quantity)->toBe(98.0);
+    expect((float) SalesOrderLine::where('sales_order_id', $order->id)->value('reserved_quantity'))
+        ->toBe(2.0);
+
     putStatus($user, $company, $order, [
         'status' => 'cancelled',
         'cancellation_reason' => 'Sin stock disponible.',
     ])->assertSessionHasNoErrors();
 
+    $stock->refresh();
+    expect((float) $stock->reserved_quantity)->toBe(0.0);
+    expect((float) $stock->available_quantity)->toBe(100.0);
     expect((float) SalesOrderLine::where('sales_order_id', $order->id)->value('reserved_quantity'))
         ->toBe(0.0);
+});
+
+test('an order the warehouse cannot cover is not confirmed', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item, 1);
+
+    $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
+
+    putStatus($user, $company, $order, ['status' => 'confirmed'])
+        ->assertSessionHasErrors('status');
+
+    expect(SalesOrder::find($order->id)->status)->toBe('draft');
+});
+
+test('two orders cannot reserve the same unit twice', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item, 3);
+
+    $first = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
+    $second = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
+
+    putStatus($user, $company, $first, ['status' => 'confirmed'])->assertSessionHasNoErrors();
+
+    /** Quedan 1 disponible de 3: el segundo pedido de 2 ya no cabe. */
+    putStatus($user, $company, $second, ['status' => 'confirmed'])
+        ->assertSessionHasErrors('status');
 });
 
 test('cancelling requires a reason', function () {
@@ -115,6 +161,8 @@ test('a cancelled order is final', function () {
 
 test('a confirmed order advances to partial and then to completed', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item);
 
     $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 

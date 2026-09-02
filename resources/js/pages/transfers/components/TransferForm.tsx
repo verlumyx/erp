@@ -37,9 +37,6 @@ const REASON_OPTIONS: OptionType[] = (
     Object.keys(REASON_LABELS) as TransferReason[]
 ).map((value) => ({ value, label: REASON_LABELS[value] }));
 
-/** Valor del select cuando el traslado es inmediato, sin parada intermedia. */
-const NO_TRANSIT = 'none';
-
 export function TransferForm() {
     const {
         data,
@@ -61,23 +58,13 @@ export function TransferForm() {
     });
 
     /** Una bodega no puede ser dos extremos del mismo viaje. */
-    const originOptions = warehousesExcept(
-        data.destination_warehouse_id,
-        data.transit_warehouse_id,
-    ).map(toOption);
+    const originOptions = warehousesExcept(data.destination_warehouse_id).map(
+        toOption,
+    );
 
-    const destinationOptions = warehousesExcept(
-        data.origin_warehouse_id,
-        data.transit_warehouse_id,
-    ).map(toOption);
-
-    const transitOptions: OptionType[] = [
-        { value: NO_TRANSIT, label: 'Traslado inmediato, sin tránsito' },
-        ...warehousesExcept(
-            data.origin_warehouse_id,
-            data.destination_warehouse_id,
-        ).map(toOption),
-    ];
+    const destinationOptions = warehousesExcept(data.origin_warehouse_id).map(
+        toOption,
+    );
 
     const driverOptions: OptionType[] = options.drivers.map((driver) => ({
         value: driver.id,
@@ -151,44 +138,6 @@ export function TransferForm() {
                             {errors.destination_warehouse_id && (
                                 <p className="text-sm text-bad">
                                     {errors.destination_warehouse_id}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                Bodega de tránsito
-                            </Label>
-                            <Select2
-                                inputId="transit_warehouse_id"
-                                options={transitOptions}
-                                value={
-                                    transitOptions.find(
-                                        (option) =>
-                                            option.value ===
-                                            (data.transit_warehouse_id ||
-                                                NO_TRANSIT),
-                                    ) ?? null
-                                }
-                                onChange={(option) =>
-                                    setData(
-                                        'transit_warehouse_id',
-                                        !option || option.value === NO_TRANSIT
-                                            ? ''
-                                            : option.value,
-                                    )
-                                }
-                                error={!!errors.transit_warehouse_id}
-                                size="md"
-                                placeholder="Traslado inmediato, sin tránsito"
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Con tránsito el traslado va en dos pasos: sale
-                                hoy y se recibe al llegar
-                            </span>
-                            {errors.transit_warehouse_id && (
-                                <p className="text-sm text-bad">
-                                    {errors.transit_warehouse_id}
                                 </p>
                             )}
                         </div>
@@ -404,20 +353,12 @@ export function TransferForm() {
                             {totals.quantity}
                         </b>
                     </div>
-                    <div className="flex items-center justify-between border-t pt-2.5 text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Pasos
-                        </span>
-                        <b className="font-bold">
-                            {data.transit_warehouse_id ? 'Dos' : 'Uno'}
-                        </b>
-                    </div>
                 </div>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    El traslado no pone precio a nada. Al confirmarlo, la
-                    mercancía sale al costo promedio de la bodega de origen y
-                    llega al destino con ese mismo costo: el inventario cambia
-                    de sitio, no de valor.
+                    El traslado no pone precio a nada. Al confirmarlo se genera
+                    el despacho que saca la mercancía del origen, y confirmar
+                    ese despacho genera la entrada que la mete en el destino, al
+                    mismo costo: el inventario cambia de sitio, no de valor.
                 </p>
                 <Button
                     type="submit"

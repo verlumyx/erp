@@ -8,9 +8,11 @@ namespace App\Modules\Dispatch\Commands;
  * Una fila de `app_dispatch_lines` tal como llega desde la pantalla del
  * despacho, con sus importes ya resueltos.
  *
- * Los montos se calculan aquí y no se leen del request: el cliente envía
- * cantidad, precio y porcentajes, y el backend es el único que decide cuánto
- * vale la línea. Son informativos —el despacho no factura—, pero la guía tiene
+ * La pantalla del despacho **no captura dinero**: el precio, el impuesto y el
+ * descuento se deciden en la orden de venta, y aquí los pone
+ * `DispatchPricingService` antes de construir este DTO —copiándolos de la línea
+ * del pedido o, sin pedido, del costo promedio del artículo—. Los montos se
+ * derivan de eso. Son informativos —el despacho no factura—, pero la guía tiene
  * que enseñar lo mismo que el pedido.
  *
  * `base_quantity`, `unit_cost` y `line_number` son la excepción: dependen del
@@ -40,8 +42,10 @@ class DispatchLineData
         /** Alias de la línea origen; hoy solo `sales_order_line`. */
         public readonly ?string $sourceableType = null,
         public readonly ?string $sourceableId = null,
-        public readonly ?string $lotId = null,
-        public readonly ?string $serialId = null,
+        /** @var array<int, DispatchLineLotData> */
+        public readonly array $lots = [],
+        /** @var array<int, DispatchLineSerialData> */
+        public readonly array $serials = [],
         /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
         public readonly ?string $locationId = null,
         public readonly ?string $notes = null,
@@ -53,48 +57,109 @@ class DispatchLineData
      */
     public static function fromArray(array $row): self
     {
-        $quantity = (float) ($row['quantity'] ?? 0);
-        $unitPrice = (float) ($row['unit_price'] ?? 0);
-        $gross = $quantity * $unitPrice;
-
-        /** El porcentaje manda: si viene un descuento en %, el monto se deriva de él. */
-        $discountPercent = (float) ($row['discount_percent'] ?? 0);
-        $discountAmount = $discountPercent > 0
-            ? round($gross * $discountPercent / 100, 2)
-            : round((float) ($row['discount_amount'] ?? 0), 2);
-
-        $subtotal = round($gross - $discountAmount, 2);
-
-        $taxPercent = (float) ($row['tax_percent'] ?? 0);
-        $taxAmount = round($subtotal * $taxPercent / 100, 2);
-
-        /** La retención se practica sobre el impuesto, no sobre la base imponible. */
-        $withholdingPercent = (float) ($row['withholding_percent'] ?? 0);
-        $withholdingAmount = round($taxAmount * $withholdingPercent / 100, 2);
-
         return new self(
             id: isset($row['id']) ? (string) $row['id'] : null,
             itemId: (string) $row['item_id'],
             measurementUnitId: (string) $row['measurement_unit_id'],
-            quantity: $quantity,
+            quantity: (float) ($row['quantity'] ?? 0),
+            unitPrice: 0.0,
+            discountPercent: 0.0,
+            discountAmount: 0.0,
+            taxPercent: 0.0,
+            taxAmount: 0.0,
+            withholdingPercent: 0.0,
+            withholdingAmount: 0.0,
+            subtotal: 0.0,
+            total: 0.0,
+            taxId: null,
+            sourceableType: $row['sourceable_type'] ?? null,
+            sourceableId: $row['sourceable_id'] ?? null,
+            lots: DispatchLineLotData::collection($row['lots'] ?? []),
+            serials: DispatchLineSerialData::collection($row['serials'] ?? []),
+            locationId: $row['location_id'] ?? null,
+            notes: $row['notes'] ?? null,
+            status: (string) ($row['status'] ?? 'active'),
+        );
+    }
+
+    /**
+     * La misma línea con el precio y los cargos que le puso el sistema.
+     *
+     * Los montos se derivan aquí y en ningún otro sitio: el descuento sale del
+     * porcentaje, el impuesto del subtotal y la retención del impuesto —no de
+     * la base imponible—.
+     */
+    public function withPricing(
+        float $unitPrice,
+        ?string $taxId,
+        float $taxPercent,
+        float $withholdingPercent,
+        float $discountPercent,
+    ): self {
+        $gross = $this->quantity * $unitPrice;
+
+        $discountAmount = round($gross * $discountPercent / 100, 2);
+        $subtotal = round($gross - $discountAmount, 2);
+        $taxAmount = round($subtotal * $taxPercent / 100, 2);
+
+        return new self(
+            id: $this->id,
+            itemId: $this->itemId,
+            measurementUnitId: $this->measurementUnitId,
+            quantity: $this->quantity,
             unitPrice: $unitPrice,
             discountPercent: $discountPercent,
             discountAmount: $discountAmount,
             taxPercent: $taxPercent,
             taxAmount: $taxAmount,
             withholdingPercent: $withholdingPercent,
-            withholdingAmount: $withholdingAmount,
+            withholdingAmount: round($taxAmount * $withholdingPercent / 100, 2),
             subtotal: $subtotal,
             total: round($subtotal + $taxAmount, 2),
-            taxId: $row['tax_id'] ?? null,
-            sourceableType: $row['sourceable_type'] ?? null,
-            sourceableId: $row['sourceable_id'] ?? null,
-            lotId: $row['lot_id'] ?? null,
-            serialId: $row['serial_id'] ?? null,
-            locationId: $row['location_id'] ?? null,
-            notes: $row['notes'] ?? null,
-            status: (string) ($row['status'] ?? 'active'),
+            taxId: $taxId,
+            sourceableType: $this->sourceableType,
+            sourceableId: $this->sourceableId,
+            lots: $this->lots,
+            serials: $this->serials,
+            locationId: $this->locationId,
+            notes: $this->notes,
+            status: $this->status,
         );
+    }
+
+    /** Cuánto de la línea se repartió en lotes. */
+    public function lotQuantity(): float
+    {
+        return round(array_sum(array_map(
+            static fn (DispatchLineLotData $lot): float => $lot->quantity,
+            $this->activeLots(),
+        )), 4);
+    }
+
+    /**
+     * Los lotes activos de la línea.
+     *
+     * @return array<int, DispatchLineLotData>
+     */
+    public function activeLots(): array
+    {
+        return array_values(array_filter(
+            $this->lots,
+            static fn (DispatchLineLotData $lot): bool => $lot->status === 'active',
+        ));
+    }
+
+    /**
+     * Las series activas de la línea.
+     *
+     * @return array<int, DispatchLineSerialData>
+     */
+    public function activeSerials(): array
+    {
+        return array_values(array_filter(
+            $this->serials,
+            static fn (DispatchLineSerialData $serial): bool => $serial->status === 'active',
+        ));
     }
 
     /**

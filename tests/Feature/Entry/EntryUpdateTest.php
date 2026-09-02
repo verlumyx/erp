@@ -22,7 +22,6 @@ test('a draft entry can be edited', function () {
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 6,
-            'unit_price' => 30,
         ]],
     ]);
 
@@ -41,8 +40,9 @@ test('a draft entry can be edited', function () {
     /** La fila se reconoce por su id y conserva su número de línea. */
     expect($line->line_number)->toBe(1);
     expect((float) $line->quantity)->toBe(6.0);
-    expect((float) $line->subtotal)->toBe(180.0);
-    expect((float) $entry->total_cost)->toBe(180.0);
+    /** Seis unidades al promedio de 25 con el que se valora la entrada. */
+    expect((float) $line->subtotal)->toBe(150.0);
+    expect((float) $entry->total_cost)->toBe(150.0);
 });
 
 test('a line that stops coming is deactivated, never deleted', function () {
@@ -50,8 +50,8 @@ test('a line that stops coming is deactivated, never deleted', function () {
 
     $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
         'lines' => [
-            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 2, 'unit_price' => 10],
-            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 3, 'unit_price' => 10],
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 2],
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 3],
         ],
     ]);
 
@@ -63,7 +63,6 @@ test('a line that stops coming is deactivated, never deleted', function () {
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 2,
-            'unit_price' => 10,
         ]],
     ]);
 
@@ -76,7 +75,48 @@ test('a line that stops coming is deactivated, never deleted', function () {
     expect(EntryLine::where('entry_id', $entry->id)->where('status', 'inactive')->count())->toBe(1);
 
     /** Y los totales solo suman las activas. */
-    expect((float) $entry->refresh()->total_cost)->toBe(20.0);
+    expect((float) $entry->refresh()->total_cost)->toBe(50.0);
+});
+
+test('a lot that stops coming is deactivated, never deleted', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'lots' => [
+                ['lot_number' => 'L-A', 'quantity' => 4],
+                ['lot_number' => 'L-B', 'quantity' => 6],
+            ],
+        ]],
+    ]);
+
+    $line = $entry->lines->first();
+    $kept = $line->lots()->orderBy('line_number')->first();
+
+    $payload = entryPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'id' => $line->id,
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 4,
+            'lots' => [['id' => $kept->id, 'lot_number' => 'L-A', 'quantity' => 4]],
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(route('entries.update', ['company' => $company->id, 'id' => $entry->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $lots = $line->lots()->orderBy('line_number')->get();
+    expect($lots)->toHaveCount(2);
+    expect($lots[0]->status)->toBe('active');
+    expect($lots[1]->status)->toBe('inactive');
+    /** La fila que se queda conserva su número: el par (línea, número) es único. */
+    expect($lots[0]->line_number)->toBe(1);
 });
 
 test('a confirmed entry can no longer be edited', function () {

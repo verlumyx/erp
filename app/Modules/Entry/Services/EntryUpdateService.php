@@ -16,6 +16,7 @@ class EntryUpdateService
         private readonly EntryRepositoryInterface $repository,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly EntryLimitsService $limits,
+        private readonly EntryPricingService $pricing,
     ) {}
 
     /**
@@ -53,7 +54,13 @@ class EntryUpdateService
             $command->exchangeRateOverride,
         );
 
-        $this->repository->update($model, $command, $rates);
+        /**
+         * El costo no lo decide la pantalla: sale de la orden que se recibe o,
+         * sin orden, del promedio del artículo.
+         */
+        $lines = $this->pricing->apply($company, $command->sourceableType, $command->sourceableId, $command->lines);
+
+        $this->repository->update($model, $command, $rates, $lines);
 
         return $this->repository->findOrFail($id, $companyId);
     }

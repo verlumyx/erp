@@ -6,8 +6,8 @@ namespace App\Modules\Entry\Models;
 
 use App\Modules\Company\Models\Company;
 use App\Modules\Item\Models\Item;
-use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
+use App\Modules\Dispatch\Models\DispatchLine;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Database\Factories\EntryLineFactory;
@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class EntryLine extends Model
@@ -28,7 +29,7 @@ class EntryLine extends Model
     protected $keyType = 'string';
 
     /** Líneas de documento que hoy pueden originar una línea de entrada. */
-    public const SOURCE_TYPES = [PurchaseOrderLine::MORPH_ALIAS];
+    public const SOURCE_TYPES = [PurchaseOrderLine::MORPH_ALIAS, DispatchLine::MORPH_ALIAS];
 
     protected $fillable = [
         'id',
@@ -40,10 +41,6 @@ class EntryLine extends Model
         'sourceable_type',
         'sourceable_id',
         'location_id',
-        'lot_number',
-        'lot_id',
-        'expires_at',
-        'serial_numbers',
         'quantity',
         'base_quantity',
         'unit_price',
@@ -72,8 +69,6 @@ class EntryLine extends Model
     {
         return [
             'line_number' => 'integer',
-            'expires_at' => 'date',
-            'serial_numbers' => 'array',
             'quantity' => 'decimal:4',
             'base_quantity' => 'decimal:4',
             'unit_price' => 'decimal:6',
@@ -125,9 +120,19 @@ class EntryLine extends Model
         return $this->belongsTo(WarehouseLocation::class, 'location_id', 'id');
     }
 
-    public function lot(): BelongsTo
+    /**
+     * Los lotes con los que llegó la línea. La trazabilidad salió de la línea
+     * porque una misma línea puede llegar repartida en varios lotes.
+     */
+    public function lots(): HasMany
     {
-        return $this->belongsTo(ItemLot::class, 'lot_id', 'id');
+        return $this->hasMany(EntryLineLot::class, 'entry_line_id', 'id');
+    }
+
+    /** Las unidades con serie que llegaron en la línea. */
+    public function serials(): HasMany
+    {
+        return $this->hasMany(EntryLineSerial::class, 'entry_line_id', 'id');
     }
 
     /**

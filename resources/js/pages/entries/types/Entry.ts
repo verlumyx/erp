@@ -23,6 +23,13 @@ export type EntryInspectionStatus =
 /** Alias del morph map con el que viaja el documento origen. */
 export const PURCHASE_ORDER = 'purchase_order';
 
+/**
+ * El otro documento que origina una entrada: el traslado que mandó la
+ * mercancía desde otra bodega propia. La entrada cuelga del traslado, no del
+ * despacho que la generó.
+ */
+export const TRANSFER = 'transfer';
+
 /** Alias del morph map con el que viaja la línea origen. */
 export const PURCHASE_ORDER_LINE = 'purchase_order_line';
 
@@ -40,11 +47,11 @@ export interface EntryLine {
     sourceable_id: string | null;
     location_id: string | null;
     location_name?: string | null;
-    lot_number: string | null;
-    lot_id: string | null;
-    lot_code?: string | null;
-    expires_at: string | null;
-    serial_numbers: string[];
+    /** La trazabilidad vive en sus propias tablas: la línea solo la agrupa. */
+    lots: EntryLineLot[];
+    serials: EntryLineSerial[];
+    /** Lo que pidió la línea de la orden. Vacío en una línea sin origen. */
+    source_quantity?: string | null;
     quantity: string;
     base_quantity: string;
     /** Lo aceptado y lo rechazado: solo lo primero llega al inventario. */
@@ -66,6 +73,35 @@ export interface EntryLine {
     rejection_reason: string | null;
     status: 'active' | 'inactive';
     notes: string | null;
+}
+
+/**
+ * Uno de los lotes con los que llegó una línea. `lot_id` está vacío mientras la
+ * entrada sea un borrador: el lote del maestro nace al confirmarla.
+ */
+export interface EntryLineLot {
+    id: string;
+    entry_line_id: string;
+    line_number: number;
+    lot_number: string;
+    lot_id: string | null;
+    lot_code?: string | null;
+    expires_at: string | null;
+    quantity: string;
+    base_quantity: string;
+    status: 'active' | 'inactive';
+    notes: string | null;
+}
+
+/** Una de las unidades con serie que llegaron en una línea. */
+export interface EntryLineSerial {
+    id: string;
+    entry_line_id: string;
+    entry_line_lot_id: string | null;
+    line_number: number;
+    serial_number: string;
+    serial_id: string | null;
+    status: 'active' | 'inactive';
 }
 
 export interface Entry {

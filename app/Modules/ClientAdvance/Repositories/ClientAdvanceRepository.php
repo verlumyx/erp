@@ -8,6 +8,7 @@ use App\Modules\ClientAdvance\Commands\CreateClientAdvanceCommand;
 use App\Modules\ClientAdvance\Commands\SearchClientAdvanceCommand;
 use App\Modules\ClientAdvance\Commands\UpdateClientAdvanceCommand;
 use App\Modules\ClientAdvance\Commands\UpdateStatusClientAdvanceCommand;
+use App\Modules\ClientAdvance\Commands\WriteClientAdvanceAppliedCommand;
 use App\Modules\ClientAdvance\Models\ClientAdvance;
 use App\Modules\ClientAdvance\Repositories\Contracts\ClientAdvanceRepositoryInterface;
 use App\Modules\ExchangeRate\Commands\DocumentRatesData;
@@ -24,6 +25,7 @@ class ClientAdvanceRepository extends ClientAdvanceFilters implements ClientAdva
                 'code' => $this->generateNextCode($command->companyId),
                 'client_id' => $command->clientId,
                 'sales_order_id' => $command->salesOrderId,
+                'origin_collection_id' => $command->originCollectionId,
                 'advance_date' => $command->advanceDate,
                 'payment_method' => $command->paymentMethod,
                 'reference' => $command->reference,
@@ -82,6 +84,18 @@ class ClientAdvanceRepository extends ClientAdvanceFilters implements ClientAdva
         }
 
         $model->update($attributes);
+    }
+
+    public function writeApplied(
+        ClientAdvance $model,
+        WriteClientAdvanceAppliedCommand $command,
+    ): ClientAdvance {
+        $model->update([
+            'applied_amount' => $command->appliedAmount,
+            'balance' => $command->balance,
+        ]);
+
+        return $model;
     }
 
     public function lockById(string $id, ?string $companyId = null): ?ClientAdvance

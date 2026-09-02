@@ -28,6 +28,12 @@ class ClientAdvanceFilters extends EloquentQueryFilters
         return $this->builder->where('sales_order_id', $value);
     }
 
+    /** El cobro cuyo excedente generó el anticipo. */
+    public function origin_collection_id(string $value): Builder
+    {
+        return $this->builder->where('origin_collection_id', $value);
+    }
+
     public function reference(string $value): Builder
     {
         return $this->builder->where('reference', 'like', "%{$value}%");

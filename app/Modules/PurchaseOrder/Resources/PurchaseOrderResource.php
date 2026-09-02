@@ -50,6 +50,15 @@ class PurchaseOrderResource extends JsonResource
                 'lines',
                 fn (): array => PurchaseOrderLineResource::collection($this->lines)->resolve($request),
             ),
+            /** Las entradas que la orden generó al aprobarse, para poder abrirlas desde aquí. */
+            'entries' => $this->whenLoaded('entries', fn (): array => $this->entries
+                ->map(fn ($entry): array => [
+                    'id' => $entry->id,
+                    'code' => $entry->code,
+                    'status' => $entry->status,
+                ])
+                ->values()
+                ->all()),
         ];
     }
 }

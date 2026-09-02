@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useDispatchFormContext } from '../contexts/DispatchFormContext';
-import { formatAmount } from '../types/Dispatch';
 import { DispatchLinesSection } from './DispatchLinesSection';
 
 interface FormSectionHeadProps {
@@ -441,31 +440,10 @@ export function DispatchForm() {
                             {totals.quantity}
                         </b>
                     </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Descuento de líneas
-                        </span>
-                        <b className="font-bold tabular-nums">
-                            {formatAmount(totals.discountAmount, currency)}
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Impuesto
-                        </span>
-                        <b className="font-bold tabular-nums">
-                            {formatAmount(totals.taxAmount, currency)}
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between border-t pt-2.5 text-[15px]">
-                        <span className="font-semibold">Valor de la carga</span>
-                        <b className="font-extrabold tabular-nums">
-                            {formatAmount(totals.total, currency)}
-                        </b>
-                    </div>
                 </div>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    Los importes son informativos: el despacho no factura. Al
+                    El despacho solo decide qué sale y cuánto: el precio lo trae
+                    el pedido y es informativo —la guía no factura—. Al
                     confirmarlo, la mercancía sale del inventario al costo
                     promedio vigente.
                 </p>

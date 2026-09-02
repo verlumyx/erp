@@ -19,11 +19,11 @@ import itemLots from '@/routes/item-lots';
 import itemSerials from '@/routes/item-serials';
 import routes from '@/routes/routes';
 import salesOrders from '@/routes/sales-orders';
-import { taxWithholdingPercent, type TaxOption } from '@/types/tax';
 import type {
     ClientAddressOption,
     ClientOptionMeta,
     Dispatch,
+    DispatchLine,
     DispatchOptions,
     RouteOptionMeta,
     SalesOrderOptionLine,
@@ -41,23 +41,41 @@ interface UseDispatchFormProps {
 const SALES_ORDER = 'sales_order';
 const SALES_ORDER_LINE = 'sales_order_line';
 
+/** Uno de los lotes de los que sale la línea; siempre elegido del maestro. */
+export interface DispatchLineLotRow {
+    id: string;
+    lot_id: string;
+    quantity: number;
+    status: 'active' | 'inactive';
+}
+
+/**
+ * Una de las unidades con serie que salen en la línea. `lot_id` dice de cuál de
+ * sus lotes sale, cuando la línea lleva más de uno.
+ */
+export interface DispatchLineSerialRow {
+    id: string;
+    serial_id: string;
+    lot_id: string;
+    status: 'active' | 'inactive';
+}
+
+/**
+ * La pantalla del despacho solo captura cantidad y trazabilidad: el precio, el
+ * impuesto y el descuento se deciden en el pedido de venta y los pone el
+ * backend, así que no viajan en la fila.
+ */
 export interface DispatchLineRow {
     id: string;
     item_id: string;
     measurement_unit_id: string;
     quantity: number;
-    unit_price: number;
-    discount_percent: number;
-    /** Impuesto del catálogo. De él salen los dos porcentajes de abajo. */
-    tax_id: string;
-    tax_percent: number;
-    withholding_percent: number;
     /** Línea del pedido que esta línea despacha; vacía en una suelta. */
     sourceable_id: string;
-    lot_id: string;
-    serial_id: string;
     /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
     location_id: string;
+    lots: DispatchLineLotRow[];
+    serials: DispatchLineSerialRow[];
     notes: string;
 }
 
@@ -91,15 +109,18 @@ interface PageProps {
  * así el select lo muestra desde el primer render.
  */
 function clientSeed(model?: Dispatch): AjaxOption | null {
-    if (!model?.client_id) {
+    /** La pantalla solo edita despachos a un cliente: uno de traslado no pasa por aquí. */
+    if (model?.recipient_type !== 'client' || !model.recipient_id) {
         return null;
     }
 
-    const name = model.client_name ?? '';
+    const name = model.recipient_name ?? '';
 
     return {
-        value: model.client_id,
-        label: model.client_code ? `${model.client_code} — ${name}` : name,
+        value: model.recipient_id,
+        label: model.recipient_code
+            ? `${model.recipient_code} — ${name}`
+            : name,
     };
 }
 
@@ -138,22 +159,6 @@ function itemLabel(entry: ItemCatalogEntry): string {
  * La línea con un impuesto del catálogo aplicado: sus dos porcentajes salen de
  * ahí y ya no se capturan a mano. Sin impuesto, ambos vuelven a cero.
  */
-function withTax(
-    line: DispatchLineRow,
-    tax: TaxOption | undefined,
-): DispatchLineRow {
-    if (!tax) {
-        return { ...line, tax_id: '', tax_percent: 0, withholding_percent: 0 };
-    }
-
-    return {
-        ...line,
-        tax_id: tax.id,
-        tax_percent: Number(tax.percentage),
-        withholding_percent: taxWithholdingPercent(tax),
-    };
-}
-
 /** La unidad en la que se despacha por defecto: la base del artículo. */
 function baseUnitId(item: ItemCatalogEntry | undefined): string {
     if (!item) {
@@ -168,15 +173,8 @@ function baseUnitId(item: ItemCatalogEntry | undefined): string {
 }
 
 export interface DispatchTotals {
-    /** Cantidad por precio, antes de cualquier rebaja. */
-    gross: number;
-    discountAmount: number;
-    subtotal: number;
-    taxAmount: number;
-    /** Parte del impuesto que se entera al fisco en vez de cobrarse. */
-    withholdingAmount: number;
-    total: number;
-    /** Bultos y costo de la carga: lo que el despacho mira de verdad. */
+    lines: number;
+    /** Bultos de la carga: lo único que el despacho decide. */
     quantity: number;
 }
 
@@ -186,15 +184,10 @@ function emptyLine(): DispatchLineRow {
         item_id: '',
         measurement_unit_id: '',
         quantity: 1,
-        unit_price: 0,
-        discount_percent: 0,
-        tax_id: '',
-        tax_percent: 0,
-        withholding_percent: 0,
         sourceable_id: '',
-        lot_id: '',
-        serial_id: '',
         location_id: '',
+        lots: [],
+        serials: [],
         notes: '',
     };
 }
@@ -212,52 +205,73 @@ function lineRows(model?: Dispatch): DispatchLineRow[] {
             item_id: line.item_id,
             measurement_unit_id: line.measurement_unit_id,
             quantity: Number(line.quantity),
-            unit_price: Number(line.unit_price),
-            discount_percent: Number(line.discount_percent),
-            tax_id: line.tax_id ?? '',
-            tax_percent: Number(line.tax_percent),
-            withholding_percent: Number(line.withholding_percent),
             sourceable_id: line.sourceable_id ?? '',
-            lot_id: line.lot_id ?? '',
-            serial_id: line.serial_id ?? '',
             location_id: line.location_id ?? '',
+            lots: lotRows(line),
+            serials: serialRows(line),
             notes: line.notes ?? '',
         }));
 
     return rows.length > 0 ? rows : [emptyLine()];
 }
 
-/**
- * Espejo del cálculo del backend (`DispatchLineData`): sirve para mostrar el
- * resumen mientras se captura. El importe que se guarda siempre lo recalcula el
- * servidor, y en el despacho es informativo: la guía no factura.
- */
-export function lineAmounts(line: DispatchLineRow): {
-    gross: number;
-    discountAmount: number;
-    subtotal: number;
-    taxAmount: number;
-    withholdingAmount: number;
-    total: number;
-} {
-    const gross = line.quantity * line.unit_price;
-    const discountAmount = round2((gross * line.discount_percent) / 100);
-    const subtotal = round2(gross - discountAmount);
-    const taxAmount = round2((subtotal * line.tax_percent) / 100);
+/** Cuánto de la línea se repartió ya en lotes. */
+export function assignedToLots(line: DispatchLineRow): number {
+    return round2(
+        line.lots
+            .filter((lot) => lot.status === 'active')
+            .reduce((total, lot) => total + lot.quantity, 0),
+    );
+}
 
-    return {
-        gross: round2(gross),
-        discountAmount,
-        subtotal,
-        taxAmount,
-        /** La retención se practica sobre el impuesto, no sobre la base. */
-        withholdingAmount: round2((taxAmount * line.withholding_percent) / 100),
-        total: round2(subtotal + taxAmount),
-    };
+/** Los lotes activos de una línea guardada. */
+function lotRows(line: DispatchLine): DispatchLineLotRow[] {
+    return (line.lots ?? [])
+        .filter((lot) => lot.status === 'active')
+        .sort((a, b) => a.line_number - b.line_number)
+        .map((lot) => ({
+            id: lot.id,
+            lot_id: lot.lot_id,
+            quantity: Number(lot.quantity),
+            status: 'active' as const,
+        }));
+}
+
+/** Las series activas de una línea guardada, cada una atada a su lote. */
+function serialRows(line: DispatchLine): DispatchLineSerialRow[] {
+    const lotIdOf = new Map(
+        (line.lots ?? []).map((lot) => [lot.id, lot.lot_id]),
+    );
+
+    return (line.serials ?? [])
+        .filter((serial) => serial.status === 'active')
+        .sort((a, b) => a.line_number - b.line_number)
+        .map((serial) => ({
+            id: serial.id,
+            serial_id: serial.serial_id,
+            lot_id: serial.dispatch_line_lot_id
+                ? (lotIdOf.get(serial.dispatch_line_lot_id) ?? '')
+                : '',
+            status: 'active' as const,
+        }));
 }
 
 function round2(value: number): number {
     return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * ¿Esa fila de trazabilidad ya está guardada? Una que nunca llegó a la base se
+ * puede quitar sin más; una que sí, se desactiva.
+ */
+function isSaved(
+    id: string,
+    model: Dispatch | undefined,
+    collection: 'lots' | 'serials',
+): boolean {
+    return (model?.lines ?? []).some((line) =>
+        (line[collection] ?? []).some((row) => row.id === id),
+    );
 }
 
 export function useDispatchForm({
@@ -304,7 +318,7 @@ export function useDispatchForm({
     const { data, setData, post, put, transform, processing, errors, reset } =
         useForm<DispatchFormData>({
             id: initialData?.id ?? generateUUID(),
-            client_id: initialData?.client_id ?? '',
+            client_id: initialData?.recipient_id ?? '',
             sourceable_type: initialData?.sourceable_type ?? '',
             sourceable_id: initialData?.sourceable_id ?? '',
             client_address_id: initialData?.client_address_id ?? '',
@@ -358,15 +372,19 @@ export function useDispatchForm({
         seed: catalogSeed,
     });
 
-    /** Lotes y series elegidos en las líneas. */
+    /** Lotes y series elegidos en las líneas, aplanados de sus colecciones. */
     const lotSeed: RemoteOptionSeed[] = useMemo(
         () =>
             optionSeeds(
-                (initialData?.lines ?? []).map((line) => ({
-                    id: line.lot_id,
-                    label: line.lot_number,
-                })),
-                data.lines.map((line) => line.lot_id),
+                (initialData?.lines ?? []).flatMap((line) =>
+                    (line.lots ?? []).map((lot) => ({
+                        id: lot.lot_id,
+                        label: lot.lot_number,
+                    })),
+                ),
+                data.lines.flatMap((line) =>
+                    line.lots.map((lot) => lot.lot_id),
+                ),
             ),
         [initialData, data.lines],
     );
@@ -374,11 +392,15 @@ export function useDispatchForm({
     const serialSeed: RemoteOptionSeed[] = useMemo(
         () =>
             optionSeeds(
-                (initialData?.lines ?? []).map((line) => ({
-                    id: line.serial_id,
-                    label: line.serial_number,
-                })),
-                data.lines.map((line) => line.serial_id),
+                (initialData?.lines ?? []).flatMap((line) =>
+                    (line.serials ?? []).map((serial) => ({
+                        id: serial.serial_id,
+                        label: serial.serial_number,
+                    })),
+                ),
+                data.lines.flatMap((line) =>
+                    line.serials.map((serial) => serial.serial_id),
+                ),
             ),
         [initialData, data.lines],
     );
@@ -515,15 +537,10 @@ export function useDispatchForm({
                 quantity: round2(
                     Number(line.quantity) - Number(line.dispatched_quantity),
                 ),
-                unit_price: Number(line.unit_price),
-                discount_percent: Number(line.discount_percent),
-                tax_id: line.tax_id ?? '',
-                tax_percent: Number(line.tax_percent),
-                withholding_percent: Number(line.withholding_percent),
                 sourceable_id: line.id,
-                lot_id: '',
-                serial_id: '',
                 location_id: '',
+                lots: [],
+                serials: [],
                 notes: line.notes ?? '',
             })),
         );
@@ -549,13 +566,9 @@ export function useDispatchForm({
             ),
         );
 
-    /** El impuesto del catálogo con ese id, si sigue activo. */
-    const taxOf = (taxId: string | null | undefined): TaxOption | undefined =>
-        taxId ? options.taxes.find((tax) => tax.id === taxId) : undefined;
-
     /**
-     * Cambiar de artículo invalida la unidad, el lote, la serie y la
-     * trazabilidad a la línea del pedido: ya no es la misma mercancía.
+     * Cambiar de artículo invalida la unidad, la trazabilidad y el vínculo con
+     * la línea del pedido: ya no es la misma mercancía.
      */
     const setLineItem = (index: number, option: AjaxOption | null) => {
         const item = option ? catalog.remember(option) : undefined;
@@ -564,51 +577,23 @@ export function useDispatchForm({
             'lines',
             data.lines.map((line, i) =>
                 i === index
-                    ? withTax(
-                          {
-                              ...line,
-                              item_id: item?.id ?? '',
-                              measurement_unit_id: baseUnitId(item),
-                              sourceable_id: '',
-                              lot_id: '',
-                              serial_id: '',
-                          },
-                          taxOf(item?.sale_tax_id),
-                      )
+                    ? {
+                          ...line,
+                          item_id: item?.id ?? '',
+                          measurement_unit_id: baseUnitId(item),
+                          sourceable_id: '',
+                          lots: [],
+                          serials: [],
+                      }
                     : line,
             ),
         );
     };
 
-    /** Cambiar el impuesto de una línea trae su porcentaje y su retención. */
-    const setLineTax = (index: number, taxId: string) =>
-        setData(
-            'lines',
-            data.lines.map((line, i) =>
-                i === index ? withTax(line, taxOf(taxId)) : line,
-            ),
-        );
-
-    const setLineLot = (index: number, option: AjaxOption | null) => {
-        if (option) {
-            lots.remember(option);
-        }
-
-        updateLine(index, 'lot_id', option?.value ?? '');
-    };
-
-    const setLineSerial = (index: number, option: AjaxOption | null) => {
-        if (option) {
-            serials.remember(option);
-        }
-
-        updateLine(index, 'serial_id', option?.value ?? '');
-    };
-
     /**
-     * Atar una línea a la del pedido copia lo que se vendió: artículo, unidad,
-     * precio y sus cargos. Es lo que hace que el backend pueda comprobar que no
-     * se despacha más de lo pedido.
+     * Atar una línea a la del pedido copia lo que se vendió: artículo y unidad.
+     * Es lo que hace que el backend pueda comprobar que no se despacha más de
+     * lo pedido —y de donde saca el precio con el que la guía se imprime—.
      */
     const setLineOrderLine = (index: number, orderLineId: string) => {
         const source = orderLineOf(orderLineId);
@@ -629,11 +614,6 @@ export function useDispatchForm({
                     sourceable_id: source.id,
                     item_id: source.item_id,
                     measurement_unit_id: source.measurement_unit_id,
-                    unit_price: Number(source.unit_price),
-                    discount_percent: Number(source.discount_percent),
-                    tax_id: source.tax_id ?? '',
-                    tax_percent: Number(source.tax_percent),
-                    withholding_percent: Number(source.withholding_percent),
                 };
             }),
         );
@@ -678,34 +658,183 @@ export function useDispatchForm({
         }));
     };
 
+    /**
+     * Cuántos bultos salen. La pantalla no enseña importes: el precio lo pone
+     * el backend con el pedido o con el promedio del artículo, y en el despacho
+     * es informativo de todas formas —la guía no factura—.
+     */
     const totals: DispatchTotals = data.lines.reduce(
-        (accumulator, line) => {
-            const amounts = lineAmounts(line);
-
-            return {
-                gross: round2(accumulator.gross + amounts.gross),
-                discountAmount: round2(
-                    accumulator.discountAmount + amounts.discountAmount,
-                ),
-                subtotal: round2(accumulator.subtotal + amounts.subtotal),
-                taxAmount: round2(accumulator.taxAmount + amounts.taxAmount),
-                withholdingAmount: round2(
-                    accumulator.withholdingAmount + amounts.withholdingAmount,
-                ),
-                total: round2(accumulator.total + amounts.total),
-                quantity: round2(accumulator.quantity + line.quantity),
-            };
-        },
-        {
-            gross: 0,
-            discountAmount: 0,
-            subtotal: 0,
-            taxAmount: 0,
-            withholdingAmount: 0,
-            total: 0,
-            quantity: 0,
-        },
+        (accumulator, line) => ({
+            lines: accumulator.lines + 1,
+            quantity: round2(accumulator.quantity + line.quantity),
+        }),
+        { lines: 0, quantity: 0 },
     );
+
+    /** ---- Trazabilidad de la línea: lotes y series ---- */
+
+    const mapLine = (
+        index: number,
+        change: (line: DispatchLineRow) => DispatchLineRow,
+    ) =>
+        setData(
+            'lines',
+            data.lines.map((line, i) => (i === index ? change(line) : line)),
+        );
+
+    const addLineLot = (index: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            lots: [
+                ...line.lots,
+                {
+                    id: generateUUID(),
+                    lot_id: '',
+                    /** Lo que falta por repartir: casi siempre es todo. */
+                    quantity: Math.max(
+                        round2(line.quantity - assignedToLots(line)),
+                        0,
+                    ),
+                    status: 'active' as const,
+                },
+            ],
+        }));
+
+    const setLineLot = (
+        index: number,
+        lotIndex: number,
+        option: AjaxOption | null,
+    ) => {
+        if (option) {
+            lots.remember(option);
+        }
+
+        mapLine(index, (line) => ({
+            ...line,
+            lots: line.lots.map((lot, i) =>
+                i === lotIndex ? { ...lot, lot_id: option?.value ?? '' } : lot,
+            ),
+        }));
+    };
+
+    const updateLineLot = (index: number, lotIndex: number, quantity: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            lots: line.lots.map((lot, i) =>
+                i === lotIndex ? { ...lot, quantity } : lot,
+            ),
+        }));
+
+    /**
+     * Una fila que nunca se guardó desaparece; una que ya existe se desactiva.
+     * La política de no borrado también alcanza a la trazabilidad.
+     */
+    const removeLineLot = (index: number, lotIndex: number) =>
+        mapLine(index, (line) => {
+            const lot = line.lots[lotIndex];
+
+            if (!lot) {
+                return line;
+            }
+
+            /** Las series que salían de ese lote se quedan sin lote. */
+            const serials = line.serials.map((serial) =>
+                serial.lot_id === lot.lot_id
+                    ? { ...serial, lot_id: '' }
+                    : serial,
+            );
+
+            return isSaved(lot.id, initialData, 'lots')
+                ? {
+                      ...line,
+                      serials,
+                      lots: line.lots.map((current, i) =>
+                          i === lotIndex
+                              ? { ...current, status: 'inactive' as const }
+                              : current,
+                      ),
+                  }
+                : {
+                      ...line,
+                      serials,
+                      lots: line.lots.filter((_, i) => i !== lotIndex),
+                  };
+        });
+
+    const addLineSerial = (index: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: [
+                ...line.serials,
+                {
+                    id: generateUUID(),
+                    serial_id: '',
+                    lot_id: '',
+                    status: 'active' as const,
+                },
+            ],
+        }));
+
+    const setLineSerial = (
+        index: number,
+        serialIndex: number,
+        option: AjaxOption | null,
+    ) => {
+        if (option) {
+            serials.remember(option);
+        }
+
+        mapLine(index, (line) => ({
+            ...line,
+            serials: line.serials.map((serial, i) =>
+                i === serialIndex
+                    ? { ...serial, serial_id: option?.value ?? '' }
+                    : serial,
+            ),
+        }));
+    };
+
+    const setLineSerialLot = (
+        index: number,
+        serialIndex: number,
+        lotId: string,
+    ) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: line.serials.map((serial, i) =>
+                i === serialIndex ? { ...serial, lot_id: lotId } : serial,
+            ),
+        }));
+
+    const removeLineSerial = (index: number, serialIndex: number) =>
+        mapLine(index, (line) => {
+            const serial = line.serials[serialIndex];
+
+            if (!serial) {
+                return line;
+            }
+
+            return isSaved(serial.id, initialData, 'serials')
+                ? {
+                      ...line,
+                      serials: line.serials.map((current, i) =>
+                          i === serialIndex
+                              ? { ...current, status: 'inactive' as const }
+                              : current,
+                      ),
+                  }
+                : {
+                      ...line,
+                      serials: line.serials.filter((_, i) => i !== serialIndex),
+                  };
+        });
+
+    /** Lo que pidió la línea del pedido. Vacío en una línea suelta. */
+    const orderedQuantityOf = (line: DispatchLineRow): number | null => {
+        const source = orderLineOf(line.sourceable_id);
+
+        return source ? Number(source.quantity) : null;
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -770,10 +899,16 @@ export function useDispatchForm({
         removeLine,
         updateLine,
         setLineItem,
-        setLineTax,
-        setLineLot,
-        setLineSerial,
         setLineOrderLine,
+        addLineLot,
+        setLineLot,
+        updateLineLot,
+        removeLineLot,
+        addLineSerial,
+        setLineSerial,
+        setLineSerialLot,
+        removeLineSerial,
+        orderedQuantityOf,
         catalog,
         lots,
         serials,

@@ -268,6 +268,38 @@ function purchaseOrderPayload(
 }
 
 /**
+ * Moves a purchase order to the given status over HTTP, which is what actually
+ * announces the incoming goods and writes the entry that will receive them.
+ *
+ * @param  array<string, mixed>  $payload  Extra fields, such as the reason a cancellation needs.
+ */
+function movePurchaseOrderTo(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\PurchaseOrder\Models\PurchaseOrder $order,
+    string $status,
+    array $payload = [],
+): \Illuminate\Testing\TestResponse {
+    return \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(
+            route('purchase-orders.update-status', ['company' => $company->id, 'id' => $order->id]),
+            ['status' => $status, ...$payload],
+        );
+}
+
+/** El saldo del artículo en una ubicación concreta de la bodega. */
+function stockAt(
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\WarehouseLocation\Models\WarehouseLocation $location,
+): ?\App\Modules\ItemStock\Models\ItemStock {
+    return \App\Modules\ItemStock\Models\ItemStock::query()
+        ->where('item_id', $item->id)
+        ->where('location_id', $location->id)
+        ->first();
+}
+
+/**
  * User + company + the minimum masters a sales order needs: a client, a
  * warehouse and one sellable item with its base unit.
  *
@@ -365,6 +397,27 @@ function createSalesOrder(
 }
 
 /**
+ * Moves a sales order to the given status over HTTP, which is what actually
+ * reserves the goods and writes the dispatch that will take them out.
+ *
+ * @param  array<string, mixed>  $payload  Extra fields, such as the reason a cancellation needs.
+ */
+function moveSalesOrderTo(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\SalesOrder\Models\SalesOrder $order,
+    string $status,
+    array $payload = [],
+): \Illuminate\Testing\TestResponse {
+    return \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(
+            route('sales-orders.update-status', ['company' => $company->id, 'id' => $order->id]),
+            ['status' => $status, ...$payload],
+        );
+}
+
+/**
  * User + company + the minimum masters a sales invoice needs. It is the same
  * scenario as a sales order: a client, a warehouse and one sellable item with
  * its base unit.
@@ -387,6 +440,11 @@ function salesInvoiceScenario(): array
  * A valid `sales-invoices.store` / `sales-invoices.update` payload, overridable
  * per test. Without explicit lines it carries one line of the given item.
  *
+ * It does not affect inventory: the goods are taken as already dispatched, so
+ * the tests that only care about the receivable, the fiscal number or the
+ * collection do not need stock in the warehouse. The ones that do test the
+ * kardex pass `affects_inventory => 'yes'` and stock the warehouse first.
+ *
  * @param  array<string, mixed>  $overrides
  * @return array<string, mixed>
  */
@@ -404,6 +462,7 @@ function salesInvoicePayload(
         'invoice_date' => now()->toDateString(),
         'due_date' => now()->toDateString(),
         'currency' => 'USD',
+        'affects_inventory' => 'no',
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -833,6 +892,10 @@ function supplierPaymentScenario(): array
  * A purchase invoice that already owes money: created over HTTP and confirmed,
  * which is the only state in which a payment can be applied to it.
  *
+ * It does not affect inventory: what these tests care about is the payable, and
+ * the goods are taken as already received with a previous entry. Confirming one
+ * that does move stock needs the warehouse to have a default location.
+ *
  * @param  array<string, mixed>  $overrides
  */
 function payablePurchaseInvoice(
@@ -844,7 +907,10 @@ function payablePurchaseInvoice(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): \App\Modules\PurchaseInvoice\Models\PurchaseInvoice {
-    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, $overrides);
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, [
+        'affects_inventory' => 'no',
+        ...$overrides,
+    ]);
 
     \Pest\Laravel\actingAs($user)
         ->withSession(['current_company_id' => $company->id])
@@ -1615,7 +1681,16 @@ function dispatchMovements(
  */
 function entryScenario(): array
 {
-    return purchaseReturnScenario();
+    $scenario = purchaseReturnScenario();
+
+    /**
+     * The item already has an average cost. The entry screen does not capture
+     * the cost any more: without a purchase order behind it, a receipt is
+     * valued at whatever the item is already worth.
+     */
+    $scenario[4]->update(['average_cost' => 25]);
+
+    return $scenario;
 }
 
 /**
@@ -1647,7 +1722,6 @@ function entryPayload(
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 10,
-                'unit_price' => 25,
             ],
         ],
         ...$overrides,
@@ -1845,26 +1919,6 @@ function moveTransferTo(
 }
 
 /**
- * Registers what arrived at the destination warehouse over HTTP: it is what
- * empties the transit warehouse and fills the destination one.
- *
- * @param  array<string, mixed>  $payload
- */
-function registerTransferReceipt(
-    \App\Modules\User\Models\User $user,
-    \App\Modules\Company\Models\Company $company,
-    \App\Modules\Transfer\Models\Transfer $transfer,
-    array $payload = [],
-): \Illuminate\Testing\TestResponse {
-    return \Pest\Laravel\actingAs($user)
-        ->withSession(['current_company_id' => $company->id])
-        ->put(
-            route('transfers.receipt', ['company' => $company->id, 'id' => $transfer->id]),
-            $payload,
-        );
-}
-
-/**
  * The live kardex movements a transfer wrote, counter-entries included: the
  * tests that check a cancellation need to see both sides.
  *
@@ -1873,11 +1927,81 @@ function registerTransferReceipt(
 function transferMovements(
     \App\Modules\Transfer\Models\Transfer $transfer,
 ): \Illuminate\Database\Eloquent\Collection {
+    $dispatch = transferDispatch($transfer);
+
+    $entry = $dispatch === null ? null : dispatchEntry($dispatch);
+
     return \App\Modules\InventoryMovement\Models\InventoryMovement::query()
-        ->where('origin_type', \App\Modules\Transfer\Models\Transfer::MOVEMENT_ORIGIN_TYPE)
-        ->where('origin_id', $transfer->id)
+        ->where(function ($query) use ($dispatch, $entry): void {
+            $query->whereRaw('1 = 0');
+
+            if ($dispatch !== null) {
+                $query->orWhere(fn ($q) => $q
+                    ->where('origin_type', \App\Modules\Dispatch\Models\Dispatch::MOVEMENT_ORIGIN_TYPE)
+                    ->where('origin_id', $dispatch->id));
+            }
+
+            if ($entry !== null) {
+                $query->orWhere(fn ($q) => $q
+                    ->where('origin_type', \App\Modules\Entry\Models\Entry::MOVEMENT_ORIGIN_TYPE)
+                    ->where('origin_id', $entry->id));
+            }
+        })
         ->orderBy('code')
         ->get();
+}
+
+/** Deja existencia en una bodega, al costo indicado, para poder sacarla luego. */
+function stockWarehouse(
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\WarehouseLocation\Models\WarehouseLocation $location,
+    float $quantity = 20,
+    float $unitCost = 10,
+): void {
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => $quantity,
+        'unitCost' => $unitCost,
+    ]);
+}
+
+/** El despacho que el traslado generó al confirmarse, si lo generó. */
+function transferDispatch(
+    \App\Modules\Transfer\Models\Transfer $transfer,
+): ?\App\Modules\Dispatch\Models\Dispatch {
+    return \App\Modules\Dispatch\Models\Dispatch::query()
+        ->with('lines')
+        ->where('sourceable_type', \App\Modules\Transfer\Models\Transfer::MORPH_ALIAS)
+        ->where('sourceable_id', $transfer->id)
+        ->where('status', '!=', 'cancelled')
+        ->first();
+}
+
+/**
+ * La entrada que el despacho generó al confirmarse, si la generó. Cuelga del
+ * traslado —el documento que originó el movimiento—, no del despacho.
+ */
+function dispatchEntry(
+    \App\Modules\Dispatch\Models\Dispatch $dispatch,
+): ?\App\Modules\Entry\Models\Entry {
+    $transfer = $dispatch->sourceable;
+
+    return $transfer instanceof \App\Modules\Transfer\Models\Transfer
+        ? transferEntry($transfer)
+        : null;
+}
+
+/** La entrada con la que el traslado llega al destino, si ya nació. */
+function transferEntry(
+    \App\Modules\Transfer\Models\Transfer $transfer,
+): ?\App\Modules\Entry\Models\Entry {
+    return \App\Modules\Entry\Models\Entry::query()
+        ->with('lines')
+        ->where('sourceable_type', \App\Modules\Transfer\Models\Transfer::MORPH_ALIAS)
+        ->where('sourceable_id', $transfer->id)
+        ->where('status', '!=', 'cancelled')
+        ->first();
 }
 
 /**
@@ -2193,4 +2317,94 @@ function routeStopsOn(
         ->where('status', 'active')
         ->orderBy('sequence')
         ->get();
+}
+
+/**
+ * Moves a sales credit note to the given status over HTTP, which is what
+ * actually posts its stock, its balance and its credit to the invoice.
+ */
+function moveSalesCreditNoteTo(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\SalesCreditNote\Models\SalesCreditNote $note,
+    string $status,
+): \Illuminate\Testing\TestResponse {
+    return \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(
+            route('sales-credit-notes.update-status', ['company' => $company->id, 'id' => $note->id]),
+            ['status' => $status],
+        );
+}
+
+/**
+ * Moves a purchase credit note to the given status over HTTP, which is what
+ * actually posts its stock, its balance and its credit to the invoice.
+ */
+function movePurchaseCreditNoteTo(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\PurchaseCreditNote\Models\PurchaseCreditNote $note,
+    string $status,
+): \Illuminate\Testing\TestResponse {
+    return \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(
+            route('purchase-credit-notes.update-status', ['company' => $company->id, 'id' => $note->id]),
+            ['status' => $status],
+        );
+}
+
+/**
+ * Issues a sales invoice over HTTP, which is what burns its fiscal number,
+ * posts the receivable and moves the stock a direct sale takes out.
+ */
+function confirmSalesInvoice(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\SalesInvoice\Models\SalesInvoice $invoice,
+): void {
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(
+            route('sales-invoices.update-status', ['company' => $company->id, 'id' => $invoice->id]),
+            ['status' => 'confirmed'],
+        )
+        ->assertSessionHasNoErrors();
+}
+
+/**
+ * Puts stock in the warehouse of a sales order scenario, which is what
+ * confirming an order needs: a sales order does not take goods out, it reserves
+ * them, and it cannot reserve what the warehouse does not have.
+ *
+ * The warehouse starts using locations and gets a default one, because that is
+ * where the reservation is written.
+ */
+function stockSalesOrderWarehouse(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    float $quantity = 100,
+): \App\Modules\WarehouseLocation\Models\WarehouseLocation {
+    \App\Modules\Warehouse\Models\Warehouse::where('id', $warehouse->id)
+        ->update(['uses_locations' => 'yes']);
+
+    $location = \App\Modules\WarehouseLocation\Models\WarehouseLocation::query()
+        ->where('warehouse_id', $warehouse->id)
+        ->where('is_default', 'yes')
+        ->first()
+        ?? \App\Modules\WarehouseLocation\Models\WarehouseLocation::factory()->default()->create([
+            'company_id' => $company->id,
+            'warehouse_id' => $warehouse->id,
+            'created_by' => $user->id,
+        ]);
+
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => $quantity,
+        'unitCost' => 10,
+    ]);
+
+    return $location->refresh();
 }

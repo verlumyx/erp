@@ -7,11 +7,18 @@ namespace App\Modules\Dispatch\Services;
 use App\Modules\Dispatch\Commands\DispatchLineData;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
+use App\Modules\Client\Models\Client;
 use App\Modules\Item\Models\Item;
+use App\Modules\Item\Models\ItemUnit;
+use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
+use App\Modules\Transfer\Models\Transfer;
+use App\Modules\Transfer\Models\TransferLine;
+use App\Modules\Transfer\Repositories\Contracts\TransferRepositoryInterface;
+use App\Modules\Warehouse\Models\Warehouse;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -31,6 +38,7 @@ class DispatchSourceService
 {
     public function __construct(
         private readonly SalesOrderRepositoryInterface $orders,
+        private readonly TransferRepositoryInterface $transfers,
         private readonly DispatchRepositoryInterface $dispatches,
     ) {}
 
@@ -45,15 +53,22 @@ class DispatchSourceService
     public function guard(
         ?string $sourceableType,
         ?string $sourceableId,
-        string $clientId,
+        string $recipientType,
+        string $recipientId,
         ?string $companyId,
         array $lines,
         ?string $dispatchId = null,
     ): void {
-        $this->guardSerials($lines, $companyId);
+        $this->guardTraceability($lines, $companyId);
 
-        if (blank($sourceableId) || $sourceableType !== SalesOrder::MORPH_ALIAS) {
+        if (blank($sourceableId) || ! in_array($sourceableType, Dispatch::SOURCE_TYPES, true)) {
             $this->rejectOrphanLineSources($lines);
+
+            return;
+        }
+
+        if ($sourceableType === Transfer::MORPH_ALIAS) {
+            $this->guardTransfer((string) $sourceableId, $recipientType, $recipientId, $companyId, $lines, $dispatchId);
 
             return;
         }
@@ -66,7 +81,7 @@ class DispatchSourceService
             ]);
         }
 
-        if ($order->client_id !== $clientId) {
+        if ($order->client_id !== $recipientId || $recipientType !== Client::MORPH_ALIAS) {
             throw ValidationException::withMessages([
                 'sourceable_id' => 'El pedido de origen es de otro cliente.',
             ]);
@@ -80,6 +95,117 @@ class DispatchSourceService
         }
 
         $this->guardOrderLines($order, $lines, $dispatchId);
+    }
+
+    /**
+     * Lo que el despacho no puede comprobar sin leer el traslado: que exista,
+     * que siga vivo y que la mercancía vaya de verdad a la bodega de destino
+     * que el traslado pidió. Un traslado no tiene cliente: su destinatario es
+     * una bodega propia.
+     *
+     * @param  array<int, DispatchLineData>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardTransfer(
+        string $sourceableId,
+        string $recipientType,
+        string $recipientId,
+        ?string $companyId,
+        array $lines,
+        ?string $dispatchId,
+    ): void {
+        $transfer = $this->transfers->findById($sourceableId, $companyId);
+
+        if (! $transfer instanceof Transfer) {
+            throw ValidationException::withMessages([
+                'sourceable_id' => 'El traslado de origen no existe en esta empresa.',
+            ]);
+        }
+
+        if ($transfer->status === 'cancelled') {
+            throw ValidationException::withMessages([
+                'sourceable_id' => 'No se puede despachar un traslado anulado.',
+            ]);
+        }
+
+        if ($recipientType !== Warehouse::MORPH_ALIAS || $recipientId !== $transfer->destination_warehouse_id) {
+            throw ValidationException::withMessages([
+                'recipient_id' => 'El despacho de un traslado va a la bodega de destino del traslado.',
+            ]);
+        }
+
+        $this->guardTransferLines($transfer, $lines, $dispatchId);
+    }
+
+    /**
+     * La cantidad despachada no puede superar la trasladada menos la ya
+     * despachada por otros despachos, y la línea origen tiene que ser del
+     * traslado elegido.
+     *
+     * @param  array<int, DispatchLineData>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardTransferLines(Transfer $transfer, array $lines, ?string $dispatchId): void
+    {
+        $transferLines = TransferLine::query()
+            ->where('transfer_id', $transfer->id)
+            ->get()
+            ->keyBy('id');
+
+        $errors = [];
+        $requested = [];
+
+        foreach ($lines as $index => $line) {
+            if ($line->status !== 'active' || blank($line->sourceableId)) {
+                continue;
+            }
+
+            $transferLine = $transferLines->get($line->sourceableId);
+
+            if (! $transferLine instanceof TransferLine) {
+                $errors["lines.{$index}.sourceable_id"] = 'Esa línea no pertenece al traslado de origen.';
+
+                continue;
+            }
+
+            if ($transferLine->measurement_unit_id !== $line->measurementUnitId) {
+                $errors["lines.{$index}.measurement_unit_id"] = 'La unidad debe ser la misma que la de la línea del traslado.';
+            }
+
+            if ($transferLine->item_id !== $line->itemId) {
+                $errors["lines.{$index}.item_id"] = 'El artículo debe ser el mismo que el de la línea del traslado.';
+            }
+
+            $requested[$line->sourceableId] ??= ['quantity' => 0.0, 'index' => $index];
+            $requested[$line->sourceableId]['quantity'] += $line->quantity;
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        if ($requested === []) {
+            return;
+        }
+
+        $dispatched = $this->dispatches->dispatchedQuantities(array_keys($requested), $dispatchId);
+
+        foreach ($requested as $transferLineId => $entry) {
+            $ordered = (float) $transferLines->get($transferLineId)->quantity;
+            $available = round($ordered - ($dispatched[$transferLineId] ?? 0.0), 4);
+
+            if (round($entry['quantity'], 4) > $available) {
+                $errors["lines.{$entry['index']}.quantity"] = $available > 0
+                    ? "De esa línea solo quedan {$available} por despachar."
+                    : 'Esa línea del traslado ya se despachó por completo.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**
@@ -175,32 +301,38 @@ class DispatchSourceService
     }
 
     /**
-     * La serie que sale tiene que ser una del artículo de la línea. Un artículo
-     * serializado no se despacha a granel: cada unidad es su serie, así que la
-     * línea que lo mueve saca exactamente una.
+     * Lo que la trazabilidad exige del maestro de artículos: que el lote y la
+     * serie sean de ese artículo, que solo se pidan a quien los lleva, y que un
+     * artículo serializado saque tantas series como unidades base salen.
+     *
+     * Las series ya no obligan a partir la línea en una por unidad: viven en su
+     * propia tabla, así que una línea de cinco laptops lleva sus cinco series.
      *
      * @param  array<int, DispatchLineData>  $lines
      *
      * @throws ValidationException
      */
-    private function guardSerials(array $lines, ?string $companyId): void
+    private function guardTraceability(array $lines, ?string $companyId): void
     {
         $errors = [];
 
-        $itemTypes = Item::query()
+        $items = Item::query()
+            ->with('units')
             ->whereIn('id', array_values(array_unique(array_map(
                 static fn (DispatchLineData $line): string => $line->itemId,
                 $lines,
             ))))
             ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
-            ->pluck('type', 'id')
+            ->get()
+            ->keyBy('id');
+
+        $lotItems = ItemLot::query()
+            ->whereIn('id', $this->lotIdsOf($lines))
+            ->pluck('item_id', 'id')
             ->all();
 
         $serialItems = ItemSerial::query()
-            ->whereIn('id', array_values(array_filter(array_map(
-                static fn (DispatchLineData $line): ?string => $line->serialId,
-                $lines,
-            ))))
+            ->whereIn('id', $this->serialIdsOf($lines))
             ->pluck('item_id', 'id')
             ->all();
 
@@ -209,33 +341,105 @@ class DispatchSourceService
                 continue;
             }
 
-            $serialized = ($itemTypes[$line->itemId] ?? null) === ItemSerial::TRACKABLE_ITEM_TYPE;
+            $item = $items->get($line->itemId);
 
-            if ($serialized && blank($line->serialId)) {
-                $errors["lines.{$index}.serial_id"] = 'Ese artículo se controla por serie: indica la que sale.';
+            if (! $item instanceof Item) {
+                continue;
+            }
+
+            $lots = $line->activeLots();
+            $serials = $line->activeSerials();
+
+            if (! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true) && $lots !== []) {
+                $errors["lines.{$index}.lots"] = 'Ese artículo no se controla por lote.';
+            }
+
+            foreach ($lots as $lot) {
+                if (($lotItems[$lot->lotId] ?? null) !== $line->itemId) {
+                    $errors["lines.{$index}.lots"] = 'Alguno de los lotes no es de ese artículo.';
+
+                    break;
+                }
+            }
+
+            $serialized = $item->type === ItemSerial::TRACKABLE_ITEM_TYPE;
+
+            if (! $serialized) {
+                if ($serials !== []) {
+                    $errors["lines.{$index}.serials"] = 'Ese artículo no se controla por serie.';
+                }
 
                 continue;
             }
 
-            if (blank($line->serialId)) {
-                continue;
+            foreach ($serials as $serial) {
+                if (($serialItems[$serial->serialId] ?? null) !== $line->itemId) {
+                    $errors["lines.{$index}.serials"] = 'Alguna de las series no es de ese artículo.';
+
+                    break;
+                }
             }
 
-            if (($serialItems[$line->serialId] ?? null) !== $line->itemId) {
-                $errors["lines.{$index}.serial_id"] = 'La serie indicada no es de ese artículo.';
+            $expected = round($line->quantity * $this->factorFor($item, $line->measurementUnitId), 4);
 
-                continue;
-            }
-
-            /** Una serie identifica una unidad: no se despachan dos con la misma. */
-            if (round($line->quantity, 4) !== 1.0) {
-                $errors["lines.{$index}.quantity"] = 'Una serie despacha exactamente una unidad.';
+            if (count($serials) !== (int) $expected || $expected != (float) (int) $expected) {
+                $errors["lines.{$index}.serials"] = "Ese artículo se controla por serie: indica una serie por cada unidad que sale ({$expected}).";
             }
         }
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * @param  array<int, DispatchLineData>  $lines
+     * @return array<int, string>
+     */
+    private function lotIdsOf(array $lines): array
+    {
+        $ids = [];
+
+        foreach ($lines as $line) {
+            foreach ($line->activeLots() as $lot) {
+                $ids[] = $lot->lotId;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param  array<int, DispatchLineData>  $lines
+     * @return array<int, string>
+     */
+    private function serialIdsOf(array $lines): array
+    {
+        $ids = [];
+
+        foreach ($lines as $line) {
+            foreach ($line->activeSerials() as $serial) {
+                $ids[] = $serial->serialId;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * Factor con el que la unidad de la línea se convierte a la unidad base.
+     * Una unidad sin registrar cae en 1, que es lo que ya rechazó el Request.
+     */
+    private function factorFor(Item $item, string $measurementUnitId): float
+    {
+        foreach ($item->units as $unit) {
+            /** @var ItemUnit $unit */
+            if ($unit->measurement_unit_id === $measurementUnitId) {
+                return (float) $unit->conversion_factor;
+            }
+        }
+
+        return 1.0;
     }
 
     /**

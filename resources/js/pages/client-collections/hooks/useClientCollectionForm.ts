@@ -4,8 +4,11 @@ import { useConfiguration } from '@/hooks/use-configuration';
 import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { generateUUID } from '@/lib/utils';
+import clientAdvances from '@/routes/client-advances';
 import clientCollections from '@/routes/client-collections';
 import clients from '@/routes/clients';
+import routes from '@/routes/routes';
+import salesCreditNotes from '@/routes/sales-credit-notes';
 import salesInvoices from '@/routes/sales-invoices';
 import type {
     CheckStatus,
@@ -34,11 +37,15 @@ interface ClientCollectionFormData {
     client_id: string;
     origin_type: ClientCollectionOriginType;
     origin_id: string;
+    /** De qué anticipo o nota sale el crédito, cobrando sin dinero. */
+    credit_source_id: string;
     collection_date: string;
     payment_method: ClientCollectionMethod;
     reference: string;
     bank_account: string;
     collected_by: string;
+    /** Ruta en la que se cobró. */
+    route_id: string;
     currency: string;
     /**
      * Corrección manual de la tasa. Vacío —el caso normal— hace que la resuelva
@@ -118,6 +125,46 @@ function originInvoiceSeed(collection?: ClientCollection): AjaxOption | null {
     };
 }
 
+/**
+ * Las dos formas de cobro que no traen dinero: cancelan la factura con un saldo
+ * a favor que el cliente ya tiene, y exigen decir con cuál.
+ */
+export const CREDIT_METHODS: ClientCollectionMethod[] = [
+    'advance',
+    'credit_note',
+];
+
+export function isCreditMethod(method: ClientCollectionMethod): boolean {
+    return CREDIT_METHODS.includes(method);
+}
+
+/** El crédito del cobro que se edita, con la etiqueta que trae su Resource. */
+function creditSourceSeed(collection?: ClientCollection): AjaxOption | null {
+    if (!collection?.credit_source_id) {
+        return null;
+    }
+
+    return {
+        value: collection.credit_source_id,
+        label:
+            collection.payment_method === 'advance'
+                ? 'Anticipo del cliente'
+                : 'Nota de crédito',
+    };
+}
+
+/** La ruta del cobro que se edita, con la etiqueta que trae su Resource. */
+function routeSeed(collection?: ClientCollection): AjaxOption | null {
+    if (!collection?.route_id) {
+        return null;
+    }
+
+    return {
+        value: collection.route_id,
+        label: collection.route_name ?? 'Ruta',
+    };
+}
+
 /** El reparto guardado, sin las filas que ya se revirtieron. */
 function applicationRows(
     collection?: ClientCollection,
@@ -155,6 +202,27 @@ export function useClientCollectionForm({
         hydrate: true,
     });
 
+    /**
+     * El crédito que respalda el cobro sale de dos padrones distintos según la
+     * forma de cobro; el select apunta al que corresponda.
+     */
+    const creditSourceUrl = (method: ClientCollectionMethod): string =>
+        method === 'credit_note'
+            ? salesCreditNotes.lookup(companyId).url
+            : clientAdvances.lookup(companyId).url;
+
+    const creditSource = useRemoteOption({
+        url: creditSourceUrl(initialData?.payment_method ?? 'cash'),
+        seed: creditSourceSeed(initialData),
+        hydrate: true,
+    });
+
+    /** Y la ruta contra el padrón de Rutas, acotada a las que siguen activas. */
+    const route = useRemoteOption({
+        url: routes.lookup(companyId).url,
+        seed: routeSeed(initialData),
+    });
+
     const initialCurrency =
         initialData?.currency ?? configuration?.base_currency ?? '';
 
@@ -179,6 +247,7 @@ export function useClientCollectionForm({
             client_id: initialData?.client_id ?? '',
             origin_type: initialData?.origin_type ?? 'client',
             origin_id: initialData?.origin_id ?? '',
+            credit_source_id: initialData?.credit_source_id ?? '',
             collection_date:
                 initialData?.collection_date ??
                 new Date().toISOString().slice(0, 10),
@@ -186,6 +255,7 @@ export function useClientCollectionForm({
             reference: initialData?.reference ?? '',
             bank_account: initialData?.bank_account ?? '',
             collected_by: initialData?.collected_by ?? '',
+            route_id: initialData?.route_id ?? '',
             /** Un cobro nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),
@@ -275,21 +345,48 @@ export function useClientCollectionForm({
     };
 
     /**
+     * Elegir el crédito que respalda el cobro. Su saldo disponible es lo que el
+     * cobro puede repartir, así que el monto lo sigue.
+     */
+    const selectCreditSource = (option: AjaxOption | null) => {
+        creditSource.select(option);
+
+        const meta = (option?.meta ?? {}) as {
+            balance?: string;
+            currency?: string;
+        };
+
+        setData((current) => ({
+            ...current,
+            credit_source_id: option?.value ?? '',
+            amount: option ? Number(meta.balance ?? 0) : current.amount,
+        }));
+
+        if (meta.currency) {
+            selectCurrency(meta.currency);
+        }
+    };
+
+    /**
      * Cambiar de forma de cobro limpia lo que solo tiene sentido con cheque:
      * el backend lo descarta igual, y dejarlo a la vista confunde.
      */
-    const selectPaymentMethod = (method: ClientCollectionMethod) =>
-        setData((current) =>
-            method === 'check'
-                ? { ...current, payment_method: method }
-                : {
-                      ...current,
-                      payment_method: method,
-                      check_number: '',
-                      check_date: '',
-                      check_status: '',
-                  },
-        );
+    const selectPaymentMethod = (method: ClientCollectionMethod) => {
+        /**
+         * El crédito elegido pertenecía a la forma anterior: un anticipo no
+         * sirve para cobrar con una nota, ni al revés.
+         */
+        creditSource.select(null);
+
+        setData((current) => ({
+            ...current,
+            payment_method: method,
+            credit_source_id: '',
+            ...(method === 'check'
+                ? {}
+                : { check_number: '', check_date: '', check_status: '' }),
+        }));
+    };
 
     /** Lo que el reparto ya destina a una factura. */
     const appliedTo = (invoiceId: string): number =>
@@ -416,6 +513,15 @@ export function useClientCollectionForm({
         mode,
         totals,
         balances,
+        creditSourceLookupUrl: creditSourceUrl(data.payment_method),
+        creditSourceOption: creditSource.optionOf(data.credit_source_id),
+        selectCreditSource,
+        routeLookupUrl: route.url,
+        routeOption: route.optionOf(data.route_id),
+        selectRoute: (option: AjaxOption | null) => {
+            route.select(option);
+            setData('route_id', option?.value ?? '');
+        },
         invoices,
         loadingInvoices,
         clientLookupUrl: client.url,

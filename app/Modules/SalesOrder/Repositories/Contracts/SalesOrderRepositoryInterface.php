@@ -32,6 +32,20 @@ interface SalesOrderRepositoryInterface
      * La línea del pedido con su fila bloqueada, para que dos despachos que la
      * sacan a la vez no la lean sin despachar.
      */
+    /**
+     * Las líneas vivas del pedido, en el orden en que se capturaron. Son las
+     * únicas que reservan existencia.
+     *
+     * @return array<int, SalesOrderLine>
+     */
+    public function activeLines(SalesOrder $model): array;
+
+    /**
+     * Escribe lo reservado de la línea. Solo lo llama
+     * `SalesOrderReservationService`.
+     */
+    public function writeLineReservation(SalesOrderLine $line, float $reservedQuantity): SalesOrderLine;
+
     public function lockLineById(string $id, ?string $companyId = null): ?SalesOrderLine;
 
     /**

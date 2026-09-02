@@ -10,6 +10,7 @@ use App\Modules\SupplierPayment\Commands\PostSupplierPaymentApplicationCommand;
 use App\Modules\SupplierPayment\Commands\SearchSupplierPaymentCommand;
 use App\Modules\SupplierPayment\Commands\UpdateStatusSupplierPaymentCommand;
 use App\Modules\SupplierPayment\Commands\UpdateSupplierPaymentCommand;
+use App\Modules\SupplierPayment\Commands\WriteSupplierPaymentApplicationCommand;
 use App\Modules\SupplierPayment\Models\SupplierPayment;
 use App\Modules\SupplierPayment\Models\SupplierPaymentApplication;
 
@@ -31,6 +32,29 @@ interface SupplierPaymentRepositoryInterface
      * @return array<int, SupplierPaymentApplication>
      */
     public function activeApplications(SupplierPayment $model): array;
+
+    /**
+     * Las aplicaciones vivas de un origen cualquiera: un pago, un anticipo o
+     * una nota de crédito.
+     *
+     * @return array<int, SupplierPaymentApplication>
+     */
+    public function applicationsOf(string $sourceType, string $sourceId): array;
+
+    /** La fila con la que un origen abona una factura, viva o revertida. */
+    public function findApplication(
+        string $sourceType,
+        string $sourceId,
+        string $purchaseInvoiceId,
+    ): ?SupplierPaymentApplication;
+
+    /**
+     * Escribe la fila con la que un anticipo o una nota de crédito abona una
+     * factura. Solo la llama `SupplierPaymentApplyCreditService`.
+     */
+    public function writeApplication(
+        WriteSupplierPaymentApplicationCommand $command,
+    ): SupplierPaymentApplication;
 
     /** Deja la aplicación abonada: es lo que hace el pago al confirmarse. */
     public function postApplication(

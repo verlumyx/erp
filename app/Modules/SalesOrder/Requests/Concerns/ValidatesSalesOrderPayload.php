@@ -6,6 +6,7 @@ namespace App\Modules\SalesOrder\Requests\Concerns;
 
 use App\Modules\Currency\Rules\ActiveCurrency;
 use Illuminate\Validation\Rule;
+use App\Modules\Item\Models\Item;
 use Illuminate\Validation\Validator;
 
 /**
@@ -139,6 +140,45 @@ trait ValidatesSalesOrderPayload
             }
 
             $seen[$key] = true;
+        }
+
+        $this->validateMinimumPrice($validator);
+    }
+
+    /**
+     * Nadie vende por debajo del precio mínimo del artículo sin una
+     * autorización explícita: el permiso `sales-orders.override-min-price`
+     * (`docs/ventas.md` §2.2). Un artículo sin mínimo declarado no tiene suelo.
+     */
+    private function validateMinimumPrice(Validator $validator): void
+    {
+        if ($this->user()?->hasPermission('sales-orders.override-min-price') ?? false) {
+            return;
+        }
+
+        $lines = $this->input('lines', []);
+
+        $items = Item::query()
+            ->when(session('current_company_id'), fn ($q, $company) => $q->where('company_id', $company))
+            ->whereIn('id', array_filter(array_column($lines, 'item_id')))
+            ->get()
+            ->keyBy('id');
+
+        foreach ($lines as $index => $line) {
+            $item = $items->get($line['item_id'] ?? '');
+
+            if (! $item instanceof Item) {
+                continue;
+            }
+
+            $minimum = round((float) $item->min_price, 6);
+
+            if ($minimum > 0 && round((float) ($line['unit_price'] ?? 0), 6) < $minimum) {
+                $validator->errors()->add(
+                    "lines.{$index}.unit_price",
+                    "El precio mínimo de {$item->name} es {$minimum}.",
+                );
+            }
         }
     }
 }

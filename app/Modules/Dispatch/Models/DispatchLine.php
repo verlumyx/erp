@@ -6,8 +6,6 @@ namespace App\Modules\Dispatch\Models;
 
 use App\Modules\Company\Models\Company;
 use App\Modules\Item\Models\Item;
-use App\Modules\ItemLot\Models\ItemLot;
-use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Database\Factories\DispatchLineFactory;
@@ -15,11 +13,15 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class DispatchLine extends Model
 {
     use HasFactory, HasUuids;
+
+    /** Alias con el que la línea viaja en las columnas `sourceable_type`. */
+    public const MORPH_ALIAS = 'dispatch_line';
 
     protected $table = 'app_dispatch_lines';
 
@@ -36,8 +38,6 @@ class DispatchLine extends Model
         'measurement_unit_id',
         'sourceable_type',
         'sourceable_id',
-        'lot_id',
-        'serial_id',
         'location_id',
         'quantity',
         'base_quantity',
@@ -110,14 +110,19 @@ class DispatchLine extends Model
         return $this->morphTo();
     }
 
-    public function lot(): BelongsTo
+    /**
+     * Los lotes de los que sale la línea. La trazabilidad salió de la línea
+     * porque una misma línea puede salir repartida en varios lotes.
+     */
+    public function lots(): HasMany
     {
-        return $this->belongsTo(ItemLot::class, 'lot_id', 'id');
+        return $this->hasMany(DispatchLineLot::class, 'dispatch_line_id', 'id');
     }
 
-    public function serial(): BelongsTo
+    /** Las unidades con serie que salen en la línea. */
+    public function serials(): HasMany
     {
-        return $this->belongsTo(ItemSerial::class, 'serial_id', 'id');
+        return $this->hasMany(DispatchLineSerial::class, 'dispatch_line_id', 'id');
     }
 
     public function location(): BelongsTo

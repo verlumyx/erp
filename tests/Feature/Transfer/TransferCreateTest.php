@@ -19,7 +19,6 @@ test('a transfer is created as a draft with its sequential code', function () {
     expect($transfer->transfer_status)->toBe('pending');
     expect($transfer->origin_warehouse_id)->toBe($origin->id);
     expect($transfer->destination_warehouse_id)->toBe($destination->id);
-    expect($transfer->transit_warehouse_id)->toBeNull();
     expect($transfer->lines)->toHaveCount(1);
 });
 
@@ -75,38 +74,6 @@ test('the origin and the destination cannot be the same warehouse', function () 
         ->assertSessionHasErrors('destination_warehouse_id');
 
     expect(Transfer::count())->toBe(0);
-});
-
-test('the transit warehouse cannot be the origin or the destination', function () {
-    [$user, $company, $origin, , $destination, , $item, $unit] = transferScenario();
-
-    $payload = transferPayload($origin, $destination, $item, $unit, [
-        'transit_warehouse_id' => $destination->id,
-    ]);
-
-    actingAs($user)
-        ->withSession(['current_company_id' => $company->id])
-        ->post(route('transfers.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('transit_warehouse_id');
-});
-
-test('a line location has to belong to its own warehouse', function () {
-    [$user, $company, $origin, , $destination, $destinationLocation, $item, $unit] = transferScenario();
-
-    $payload = transferPayload($origin, $destination, $item, $unit, [
-        'lines' => [[
-            'item_id' => $item->id,
-            'measurement_unit_id' => $unit->id,
-            'quantity' => 2,
-            /** La ubicación del destino no puede ser de dónde sale la mercancía. */
-            'origin_location_id' => $destinationLocation->id,
-        ]],
-    ]);
-
-    actingAs($user)
-        ->withSession(['current_company_id' => $company->id])
-        ->post(route('transfers.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('lines.0.origin_location_id');
 });
 
 test('a reason of other has to be explained', function () {

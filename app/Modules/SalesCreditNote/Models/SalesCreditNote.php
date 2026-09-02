@@ -27,6 +27,9 @@ class SalesCreditNote extends Model
 
     public const CODE_PREFIX = 'NCC';
 
+    /** Con este tipo viaja la nota en `app_client_collection_applications`. */
+    public const APPLICATION_SOURCE = 'credit_note';
+
     /** Con qué alias firma sus asientos en el kardex. */
     public const MOVEMENT_ORIGIN_TYPE = 'sales_credit_note';
 

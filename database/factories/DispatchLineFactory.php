@@ -32,8 +32,6 @@ class DispatchLineFactory extends Factory
             'measurement_unit_id' => MeasurementUnit::factory(),
             'sourceable_type' => null,
             'sourceable_id' => null,
-            'lot_id' => null,
-            'serial_id' => null,
             'location_id' => null,
             'quantity' => $quantity,
             'base_quantity' => $quantity,

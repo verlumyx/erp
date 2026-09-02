@@ -34,7 +34,7 @@ test('the lookup only offers dispatches a sales invoice can bill', function () {
 
     expect($response->json('data'))->toHaveCount(1);
     expect($response->json('data.0.value'))->toBe($confirmed->id);
-    expect($response->json('data.0.meta.client_id'))->toBe($client->id);
+    expect($response->json('data.0.meta.recipient_id'))->toBe($client->id);
     expect($response->json('data.0.meta.lines'))->toHaveCount(1);
 });
 
@@ -79,7 +79,7 @@ test('the lookup narrows down to the chosen client', function () {
     $theirs = createDispatch($user, $company, $other, $warehouse, $item, $unit);
     moveDispatchTo($user, $company, $theirs, 'confirmed')->assertSessionHasNoErrors();
 
-    $response = lookupDispatches($user, $company, ['client_id' => $other->id])->assertOk();
+    $response = lookupDispatches($user, $company, ['recipient_id' => $other->id])->assertOk();
 
     expect($response->json('data'))->toHaveCount(1);
     expect($response->json('data.0.value'))->toBe($theirs->id);

@@ -6,10 +6,7 @@ namespace App\Modules\Transfer\Models;
 
 use App\Modules\Company\Models\Company;
 use App\Modules\Item\Models\Item;
-use App\Modules\ItemLot\Models\ItemLot;
-use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Database\Factories\TransferLineFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TransferLine extends Model
 {
     use HasFactory, HasUuids;
+
+    /** Alias con el que la línea viaja en las columnas `sourceable_type`. */
+    public const MORPH_ALIAS = 'transfer_line';
 
     protected $table = 'app_transfer_lines';
 
@@ -33,10 +33,6 @@ class TransferLine extends Model
         'line_number',
         'item_id',
         'measurement_unit_id',
-        'origin_location_id',
-        'destination_location_id',
-        'lot_id',
-        'serial_id',
         'quantity',
         'base_quantity',
         'unit_price',
@@ -49,9 +45,6 @@ class TransferLine extends Model
         'withholding_amount',
         'subtotal',
         'total',
-        'sent_quantity',
-        'received_quantity',
-        'difference_quantity',
         'unit_cost',
         'status',
         'notes',
@@ -75,9 +68,6 @@ class TransferLine extends Model
             'withholding_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'total' => 'decimal:2',
-            'sent_quantity' => 'decimal:4',
-            'received_quantity' => 'decimal:4',
-            'difference_quantity' => 'decimal:4',
             'unit_cost' => 'decimal:6',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
@@ -104,30 +94,10 @@ class TransferLine extends Model
         return $this->belongsTo(MeasurementUnit::class, 'measurement_unit_id', 'id');
     }
 
-    public function originLocation(): BelongsTo
-    {
-        return $this->belongsTo(WarehouseLocation::class, 'origin_location_id', 'id');
-    }
-
-    public function destinationLocation(): BelongsTo
-    {
-        return $this->belongsTo(WarehouseLocation::class, 'destination_location_id', 'id');
-    }
-
-    public function lot(): BelongsTo
-    {
-        return $this->belongsTo(ItemLot::class, 'lot_id', 'id');
-    }
-
-    public function serial(): BelongsTo
-    {
-        return $this->belongsTo(ItemSerial::class, 'serial_id', 'id');
-    }
-
     /**
      * Factor con el que la línea se convierte a la unidad base. Lo escribió el
      * repositorio al guardar; aquí se deshace para medir en unidad base lo que
-     * la recepción captura en la unidad de la línea.
+     * el despacho captura en la unidad de la línea.
      */
     public function baseFactor(): float
     {

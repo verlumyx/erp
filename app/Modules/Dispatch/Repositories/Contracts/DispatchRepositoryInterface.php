@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Dispatch\Repositories\Contracts;
 
 use App\Modules\Dispatch\Commands\CreateDispatchCommand;
+use App\Modules\Dispatch\Commands\DispatchLineData;
 use App\Modules\Dispatch\Commands\SearchDispatchCommand;
 use App\Modules\Dispatch\Commands\UpdateDispatchCommand;
 use App\Modules\Dispatch\Commands\UpdateStatusDispatchCommand;
@@ -16,11 +17,16 @@ use App\Modules\Dispatch\Models\DispatchLine;
 interface DispatchRepositoryInterface
 {
     /**
+     * Las líneas llegan aparte del comando porque antes pasan por
+     * `DispatchPricingService`: la pantalla no captura el precio, lo pone el
+     * sistema.
+     *
+     * @param  array<int, DispatchLineData>  $lines
      * @param  array<int, float>  $unitCosts  Costo de salida por línea, en el
      *                                        mismo orden en que llegan. Lo
      *                                        resuelve `DispatchCostService`.
      */
-    public function create(CreateDispatchCommand $command, array $unitCosts): void;
+    public function create(CreateDispatchCommand $command, array $unitCosts, array $lines): void;
 
     public function findById(string $id, ?string $companyId = null): ?Dispatch;
 
@@ -28,8 +34,9 @@ interface DispatchRepositoryInterface
 
     /**
      * @param  array<int, float>  $unitCosts
+     * @param  array<int, DispatchLineData>  $lines
      */
-    public function update(Dispatch $model, UpdateDispatchCommand $command, array $unitCosts): void;
+    public function update(Dispatch $model, UpdateDispatchCommand $command, array $unitCosts, array $lines): void;
 
     public function updateStatus(Dispatch $model, UpdateStatusDispatchCommand $command): void;
 

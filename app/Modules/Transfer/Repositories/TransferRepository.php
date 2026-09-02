@@ -13,7 +13,6 @@ use App\Modules\Transfer\Commands\TransferLineData;
 use App\Modules\Transfer\Commands\UpdateStatusTransferCommand;
 use App\Modules\Transfer\Commands\UpdateTransferCommand;
 use App\Modules\Transfer\Commands\WriteTransferLineCostCommand;
-use App\Modules\Transfer\Commands\WriteTransferReceiptCommand;
 use App\Modules\Transfer\Models\Transfer;
 use App\Modules\Transfer\Models\TransferLine;
 use App\Modules\Transfer\Repositories\Contracts\TransferRepositoryInterface;
@@ -37,7 +36,6 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
                 'code' => $this->generateNextCode($command->companyId),
                 'origin_warehouse_id' => $command->originWarehouseId,
                 'destination_warehouse_id' => $command->destinationWarehouseId,
-                'transit_warehouse_id' => $command->transitWarehouseId,
                 'transfer_date' => $command->transferDate,
                 'expected_date' => $command->expectedDate,
                 'reason' => $command->reason,
@@ -82,7 +80,6 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
             $model->update([
                 'origin_warehouse_id' => $command->originWarehouseId,
                 'destination_warehouse_id' => $command->destinationWarehouseId,
-                'transit_warehouse_id' => $command->transitWarehouseId,
                 'transfer_date' => $command->transferDate,
                 'expected_date' => $command->expectedDate,
                 'reason' => $command->reason,
@@ -110,43 +107,33 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
     }
 
     /**
-     * Confirmar es lo que pone la mercancía en la calle. Con bodega de tránsito
-     * queda viajando; sin ella, llegó en el mismo acto.
+     * La mercancía salió del origen: lo escribió el despacho al confirmarse.
+     * El traslado no la mueve por su cuenta, solo anota que va en camino.
      */
     public function writeShipment(Transfer $model, ?string $sentBy): Transfer
     {
         $model->update([
             'sent_by' => $sentBy,
-            'transfer_status' => $model->isTwoStep() ? 'in_transit' : 'received',
-            'received_date' => $model->isTwoStep() ? null : $model->transfer_date?->toDateString(),
+            'transfer_status' => 'in_transit',
         ]);
 
         return $model;
     }
 
-    public function writeReceipt(Transfer $model, WriteTransferReceiptCommand $command): Transfer
+    /**
+     * La mercancía llegó al destino: lo escribió la entrada al confirmarse.
+     * Es el final del viaje, y con él el traslado queda cumplido.
+     */
+    public function writeArrival(Transfer $model, string $receivedDate, ?string $receivedBy): Transfer
     {
-        return DB::transaction(function () use ($model, $command): Transfer {
-            foreach ($command->lines as $lineId => $quantities) {
-                TransferLine::query()
-                    ->where('transfer_id', $model->id)
-                    ->whereKey($lineId)
-                    ->update([
-                        'received_quantity' => $quantities['received'],
-                        'difference_quantity' => $quantities['difference'],
-                    ]);
-            }
+        $model->update([
+            'transfer_status' => 'received',
+            'status' => 'completed',
+            'received_date' => $receivedDate,
+            'received_by' => $receivedBy,
+        ]);
 
-            $model->update([
-                'transfer_status' => $command->transferStatus,
-                'status' => $command->status,
-                'received_date' => $command->receivedDate,
-                'received_by' => $command->receivedBy,
-                'notes' => $command->notes ?? $model->notes,
-            ]);
-
-            return $model;
-        });
+        return $model;
     }
 
     /**
@@ -162,7 +149,6 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
 
         $line->update([
             'unit_cost' => $unitCost,
-            'sent_quantity' => round($command->sentQuantity, 4),
             'unit_price' => round($unitCost * $line->baseFactor(), 6),
             'subtotal' => $value,
             'total' => $value,
@@ -245,16 +231,11 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
         return [
             'originWarehouse',
             'destinationWarehouse',
-            'transitWarehouse',
             'driver',
             'sender',
             'receiver',
             'lines.item',
             'lines.measurementUnit',
-            'lines.lot',
-            'lines.serial',
-            'lines.originLocation',
-            'lines.destinationLocation',
         ];
     }
 
@@ -296,10 +277,6 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
                 'company_id' => $transfer->company_id,
                 'item_id' => $line->itemId,
                 'measurement_unit_id' => $line->measurementUnitId,
-                'origin_location_id' => $line->originLocationId,
-                'destination_location_id' => $line->destinationLocationId,
-                'lot_id' => $line->lotId,
-                'serial_id' => $line->serialId,
                 'quantity' => $line->quantity,
                 'base_quantity' => $baseQuantity,
                 'unit_cost' => $unitCost,

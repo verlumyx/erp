@@ -6,6 +6,8 @@ use App\Modules\Entry\Models\Entry;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
+use App\Modules\PurchaseOrder\Models\PurchaseOrder;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\Tax\Models\Tax;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
@@ -61,21 +63,37 @@ test('an entry can be created', function () {
     expect((float) $entry->total_cost)->toBe(250.0);
 });
 
-test('the amounts are calculated on the backend and ignore what the client sends', function () {
+test('the cost and its charges are copied from the purchase order, not from the client', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
 
     $tax = Tax::factory()->create(['company_id' => $company->id, 'percentage' => 16]);
 
-    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit, [
         'lines' => [[
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
-            'quantity' => 4,
+            'quantity' => 10,
             'unit_price' => 100,
             'discount_percent' => 10,
             'tax_id' => $tax->id,
             'tax_percent' => 16,
-            /** Mentiras del cliente: el backend las recalcula. */
+        ]],
+    ]);
+
+    $orderLine = $order->lines->first();
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 4,
+            'sourceable_type' => PurchaseOrderLine::MORPH_ALIAS,
+            'sourceable_id' => $orderLine->id,
+            /** Mentiras del cliente: la pantalla no decide el dinero. */
+            'unit_price' => 1,
+            'discount_percent' => 99,
             'subtotal' => 1,
             'tax_amount' => 1,
             'total' => 1,
@@ -83,12 +101,64 @@ test('the amounts are calculated on the backend and ignore what the client sends
     ]);
 
     $line = $entry->lines->first();
+    expect((float) $line->unit_price)->toBe(100.0);
+    expect((float) $line->discount_percent)->toBe(10.0);
+    expect($line->tax_id)->toBe($tax->id);
     expect((float) $line->discount_amount)->toBe(40.0);
     expect((float) $line->subtotal)->toBe(360.0);
     expect((float) $line->tax_amount)->toBe(57.6);
     expect((float) $line->total)->toBe(417.6);
     /** El costo del kardex es el neto de descuento, sin impuesto. */
     expect((float) $line->unit_cost)->toBe(90.0);
+});
+
+test('an entry without a purchase order is valued at the average cost of the item', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $item->update(['average_cost' => 40]);
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 3,
+            /** Ignorado: sin orden manda el promedio, no lo que teclee nadie. */
+            'unit_price' => 999,
+        ]],
+    ]);
+
+    $line = $entry->lines->first();
+    expect((float) $line->unit_price)->toBe(40.0);
+    expect($line->tax_id)->toBeNull();
+    expect((float) $line->discount_percent)->toBe(0.0);
+    expect((float) $line->unit_cost)->toBe(40.0);
+});
+
+test('the average cost is converted to the unit of the line', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $item->update(['average_cost' => 10]);
+
+    $box = MeasurementUnit::factory()->create(['company_id' => $company->id]);
+    ItemUnit::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $box->id,
+        'conversion_factor' => 12,
+        'is_base' => 'no',
+    ]);
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $box->id,
+            'quantity' => 2,
+        ]],
+    ]);
+
+    /** El promedio es por unidad base: una caja de doce cuesta doce veces más. */
+    expect((float) $entry->lines->first()->unit_price)->toBe(120.0);
+    expect((float) $entry->lines->first()->unit_cost)->toBe(10.0);
 });
 
 test('the accepted quantity is what arrived minus what inspection rejected', function () {
@@ -118,7 +188,13 @@ test('the accepted quantity is what arrived minus what inspection rejected', fun
 test('the freight and other charges are prorated into the landed cost by line value', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
 
-    $other = Item::factory()->create(['company_id' => $company->id, 'is_purchasable' => 'yes']);
+    $item->update(['average_cost' => 30]);
+
+    $other = Item::factory()->create([
+        'company_id' => $company->id,
+        'is_purchasable' => 'yes',
+        'average_cost' => 10,
+    ]);
     ItemUnit::factory()->base()->create([
         'company_id' => $company->id,
         'item_id' => $other->id,
@@ -134,13 +210,11 @@ test('the freight and other charges are prorated into the landed cost by line va
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 10,
-                'unit_price' => 30,
             ],
             [
                 'item_id' => $other->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 10,
-                'unit_price' => 10,
             ],
         ],
     ]);
@@ -169,12 +243,13 @@ test('the cost is expressed per base unit when the line uses another unit', func
         'is_base' => 'no',
     ]);
 
+    $item->update(['average_cost' => 10]);
+
     $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
         'lines' => [[
             'item_id' => $item->id,
             'measurement_unit_id' => $box->id,
             'quantity' => 5,
-            'unit_price' => 120,
         ]],
     ]);
 
@@ -351,15 +426,82 @@ test('a line cannot carry a lot for an item that does not track lots', function 
             'item_id' => $service->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 1,
-            'unit_price' => 10,
-            'lot_number' => 'L-1',
+            'lots' => [['lot_number' => 'L-1', 'quantity' => 1]],
         ]],
     ]);
 
     actingAs($user)
         ->withSession(['current_company_id' => $company->id])
         ->post(route('entries.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('lines.0.lot_number');
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('the lots of a line have to add up to what the line receives', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $payload = entryPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'lots' => [
+                ['lot_number' => 'L-1', 'quantity' => 4],
+                ['lot_number' => 'L-2', 'quantity' => 3],
+            ],
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('entries.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('the same lot number cannot come twice in one line', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $payload = entryPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'lots' => [
+                ['lot_number' => 'L-1', 'quantity' => 5],
+                ['lot_number' => 'L-1', 'quantity' => 5],
+            ],
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('entries.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('a line can arrive split across several lots', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'lots' => [
+                ['lot_number' => 'L-A', 'quantity' => 4, 'expires_at' => '2027-01-31'],
+                ['lot_number' => 'L-B', 'quantity' => 6],
+            ],
+        ]],
+    ]);
+
+    $lots = $entry->lines->first()->lots()->orderBy('line_number')->get();
+
+    expect($lots)->toHaveCount(2);
+    expect($lots[0]->lot_number)->toBe('L-A');
+    expect((float) $lots[0]->quantity)->toBe(4.0);
+    expect($lots[0]->expires_at?->toDateString())->toBe('2027-01-31');
+    expect((float) $lots[1]->quantity)->toBe(6.0);
+    /** El lote del maestro no nace hasta que la entrada se confirma. */
+    expect($lots[0]->lot_id)->toBeNull();
 });
 
 test('a serialized item needs one serial per accepted unit', function () {
@@ -372,15 +514,45 @@ test('a serialized item needs one serial per accepted unit', function () {
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 3,
-            'unit_price' => 25,
-            'serial_numbers' => ['S-1', 'S-2'],
+            'serials' => [
+                ['serial_number' => 'S-1'],
+                ['serial_number' => 'S-2'],
+            ],
         ]],
     ]);
 
     actingAs($user)
         ->withSession(['current_company_id' => $company->id])
         ->post(route('entries.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('lines.0.serial_numbers');
+        ->assertSessionHasErrors('lines.0.serials');
+});
+
+test('the same serial cannot come twice in one entry', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    Item::where('id', $item->id)->update(['type' => 'serialized']);
+
+    $payload = entryPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1,
+                'serials' => [['serial_number' => 'S-1']],
+            ],
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1,
+                'serials' => [['serial_number' => 'S-1']],
+            ],
+        ],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('entries.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.1.serials');
 });
 
 test('the create screen renders with its catalogs', function () {

@@ -84,6 +84,8 @@ class InventoryMovement extends Model
         'adjustment',
         'purchase_return',
         'sales_return',
+        'purchase_credit_note',
+        'sales_credit_note',
     ];
 
     protected $fillable = [

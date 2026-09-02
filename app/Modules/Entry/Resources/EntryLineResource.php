@@ -27,11 +27,22 @@ class EntryLineResource extends JsonResource
             'sourceable_id' => $this->sourceable_id,
             'location_id' => $this->location_id,
             'location_name' => $this->whenLoaded('location', fn () => $this->location?->name),
-            'lot_number' => $this->lot_number,
-            'lot_id' => $this->lot_id,
-            'lot_code' => $this->whenLoaded('lot', fn () => $this->lot?->code),
-            'expires_at' => $this->expires_at?->format('Y-m-d'),
-            'serial_numbers' => $this->serial_numbers ?? [],
+            /**
+             * La trazabilidad vive en sus propias tablas: la línea solo la
+             * agrupa. Se resuelve aquí mismo —igual que `EntryResource` hace
+             * con las líneas— porque una colección de recursos sin resolver se
+             * serializa envuelta en `data` y la pantalla espera una lista.
+             */
+            'lots' => $this->whenLoaded(
+                'lots',
+                fn (): array => EntryLineLotResource::collection($this->lots)->resolve($request),
+            ),
+            'serials' => $this->whenLoaded(
+                'serials',
+                fn (): array => EntryLineSerialResource::collection($this->serials)->resolve($request),
+            ),
+            /** Lo que pidió la línea de la orden. Vacío en una línea sin origen. */
+            'source_quantity' => $this->whenLoaded('sourceable', fn () => $this->sourceable?->quantity),
             'quantity' => $this->quantity,
             'base_quantity' => $this->base_quantity,
             'received_quantity' => $this->received_quantity,

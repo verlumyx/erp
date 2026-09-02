@@ -6,6 +6,7 @@ namespace App\Modules\ClientCollection\Models;
 
 use App\Modules\Client\Models\Client;
 use App\Modules\Company\Models\Company;
+use App\Modules\Route\Models\Route;
 use App\Modules\User\Models\User;
 use Database\Factories\ClientCollectionFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -46,6 +47,18 @@ class ClientCollection extends Model
 
     public const PAYMENT_METHODS = ['cash', 'transfer', 'check', 'card', 'advance', 'credit_note', 'other'];
 
+    /**
+     * Formas de cobro que no traen dinero: cancelan la factura con un saldo a
+     * favor que ya existe. Exigen `credit_source_id` —de qué documento sale ese
+     * crédito— y escriben el reparto con su propio `source_type`.
+     *
+     * @var array<string, string>
+     */
+    public const CREDIT_METHODS = [
+        'advance' => 'advance',
+        'credit_note' => 'credit_note',
+    ];
+
     /** Ciclo del cheque, aparte del estado del documento. */
     public const CHECK_STATUSES = ['pending', 'deposited', 'cleared', 'bounced'];
 
@@ -71,6 +84,7 @@ class ClientCollection extends Model
         'client_id',
         'origin_type',
         'origin_id',
+        'credit_source_id',
         'collection_date',
         'payment_method',
         'reference',
@@ -117,6 +131,27 @@ class ClientCollection extends Model
         ];
     }
 
+    /**
+     * Con qué `source_type` viaja este cobro en el reparto: el suyo cuando
+     * entra dinero, y el del crédito que lo respalda cuando no.
+     */
+    public function applicationSource(): string
+    {
+        return self::CREDIT_METHODS[$this->payment_method] ?? self::APPLICATION_SOURCE;
+    }
+
+    /** El documento cuyo crédito gasta este cobro; su propio id si trae dinero. */
+    public function applicationSourceId(): string
+    {
+        return $this->fundedByCredit() ? (string) $this->credit_source_id : $this->id;
+    }
+
+    /** Un cobro que no trae dinero: lo respalda un anticipo o una nota. */
+    public function fundedByCredit(): bool
+    {
+        return isset(self::CREDIT_METHODS[$this->payment_method]) && filled($this->credit_source_id);
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'company_id', 'id');
@@ -131,6 +166,12 @@ class ClientCollection extends Model
     public function collector(): BelongsTo
     {
         return $this->belongsTo(User::class, 'collected_by', 'id');
+    }
+
+    /** Ruta en la que se cobró; vacía en un cobro de mostrador. */
+    public function route(): BelongsTo
+    {
+        return $this->belongsTo(Route::class, 'route_id', 'id');
     }
 
     public function creator(): BelongsTo

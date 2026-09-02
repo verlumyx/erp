@@ -21,6 +21,8 @@ class CreateSupplierPaymentCommand
         /** `supplier` o `invoice`: el pago espejo de un anticipo no nace aquí. */
         public readonly string $originType = 'supplier',
         public readonly ?string $originId = null,
+        /** De qué anticipo o nota sale el crédito, pagando sin dinero. */
+        public readonly ?string $creditSourceId = null,
         public readonly string $paymentMethod = 'transfer',
         public readonly ?string $reference = null,
         public readonly ?string $bankAccount = null,
@@ -44,6 +46,7 @@ class CreateSupplierPaymentCommand
             applications: SupplierPaymentApplicationData::collection($request->input('applications', [])),
             originType: $request->string('origin_type', 'supplier')->toString(),
             originId: $request->input('origin_id'),
+            creditSourceId: $request->input('credit_source_id'),
             paymentMethod: $request->string('payment_method', 'transfer')->toString(),
             reference: $request->input('reference'),
             bankAccount: $request->input('bank_account'),

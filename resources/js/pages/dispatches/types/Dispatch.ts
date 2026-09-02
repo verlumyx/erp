@@ -19,6 +19,30 @@ export type DeliveryStatus =
 /** Alias del morph map admitidos como documento origen. */
 export type DispatchSourceType = 'sales_order';
 
+/** Uno de los lotes de los que sale una línea; siempre del maestro. */
+export interface DispatchLineLot {
+    id: string;
+    dispatch_line_id: string;
+    line_number: number;
+    lot_id: string;
+    lot_number?: string | null;
+    quantity: string;
+    base_quantity: string;
+    status: 'active' | 'inactive';
+    notes: string | null;
+}
+
+/** Una de las unidades con serie que salen en una línea. */
+export interface DispatchLineSerial {
+    id: string;
+    dispatch_line_id: string;
+    dispatch_line_lot_id: string | null;
+    line_number: number;
+    serial_id: string;
+    serial_number?: string | null;
+    status: 'active' | 'inactive';
+}
+
 export interface DispatchLine {
     id: string;
     dispatch_id: string;
@@ -31,10 +55,11 @@ export interface DispatchLine {
     /** Línea del pedido que esta línea despacha. */
     sourceable_type: string | null;
     sourceable_id: string | null;
-    lot_id: string | null;
-    lot_number?: string | null;
-    serial_id: string | null;
-    serial_number?: string | null;
+    /** La trazabilidad vive en sus propias tablas: la línea solo la agrupa. */
+    lots: DispatchLineLot[];
+    serials: DispatchLineSerial[];
+    /** Lo que pidió la línea del pedido. Vacío en una línea sin origen. */
+    source_quantity?: string | null;
     location_id: string | null;
     location_name?: string | null;
     quantity: string;
@@ -62,9 +87,14 @@ export interface Dispatch {
     id: string;
     company_id: string | null;
     code: string;
-    client_id: string;
-    client_name?: string;
-    client_code?: string;
+    /**
+     * A quién va la mercancía: un cliente en un despacho de venta, una bodega
+     * propia en uno que sirve un traslado.
+     */
+    recipient_type: 'client' | 'warehouse' | null;
+    recipient_id: string | null;
+    recipient_name?: string;
+    recipient_code?: string;
     /** Documento origen. Vacío en un despacho directo, sin pedido previo. */
     sourceable_type: string | null;
     sourceable_id: string | null;
@@ -116,7 +146,7 @@ export interface DispatchMeta {
 
 export interface DispatchFilters {
     code?: string;
-    client_id?: string;
+    recipient_id?: string;
     warehouse_id?: string;
     driver_id?: string;
     route_id?: string;

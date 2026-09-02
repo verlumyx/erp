@@ -4,7 +4,9 @@ import { useConfiguration } from '@/hooks/use-configuration';
 import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { generateUUID } from '@/lib/utils';
+import purchaseCreditNotes from '@/routes/purchase-credit-notes';
 import purchaseInvoices from '@/routes/purchase-invoices';
+import supplierAdvances from '@/routes/supplier-advances';
 import supplierPayments from '@/routes/supplier-payments';
 import suppliers from '@/routes/suppliers';
 import type {
@@ -33,6 +35,8 @@ interface SupplierPaymentFormData {
     supplier_id: string;
     origin_type: SupplierPaymentOriginType;
     origin_id: string;
+    /** De qué anticipo o nota sale el crédito, pagando sin dinero. */
+    credit_source_id: string;
     payment_date: string;
     payment_method: SupplierPaymentMethod;
     reference: string;
@@ -113,6 +117,34 @@ function originInvoiceSeed(payment?: SupplierPayment): AjaxOption | null {
     };
 }
 
+/**
+ * Las dos formas de pago que no sacan dinero: cancelan la factura con un saldo
+ * a favor que ya se tiene con el proveedor, y exigen decir con cuál.
+ */
+export const CREDIT_METHODS: SupplierPaymentMethod[] = [
+    'advance',
+    'credit_note',
+];
+
+export function isCreditMethod(method: SupplierPaymentMethod): boolean {
+    return CREDIT_METHODS.includes(method);
+}
+
+/** El crédito del pago que se edita, con la etiqueta que trae su Resource. */
+function creditSourceSeed(payment?: SupplierPayment): AjaxOption | null {
+    if (!payment?.credit_source_id) {
+        return null;
+    }
+
+    return {
+        value: payment.credit_source_id,
+        label:
+            payment.payment_method === 'advance'
+                ? 'Anticipo al proveedor'
+                : 'Nota de crédito',
+    };
+}
+
 /** El reparto guardado, sin las filas que ya se revirtieron. */
 function applicationRows(
     payment?: SupplierPayment,
@@ -150,6 +182,21 @@ export function useSupplierPaymentForm({
         hydrate: true,
     });
 
+    /**
+     * El crédito que respalda el pago sale de dos padrones distintos según la
+     * forma de pago; el select apunta al que corresponda.
+     */
+    const creditSourceUrl = (method: SupplierPaymentMethod): string =>
+        method === 'credit_note'
+            ? purchaseCreditNotes.lookup(companyId).url
+            : supplierAdvances.lookup(companyId).url;
+
+    const creditSource = useRemoteOption({
+        url: creditSourceUrl(initialData?.payment_method ?? 'transfer'),
+        seed: creditSourceSeed(initialData),
+        hydrate: true,
+    });
+
     const initialCurrency =
         initialData?.currency ?? configuration?.base_currency ?? '';
 
@@ -174,6 +221,7 @@ export function useSupplierPaymentForm({
             supplier_id: initialData?.supplier_id ?? '',
             origin_type: initialData?.origin_type ?? 'supplier',
             origin_id: initialData?.origin_id ?? '',
+            credit_source_id: initialData?.credit_source_id ?? '',
             payment_date:
                 initialData?.payment_date ??
                 new Date().toISOString().slice(0, 10),
@@ -268,6 +316,43 @@ export function useSupplierPaymentForm({
             origin_id: '',
             supplier_id: '',
             applications: [],
+        }));
+    };
+
+    /**
+     * Elegir el crédito que respalda el pago. Su saldo disponible es lo que el
+     * pago puede repartir, así que el monto lo sigue.
+     */
+    const selectCreditSource = (option: AjaxOption | null) => {
+        creditSource.select(option);
+
+        const meta = (option?.meta ?? {}) as {
+            balance?: string;
+            currency?: string;
+        };
+
+        setData((current) => ({
+            ...current,
+            credit_source_id: option?.value ?? '',
+            amount: option ? Number(meta.balance ?? 0) : current.amount,
+        }));
+
+        if (meta.currency) {
+            selectCurrency(meta.currency);
+        }
+    };
+
+    /**
+     * Cambiar de forma de pago suelta el crédito elegido: pertenecía a la
+     * anterior, y un anticipo no sirve para pagar con una nota ni al revés.
+     */
+    const selectPaymentMethod = (method: SupplierPaymentMethod) => {
+        creditSource.select(null);
+
+        setData((current) => ({
+            ...current,
+            payment_method: method,
+            credit_source_id: '',
         }));
     };
 
@@ -396,6 +481,10 @@ export function useSupplierPaymentForm({
         mode,
         totals,
         balances,
+        creditSourceLookupUrl: creditSourceUrl(data.payment_method),
+        creditSourceOption: creditSource.optionOf(data.credit_source_id),
+        selectCreditSource,
+        selectPaymentMethod,
         invoices,
         loadingInvoices,
         supplierLookupUrl: supplier.url,

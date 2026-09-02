@@ -9,9 +9,9 @@ kardex (`app_inventory_movements`).
 
 | Módulo    | Tabla                                                   | Prefijo | Efecto en kardex                   |
 |-----------|---------------------------------------------------------|---------|------------------------------------|
-| Despachos | `app_dispatches` + `app_dispatch_lines`                 | `DES`   | `out`                              |
-| Traslados | `app_transfers` + `app_transfer_lines`                  | `TRA`   | `transfer_out` / `transfer_in`     |
-| Entradas  | `app_entries` + `app_entry_lines`                       | `ENT`   | `in`                               |
+| Despachos | `app_dispatches` + `app_dispatch_lines` (+ trazabilidad) | `DES`   | `out`, o `transfer_out` si sirve un traslado |
+| Traslados | `app_transfers` + `app_transfer_lines`                  | `TRA`   | — (los escriben su despacho y su entrada) |
+| Entradas  | `app_entries` + `app_entry_lines` (+ trazabilidad)       | `ENT`   | `in`, o `transfer_in` si recibe un traslado |
 | Rutas     | `app_routes` (+ `app_route_stops`, `app_route_clients`) | `RUT`   | —                                  |
 | Ajustes   | `app_adjustments` + `app_adjustment_lines`              | `AJU`   | `adjustment_in` / `adjustment_out` |
 
@@ -28,8 +28,9 @@ Salida física de mercancía hacia el cliente. Descarga inventario y libera la r
 
 | Columna                  | Tipo            | Nulo | Default     | Descripción                                                                        |
 |--------------------------|-----------------|------|-------------|------------------------------------------------------------------------------------|
-| `client_id`              | `uuid`          | No   |             | FK → `app_clients.id` (`restrictOnDelete`).                                        |
-| `sourceable_type`        | `string(255)`   | Sí   |             | Alias del documento origen en el morph map. Hoy solo `sales_order`.                |
+| `recipient_type`         | `string(255)`   | Sí   |             | Alias del destinatario en el morph map: `client` o `warehouse`.                    |
+| `recipient_id`           | `uuid`          | Sí   |             | Id del destinatario. Con `recipient_type` forma la relación `recipient`.           |
+| `sourceable_type`        | `string(255)`   | Sí   |             | Alias del documento origen en el morph map: `sales_order` o `transfer`.            |
 | `sourceable_id`          | `uuid`          | Sí   |             | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`.     |
 | `client_address_id`      | `uuid`          | Sí   |             | FK → `app_client_addresses.id`. Dirección de entrega.                              |
 | `warehouse_id`           | `uuid`          | No   |             | FK → `app_warehouses.id` (`restrictOnDelete`). Bodega de origen.                   |
@@ -58,7 +59,7 @@ Salida física de mercancía hacia el cliente. Descarga inventario y libera la r
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
 
-**Índices:** `index(client_id)`, `index(sourceable_type, sourceable_id)`, `index(dispatch_date)`,
+**Índices:** `index(recipient_type, recipient_id)`, `index(sourceable_type, sourceable_id)`, `index(dispatch_date)`,
 `index(route_id)`, `index(driver_id)`, `index(delivery_status)`, `index(warehouse_id)`.
 
 **Documento origen (`sourceable`)**
@@ -72,11 +73,18 @@ Es el mismo mecanismo que usan las facturas de venta ([Ventas](ventas.md)) y las
 - `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
   `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
   datos ya guardados.
-- Tipos admitidos hoy: `sales_order` → `app_sales_orders`. Cualquier otro valor es inválido y se rechaza en el
-  Request.
+- Tipos admitidos hoy: `sales_order` → `app_sales_orders` y `transfer` → `app_transfers`. Cualquier otro valor es
+  inválido y se rechaza en el Request.
 - Ambas columnas son nulas: un despacho directo (sin pedido previo) las deja vacías. Si una viene informada, la
   otra es obligatoria.
-- El documento origen debe pertenecer a la misma empresa y al mismo cliente que el despacho.
+- El documento origen debe pertenecer a la misma empresa y al mismo destinatario que el despacho: al mismo cliente si
+  viene de un pedido, o a la bodega de destino si viene de un traslado.
+
+**Destinatario (`recipient`)**
+
+El despacho no siempre va a un cliente: uno que sirve un traslado lleva la mercancía a otra bodega de la propia
+empresa. Por eso el destinatario es polimórfico —`client` o `warehouse`— en lugar de un `client_id` obligatorio. Un
+despacho dirigido a una bodega no se factura y no genera parada de ruta.
 - Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
   origen se protege por la política de no borrado.
 - `route_id` y `route_stop_id` **no** entran en el morph: siguen siendo FK directos, porque la ruta es la
@@ -93,20 +101,63 @@ Además de las columnas comunes de línea (los importes son informativos: el des
 |-----------------------|-----------------|------|---------|------------------------------------------------------------------|
 | `sourceable_type`     | `string(255)`   | Sí   |         | Alias de la línea origen (`sales_order_line`).                   |
 | `sourceable_id`       | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad al pedido.                   |
-| `lot_id`              | `uuid`          | Sí   |         | FK → `app_item_lots.id`. Obligatorio si el artículo maneja lote. |
-| `serial_id`           | `uuid`          | Sí   |         | FK → `app_item_serials.id`.                                      |
 | `location_id`         | `uuid`          | Sí   |         | Ubicación desde la que se toma.                                  |
 | `delivered_quantity`  | `decimal(18,4)` | No   | `0`     | Cantidad efectivamente recibida por el cliente.                  |
 | `returned_quantity`   | `decimal(18,4)` | No   | `0`     | Cantidad devuelta en el mismo viaje.                             |
 | `unit_cost`           | `decimal(18,6)` | No   | `0`     | Costo unitario al momento de la salida.                          |
 
+**El precio no se captura**
+
+La pantalla del despacho solo pide **qué artículo sale, en qué unidad y cuánto**. `unit_price`,
+`discount_percent`, `tax_id`, `tax_percent` y `withholding_percent` los escribe el backend
+(`DispatchPricingService`): si la línea despacha una línea del pedido, se copian de ella; si el
+despacho es suelto, `unit_price` sale del costo promedio del artículo convertido a la unidad de la
+línea, y el resto queda en cero. Un precio enviado desde el cliente se ignora.
+
 **Reglas**
 
 - Al confirmar: genera movimientos `out`, descuenta `quantity` y libera `reserved_quantity`.
 - Si `delivered_quantity < quantity`, la diferencia reingresa a bodega con un movimiento `in`
-  y el despacho queda en `partial_delivered`.
+  y el despacho queda en `partial_delivered`. Con varios lotes, lo que vuelve se reparte entre ellos
+  en proporción a lo que salió; con series, vuelven las últimas.
 - Un despacho rechazado completo (`rejected`) reingresa toda la mercancía.
 - Se factura después (`app_sales_invoices.dispatch_id`), con `affects_inventory = 'no'`.
+
+### 1.3 Lotes de la línea — `app_dispatch_line_lots`
+
+El lote dejó de ser una columna de la línea: una misma línea puede salir repartida en varias cajas.
+
+| Columna            | Tipo            | Nulo | Default | Descripción                                             |
+|--------------------|-----------------|------|---------|---------------------------------------------------------|
+| `dispatch_line_id` | `uuid`          | No   |         | FK → `app_dispatch_lines.id` (`cascadeOnDelete`).       |
+| `line_number`      | `integer`       | No   |         | Orden dentro de la línea. Único con `dispatch_line_id`. |
+| `lot_id`           | `uuid`          | No   |         | FK → `app_item_lots.id` (`restrictOnDelete`).           |
+| `quantity`         | `decimal(18,4)` | No   |         | Cuánto sale de ese lote, en la unidad de la línea.      |
+| `base_quantity`    | `decimal(18,4)` | No   | `0`     | Convertida a la unidad base; la calcula el repositorio. |
+
+**Reglas**
+
+- El despacho **consume** trazabilidad: el lote se elige del maestro y nunca nace aquí.
+- El lote tiene que ser del artículo de la línea.
+- Si hay filas de lote, sus cantidades **suman exactamente** la cantidad de la línea.
+- Al confirmar, el kardex escribe **un movimiento `out` por lote**, no uno por línea. La existencia
+  se comprueba por lote.
+
+### 1.4 Series de la línea — `app_dispatch_line_serials`
+
+| Columna                | Tipo      | Nulo | Descripción                                                  |
+|------------------------|-----------|------|--------------------------------------------------------------|
+| `dispatch_line_id`     | `uuid`    | No   | FK → `app_dispatch_lines.id` (`cascadeOnDelete`).            |
+| `dispatch_line_lot_id` | `uuid`    | Sí   | FK → `app_dispatch_line_lots.id`. De qué lote sale la unidad. |
+| `line_number`          | `integer` | No   | Orden dentro de la línea. Único con `dispatch_line_id`.      |
+| `serial_id`            | `uuid`    | No   | FK → `app_item_serials.id` (`restrictOnDelete`).             |
+
+**Reglas**
+
+- Un artículo serializado necesita **una serie por cada unidad base que sale**. Ya no hace falta una
+  línea por unidad: una línea de cinco laptops lleva sus cinco series.
+- La serie tiene que ser del artículo de la línea y no puede repetirse en el despacho.
+- Al confirmar, cada serie es un movimiento `out` de una unidad base.
 
 ---
 
@@ -115,16 +166,21 @@ Además de las columnas comunes de línea (los importes son informativos: el des
 Movimiento de mercancía entre bodegas de la misma empresa. **No cambia el valor total del inventario**, solo su
 ubicación.
 
+El traslado **no toca el kardex por su cuenta**: es el documento que ordena el viaje. Confirmarlo genera el
+**Despacho** que saca la mercancía del origen, y confirmar ese despacho genera la **Entrada** que la mete en el
+destino. Los dos asientos los escriben esos documentos, no el traslado.
+
+**Flujo:** Traslado → Despacho → Entrada.
+
 ### 2.1 Cabecera — `app_transfers` — Prefijo `TRA`
 
 | Columna                    | Tipo            | Nulo | Default     | Descripción                                                                  |
 |----------------------------|-----------------|------|-------------|------------------------------------------------------------------------------|
 | `origin_warehouse_id`      | `uuid`          | No   |             | FK → `app_warehouses.id` (`restrictOnDelete`).                               |
 | `destination_warehouse_id` | `uuid`          | No   |             | FK → `app_warehouses.id` (`restrictOnDelete`).                               |
-| `transit_warehouse_id`     | `uuid`          | Sí   |             | FK → `app_warehouses.id`. Bodega de tránsito si el traslado no es inmediato. |
 | `transfer_date`            | `date`          | No   |             | Fecha de salida.                                                             |
 | `expected_date`            | `date`          | Sí   |             | Fecha estimada de llegada.                                                   |
-| `received_date`            | `date`          | Sí   |             | Fecha efectiva de recepción.                                                 |
+| `received_date`            | `date`          | Sí   |             | Fecha efectiva de llegada. La escribe la entrada al confirmarse.             |
 | `reason`                   | `enum`          | No   | `'restock'` | `restock` (reabastecimiento), `rebalance`, `damaged`, `quarantine`, `other`. |
 | `reason_detail`            | `string(500)`   | Sí   |             |                                                                              |
 | `driver_id`                | `uuid`          | Sí   |             | FK → `users.id`.                                                             |
@@ -132,39 +188,44 @@ ubicación.
 | `route_id`                 | `uuid`          | Sí   |             | FK → `app_routes.id`.                                                        |
 | `total_quantity`           | `decimal(18,4)` | No   | `0`         |                                                                              |
 | `total_cost`               | `decimal(18,2)` | No   | `0`         | Valor trasladado.                                                            |
-| `transfer_status`          | `enum`          | No   | `'pending'` | `pending`, `in_transit`, `received`, `partial_received`.                     |
+| `transfer_status`          | `enum`          | No   | `'pending'` | `pending`, `in_transit`, `received`, `partial_received`. Lo mueven el despacho y la entrada. |
 | `sent_by`                  | `uuid`          | Sí   |             | FK → `users.id`. Quién despachó desde origen.                                |
 | `received_by`              | `uuid`          | Sí   |             | FK → `users.id`. Quién recibió en destino.                                   |
 | `cancelled_at`             | `timestamp`     | Sí   |             |                                                                              |
 | `notes`                    | `text`          | Sí   |             |                                                                              |
 
-**Estados (`status`):** `draft` → `confirmed` (salida) → `partial` → `completed` (recibido), o `cancelled`.
+**Estados (`status`):** `draft` → `confirmed` (despacho generado) → `completed` (entrada confirmada), o `cancelled`.
+Cerrarlo no es una decisión de la pantalla: lo cierra la entrada del destino.
 
 **Índices:** `index(origin_warehouse_id)`, `index(destination_warehouse_id)`, `index(transfer_date)`,
 `index(transfer_status)`, `index(driver_id)`.
 
 ### 2.2 Líneas — `app_transfer_lines`
 
-Además de las columnas comunes de línea:
+La línea dice **qué** se mueve, en qué unidad y cuánto, y nada más. Además de las columnas comunes de línea:
 
-| Columna                   | Tipo            | Nulo | Default | Descripción                                                |
-|---------------------------|-----------------|------|---------|------------------------------------------------------------|
-| `origin_location_id`      | `uuid`          | Sí   |         | Ubicación de origen.                                       |
-| `destination_location_id` | `uuid`          | Sí   |         | Ubicación de destino.                                      |
-| `lot_id`                  | `uuid`          | Sí   |         | FK → `app_item_lots.id`.                                   |
-| `serial_id`               | `uuid`          | Sí   |         | FK → `app_item_serials.id`.                                |
-| `sent_quantity`           | `decimal(18,4)` | No   | `0`     | Cantidad enviada.                                          |
-| `received_quantity`       | `decimal(18,4)` | No   | `0`     | Cantidad recibida en destino.                              |
-| `difference_quantity`     | `decimal(18,4)` | No   | `0`     | `sent_quantity - received_quantity`. Faltante en tránsito. |
-| `unit_cost`               | `decimal(18,6)` | No   | `0`     | Costo con el que viaja la mercancía.                       |
+| Columna     | Tipo            | Nulo | Default | Descripción                                                     |
+|-------------|-----------------|------|---------|------------------------------------------------------------------|
+| `unit_cost` | `decimal(18,6)` | No   | `0`     | Costo con el que viaja la mercancía, por unidad base.            |
+
+La ubicación de origen y la de destino ya no viven en la línea: la cabecera dice de qué bodega a cuál va el viaje, y
+el kardex toma la ubicación por defecto de cada una. El lote y la serie tampoco: se eligen **al despachar**, que es
+cuando alguien tiene la mercancía delante y puede leer el número de la caja.
 
 **Reglas**
 
-- Traslado en **dos pasos**: al confirmar genera `transfer_out` de la bodega origen hacia tránsito; al recibir genera
-  `transfer_in` en la bodega destino. En un solo paso, ambos movimientos son simultáneos.
-- El costo unitario **viaja con la mercancía**: el destino recibe al costo del origen, no al suyo.
+- Al confirmar el traslado nace un despacho `DES` en **borrador**, colgado del traslado (`sourceable`), dirigido a la
+  bodega de destino y con las líneas que mueven existencia. Un artículo `service` o `non_inventoried` no viaja.
+- Al confirmar ese despacho, el kardex escribe `transfer_out` en la bodega de origen —no `out`: la mercancía no se
+  vendió, solo cambió de sitio— y nace la entrada `ENT` en borrador, en la bodega de destino, con `entry_type =
+  'transfer'` y sin proveedor. Esa entrada cuelga del **traslado** (`sourceable`), igual que el despacho: los dos
+  documentos apuntan a lo que originó el movimiento. El despacho que la trajo queda en el `sourceable` de cada
+  línea (`dispatch_line`), que es de donde sale el costo con el que la mercancía viajó.
+- Al confirmar esa entrada, el kardex escribe `transfer_in` en el destino y el traslado queda `completed`.
+- El costo unitario **viaja con la mercancía**: el costo real de la salida se congela en la línea del traslado y es el
+  que la entrada usa para valorar el ingreso. El destino recibe al costo del origen, no al suyo.
 - Origen y destino no pueden ser la misma bodega.
-- Una diferencia (`difference_quantity ≠ 0`) exige un Ajuste que la justifique antes de cerrar el traslado.
+- Un traslado cuyo despacho ya salió no se anula: primero se anula el despacho. Lo mismo entre despacho y entrada.
 
 ---
 
@@ -178,11 +239,11 @@ documento previo (producción, donación, hallazgo).
 | Columna             | Tipo            | Nulo | Default      | Descripción                                                                              |
 |---------------------|-----------------|------|--------------|------------------------------------------------------------------------------------------|
 | `supplier_id`       | `uuid`          | Sí   |              | FK → `app_suppliers.id` (`restrictOnDelete`). Nulo si no viene de un proveedor.          |
-| `sourceable_type`   | `string(255)`   | Sí   |              | Alias del documento origen en el morph map. Hoy solo `purchase_order`.                   |
+| `sourceable_type`   | `string(255)`   | Sí   |              | Alias del documento origen en el morph map: `purchase_order` o `transfer`.               |
 | `sourceable_id`     | `uuid`          | Sí   |              | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`.           |
 | `warehouse_id`      | `uuid`          | No   |              | FK → `app_warehouses.id` (`restrictOnDelete`). Bodega de recepción.                      |
 | `entry_date`        | `date`          | No   |              | Fecha de recepción.                                                                      |
-| `entry_type`        | `enum`          | No   | `'purchase'` | `purchase`, `production`, `return`, `donation`, `initial` (inventario inicial), `other`. |
+| `entry_type`        | `enum`          | No   | `'purchase'` | `purchase`, `production`, `return`, `donation`, `initial`, `transfer`, `other`.          |
 | `supplier_document` | `string(60)`    | Sí   |              | Remisión o guía del proveedor.                                                           |
 | `carrier`           | `string(150)`   | Sí   |              | Transportista.                                                                           |
 | `tracking_number`   | `string(60)`    | Sí   |              |                                                                                          |
@@ -214,17 +275,22 @@ columna por cada uno. Es el mismo mecanismo que usan las facturas de compra ([Co
 - `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
   `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
   datos ya guardados.
-- Tipos admitidos hoy: `purchase_order` → `app_purchase_orders`. Cualquier otro valor es inválido y se rechaza
-  en el Request.
+- Tipos admitidos hoy: `purchase_order` → `app_purchase_orders` y `transfer` → `app_transfers`. Cualquier otro valor
+  es inválido y se rechaza en el Request.
+- La entrada que recibe un traslado cuelga del **traslado**, no del despacho que la generó: lo que hay que poder
+  reconocer al mirarla es qué originó el movimiento, y eso es el traslado. El despacho y el traslado son hermanos:
+  los dos apuntan al mismo `sourceable`. El despacho queda trazado línea a línea (ver abajo), que es donde hace
+  falta —de ahí sale el costo con el que la mercancía viajó—.
 - Ambas columnas son nulas: las entradas sin documento previo (`production`, `donation`, `initial`) las dejan
   vacías. Si una viene informada, la otra es obligatoria.
-- El documento origen debe pertenecer a la misma empresa y al mismo proveedor que la entrada. Si la entrada no
-  tiene `supplier_id`, tampoco puede tener origen.
+- Una entrada que sale de una **orden de compra** debe apuntar a una de la misma empresa y del mismo proveedor. Sin
+  `supplier_id` no puede salir de una orden. La que recibe un **traslado** no tiene proveedor —la mercancía ya era
+  de la empresa— y no se comprueba contra ninguna orden: lo que puede llegar ya lo comprobó el despacho al sacarlo.
 - Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
   origen se protege por la política de no borrado.
-- Las líneas repiten el par (`sourceable_type`, `sourceable_id`) apuntando a la línea del origen
-  (`purchase_order_line`). El origen de la línea debe pertenecer al mismo documento que el `sourceable` de la
-  cabecera.
+- Las líneas repiten el par (`sourceable_type`, `sourceable_id`) apuntando a la línea del origen:
+  `purchase_order_line` en una entrada de compra, `dispatch_line` en la que recibe un traslado. En una entrada de
+  compra el origen de la línea debe pertenecer al mismo documento que el `sourceable` de la cabecera.
 
 ### 3.2 Líneas — `app_entry_lines`
 
@@ -232,18 +298,27 @@ Además de las columnas comunes de línea:
 
 | Columna                  | Tipo            | Nulo | Default | Descripción                                            |
 |--------------------------|-----------------|------|---------|--------------------------------------------------------|
-| `sourceable_type`        | `string(255)`   | Sí   |         | Alias de la línea origen (`purchase_order_line`).      |
+| `sourceable_type`        | `string(255)`   | Sí   |         | Alias de la línea origen (`purchase_order_line` o `dispatch_line`). |
 | `sourceable_id`          | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad a la orden.        |
 | `location_id`            | `uuid`          | Sí   |         | Ubicación donde se almacena.                           |
-| `lot_number`             | `string(60)`    | Sí   |         | Lote del proveedor; crea `app_item_lots` si no existe. |
-| `lot_id`                 | `uuid`          | Sí   |         | FK → `app_item_lots.id`.                               |
-| `expires_at`             | `date`          | Sí   |         | Vencimiento del lote recibido.                         |
-| `serial_numbers`         | `json`          | Sí   |         | Series recibidas; crea `app_item_serials`.             |
 | `received_quantity`      | `decimal(18,4)` | No   | `0`     | Cantidad aceptada.                                     |
 | `rejected_quantity`      | `decimal(18,4)` | No   | `0`     | Cantidad rechazada en inspección.                      |
 | `unit_cost`              | `decimal(18,6)` | No   | `0`     | Costo antes de prorrateos.                             |
 | `landed_cost`            | `decimal(18,6)` | No   | `0`     | Costo final con flete y gastos prorrateados.           |
 | `rejection_reason`       | `string(500)`   | Sí   |         |                                                        |
+
+**El costo no se captura**
+
+La pantalla de la entrada solo pide **qué artículo llega, en qué unidad y cuánto se recibe**.
+`unit_price`, `discount_percent`, `tax_id`, `tax_percent` y `withholding_percent` los escribe el
+backend (`EntryPricingService`): si la línea recibe una línea de la orden de compra, se copian de
+ella; si la entrada es suelta —producción, donación, inventario inicial—, `unit_price` sale del
+costo promedio del artículo convertido a la unidad de la línea, y el resto queda en cero. Un costo
+enviado desde el cliente se ignora.
+
+> Un artículo estrenado todavía no tiene promedio, así que un inventario inicial entra a costo cero.
+> Se corrige después con un ajuste de revaluación: el costo no vuelve a la pantalla de la entrada
+> solo por ese caso.
 
 **Reglas**
 
@@ -254,6 +329,44 @@ Además de las columnas comunes de línea:
   `allow_over_receipt`).
 - `entry_type = initial` es el mecanismo de carga del inventario inicial; solo se permite una vez por artículo/bodega.
 - `rejected_quantity` no ingresa a stock: se registra para el reclamo al proveedor.
+
+### 3.3 Lotes de la línea — `app_entry_line_lots`
+
+| Columna         | Tipo            | Nulo | Default | Descripción                                                   |
+|-----------------|-----------------|------|---------|---------------------------------------------------------------|
+| `entry_line_id` | `uuid`          | No   |         | FK → `app_entry_lines.id` (`cascadeOnDelete`).                |
+| `line_number`   | `integer`       | No   |         | Orden dentro de la línea. Único con `entry_line_id`.          |
+| `lot_number`    | `string(60)`    | No   |         | El número impreso en la caja. Es lo único que se captura.     |
+| `lot_id`        | `uuid`          | Sí   |         | FK → `app_item_lots.id` (`nullOnDelete`). Se resuelve al confirmar. |
+| `expires_at`    | `date`          | Sí   |         | Vencimiento de **ese** lote.                                  |
+| `quantity`      | `decimal(18,4)` | No   |         | Cuánto llegó en ese lote, en la unidad de la línea.           |
+| `base_quantity` | `decimal(18,4)` | No   | `0`     | Convertida a la unidad base; la calcula el repositorio.       |
+
+**Reglas**
+
+- La entrada **crea** trazabilidad: el número se busca en `app_item_lots` al confirmar y se da de
+  alta si no existía, por `ItemLotCreateService`. En borrador `lot_id` está vacío.
+- Si hay filas de lote, sus cantidades **suman exactamente** la cantidad que se recibe en la línea.
+- Al confirmar, el kardex escribe **un movimiento `in` por lote**. Lo que la inspección rechaza se
+  reparte entre los lotes en proporción a lo que trajo cada uno: nadie decidió de qué caja salía lo
+  malo.
+
+### 3.4 Series de la línea — `app_entry_line_serials`
+
+| Columna             | Tipo          | Nulo | Descripción                                                |
+|---------------------|---------------|------|------------------------------------------------------------|
+| `entry_line_id`     | `uuid`        | No   | FK → `app_entry_lines.id` (`cascadeOnDelete`).             |
+| `entry_line_lot_id` | `uuid`        | Sí   | FK → `app_entry_line_lots.id`. De qué lote es la unidad.   |
+| `line_number`       | `integer`     | No   | Orden dentro de la línea. Único con `entry_line_id`.       |
+| `serial_number`     | `string(100)` | No   | El número impreso en la unidad.                            |
+| `serial_id`         | `uuid`        | Sí   | FK → `app_item_serials.id`. Se resuelve al confirmar.      |
+
+**Reglas**
+
+- Un artículo serializado necesita **una serie por cada unidad base aceptada**.
+- Una serie no puede repetirse dentro de la entrada.
+- Al confirmar, cada serie es un movimiento `in` de una unidad base, y la serie nace en el maestro si
+  el proveedor la estrena.
 
 ---
 

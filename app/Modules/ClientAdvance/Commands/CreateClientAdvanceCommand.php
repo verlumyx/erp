@@ -17,6 +17,8 @@ class CreateClientAdvanceCommand
         public readonly string $createdBy,
         /** Pedido que motiva el anticipo. Vacío en un anticipo sin pedido previo. */
         public readonly ?string $salesOrderId = null,
+        /** El cobro cuyo excedente lo generó; nulo capturándolo a mano. */
+        public readonly ?string $originCollectionId = null,
         public readonly string $paymentMethod = 'transfer',
         public readonly ?string $reference = null,
         public readonly ?string $bankAccount = null,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Item\Models\Item;
+use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
@@ -138,6 +139,51 @@ test('a service item does not reach the kardex', function () {
 
     expect($dispatch->refresh()->status)->toBe('confirmed');
     expect(dispatchMovements($dispatch))->toHaveCount(0);
+});
+
+test('a line split across two lots writes one kardex movement per lot', function () {
+    [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
+
+    $first = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'created_by' => $user->id,
+    ]);
+    $second = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'created_by' => $user->id,
+    ]);
+
+    /** Existencia en cada lote: el kardex lleva el saldo por lote. */
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 10, 'unitCost' => 30, 'lotId' => $first->id,
+    ]);
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 10, 'unitCost' => 30, 'lotId' => $second->id,
+    ]);
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'location_id' => $location->id,
+            'lots' => [
+                ['lot_id' => $first->id, 'quantity' => 4],
+                ['lot_id' => $second->id, 'quantity' => 6],
+            ],
+        ]],
+    ]);
+
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+
+    $movements = dispatchMovements($dispatch);
+    expect($movements)->toHaveCount(2);
+    expect($movements->pluck('quantity')->map(fn ($q): float => (float) $q)->all())->toBe([4.0, 6.0]);
+    expect($movements->pluck('lot_id')->all())->toBe([$first->id, $second->id]);
+    /** La línea guarda un solo costo: el promedio ponderado de los asientos. */
+    expect((float) $dispatch->lines()->first()->unit_cost)->toBe(30.0);
 });
 
 test('confirming moves the order forward and releases its reservation', function () {

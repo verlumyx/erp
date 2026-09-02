@@ -16,6 +16,5 @@ class WriteTransferLineCostCommand
 {
     public function __construct(
         public readonly float $unitCost,
-        public readonly float $sentQuantity,
     ) {}
 }

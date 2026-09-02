@@ -14,13 +14,13 @@ class TransferUpdateStatusService
 {
     public function __construct(
         private readonly TransferRepositoryInterface $repository,
-        private readonly TransferPostingService $posting,
+        private readonly TransferMirrorDispatchService $mirror,
     ) {}
 
     /**
-     * Cambiar el estado no toca los importes del traslado: lo que mueve es el
-     * inventario, y solo en los dos momentos que importan —confirmarlo y
-     * anularlo ya confirmado—.
+     * El traslado no mueve inventario: lo mueven el despacho que saca la
+     * mercancía del origen y la entrada que la mete en el destino. Confirmarlo
+     * escribe ese despacho en borrador; anularlo lo borra.
      */
     public function execute(
         string $id,
@@ -34,15 +34,20 @@ class TransferUpdateStatusService
         }
 
         DB::transaction(function () use ($model, $command): void {
-            $wasPosted = in_array($model->status, Transfer::POSTED_STATUSES, true);
-
-            if ($command->status === 'confirmed') {
-                $this->posting->post($model, $command->sentBy);
+            /**
+             * Se comprueba antes de tocar nada: si la mercancía ya salió, el
+             * traslado no se anula hasta anular el despacho que la sacó.
+             */
+            if ($command->status === 'cancelled') {
+                $this->mirror->guardCancellable($model);
             }
 
-            /** Un borrador anulado no revierte nada: nunca llegó a mover mercancía. */
-            if ($command->status === 'cancelled' && $wasPosted) {
-                $this->posting->reverse($model);
+            if ($command->status === 'confirmed') {
+                $this->mirror->create($model);
+            }
+
+            if ($command->status === 'cancelled') {
+                $this->mirror->cancel($model);
             }
 
             $this->repository->updateStatus($model, $command);

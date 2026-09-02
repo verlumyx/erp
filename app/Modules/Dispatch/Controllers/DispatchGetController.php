@@ -22,7 +22,7 @@ class DispatchGetController extends Controller
 {
     /** Claves de filtro aceptadas por el listado. */
     private const FILTERS = [
-        'code', 'client_id', 'warehouse_id', 'driver_id', 'route_id',
+        'code', 'recipient_type', 'recipient_id', 'warehouse_id', 'driver_id', 'route_id',
         'tracking_number', 'delivery_status', 'status', 'date_from', 'date_to',
     ];
 
@@ -59,7 +59,7 @@ class DispatchGetController extends Controller
             filters: [
                 'q' => $request->string('q')->toString(),
                 'ids' => $ids,
-                'client_id' => $request->string('client_id')->toString(),
+                'recipient_id' => $request->string('recipient_id')->toString(),
                 /*
                  * Buscar ofrece solo lo que se puede facturar; hidratar lo ya
                  * elegido no filtra por estado: un despacho anulado después

@@ -39,6 +39,12 @@ trait ValidatesSupplierPaymentPayload
             'payment_method' => ['required', 'string', Rule::in(SupplierPayment::PAYMENT_METHODS)],
             'reference' => ['nullable', 'string', 'max:60'],
             'bank_account' => ['nullable', 'string', 'max:60'],
+            /**
+             * De qué anticipo o nota sale el crédito, pagando sin dinero. Sin
+             * foreign key: apunta a dos tablas según la forma de pago, y quién
+             * lo valida es `SupplierPaymentCreditSourceService`.
+             */
+            'credit_source_id' => ['nullable', 'uuid'],
             'currency' => ['required', 'string', new ActiveCurrency],
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],

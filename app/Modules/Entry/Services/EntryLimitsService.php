@@ -15,6 +15,7 @@ use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseOrder\Repositories\Contracts\PurchaseOrderRepositoryInterface;
+use App\Modules\Transfer\Models\Transfer;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -64,6 +65,15 @@ class EntryLimitsService
         if (blank($sourceableId)) {
             $this->guardOrphanLines($lines);
 
+            return;
+        }
+
+        /**
+         * Una entrada que recibe un traslado no tiene orden de compra detrás:
+         * la mercancía viene de otra bodega propia, no de un proveedor. Lo que
+         * puede llegar ya lo comprobó el despacho al sacarlo.
+         */
+        if ($sourceableType === Transfer::MORPH_ALIAS) {
             return;
         }
 
@@ -268,7 +278,9 @@ class EntryLimitsService
     /**
      * El lote y las series solo tienen sentido en artículos que los llevan, y
      * un artículo serializado se recibe unidad por unidad: cada una es su
-     * serie, así que hacen falta tantas como unidades base entren.
+     * serie, así que hacen falta tantas como unidades base **acepte** la
+     * inspección. El vencimiento ya no necesita guarda propia: es columna de la
+     * fila de lote, así que no puede existir sin lote.
      *
      * @param  array<int, EntryLineData>  $lines
      * @param  array<string, Item>  $items
@@ -290,21 +302,20 @@ class EntryLimitsService
                 continue;
             }
 
+            $lots = $line->activeLots();
+            $serials = $line->activeSerials();
+
             $tracksLots = in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true);
 
-            if (! $tracksLots && (filled($line->lotNumber) || filled($line->lotId))) {
-                $errors["lines.{$index}.lot_number"] = 'Ese artículo no se controla por lote.';
-            }
-
-            if (filled($line->expiresAt) && blank($line->lotNumber) && blank($line->lotId)) {
-                $errors["lines.{$index}.expires_at"] = 'El vencimiento es del lote: indica cuál se recibe.';
+            if (! $tracksLots && $lots !== []) {
+                $errors["lines.{$index}.lots"] = 'Ese artículo no se controla por lote.';
             }
 
             $serialized = $item->type === ItemSerial::TRACKABLE_ITEM_TYPE;
 
             if (! $serialized) {
-                if ($line->serialNumbers !== []) {
-                    $errors["lines.{$index}.serial_numbers"] = 'Ese artículo no se controla por serie.';
+                if ($serials !== []) {
+                    $errors["lines.{$index}.serials"] = 'Ese artículo no se controla por serie.';
                 }
 
                 continue;
@@ -312,8 +323,8 @@ class EntryLimitsService
 
             $expected = round($line->receivedQuantity * $this->factorFor($item, $line->measurementUnitId), 4);
 
-            if (count($line->serialNumbers) !== (int) $expected || $expected != (float) (int) $expected) {
-                $errors["lines.{$index}.serial_numbers"] = "Ese artículo se controla por serie: indica una serie por cada unidad aceptada ({$expected}).";
+            if (count($serials) !== (int) $expected || $expected != (float) (int) $expected) {
+                $errors["lines.{$index}.serials"] = "Ese artículo se controla por serie: indica una serie por cada unidad aceptada ({$expected}).";
             }
         }
 

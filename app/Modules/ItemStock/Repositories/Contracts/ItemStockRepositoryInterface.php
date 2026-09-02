@@ -39,6 +39,20 @@ interface ItemStockRepositoryInterface
     public function warehouseBalance(?string $companyId, string $itemId, string $warehouseId): array;
 
     /**
+     * Lo que de verdad se puede comprometer del artículo en la bodega: la
+     * existencia menos lo que otros pedidos ya reservaron, sumando todas sus
+     * ubicaciones y lotes.
+     */
+    public function warehouseAvailable(?string $companyId, string $itemId, string $warehouseId): float;
+
+    /**
+     * Existencia total que guarda una bodega, sumando todos sus artículos,
+     * ubicaciones y lotes. Es lo que impide desactivar una bodega con
+     * mercancía dentro.
+     */
+    public function warehouseQuantity(?string $companyId, string $warehouseId): float;
+
+    /**
      * Saldo consolidado del artículo en toda la empresa: suma todas sus
      * bodegas. Es el número del que sale el costo promedio del maestro de
      * artículos, que no distingue bodegas.

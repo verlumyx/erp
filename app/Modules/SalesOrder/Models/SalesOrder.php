@@ -41,6 +41,15 @@ class SalesOrder extends Model
 
     public const STATUSES = ['draft', 'confirmed', 'partial', 'completed', 'cancelled'];
 
+    /**
+     * Estados en los que el documento sigue vivo: todavía espera mercancía o
+     * dinero. Es lo que impide desactivar un artículo o una bodega que alguno
+     * de ellos está usando.
+     *
+     * @var array<int, string>
+     */
+    public const OPEN_STATUSES = ['draft', 'confirmed', 'partial'];
+
     /** Solo un borrador se edita: confirmado ya reserva inventario y compromete crédito. */
     public const EDITABLE_STATUSES = ['draft'];
 

@@ -13,6 +13,7 @@ use App\Modules\PurchaseCreditNote\Commands\PurchaseCreditNoteLineData;
 use App\Modules\PurchaseCreditNote\Commands\SearchPurchaseCreditNoteCommand;
 use App\Modules\PurchaseCreditNote\Commands\UpdatePurchaseCreditNoteCommand;
 use App\Modules\PurchaseCreditNote\Commands\UpdateStatusPurchaseCreditNoteCommand;
+use App\Modules\PurchaseCreditNote\Commands\WritePurchaseCreditNoteAppliedCommand;
 use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNote;
 use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNoteLine;
 use App\Modules\PurchaseCreditNote\Repositories\Contracts\PurchaseCreditNoteRepositoryInterface;
@@ -93,6 +94,20 @@ class PurchaseCreditNoteRepository extends PurchaseCreditNoteFilters implements 
         });
     }
 
+    /**
+     * @return array<int, PurchaseCreditNoteLine>
+     */
+    public function activeLines(PurchaseCreditNote $model): array
+    {
+        return PurchaseCreditNoteLine::query()
+            ->with(['item', 'purchaseInvoiceLine'])
+            ->where('purchase_credit_note_id', $model->id)
+            ->where('status', 'active')
+            ->orderBy('line_number')
+            ->get()
+            ->all();
+    }
+
     public function updateStatus(PurchaseCreditNote $model, UpdateStatusPurchaseCreditNoteCommand $command): void
     {
         $attributes = ['status' => $command->status];
@@ -102,6 +117,26 @@ class PurchaseCreditNoteRepository extends PurchaseCreditNoteFilters implements 
         }
 
         $model->update($attributes);
+    }
+
+    public function lockById(string $id, ?string $companyId = null): ?PurchaseCreditNote
+    {
+        return PurchaseCreditNote::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeApplied(
+        PurchaseCreditNote $model,
+        WritePurchaseCreditNoteAppliedCommand $command,
+    ): PurchaseCreditNote {
+        $model->update([
+            'applied_amount' => $command->appliedAmount,
+            'balance' => $command->balance,
+        ]);
+
+        return $model;
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Modules\SalesCreditNote\Commands\SalesCreditNoteLineData;
 use App\Modules\SalesCreditNote\Commands\SearchSalesCreditNoteCommand;
 use App\Modules\SalesCreditNote\Commands\UpdateSalesCreditNoteCommand;
 use App\Modules\SalesCreditNote\Commands\UpdateStatusSalesCreditNoteCommand;
+use App\Modules\SalesCreditNote\Commands\WriteSalesCreditNoteAppliedCommand;
 use App\Modules\SalesCreditNote\Models\SalesCreditNote;
 use App\Modules\SalesCreditNote\Models\SalesCreditNoteLine;
 use App\Modules\SalesCreditNote\Repositories\Contracts\SalesCreditNoteRepositoryInterface;
@@ -131,6 +132,26 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
 
             $model->update(['status' => $command->status]);
         });
+    }
+
+    public function lockById(string $id, ?string $companyId = null): ?SalesCreditNote
+    {
+        return SalesCreditNote::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeApplied(
+        SalesCreditNote $model,
+        WriteSalesCreditNoteAppliedCommand $command,
+    ): SalesCreditNote {
+        $model->update([
+            'applied_amount' => $command->appliedAmount,
+            'balance' => $command->balance,
+        ]);
+
+        return $model;
     }
 
     /**

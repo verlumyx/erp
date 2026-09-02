@@ -60,7 +60,6 @@ export function EntryForm() {
         handleSubmit,
         mode,
         totals,
-        landedRatio,
         supplierLookupUrl,
         supplierOption,
         selectSupplier,
@@ -534,100 +533,36 @@ export function EntryForm() {
                     </div>
                     <div className="flex items-center justify-between text-[13.5px]">
                         <span className="font-medium text-muted-foreground">
-                            Bruto
+                            Por recibir
                         </span>
                         <b className="font-bold tabular-nums">
-                            <AmountDual
-                                amount={totals.gross}
-                                currency={data.currency}
-                                rate={data.exchange_rate || undefined}
-                                className="items-end"
-                            />
+                            {totals.receivedQuantity + totals.rejectedQuantity}
                         </b>
                     </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Descuento de líneas
-                        </span>
-                        <b className="font-bold tabular-nums">
-                            <AmountDual
-                                amount={totals.discountAmount}
-                                currency={data.currency}
-                                rate={data.exchange_rate || undefined}
-                                className="items-end"
-                            />
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Subtotal
-                        </span>
-                        <b className="font-bold tabular-nums">
-                            <AmountDual
-                                amount={totals.subtotal}
-                                currency={data.currency}
-                                rate={data.exchange_rate || undefined}
-                                className="items-end"
-                            />
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Impuesto
-                        </span>
-                        <b className="font-bold tabular-nums">
-                            <AmountDual
-                                amount={totals.taxAmount}
-                                currency={data.currency}
-                                rate={data.exchange_rate || undefined}
-                                className="items-end"
-                            />
-                        </b>
-                    </div>
-                    {totals.withholdingAmount > 0 && (
+                    {totals.rejectedQuantity > 0 && (
                         <div className="flex items-center justify-between text-[13.5px]">
                             <span className="font-medium text-muted-foreground">
-                                Retención
+                                Rechazado
                             </span>
                             <b className="font-bold tabular-nums">
-                                <AmountDual
-                                    amount={totals.withholdingAmount}
-                                    currency={data.currency}
-                                    rate={data.exchange_rate || undefined}
-                                    className="items-end"
-                                />
+                                {totals.rejectedQuantity}
                             </b>
                         </div>
                     )}
-                    <div className="flex items-center justify-between border-t pt-2.5 text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Valor aceptado
+                    <div className="flex items-center justify-between border-t pt-2.5 text-[15px]">
+                        <span className="font-semibold">
+                            Entra al inventario
                         </span>
-                        <b className="font-bold tabular-nums">
-                            <AmountDual
-                                amount={totals.receivedValue}
-                                currency={data.currency}
-                                rate={data.exchange_rate || undefined}
-                                className="items-end"
-                            />
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[15px]">
-                        <span className="font-semibold">Valor ingresado</span>
                         <b className="font-extrabold tabular-nums">
-                            <AmountDual
-                                amount={totals.landedTotal}
-                                currency={data.currency}
-                                rate={data.exchange_rate || undefined}
-                                className="items-end"
-                            />
+                            {totals.receivedQuantity}
                         </b>
                     </div>
                 </div>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    {landedRatio > 0
-                        ? `El flete y los gastos suben el costo de cada unidad un ${landedRatio} %, repartidos por valor de línea.`
-                        : 'Al confirmarla, la mercancía aceptada entra al inventario con el flete y los gastos ya dentro del costo.'}
+                    La entrada no captura el costo: sale de la orden de compra
+                    o, sin orden, del promedio del artículo. Al confirmarla, la
+                    mercancía aceptada entra al inventario con el flete y los
+                    gastos ya repartidos dentro de ese costo.
                 </p>
                 <Button
                     type="submit"

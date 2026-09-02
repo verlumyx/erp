@@ -30,9 +30,14 @@ use Illuminate\Support\Facades\DB;
  * facturas, así que confirmarlo o anularlo no mueve saldos aquí sino el estado
  * del anticipo que lo generó (`docs/ventas.md` §5.1).
  *
- * Pendiente: con `origin_type` `client` o `invoice`, el `unapplied_amount` que
- * quede al confirmar debe generar un anticipo `ANC` ya confirmado por ese
- * excedente (`docs/ventas.md` §6.2).
+ * Un cobro que no trae dinero —`payment_method` `advance` o `credit_note`— sí
+ * reparte: lo que gasta es el crédito que el cliente ya tenía, y sus filas
+ * viajan con el `source_type` de ese crédito en vez de con el suyo
+ * (`docs/ventas.md` §6.3).
+ *
+ * Lo que entra y no se reparte tampoco se queda en el aire: al confirmar se
+ * convierte en un anticipo `ANC` ya confirmado
+ * (`ClientCollectionSurplusService`, `docs/ventas.md` §6.2).
  */
 class ClientCollectionPostingService
 {
@@ -43,6 +48,8 @@ class ClientCollectionPostingService
         private readonly SalesInvoiceApplyCollectionService $applyToInvoice,
         private readonly ClientApplyBalanceService $applyToClient,
         private readonly ClientAdvanceCollectionSyncService $advances,
+        private readonly ClientCollectionCreditSourceService $creditSources,
+        private readonly ClientCollectionSurplusService $surplus,
     ) {}
 
     /**
@@ -94,7 +101,13 @@ class ClientCollectionPostingService
                 $applied += $amount;
             }
 
-            $this->moveClientBalance($collection, -round($applied, 2));
+            $applied = round($applied, 2);
+
+            $this->moveClientBalance($collection, -$applied);
+            $this->creditSources->consume($collection, $applied);
+
+            /** Lo que entró y no cancela ninguna factura queda como anticipo. */
+            $this->surplus->capture($collection);
         });
     }
 
@@ -128,7 +141,12 @@ class ClientCollectionPostingService
                 $applied += $amount;
             }
 
-            $this->moveClientBalance($collection, round($applied, 2));
+            $applied = round($applied, 2);
+
+            $this->surplus->release($collection);
+
+            $this->moveClientBalance($collection, $applied);
+            $this->creditSources->release($collection, $applied);
         });
     }
 
@@ -162,10 +180,17 @@ class ClientCollectionPostingService
         return round($amount * ((float) $collection->exchange_rate - (float) $invoice->exchange_rate), 2);
     }
 
-    /** Un cobro sin reparto no mueve nada: no hay deuda que cancelar. */
+    /**
+     * Un cobro sin reparto no mueve nada: no hay deuda que cancelar.
+     *
+     * Cobrar con una nota de crédito tampoco la mueve: la nota ya bajó el
+     * `current_balance` del cliente al confirmarse, y volver a bajarlo aquí
+     * cancelaría la misma deuda dos veces. El anticipo sí, porque entró como
+     * crédito a favor y no como pago.
+     */
     private function moveClientBalance(ClientCollection $collection, float $delta): void
     {
-        if ($delta === 0.0) {
+        if ($delta === 0.0 || $collection->payment_method === 'credit_note') {
             return;
         }
 

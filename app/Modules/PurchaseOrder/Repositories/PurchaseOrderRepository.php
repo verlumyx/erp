@@ -13,6 +13,7 @@ use App\Modules\PurchaseOrder\Commands\PurchaseOrderLineData;
 use App\Modules\PurchaseOrder\Commands\SearchPurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Commands\UpdatePurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Commands\UpdateStatusPurchaseOrderCommand;
+use App\Modules\PurchaseOrder\Commands\WritePurchaseOrderLineInvoicedCommand;
 use App\Modules\PurchaseOrder\Commands\WritePurchaseOrderLineReceiptCommand;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
@@ -105,6 +106,20 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
         $model->update($attributes);
     }
 
+    /**
+     * @return array<int, PurchaseOrderLine>
+     */
+    public function activeLines(PurchaseOrder $model): array
+    {
+        return PurchaseOrderLine::query()
+            ->with(['item'])
+            ->where('purchase_order_id', $model->id)
+            ->where('status', 'active')
+            ->orderBy('line_number')
+            ->get()
+            ->all();
+    }
+
     public function lockLineById(string $id, ?string $companyId = null): ?PurchaseOrderLine
     {
         return PurchaseOrderLine::query()
@@ -123,6 +138,42 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
         ]);
 
         return $line;
+    }
+
+    public function writeLineInvoiced(
+        PurchaseOrderLine $line,
+        WritePurchaseOrderLineInvoicedCommand $command,
+    ): PurchaseOrderLine {
+        $line->update(['invoiced_quantity' => $command->invoicedQuantity]);
+
+        return $line;
+    }
+
+    /**
+     * Avance de facturación de la orden: cuánto de lo pedido ya vino en una
+     * factura. Se mide contra lo pedido, igual que la recepción, y tampoco pasa
+     * del 100 % aunque el proveedor haya facturado de más.
+     */
+    public function refreshInvoicedPercent(string $orderId): void
+    {
+        $order = PurchaseOrder::query()->find($orderId);
+
+        if ($order === null) {
+            return;
+        }
+
+        $lines = PurchaseOrderLine::query()
+            ->where('purchase_order_id', $order->id)
+            ->where('status', 'active')
+            ->get();
+
+        $ordered = (float) $lines->sum('quantity');
+
+        $order->update([
+            'invoiced_percent' => $ordered > 0
+                ? min(round((float) $lines->sum('invoiced_quantity') * 100 / $ordered, 4), 100)
+                : 0,
+        ]);
     }
 
     /**
@@ -179,7 +230,7 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
      */
     private function detailRelations(): array
     {
-        return ['supplier', 'warehouse', 'lines.item', 'lines.measurementUnit'];
+        return ['supplier', 'warehouse', 'lines.item', 'lines.measurementUnit', 'entries'];
     }
 
     /**

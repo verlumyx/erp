@@ -6,7 +6,6 @@ namespace App\Modules\Transfer\Requests\Concerns;
 
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\Transfer\Models\Transfer;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Validator;
@@ -41,18 +40,6 @@ trait ValidatesTransferPayload
                 'different:origin_warehouse_id',
                 $activeWarehouse(),
             ],
-            /**
-             * Su presencia decide el número de pasos, así que no puede ser
-             * ninguna de las otras dos: la mercancía tiene que poder estar en
-             * ella sin estar ya en el origen ni en el destino.
-             */
-            'transit_warehouse_id' => [
-                'nullable',
-                'uuid',
-                'different:origin_warehouse_id',
-                'different:destination_warehouse_id',
-                $activeWarehouse(),
-            ],
             'transfer_date' => ['required', 'date'],
             'expected_date' => ['nullable', 'date', 'after_or_equal:transfer_date'],
             'reason' => ['required', 'string', Rule::in(Transfer::REASONS)],
@@ -84,26 +71,6 @@ trait ValidatesTransferPayload
                 'uuid',
                 Rule::exists('app_measurement_units', 'id')->where('company_id', $companyId),
             ],
-            'lines.*.origin_location_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.destination_location_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.lot_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_item_lots', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.serial_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_item_serials', 'id')->where('company_id', $companyId),
-            ],
             'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
             'lines.*.notes' => ['nullable', 'string', 'max:500'],
             'lines.*.status' => ['nullable', 'string', 'in:active,inactive'],
@@ -121,8 +88,6 @@ trait ValidatesTransferPayload
             'destination_warehouse_id.required' => 'Indica la bodega a la que llega la mercancía.',
             'destination_warehouse_id.different' => 'El origen y el destino no pueden ser la misma bodega.',
             'destination_warehouse_id.exists' => 'La bodega de destino no está disponible.',
-            'transit_warehouse_id.different' => 'La bodega de tránsito tiene que ser distinta del origen y del destino.',
-            'transit_warehouse_id.exists' => 'La bodega de tránsito no está disponible.',
             'transfer_date.required' => 'La fecha de salida es obligatoria.',
             'expected_date.after_or_equal' => 'La mercancía no puede llegar antes de salir.',
             'reason.required' => 'Indica por qué se traslada la mercancía.',
@@ -135,10 +100,6 @@ trait ValidatesTransferPayload
             'lines.*.item_id.exists' => 'El artículo seleccionado no está disponible.',
             'lines.*.measurement_unit_id.required' => 'Selecciona la unidad de la línea.',
             'lines.*.quantity.gt' => 'La cantidad debe ser mayor que cero.',
-            'lines.*.lot_id.exists' => 'El lote de la línea no existe en esta empresa.',
-            'lines.*.serial_id.exists' => 'La serie de la línea no existe en esta empresa.',
-            'lines.*.origin_location_id.exists' => 'La ubicación de origen no existe en esta empresa.',
-            'lines.*.destination_location_id.exists' => 'La ubicación de destino no existe en esta empresa.',
         ];
     }
 
@@ -162,7 +123,6 @@ trait ValidatesTransferPayload
         }
 
         $this->validateLineUnits($validator, $lines);
-        $this->validateLineLocations($validator, $lines);
     }
 
     /**
@@ -203,52 +163,4 @@ trait ValidatesTransferPayload
         }
     }
 
-    /**
-     * Cada ubicación de la línea, si se indica, tiene que ser de su bodega: la
-     * de origen sale de la bodega de origen y la de destino guarda en la de
-     * destino.
-     *
-     * @param  array<int, array<string, mixed>>  $lines
-     */
-    private function validateLineLocations(Validator $validator, array $lines): void
-    {
-        $locationIds = array_values(array_filter([
-            ...array_column($lines, 'origin_location_id'),
-            ...array_column($lines, 'destination_location_id'),
-        ]));
-
-        if ($locationIds === []) {
-            return;
-        }
-
-        $warehouseOf = WarehouseLocation::query()
-            ->whereIn('id', $locationIds)
-            ->pluck('warehouse_id', 'id')
-            ->all();
-
-        $expected = [
-            'origin_location_id' => [
-                (string) $this->input('origin_warehouse_id'),
-                'La ubicación no pertenece a la bodega de origen.',
-            ],
-            'destination_location_id' => [
-                (string) $this->input('destination_warehouse_id'),
-                'La ubicación no pertenece a la bodega de destino.',
-            ],
-        ];
-
-        foreach ($lines as $index => $line) {
-            foreach ($expected as $field => [$warehouseId, $message]) {
-                $locationId = $line[$field] ?? null;
-
-                if (blank($locationId)) {
-                    continue;
-                }
-
-                if (($warehouseOf[$locationId] ?? null) !== $warehouseId) {
-                    $validator->errors()->add("lines.{$index}.{$field}", $message);
-                }
-            }
-        }
-    }
 }

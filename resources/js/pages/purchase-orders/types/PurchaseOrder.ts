@@ -1,5 +1,6 @@
 import type { StatusKind } from '@/components/status-pill';
 import { formatMoney } from '@/lib/money';
+import type { EntryStatus } from '@/pages/entries/types/Entry';
 import type { TaxOption } from '@/types/tax';
 
 export type PurchaseOrderStatus =
@@ -71,6 +72,15 @@ export interface PurchaseOrder {
     created_at: string;
     updated_at: string | null;
     lines?: PurchaseOrderLine[];
+    /** Entradas que reciben la mercancía; la primera nace al aprobar la orden. */
+    entries?: PurchaseOrderEntry[];
+}
+
+/** Una entrada colgada de la orden, tal como la enseña la pantalla de detalle. */
+export interface PurchaseOrderEntry {
+    id: string;
+    code: string;
+    status: EntryStatus;
 }
 
 export interface PurchaseOrderMeta {

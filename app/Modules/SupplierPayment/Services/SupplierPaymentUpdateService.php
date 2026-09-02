@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\SupplierPayment\Services;
 
 use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
+use App\Modules\SupplierPayment\Commands\SupplierPaymentApplicationData;
 use App\Modules\SupplierPayment\Commands\UpdateSupplierPaymentCommand;
 use App\Modules\SupplierPayment\Exceptions\SupplierPaymentNotFoundException;
 use App\Modules\SupplierPayment\Models\SupplierPayment;
@@ -16,6 +17,7 @@ class SupplierPaymentUpdateService
         private readonly SupplierPaymentRepositoryInterface $repository,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly SupplierPaymentOriginService $origin,
+        private readonly SupplierPaymentCreditSourceService $creditSources,
     ) {}
 
     /**
@@ -50,6 +52,14 @@ class SupplierPaymentUpdateService
             $company,
         );
 
+        $this->creditSources->guard(
+            $command->paymentMethod,
+            $command->creditSourceId,
+            $command->supplierId,
+            $company,
+            $this->appliedTotal($command->applications),
+        );
+
         $rates = $this->rates->forDocument(
             $company,
             $command->currency,
@@ -60,5 +70,21 @@ class SupplierPaymentUpdateService
         $this->repository->update($model, $command, $rates);
 
         return $this->repository->findOrFail($id, $companyId);
+    }
+
+    /**
+     * Lo que el reparto quiere abonar en total. Es el tope contra el que se
+     * mide el crédito disponible cuando el pago no saca dinero.
+     *
+     * @param  array<int, SupplierPaymentApplicationData>  $applications
+     */
+    private function appliedTotal(array $applications): float
+    {
+        return round(array_sum(array_map(
+            static fn (SupplierPaymentApplicationData $row): float => $row->status === 'active'
+                ? $row->appliedAmount
+                : 0.0,
+            $applications,
+        )), 2);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\PurchaseOrder\Models;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Entry\Models\Entry;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\User\Models\User;
@@ -37,6 +38,15 @@ class PurchaseOrder extends Model
     public const MORPH_ALIAS = 'purchase_order';
 
     public const STATUSES = ['draft', 'confirmed', 'partial', 'completed', 'cancelled'];
+
+    /**
+     * Estados en los que el documento sigue vivo: todavía espera mercancía o
+     * dinero. Es lo que impide desactivar un artículo o una bodega que alguno
+     * de ellos está usando.
+     *
+     * @var array<int, string>
+     */
+    public const OPEN_STATUSES = ['draft', 'confirmed', 'partial'];
 
     /**
      * Transiciones permitidas del documento. `completed` y `cancelled` son
@@ -139,6 +149,12 @@ class PurchaseOrder extends Model
     public function purchaseInvoices(): MorphMany
     {
         return $this->morphMany(PurchaseInvoice::class, 'sourceable');
+    }
+
+    /** Entradas que reciben la mercancía de esta orden. */
+    public function entries(): MorphMany
+    {
+        return $this->morphMany(Entry::class, 'sourceable');
     }
 
     protected static function newFactory(): PurchaseOrderFactory

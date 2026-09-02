@@ -13,6 +13,8 @@ use App\Modules\Dispatch\Commands\WriteDispatchDeliveryCommand;
 use App\Modules\Dispatch\Commands\WriteDispatchLineCostCommand;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Models\DispatchLine;
+use App\Modules\Dispatch\Models\DispatchLineLot;
+use App\Modules\Dispatch\Models\DispatchLineSerial;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
@@ -27,15 +29,17 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
 
     /**
      * @param  array<int, float>  $unitCosts
+     * @param  array<int, DispatchLineData>  $lines
      */
-    public function create(CreateDispatchCommand $command, array $unitCosts): void
+    public function create(CreateDispatchCommand $command, array $unitCosts, array $lines): void
     {
-        DB::transaction(function () use ($command, $unitCosts): void {
+        DB::transaction(function () use ($command, $unitCosts, $lines): void {
             $dispatch = Dispatch::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
                 'code' => $this->generateNextCode($command->companyId),
-                'client_id' => $command->clientId,
+                'recipient_type' => $command->recipientType,
+                'recipient_id' => $command->recipientId,
                 'sourceable_type' => $command->sourceableType,
                 'sourceable_id' => $command->sourceableId,
                 'client_address_id' => $command->clientAddressId,
@@ -54,7 +58,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 'created_by' => $command->createdBy,
             ]);
 
-            $this->syncLines($dispatch, $command->lines, $unitCosts);
+            $this->syncLines($dispatch, $lines, $unitCosts);
             $this->refreshTotals($dispatch);
         });
     }
@@ -77,13 +81,15 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
 
     /**
      * @param  array<int, float>  $unitCosts
+     * @param  array<int, DispatchLineData>  $lines
      */
-    public function update(Dispatch $model, UpdateDispatchCommand $command, array $unitCosts): void
+    public function update(Dispatch $model, UpdateDispatchCommand $command, array $unitCosts, array $lines): void
     {
-        DB::transaction(function () use ($model, $command, $unitCosts): void {
+        DB::transaction(function () use ($model, $command, $unitCosts, $lines): void {
             /** El resultado del viaje y la marca de anulación no se editan aquí. */
             $model->update([
-                'client_id' => $command->clientId,
+                'recipient_type' => $command->recipientType,
+                'recipient_id' => $command->recipientId,
                 'sourceable_type' => $command->sourceableType,
                 'sourceable_id' => $command->sourceableId,
                 'client_address_id' => $command->clientAddressId,
@@ -99,7 +105,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 'notes' => $command->notes,
             ]);
 
-            $this->syncLines($model, $command->lines, $unitCosts);
+            $this->syncLines($model, $lines, $unitCosts);
             $this->refreshTotals($model);
         });
     }
@@ -217,7 +223,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     public function search(SearchDispatchCommand $command): array
     {
         $query = Dispatch::query()
-            ->with(['client', 'warehouse', 'driver'])
+            ->with(['recipient', 'warehouse', 'driver'])
             ->when($command->companyId, fn ($q) => $q->where('company_id', $command->companyId));
 
         $query = $this->apply($query, $command->filters);
@@ -239,7 +245,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     public function activeLines(Dispatch $model): array
     {
         return DispatchLine::query()
-            ->with(['item'])
+            ->with(['item', 'lots.lot', 'serials.serial', 'serials.dispatchLineLot'])
             ->where('dispatch_id', $model->id)
             ->where('status', 'active')
             ->orderBy('line_number')
@@ -281,7 +287,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     private function detailRelations(): array
     {
         return [
-            'client',
+            'recipient',
             'clientAddress',
             'warehouse',
             'driver',
@@ -289,8 +295,11 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
             'sourceable',
             'lines.item',
             'lines.measurementUnit',
-            'lines.lot',
-            'lines.serial',
+            'lines.lots.lot',
+            'lines.serials.serial',
+            'lines.serials.dispatchLineLot',
+            /** La cantidad que pidió el pedido se lee de la línea origen. */
+            'lines.sourceable',
             'lines.location',
         ];
     }
@@ -330,8 +339,6 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 'measurement_unit_id' => $line->measurementUnitId,
                 'sourceable_type' => $line->sourceableType,
                 'sourceable_id' => $line->sourceableId,
-                'lot_id' => $line->lotId,
-                'serial_id' => $line->serialId,
                 'location_id' => $line->locationId,
                 'quantity' => $line->quantity,
                 'base_quantity' => round($line->quantity * $factor, 4),
@@ -353,19 +360,133 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
             if ($current !== null) {
                 $current->update($attributes);
                 $keep[] = $current->id;
+                $this->syncLineTraceability($current, $line, $factor);
 
                 continue;
             }
 
-            $keep[] = DispatchLine::create([
+            $persisted = DispatchLine::create([
                 ...$attributes,
                 'dispatch_id' => $dispatch->id,
                 'line_number' => ++$nextNumber,
-            ])->id;
+            ]);
+
+            $keep[] = $persisted->id;
+            $this->syncLineTraceability($persisted, $line, $factor);
         }
 
         DispatchLine::query()
             ->where('dispatch_id', $dispatch->id)
+            ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
+            ->update(['status' => 'inactive']);
+    }
+
+    /**
+     * Alinea los lotes y las series de una línea con lo enviado.
+     *
+     * Mismo criterio que las líneas: se reconocen por `id`, conservan su
+     * `line_number` y las que dejan de venir se desactivan.
+     */
+    private function syncLineTraceability(DispatchLine $line, DispatchLineData $data, float $factor): void
+    {
+        $lotIds = $this->syncLineLots($line, $data, $factor);
+
+        $this->syncLineSerials($line, $data, $lotIds);
+    }
+
+    /**
+     * @return array<string, string> Id del lote del maestro → id de la fila.
+     */
+    private function syncLineLots(DispatchLine $line, DispatchLineData $data, float $factor): array
+    {
+        $existing = DispatchLineLot::query()
+            ->where('dispatch_line_id', $line->id)
+            ->get()
+            ->keyBy('id');
+
+        $nextNumber = (int) $existing->max('line_number');
+        $keep = [];
+        $byLot = [];
+
+        foreach ($data->lots as $lot) {
+            $current = $lot->id !== null ? $existing->get($lot->id) : null;
+
+            $attributes = [
+                'company_id' => $line->company_id,
+                'lot_id' => $lot->lotId,
+                'quantity' => $lot->quantity,
+                'base_quantity' => round($lot->quantity * $factor, 4),
+                'status' => $lot->status,
+                'notes' => $lot->notes,
+            ];
+
+            if ($current !== null) {
+                $current->update($attributes);
+                $keep[] = $current->id;
+                $byLot[$lot->lotId] = $current->id;
+
+                continue;
+            }
+
+            $persisted = DispatchLineLot::create([
+                ...$attributes,
+                'dispatch_line_id' => $line->id,
+                'line_number' => ++$nextNumber,
+            ]);
+
+            $keep[] = $persisted->id;
+            $byLot[$lot->lotId] = $persisted->id;
+        }
+
+        DispatchLineLot::query()
+            ->where('dispatch_line_id', $line->id)
+            ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
+            ->update(['status' => 'inactive']);
+
+        return $byLot;
+    }
+
+    /**
+     * @param  array<string, string>  $lotIds  Id del lote del maestro → id de la fila.
+     */
+    private function syncLineSerials(DispatchLine $line, DispatchLineData $data, array $lotIds): void
+    {
+        $existing = DispatchLineSerial::query()
+            ->where('dispatch_line_id', $line->id)
+            ->get()
+            ->keyBy('id');
+
+        $nextNumber = (int) $existing->max('line_number');
+        $keep = [];
+
+        foreach ($data->serials as $serial) {
+            $current = $serial->id !== null ? $existing->get($serial->id) : null;
+
+            $attributes = [
+                'company_id' => $line->company_id,
+                'dispatch_line_lot_id' => $serial->lotId !== null
+                    ? ($lotIds[$serial->lotId] ?? null)
+                    : null,
+                'serial_id' => $serial->serialId,
+                'status' => $serial->status,
+            ];
+
+            if ($current !== null) {
+                $current->update($attributes);
+                $keep[] = $current->id;
+
+                continue;
+            }
+
+            $keep[] = DispatchLineSerial::create([
+                ...$attributes,
+                'dispatch_line_id' => $line->id,
+                'line_number' => ++$nextNumber,
+            ])->id;
+        }
+
+        DispatchLineSerial::query()
+            ->where('dispatch_line_id', $line->id)
             ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
             ->update(['status' => 'inactive']);
     }

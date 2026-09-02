@@ -33,8 +33,10 @@ class ClientCollectionFormOptionsService
     }
 
     /**
-     * Quién puede figurar como cobrador: cualquier usuario de la empresa. La
-     * ruta se elegirá aquí también cuando exista el módulo de Rutas.
+     * Quién puede figurar como cobrador: cualquier usuario de la empresa.
+     *
+     * La ruta no viaja aquí: el padrón de rutas se busca contra
+     * `routes.lookup` con `Select2Ajax`, igual que el cliente y la factura.
      *
      * @return array<int, array{id: string, name: string}>
      */

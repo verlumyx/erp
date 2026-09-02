@@ -19,6 +19,8 @@ class UpdateSupplierPaymentCommand
         public readonly string $supplierId,
         public readonly string $paymentDate,
         public readonly array $applications = [],
+        /** De qué anticipo o nota sale el crédito, pagando sin dinero. */
+        public readonly ?string $creditSourceId = null,
         public readonly string $paymentMethod = 'transfer',
         public readonly ?string $reference = null,
         public readonly ?string $bankAccount = null,
@@ -37,6 +39,7 @@ class UpdateSupplierPaymentCommand
             supplierId: $request->string('supplier_id')->toString(),
             paymentDate: $request->string('payment_date')->toString(),
             applications: SupplierPaymentApplicationData::collection($request->input('applications', [])),
+            creditSourceId: $request->input('credit_source_id'),
             paymentMethod: $request->string('payment_method', 'transfer')->toString(),
             reference: $request->input('reference'),
             bankAccount: $request->input('bank_account'),

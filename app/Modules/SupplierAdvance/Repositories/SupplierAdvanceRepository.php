@@ -9,6 +9,7 @@ use App\Modules\SupplierAdvance\Commands\CreateSupplierAdvanceCommand;
 use App\Modules\SupplierAdvance\Commands\SearchSupplierAdvanceCommand;
 use App\Modules\SupplierAdvance\Commands\UpdateStatusSupplierAdvanceCommand;
 use App\Modules\SupplierAdvance\Commands\UpdateSupplierAdvanceCommand;
+use App\Modules\SupplierAdvance\Commands\WriteSupplierAdvanceAppliedCommand;
 use App\Modules\SupplierAdvance\Models\SupplierAdvance;
 use App\Modules\SupplierAdvance\Repositories\Contracts\SupplierAdvanceRepositoryInterface;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ class SupplierAdvanceRepository extends SupplierAdvanceFilters implements Suppli
                 'code' => $this->generateNextCode($command->companyId),
                 'supplier_id' => $command->supplierId,
                 'purchase_order_id' => $command->purchaseOrderId,
+                'origin_payment_id' => $command->originPaymentId,
                 'advance_date' => $command->advanceDate,
                 'payment_method' => $command->paymentMethod,
                 'reference' => $command->reference,
@@ -78,6 +80,18 @@ class SupplierAdvanceRepository extends SupplierAdvanceFilters implements Suppli
         }
 
         $model->update($attributes);
+    }
+
+    public function writeApplied(
+        SupplierAdvance $model,
+        WriteSupplierAdvanceAppliedCommand $command,
+    ): SupplierAdvance {
+        $model->update([
+            'applied_amount' => $command->appliedAmount,
+            'balance' => $command->balance,
+        ]);
+
+        return $model;
     }
 
     public function lockById(string $id, ?string $companyId = null): ?SupplierAdvance

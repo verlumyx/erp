@@ -58,7 +58,8 @@ no aplica se desactiva, no se elimina.
 `app_item_prices`, `app_item_units`, `app_item_stocks`,
 `app_supplier_contacts`, `app_supplier_addresses`, `app_client_contacts`, `app_client_addresses`,
 `app_route_stops`, `app_route_clients`, `app_supplier_payment_applications`,
-`app_client_collection_applications` y todas las tablas `*_lines`.
+`app_client_collection_applications`, `app_entry_line_lots`, `app_entry_line_serials`,
+`app_dispatch_line_lots`, `app_dispatch_line_serials` y todas las tablas `*_lines`.
 
 `app_item_stocks` es un caso especial: es una tabla **derivada** (el saldo calculado del kardex). No se captura ni se
 edita a mano, pero lleva `company_id` y `status` como el resto.
@@ -209,6 +210,28 @@ Toda tabla `*_lines` comparte esta estructura (no se repite en cada ficha; solo 
 
 Índices: `index({document}_id)`, `index(item_id)`, `index(company_id)`, `index(status)`,
 `unique({document}_id, line_number)`.
+
+#### Trazabilidad por línea
+
+En **Entradas** y **Despachos** el lote y la serie no son columnas de la línea: son tablas de detalle
+de la línea (`app_entry_line_lots` / `app_entry_line_serials`,
+`app_dispatch_line_lots` / `app_dispatch_line_serials`). Una misma línea puede llegar —o salir—
+repartida en varios lotes, y una serie identifica una unidad concreta: ninguna de las dos cosas cabe
+en una columna. En las entradas la fila nace con el número que trae el papel del proveedor y su
+`lot_id` / `serial_id` se resuelve al confirmar; en los despachos siempre apunta a un registro que ya
+existe. Ver [logistica.md](logistica.md) §1.3, §1.4, §3.3 y §3.4.
+
+Los demás documentos con trazabilidad (`app_transfer_lines`, devoluciones, facturas de compra y sus
+notas de crédito) siguen con `lot_id` y `serial_id` en la propia línea: solo mueven un lote por
+línea, y alinearlos es un cambio pendiente, no un descuido.
+
+#### Los importes de la logística no se capturan
+
+En Entradas y Despachos las columnas de dinero (`unit_price`, `discount_*`, `tax_*`,
+`withholding_*`, `subtotal`, `total`) existen y se llenan, pero **no se piden en la pantalla**: se
+copian del documento origen —la orden de compra o el pedido de venta— o, sin origen, salen del costo
+promedio del artículo. Son documentos de logística: lo que deciden es qué mercancía se mueve y
+cuánta.
 
 ### Multiempresa
 

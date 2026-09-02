@@ -31,6 +31,9 @@ class SalesInvoice extends Model
 
     public const CODE_PREFIX = 'FVE';
 
+    /** Con este tipo viaja la factura en `app_inventory_movements`. */
+    public const MOVEMENT_ORIGIN_TYPE = 'sales_invoice';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     /** Una factura confirmada no se edita: se anula y se emite otra. */

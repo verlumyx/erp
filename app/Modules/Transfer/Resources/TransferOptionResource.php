@@ -33,7 +33,6 @@ class TransferOptionResource extends JsonResource
                 'origin_warehouse_name' => $this->originWarehouse?->name,
                 'destination_warehouse_id' => $this->destination_warehouse_id,
                 'destination_warehouse_name' => $this->destinationWarehouse?->name,
-                'transit_warehouse_id' => $this->transit_warehouse_id,
                 'transfer_date' => $this->transfer_date?->format('Y-m-d'),
                 'reason' => $this->reason,
                 'transfer_status' => $this->transfer_status,
@@ -49,13 +48,8 @@ class TransferOptionResource extends JsonResource
                         'measurement_unit_id' => $line->measurement_unit_id,
                         'measurement_unit_name' => $line->measurementUnit?->name,
                         'quantity' => (string) $line->quantity,
-                        'sent_quantity' => (string) $line->sent_quantity,
                         /** Lo que llegó de verdad al destino. */
-                        'received_quantity' => (string) $line->received_quantity,
-                        'difference_quantity' => (string) $line->difference_quantity,
                         'unit_cost' => (string) $line->unit_cost,
-                        'lot_id' => $line->lot_id,
-                        'serial_id' => $line->serial_id,
                         'notes' => $line->notes,
                     ])
                     ->values()

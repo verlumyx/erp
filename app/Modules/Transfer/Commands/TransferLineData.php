@@ -13,6 +13,10 @@ namespace App\Modules\Transfer\Commands;
  * el impuesto se capturan. Lo único que vale dinero es el costo con el que la
  * mercancía viaja, y ese lo resuelven `TransferCostService` y el kardex.
  *
+ * La ubicación, el lote y la serie tampoco se capturan aquí: la bodega de
+ * origen y la de destino ya están en la cabecera, y el número de la caja lo lee
+ * quien tiene la mercancía delante, al despacharla.
+ *
  * `base_quantity`, `unit_cost` y `line_number` también los ponen el repositorio
  * y los servicios: dependen del artículo, de la existencia o de las líneas ya
  * guardadas.
@@ -27,11 +31,6 @@ class TransferLineData
         public readonly string $itemId,
         public readonly string $measurementUnitId,
         public readonly float $quantity,
-        /** Vacías dejan que el kardex tome la ubicación por defecto de cada bodega. */
-        public readonly ?string $originLocationId = null,
-        public readonly ?string $destinationLocationId = null,
-        public readonly ?string $lotId = null,
-        public readonly ?string $serialId = null,
         public readonly ?string $notes = null,
         public readonly string $status = 'active',
     ) {}
@@ -46,10 +45,6 @@ class TransferLineData
             itemId: (string) $row['item_id'],
             measurementUnitId: (string) $row['measurement_unit_id'],
             quantity: round((float) ($row['quantity'] ?? 0), 4),
-            originLocationId: $row['origin_location_id'] ?? null,
-            destinationLocationId: $row['destination_location_id'] ?? null,
-            lotId: $row['lot_id'] ?? null,
-            serialId: $row['serial_id'] ?? null,
             notes: $row['notes'] ?? null,
             status: (string) ($row['status'] ?? 'active'),
         );

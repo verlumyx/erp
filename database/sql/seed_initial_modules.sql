@@ -281,7 +281,12 @@ BEGIN
         (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.create',        'Crear órdenes de venta',         true, 2, NOW(), NOW()),
         (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.show',          'Ver detalle de orden de venta',  true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.update',        'Editar órdenes de venta',        true, 4, NOW(), NOW()),
-        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.update-status', 'Confirmar o anular una orden',   true, 5, NOW(), NOW())
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.update-status', 'Confirmar o anular una orden',   true, 5, NOW(), NOW()),
+        -- Dos autorizaciones explícitas por encima de las cinco de siempre: la
+        -- que levanta el bloqueo de crédito del cliente y la que permite vender
+        -- por debajo del precio mínimo del artículo (docs/ventas.md §1, §2.2).
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.override-credit-limit', 'Vender a crédito por encima del límite', true, 6, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ord, 'sales-orders.override-min-price',    'Vender por debajo del precio mínimo',    true, 7, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Órdenes de compra

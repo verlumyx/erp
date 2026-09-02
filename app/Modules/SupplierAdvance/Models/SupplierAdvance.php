@@ -91,6 +91,7 @@ class SupplierAdvance extends Model
         'code',
         'supplier_id',
         'purchase_order_id',
+        'origin_payment_id',
         'advance_date',
         'payment_method',
         'reference',

@@ -6,6 +6,7 @@ import {
     Check,
     Edit,
     Hash,
+    PackageCheck,
     StickyNote,
     Truck,
     Warehouse,
@@ -26,6 +27,11 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import {
+    STATUS_LABELS as ENTRY_STATUS_LABELS,
+    STATUS_PILL_KIND as ENTRY_STATUS_PILL_KIND,
+} from '@/pages/entries/types/Entry';
+import entries from '@/routes/entries';
 import purchaseOrders from '@/routes/purchase-orders';
 import type { BreadcrumbItem } from '@/types';
 import {
@@ -373,6 +379,40 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
                         )}
                     </div>
                 </Card>
+
+                {(purchaseOrder.entries?.length ?? 0) > 0 && (
+                    <Card className="gap-3 rounded-2xl px-[18px] py-4">
+                        <div className="flex items-center gap-2 text-[13px] font-bold text-muted-foreground">
+                            <PackageCheck className="size-[15px]" />
+                            Entradas de mercancía
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            {purchaseOrder.entries?.map((entry) => (
+                                <Link
+                                    key={entry.id}
+                                    href={
+                                        entries.show({
+                                            company: companyId,
+                                            id: entry.id,
+                                        }).url
+                                    }
+                                    className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm hover:bg-accent"
+                                >
+                                    <span className="font-medium">
+                                        {entry.code}
+                                    </span>
+                                    <StatusPill
+                                        kind={
+                                            ENTRY_STATUS_PILL_KIND[entry.status]
+                                        }
+                                    >
+                                        {ENTRY_STATUS_LABELS[entry.status]}
+                                    </StatusPill>
+                                </Link>
+                            ))}
+                        </div>
+                    </Card>
+                )}
 
                 {purchaseOrder.cancellation_reason && (
                     <Card className="gap-2 rounded-2xl px-[18px] py-4">

@@ -19,6 +19,8 @@ class UpdateClientCollectionCommand
         public readonly string $clientId,
         public readonly string $collectionDate,
         public readonly array $applications = [],
+        /** De qué anticipo o nota sale el crédito, cobrando sin dinero. */
+        public readonly ?string $creditSourceId = null,
         public readonly string $paymentMethod = 'cash',
         public readonly ?string $reference = null,
         public readonly ?string $bankAccount = null,
@@ -42,6 +44,7 @@ class UpdateClientCollectionCommand
             clientId: $request->string('client_id')->toString(),
             collectionDate: $request->string('collection_date')->toString(),
             applications: ClientCollectionApplicationData::collection($request->input('applications', [])),
+            creditSourceId: $request->input('credit_source_id'),
             paymentMethod: $request->string('payment_method', 'cash')->toString(),
             reference: $request->input('reference'),
             bankAccount: $request->input('bank_account'),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\ClientCollection\Services;
 
+use App\Modules\ClientCollection\Commands\ClientCollectionApplicationData;
 use App\Modules\ClientCollection\Commands\CreateClientCollectionCommand;
 use App\Modules\ClientCollection\Models\ClientCollection;
 use App\Modules\ClientCollection\Repositories\Contracts\ClientCollectionRepositoryInterface;
@@ -15,6 +16,7 @@ class ClientCollectionCreateService
         private readonly ClientCollectionRepositoryInterface $repository,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly ClientCollectionOriginService $origin,
+        private readonly ClientCollectionCreditSourceService $creditSources,
     ) {}
 
     /**
@@ -37,6 +39,14 @@ class ClientCollectionCreateService
             $command->companyId,
         );
 
+        $this->creditSources->guard(
+            $command->paymentMethod,
+            $command->creditSourceId,
+            $command->clientId,
+            $command->companyId,
+            $this->appliedTotal($command->applications),
+        );
+
         $rates = $this->rates->forDocument(
             $command->companyId,
             $command->currency,
@@ -47,5 +57,21 @@ class ClientCollectionCreateService
         $this->repository->create($command, $rates);
 
         return $this->repository->findOrFail($command->id);
+    }
+
+    /**
+     * Lo que el reparto quiere abonar en total. Es el tope contra el que se
+     * mide el crédito disponible cuando el cobro no trae dinero.
+     *
+     * @param  array<int, ClientCollectionApplicationData>  $applications
+     */
+    private function appliedTotal(array $applications): float
+    {
+        return round(array_sum(array_map(
+            static fn (ClientCollectionApplicationData $row): float => $row->status === 'active'
+                ? $row->appliedAmount
+                : 0.0,
+            $applications,
+        )), 2);
     }
 }

@@ -42,6 +42,12 @@ trait ValidatesClientCollectionPayload
             'collected_by' => ['nullable', 'uuid', Rule::exists('users', 'id')],
             /** Sin foreign key todavía: el módulo de Rutas aún no existe. */
             'route_id' => ['nullable', 'uuid'],
+            /**
+             * De qué anticipo o nota sale el crédito, cobrando sin dinero. Sin
+             * foreign key: apunta a dos tablas según la forma de cobro, y quién
+             * lo valida es `ClientCollectionCreditSourceService`.
+             */
+            'credit_source_id' => ['nullable', 'uuid'],
             'currency' => ['required', 'string', new ActiveCurrency],
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],

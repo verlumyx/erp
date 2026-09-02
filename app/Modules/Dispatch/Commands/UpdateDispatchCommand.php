@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Dispatch\Commands;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Requests\UpdateDispatchRequest;
 
 class UpdateDispatchCommand
@@ -12,7 +13,9 @@ class UpdateDispatchCommand
      * @param  array<int, DispatchLineData>  $lines
      */
     public function __construct(
-        public readonly string $clientId,
+        /** A quién va la mercancía: alias del morph map e id del destinatario. */
+        public readonly string $recipientType,
+        public readonly string $recipientId,
         public readonly string $warehouseId,
         public readonly string $dispatchDate,
         public readonly array $lines = [],
@@ -34,7 +37,8 @@ class UpdateDispatchCommand
     public static function fromRequest(UpdateDispatchRequest $request): self
     {
         return new self(
-            clientId: $request->string('client_id')->toString(),
+            recipientType: Client::MORPH_ALIAS,
+            recipientId: $request->string('client_id')->toString(),
             warehouseId: $request->string('warehouse_id')->toString(),
             dispatchDate: $request->string('dispatch_date')->toString(),
             lines: DispatchLineData::collection($request->input('lines', [])),

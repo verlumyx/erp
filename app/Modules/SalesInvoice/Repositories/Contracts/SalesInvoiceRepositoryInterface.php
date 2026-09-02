@@ -10,6 +10,7 @@ use App\Modules\SalesInvoice\Commands\SearchSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\UpdateSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\UpdateStatusSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceCollectionCommand;
+use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceLineCostCommand;
 use App\Modules\SalesInvoice\Commands\WriteSalesInvoiceLineReturnCommand;
 use App\Modules\SalesInvoice\Models\SalesInvoice;
 use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
@@ -25,6 +26,29 @@ interface SalesInvoiceRepositoryInterface
     public function update(SalesInvoice $model, UpdateSalesInvoiceCommand $command, DocumentRatesData $rates): void;
 
     public function updateStatus(SalesInvoice $model, UpdateStatusSalesInvoiceCommand $command): void;
+
+    /**
+     * Las líneas vivas de la factura, en el orden en que se capturaron. Son las
+     * únicas que salen del kardex y las únicas que suman al costo.
+     *
+     * @return array<int, SalesInvoiceLine>
+     */
+    public function activeLines(SalesInvoice $model): array;
+
+    /**
+     * Congela el costo de una línea ya resuelto. Solo lo llama
+     * `SalesInvoicePostingService`.
+     */
+    public function writeLineCost(SalesInvoiceLine $line, WriteSalesInvoiceLineCostCommand $command): SalesInvoiceLine;
+
+    /** Escribe el costo de la mercancía vendida de toda la factura. */
+    public function writeTotalCost(SalesInvoice $model, float $totalCost): SalesInvoice;
+
+    /**
+     * Marca como vencidas las facturas que pasaron su fecha sin saldarse.
+     * Devuelve cuántas cambiaron.
+     */
+    public function markOverdue(string $onDate, ?string $companyId = null): int;
 
     /**
      * La factura con su fila bloqueada, para que dos documentos que abonan lo

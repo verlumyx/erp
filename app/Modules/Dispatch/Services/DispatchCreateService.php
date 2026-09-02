@@ -14,6 +14,7 @@ class DispatchCreateService
         private readonly DispatchRepositoryInterface $repository,
         private readonly DispatchSourceService $source,
         private readonly DispatchCostService $costs,
+        private readonly DispatchPricingService $pricing,
     ) {}
 
     /**
@@ -29,15 +30,23 @@ class DispatchCreateService
         $this->source->guard(
             $command->sourceableType,
             $command->sourceableId,
-            $command->clientId,
+            $command->recipientType,
+            $command->recipientId,
             $command->companyId,
             $command->lines,
             $command->id,
         );
 
+        /**
+         * El precio no lo decide la pantalla: sale del pedido que se despacha
+         * o, sin pedido, del promedio del artículo.
+         */
+        $lines = $this->pricing->apply($command->companyId, $command->sourceableId, $command->lines);
+
         $this->repository->create(
             $command,
-            $this->costs->resolve($command->companyId, $command->lines),
+            $this->costs->resolve($command->companyId, $lines),
+            $lines,
         );
 
         return $this->repository->findOrFail($command->id);

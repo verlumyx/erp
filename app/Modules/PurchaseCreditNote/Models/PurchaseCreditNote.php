@@ -28,6 +28,12 @@ class PurchaseCreditNote extends Model
 
     public const CODE_PREFIX = 'NCP';
 
+    /** Con este tipo viaja la nota en `app_supplier_payment_applications`. */
+    public const APPLICATION_SOURCE = 'credit_note';
+
+    /** Con este tipo viaja la nota en `app_inventory_movements`. */
+    public const MOVEMENT_ORIGIN_TYPE = 'purchase_credit_note';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     public const REASONS = ['return', 'discount', 'price_correction', 'damaged', 'other'];

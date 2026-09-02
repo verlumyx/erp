@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useClientCollectionFormContext } from '../contexts/ClientCollectionFormContext';
+import { isCreditMethod } from '../hooks/useClientCollectionForm';
 import {
     ORIGIN_TYPE_LABELS,
     PAYMENT_METHOD_LABELS,
@@ -57,8 +58,20 @@ const ORIGIN_OPTIONS: OptionType[] = [
     { value: 'invoice', label: ORIGIN_TYPE_LABELS.invoice },
 ];
 
+/**
+ * `advance` y `credit_note` entran aquí como formas de cobro de pleno derecho:
+ * no traen dinero, gastan el crédito que el cliente ya tiene.
+ */
 const PAYMENT_METHOD_OPTIONS: OptionType[] = (
-    ['cash', 'transfer', 'check', 'card', 'other'] as ClientCollectionMethod[]
+    [
+        'cash',
+        'transfer',
+        'check',
+        'card',
+        'advance',
+        'credit_note',
+        'other',
+    ] as ClientCollectionMethod[]
 ).map((method) => ({ value: method, label: PAYMENT_METHOD_LABELS[method] }));
 
 /** Uno de los dos indicadores del cliente elegido. */
@@ -104,6 +117,12 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
         selectOriginInvoice,
         selectOriginType,
         selectPaymentMethod,
+        creditSourceLookupUrl,
+        creditSourceOption,
+        selectCreditSource,
+        routeLookupUrl,
+        routeOption,
+        selectRoute,
         selectCurrency,
     } = useClientCollectionFormContext();
 
@@ -294,6 +313,45 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
                             )}
                         </div>
 
+                        {isCreditMethod(data.payment_method) && (
+                            <div className="flex flex-col gap-1.5">
+                                <Label
+                                    htmlFor="credit_source_id"
+                                    className="text-[13px] font-semibold"
+                                >
+                                    {data.payment_method === 'advance'
+                                        ? 'Anticipo *'
+                                        : 'Nota de crédito *'}
+                                </Label>
+                                <Select2Ajax
+                                    inputId="credit_source_id"
+                                    url={creditSourceLookupUrl}
+                                    params={{
+                                        open: 'yes',
+                                        client_id: data.client_id,
+                                    }}
+                                    value={creditSourceOption}
+                                    onChange={selectCreditSource}
+                                    error={!!errors.credit_source_id}
+                                    isClearable
+                                    size="md"
+                                    placeholder={
+                                        data.payment_method === 'advance'
+                                            ? 'Busca un anticipo con saldo'
+                                            : 'Busca una nota con saldo'
+                                    }
+                                />
+                                <span className="text-[12px] text-muted-foreground">
+                                    El cobro gasta su crédito, no entra dinero
+                                </span>
+                                {errors.credit_source_id && (
+                                    <p className="text-sm text-bad">
+                                        {errors.credit_source_id}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         <div className="flex flex-col gap-1.5">
                             <Label
                                 htmlFor="reference"
@@ -428,6 +486,30 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
                             {errors.collected_by && (
                                 <p className="text-sm text-bad">
                                     {errors.collected_by}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="route_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Ruta
+                            </Label>
+                            <Select2Ajax
+                                inputId="route_id"
+                                url={routeLookupUrl}
+                                value={routeOption}
+                                onChange={selectRoute}
+                                error={!!errors.route_id}
+                                isClearable
+                                size="md"
+                                placeholder="En qué ruta se cobró"
+                            />
+                            {errors.route_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.route_id}
                                 </p>
                             )}
                         </div>

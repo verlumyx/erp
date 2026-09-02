@@ -15,6 +15,7 @@ class EntryCreateService
         private readonly EntryRepositoryInterface $repository,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly EntryLimitsService $limits,
+        private readonly EntryPricingService $pricing,
     ) {}
 
     /**
@@ -43,7 +44,13 @@ class EntryCreateService
             $command->exchangeRateOverride,
         );
 
-        $this->repository->create($command, $rates);
+        /**
+         * El costo no lo decide la pantalla: sale de la orden que se recibe o,
+         * sin orden, del promedio del artículo.
+         */
+        $lines = $this->pricing->apply($command->companyId, $command->sourceableType, $command->sourceableId, $command->lines);
+
+        $this->repository->create($command, $rates, $lines);
 
         return $this->repository->findOrFail($command->id);
     }

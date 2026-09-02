@@ -57,6 +57,15 @@ class SalesOrderResource extends JsonResource
                 'lines',
                 fn (): array => SalesOrderLineResource::collection($this->lines)->resolve($request),
             ),
+            /** Los despachos que el pedido generó al aprobarse, para poder abrirlos desde aquí. */
+            'dispatches' => $this->whenLoaded('dispatches', fn (): array => $this->dispatches
+                ->map(fn ($dispatch): array => [
+                    'id' => $dispatch->id,
+                    'code' => $dispatch->code,
+                    'status' => $dispatch->status,
+                ])
+                ->values()
+                ->all()),
         ];
     }
 }

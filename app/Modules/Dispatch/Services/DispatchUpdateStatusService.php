@@ -15,6 +15,7 @@ class DispatchUpdateStatusService
     public function __construct(
         private readonly DispatchRepositoryInterface $repository,
         private readonly DispatchPostingService $posting,
+        private readonly DispatchMirrorEntryService $mirror,
     ) {}
 
     /**
@@ -36,13 +37,27 @@ class DispatchUpdateStatusService
         DB::transaction(function () use ($model, $command): void {
             $wasPosted = in_array($model->status, Dispatch::POSTED_STATUSES, true);
 
-            if ($command->status === 'confirmed') {
-                $this->posting->post($model);
+            /**
+             * Se comprueba antes de tocar nada: si la mercancía ya entró en el
+             * destino, el despacho no se anula hasta anular esa entrada.
+             */
+            if ($command->status === 'cancelled') {
+                $this->mirror->guardCancellable($model);
             }
 
-            /** Un borrador anulado no revierte nada: nunca llegó a sacar mercancía. */
-            if ($command->status === 'cancelled' && $wasPosted) {
-                $this->posting->reverse($model);
+            if ($command->status === 'confirmed') {
+                $this->posting->post($model);
+                /** Si sirve un traslado, deja escrita la entrada que lo recibe. */
+                $this->mirror->create($model);
+            }
+
+            if ($command->status === 'cancelled') {
+                /** Un borrador anulado no revierte nada: nunca llegó a sacar mercancía. */
+                if ($wasPosted) {
+                    $this->posting->reverse($model);
+                }
+
+                $this->mirror->cancel($model);
             }
 
             $this->repository->updateStatus($model, $command);

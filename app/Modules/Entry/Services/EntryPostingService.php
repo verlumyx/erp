@@ -17,9 +17,13 @@ use App\Modules\InventoryMovement\Services\InventoryMovementRegisterService;
 use App\Modules\InventoryMovement\Services\InventoryMovementReverseService;
 use App\Modules\Item\Commands\ApplyItemAverageCostCommand;
 use App\Modules\Item\Services\ItemApplyAverageCostService;
+use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\PurchaseOrder\Commands\ApplyPurchaseOrderReceiptCommand;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderApplyReceiptService;
+use App\Modules\Transfer\Models\Transfer;
+use App\Modules\Transfer\Services\TransferApplyProgressService;
 use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
@@ -55,6 +59,7 @@ class EntryPostingService
         private readonly EntryTraceabilityService $traceability,
         private readonly PurchaseOrderApplyReceiptService $applyToOrderLine,
         private readonly ItemApplyAverageCostService $applyAverageCost,
+        private readonly TransferApplyProgressService $transfers,
     ) {}
 
     /**
@@ -66,10 +71,14 @@ class EntryPostingService
         DB::transaction(function () use ($entry): void {
             $lines = $this->repository->activeLines($entry);
 
+            $this->guardSerials($lines);
+
             foreach ($lines as $line) {
                 $this->registerEntry($entry, $line);
                 $this->moveOrderLine($entry, $line, round((float) $line->received_quantity, 4));
             }
+
+            $this->markTransferArrived($entry, true);
 
             $this->refreshAverageCosts($entry, $lines);
         });
@@ -96,16 +105,90 @@ class EntryPostingService
                 $this->moveOrderLine($entry, $line, -round((float) $line->received_quantity, 4));
             }
 
+            $this->markTransferArrived($entry, false);
+
             $this->refreshAverageCosts($entry, $lines);
         });
     }
 
     /**
+     * Le dice al traslado que su mercancía llegó al destino, y con ello lo
+     * cierra. Solo tiene sentido cuando la entrada cuelga de un traslado: una
+     * entrada de compra no avisa a ningún traslado.
+     */
+    private function markTransferArrived(Entry $entry, bool $arrived): void
+    {
+        $transfer = $entry->sourceable;
+
+        if (! $transfer instanceof Transfer) {
+            return;
+        }
+
+        $this->transfers->markArrived(
+            $transfer,
+            $entry->entry_date?->toDateString() ?? now()->toDateString(),
+            $entry->created_by,
+            $arrived,
+        );
+    }
+
+    /**
+     * Un artículo serializado no entra sin sus series: el kardex identifica
+     * cada unidad por la suya, así que hacen falta tantas como unidades base
+     * acepte la inspección.
+     *
+     * La pantalla ya lo exige al guardar, pero una entrada puede nacer sin
+     * ellas —la que genera la orden de compra al aprobarse no puede
+     * inventarlas—, así que el número se pide aquí, que es cuando la mercancía
+     * de verdad se mueve.
+     *
+     * @param  array<int, EntryLine>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardSerials(array $lines): void
+    {
+        $errors = [];
+
+        foreach ($lines as $line) {
+            if ($line->item?->type !== ItemSerial::TRACKABLE_ITEM_TYPE) {
+                continue;
+            }
+
+            $expected = $this->baseUnitsOf($line, round((float) $line->received_quantity, 4));
+
+            if ($line->serials->where('status', 'active')->count() === (int) $expected && $expected == (float) (int) $expected) {
+                continue;
+            }
+
+            $errors['status'] = "La línea {$line->line_number} es de un artículo con serie: indica una serie por cada unidad aceptada ({$expected}).";
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /** La misma proporción que la línea usó para convertir a unidad base. */
+    private function baseUnitsOf(EntryLine $line, float $quantity): float
+    {
+        $arrived = round((float) $line->quantity, 4);
+
+        if ($arrived <= 0) {
+            return 0.0;
+        }
+
+        return round($quantity * (float) $line->base_quantity / $arrived, 4);
+    }
+
+    /**
      * El ingreso de una línea, en unidad base y al landed cost.
      *
-     * Un artículo serializado entra unidad por unidad —cada serie es un asiento
-     * de una unidad—, porque el kardex identifica la unidad por su serie y no
-     * hay forma de meter tres series en un solo movimiento.
+     * La trazabilidad decide en cuántos asientos se parte: un artículo
+     * serializado entra unidad por unidad —cada serie es un asiento de una,
+     * porque el kardex identifica la unidad por su serie—, uno con lote entra
+     * un asiento por lote, y uno sin nada de eso en un solo asiento. Sumados,
+     * los asientos son exactamente lo que la línea aceptó.
      *
      * Un artículo sin existencia —un servicio colado en la entrada— no llega al
      * kardex: la línea vale para el documento y para el costo, pero no hay
@@ -113,46 +196,48 @@ class EntryPostingService
      */
     private function registerEntry(Entry $entry, EntryLine $line): void
     {
-        $quantity = $line->baseReceivedQuantity();
-
-        if ($quantity <= 0.0) {
-            return;
-        }
-
-        /** Resolver el lote deja escrito `lot_id` en la misma instancia de línea. */
-        $serials = $this->traceability->resolve($entry, $line, $line->item);
+        $plan = $this->traceability->resolve($entry, $line, $line->item);
 
         try {
-            if ($serials !== []) {
-                foreach ($serials as $serial) {
-                    $this->register($entry, $line, 1.0, $serial);
-                }
-
-                return;
+            foreach ($plan as $movement) {
+                $this->register(
+                    $entry,
+                    $line,
+                    $movement['baseQuantity'],
+                    $movement['lot'],
+                    $movement['serial'],
+                );
             }
-
-            $this->register($entry, $line, $quantity, null);
         } catch (NonInventoriedItemException) {
             // El artículo no lleva existencia: la línea se queda en el documento.
         }
     }
 
     /** Un asiento del kardex por la cantidad indicada. */
-    private function register(Entry $entry, EntryLine $line, float $quantity, ?ItemSerial $serial): void
-    {
+    private function register(
+        Entry $entry,
+        EntryLine $line,
+        float $quantity,
+        ?ItemLot $lot,
+        ?ItemSerial $serial,
+    ): void {
         $this->movements->execute(new RegisterInventoryMovementCommand(
             companyId: (string) $entry->company_id,
             itemId: $line->item_id,
             warehouseId: $entry->warehouse_id,
             locationId: $this->locationFor($entry, $line),
-            type: 'in',
+            /**
+             * Lo que llega desde otra bodega propia no se compra: el kardex lo
+             * anota como traslado, no como entrada de mercancía nueva.
+             */
+            type: $entry->comesFromTransfer() ? 'transfer_in' : 'in',
             originType: Entry::MOVEMENT_ORIGIN_TYPE,
             originId: $entry->id,
             quantity: $quantity,
             unitCost: round((float) $line->landed_cost, 6),
             movementDate: $entry->entry_date?->toDateString(),
             originLineId: $line->id,
-            lotId: $line->lot_id,
+            lotId: $lot?->id,
             serialId: $serial?->id,
             notes: $line->notes,
             createdBy: $entry->created_by,
@@ -190,7 +275,15 @@ class EntryPostingService
      */
     private function moveOrderLine(Entry $entry, EntryLine $line, float $delta): void
     {
-        if (blank($line->sourceable_id) || $delta === 0.0) {
+        /**
+         * Solo avanza lo que vino de una orden de compra. Una entrada que
+         * recibe un despacho apunta a la línea de ese despacho, y ahí no hay
+         * nada pendiente que descontar.
+         */
+        if (blank($line->sourceable_id)
+            || $line->sourceable_type !== PurchaseOrderLine::MORPH_ALIAS
+            || $delta === 0.0
+        ) {
             return;
         }
 

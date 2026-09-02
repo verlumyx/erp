@@ -16,8 +16,6 @@ class UpdateTransferCommand
         public readonly string $destinationWarehouseId,
         public readonly string $transferDate,
         public readonly array $lines = [],
-        /** Con bodega de tránsito el traslado va en dos pasos; sin ella, en uno. */
-        public readonly ?string $transitWarehouseId = null,
         public readonly ?string $expectedDate = null,
         public readonly string $reason = 'restock',
         public readonly ?string $reasonDetail = null,
@@ -35,7 +33,6 @@ class UpdateTransferCommand
             destinationWarehouseId: $request->string('destination_warehouse_id')->toString(),
             transferDate: $request->string('transfer_date')->toString(),
             lines: TransferLineData::collection($request->input('lines', [])),
-            transitWarehouseId: $request->input('transit_warehouse_id'),
             expectedDate: $request->input('expected_date'),
             reason: (string) $request->input('reason', 'restock'),
             reasonDetail: $request->input('reason_detail'),

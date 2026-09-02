@@ -18,6 +18,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/', [SalesCreditNoteGetController::class, 'index'])->name('sales-credit-notes.index');
             Route::get('/create', [SalesCreditNoteGetController::class, 'create'])->name('sales-credit-notes.create');
             Route::post('/', SalesCreditNotePostController::class)->name('sales-credit-notes.store');
+            Route::get('/lookup', [SalesCreditNoteGetController::class, 'lookup'])->name('sales-credit-notes.lookup');
             Route::get('/{id}', [SalesCreditNoteGetController::class, 'show'])->where('id', $uuid)->name('sales-credit-notes.show');
             Route::get('/{id}/edit', [SalesCreditNoteGetController::class, 'edit'])->where('id', $uuid)->name('sales-credit-notes.edit');
             Route::put('/{id}', SalesCreditNotePutController::class)->where('id', $uuid)->name('sales-credit-notes.update');

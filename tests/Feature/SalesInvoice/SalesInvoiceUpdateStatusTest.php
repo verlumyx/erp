@@ -8,19 +8,6 @@ use App\Modules\Item\Models\Item;
 use function Pest\Laravel\actingAs;
 
 /** Emite la factura por HTTP, que es la única vía para confirmarla. */
-function confirmSalesInvoice(
-    \App\Modules\User\Models\User $user,
-    \App\Modules\Company\Models\Company $company,
-    \App\Modules\SalesInvoice\Models\SalesInvoice $invoice,
-): void {
-    actingAs($user)
-        ->withSession(['current_company_id' => $company->id])
-        ->put(
-            route('sales-invoices.update-status', ['company' => $company->id, 'id' => $invoice->id]),
-            ['status' => 'confirmed'],
-        )
-        ->assertSessionHasNoErrors();
-}
 
 test('confirming an invoice burns its fiscal number and posts the receivable', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
@@ -62,47 +49,29 @@ test('the fiscal number is correlative inside its series', function () {
 });
 
 test('confirming freezes the cost of the goods sold and its margin', function () {
-    [$user, $company, $client, $warehouse, , $unit] = salesInvoiceScenario();
+    [$user, $company, $client, $warehouse, $item, $unit, $location] = salesReturnScenario();
 
-    $item = Item::factory()->create([
-        'company_id' => $company->id,
-        'cost_method' => 'average',
-        'average_cost' => 30,
+    /** La bodega tiene existencia comprada a 20 y a 40: promedio 30. */
+    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
+    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 40]);
+
+    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit, [
+        'affects_inventory' => 'yes',
     ]);
-
-    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
-        'company_id' => $company->id,
-        'item_id' => $item->id,
-        'measurement_unit_id' => $unit->id,
-    ]);
-
-    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit);
 
     confirmSalesInvoice($user, $company, $invoice);
 
     $line = $invoice->refresh()->load('lines')->lines->first();
 
-    // 2 unidades a un costo promedio de 30.
+    // 2 unidades al promedio vigente de 30, congelado contra el kardex.
     expect((float) $line->unit_cost)->toBe(30.0);
     expect((float) $line->total_cost)->toBe(60.0);
     expect((float) $line->margin_amount)->toBe(140.0);
     expect((float) $invoice->total_cost)->toBe(60.0);
 });
 
-test('the cost is left to the dispatch when the invoice does not move inventory', function () {
-    [$user, $company, $client, $warehouse, , $unit] = salesInvoiceScenario();
-
-    $item = Item::factory()->create([
-        'company_id' => $company->id,
-        'cost_method' => 'average',
-        'average_cost' => 30,
-    ]);
-
-    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
-        'company_id' => $company->id,
-        'item_id' => $item->id,
-        'measurement_unit_id' => $unit->id,
-    ]);
+test('an invoice without a dispatch behind it has no cost to freeze', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 
     $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit, [
         'affects_inventory' => 'no',
@@ -110,6 +79,7 @@ test('the cost is left to the dispatch when the invoice does not move inventory'
 
     confirmSalesInvoice($user, $company, $invoice);
 
+    /** Sin movimiento que la sacara no hay costo real que congelar. */
     expect((float) $invoice->refresh()->total_cost)->toBe(0.0);
 });
 

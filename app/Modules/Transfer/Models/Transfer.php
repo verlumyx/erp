@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Transfer\Models;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Dispatch\Models\Dispatch;
+use App\Modules\Entry\Models\Entry;
 use App\Modules\User\Models\User;
 use App\Modules\Warehouse\Models\Warehouse;
 use Database\Factories\TransferFactory;
@@ -13,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Transfer extends Model
 {
@@ -25,6 +28,14 @@ class Transfer extends Model
     protected $keyType = 'string';
 
     public const CODE_PREFIX = 'TRA';
+
+    /**
+     * Alias con el que el traslado viaja en las columnas `sourceable_type` de
+     * los documentos que origina: el despacho que saca la mercancía del origen
+     * y la entrada que la mete en el destino. Los dos cuelgan del traslado,
+     * que es lo que permite reconocer qué originó cada movimiento.
+     */
+    public const MORPH_ALIAS = 'transfer';
 
     public const STATUSES = ['draft', 'confirmed', 'partial', 'completed', 'cancelled'];
 
@@ -84,7 +95,6 @@ class Transfer extends Model
         'code',
         'origin_warehouse_id',
         'destination_warehouse_id',
-        'transit_warehouse_id',
         'transfer_date',
         'expected_date',
         'received_date',
@@ -136,11 +146,6 @@ class Transfer extends Model
         return $this->belongsTo(Warehouse::class, 'destination_warehouse_id', 'id');
     }
 
-    public function transitWarehouse(): BelongsTo
-    {
-        return $this->belongsTo(Warehouse::class, 'transit_warehouse_id', 'id');
-    }
-
     /** Quién condujo el viaje. */
     public function driver(): BelongsTo
     {
@@ -167,14 +172,16 @@ class Transfer extends Model
         return $this->hasMany(TransferLine::class, 'transfer_id', 'id');
     }
 
-    /**
-     * El traslado viaja en dos pasos. Lo decide la bodega de tránsito: con ella
-     * la mercancía sale hoy y llega después, y sin ella los dos movimientos son
-     * simultáneos.
-     */
-    public function isTwoStep(): bool
+    /** Los despachos que sacaron la mercancía de la bodega de origen. */
+    public function dispatches(): MorphMany
     {
-        return filled($this->transit_warehouse_id);
+        return $this->morphMany(Dispatch::class, 'sourceable');
+    }
+
+    /** Las entradas que metieron la mercancía en la bodega de destino. */
+    public function entries(): MorphMany
+    {
+        return $this->morphMany(Entry::class, 'sourceable');
     }
 
     /** La mercancía ya llegó al destino, entera o a medias. */

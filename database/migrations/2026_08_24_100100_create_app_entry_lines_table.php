@@ -8,6 +8,12 @@ return new class extends Migration
 {
     /**
      * Tabla de detalle: sin `code`, se edita desde la pantalla de la entrada.
+     *
+     * El lote y las series no viven aquí: son tablas de detalle propias
+     * (`app_entry_line_lots`, `app_entry_line_serials`), porque una misma línea
+     * puede llegar repartida en varios lotes. Las bases que nacieron con esas
+     * columnas las sueltan en
+     * `2026_09_02_100400_move_entry_line_traceability_to_detail_tables`.
      */
     public function up(): void
     {
@@ -29,17 +35,6 @@ return new class extends Migration
 
             /** Ubicación donde se almacena. Vacía usa la de por defecto de la bodega. */
             $table->uuid('location_id')->nullable();
-
-            /**
-             * Lote del proveedor. Se captura por número; al confirmar la entrada
-             * se resuelve contra `app_item_lots` y se crea si no existía.
-             */
-            $table->string('lot_number', 60)->nullable();
-            $table->uuid('lot_id')->nullable();
-            $table->date('expires_at')->nullable();
-
-            /** Series recibidas; al confirmar se crean en `app_item_serials`. */
-            $table->json('serial_numbers')->nullable();
 
             $table->decimal('quantity', 18, 4);
             $table->decimal('base_quantity', 18, 4);
@@ -102,11 +97,6 @@ return new class extends Migration
                 ->on('app_warehouse_locations')
                 ->nullOnDelete();
 
-            $table->foreign('lot_id')
-                ->references('id')
-                ->on('app_item_lots')
-                ->restrictOnDelete();
-
             $table->foreign('tax_id')
                 ->references('id')
                 ->on('app_taxes')
@@ -130,7 +120,6 @@ return new class extends Migration
             $table->dropForeign(['item_id']);
             $table->dropForeign(['measurement_unit_id']);
             $table->dropForeign(['location_id']);
-            $table->dropForeign(['lot_id']);
             $table->dropForeign(['tax_id']);
         });
 

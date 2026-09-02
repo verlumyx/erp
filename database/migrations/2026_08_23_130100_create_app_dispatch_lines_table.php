@@ -12,6 +12,12 @@ return new class extends Migration
      * Los importes de la línea son informativos —el despacho no factura—: se
      * copian del pedido para que la guía enseñe lo mismo que el cliente pidió.
      * Lo que sí mueve inventario es `quantity` valorada a `unit_cost`.
+     *
+     * El lote y la serie no viven aquí: son tablas de detalle propias
+     * (`app_dispatch_line_lots`, `app_dispatch_line_serials`), porque una misma
+     * línea puede salir repartida en varios lotes y llevar varias series. Las
+     * bases que nacieron con esas columnas las sueltan en
+     * `2026_09_02_100500_move_dispatch_line_traceability_to_detail_tables`.
      */
     public function up(): void
     {
@@ -32,9 +38,7 @@ return new class extends Migration
             $table->string('sourceable_type', 255)->nullable();
             $table->uuid('sourceable_id')->nullable();
 
-            /** Lote y serie que salen; la ubicación, de dónde se toman. */
-            $table->uuid('lot_id')->nullable();
-            $table->uuid('serial_id')->nullable();
+            /** De dónde se toma la mercancía dentro de la bodega. */
             $table->uuid('location_id')->nullable();
 
             $table->decimal('quantity', 18, 4);
@@ -88,15 +92,7 @@ return new class extends Migration
                 ->on('app_measurement_units')
                 ->restrictOnDelete();
 
-            $table->foreign('lot_id')
-                ->references('id')
-                ->on('app_item_lots')
-                ->restrictOnDelete();
 
-            $table->foreign('serial_id')
-                ->references('id')
-                ->on('app_item_serials')
-                ->restrictOnDelete();
 
             $table->foreign('location_id')
                 ->references('id')
@@ -125,8 +121,6 @@ return new class extends Migration
             $table->dropForeign(['dispatch_id']);
             $table->dropForeign(['item_id']);
             $table->dropForeign(['measurement_unit_id']);
-            $table->dropForeign(['lot_id']);
-            $table->dropForeign(['serial_id']);
             $table->dropForeign(['location_id']);
             $table->dropForeign(['tax_id']);
         });

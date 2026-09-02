@@ -18,7 +18,7 @@ test('the list shows the dispatches of the active company', function () {
     [$stranger, $otherCompany] = createUserWithCompany();
     Dispatch::factory()->create([
         'company_id' => $otherCompany->id,
-        'client_id' => Client::factory()->create(['company_id' => $otherCompany->id])->id,
+        'recipient_id' => Client::factory()->create(['company_id' => $otherCompany->id])->id,
         'warehouse_id' => \App\Modules\Warehouse\Models\Warehouse::factory()
             ->create(['company_id' => $otherCompany->id])->id,
         'created_by' => $stranger->id,
@@ -70,11 +70,11 @@ test('the list filters by client', function () {
     createDispatch($user, $company, $other, $warehouse, $item, $unit);
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->get(route('dispatches.index', ['company' => $company->id, 'client_id' => $other->id]))
+        ->get(route('dispatches.index', ['company' => $company->id, 'recipient_id' => $other->id]))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('dispatches', 1)
-            ->where('dispatches.0.client_id', $other->id));
+            ->where('dispatches.0.recipient_id', $other->id));
 });
 
 test('the list requires the list permission', function () {

@@ -50,6 +50,8 @@ export interface ClientCollection {
     client_advance_balance?: string;
     origin_type: ClientCollectionOriginType;
     origin_id: string | null;
+    /** De qué anticipo o nota sale el crédito, cobrando sin dinero. */
+    credit_source_id: string | null;
     collection_date: string;
     payment_method: ClientCollectionMethod;
     reference: string | null;
@@ -57,6 +59,7 @@ export interface ClientCollection {
     collected_by: string | null;
     collected_by_name?: string;
     route_id: string | null;
+    route_name?: string;
     currency: string;
     exchange_rate: string;
     /** Moneda principal de la empresa congelada al cobrar, con su tasa. */

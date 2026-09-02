@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Entry\Services;
 
-use App\Modules\Entry\Commands\WriteEntryLineTraceabilityCommand;
+use App\Modules\Entry\Commands\WriteEntryLineLotCommand;
+use App\Modules\Entry\Commands\WriteEntryLineSerialCommand;
 use App\Modules\Entry\Models\Entry;
 use App\Modules\Entry\Models\EntryLine;
+use App\Modules\Entry\Models\EntryLineLot;
+use App\Modules\Entry\Models\EntryLineSerial;
 use App\Modules\Entry\Repositories\Contracts\EntryRepositoryInterface;
 use App\Modules\Item\Models\Item;
 use App\Modules\ItemLot\Commands\CreateItemLotCommand;
@@ -47,55 +50,106 @@ class EntryTraceabilityService
     ) {}
 
     /**
-     * Resuelve el lote de la línea y devuelve las series ya registradas, en el
-     * mismo orden en que el usuario las capturó.
+     * El plan con el que la línea entra al kardex: qué lote, qué serie y cuánta
+     * unidad base lleva cada asiento.
      *
-     * @return array<int, ItemSerial>
+     * Un artículo serializado entra unidad por unidad —cada serie es un asiento
+     * de una—; uno con lote entra un asiento por lote; uno sin trazabilidad, en
+     * un solo asiento. Lo rechazado se reparte entre los lotes en proporción a
+     * lo que trajo cada uno: nadie decidió de qué caja salía lo malo, así que
+     * el descuento no puede caer entero sobre la primera.
+     *
+     * @return array<int, array{lot: ?ItemLot, serial: ?ItemSerial, baseQuantity: float}>
      */
     public function resolve(Entry $entry, EntryLine $line, ?Item $item): array
     {
-        $lot = $this->resolveLot($entry, $line, $item);
+        $accepted = $line->baseReceivedQuantity();
 
-        return $this->resolveSerials($entry, $line, $item, $lot);
+        if ($accepted <= 0.0) {
+            return [];
+        }
+
+        $lots = $this->resolveLots($entry, $line, $item);
+        $serials = $this->resolveSerials($entry, $line, $item, $lots);
+
+        if ($serials !== []) {
+            return array_map(
+                static fn (array $serial): array => [
+                    'lot' => $serial['lot'],
+                    'serial' => $serial['serial'],
+                    'baseQuantity' => 1.0,
+                ],
+                $serials,
+            );
+        }
+
+        if ($lots === []) {
+            return [['lot' => null, 'serial' => null, 'baseQuantity' => $accepted]];
+        }
+
+        return $this->spread($lots, $accepted);
     }
 
     /**
-     * El lote con el que la línea entra. Si la línea ya trae uno elegido a
-     * mano, ese manda; si trae el número que puso el proveedor, se busca y se
-     * crea si hace falta. El id resuelto se escribe en la línea, de modo que la
-     * entrada quede apuntando al lote que movió y no al papel del proveedor.
+     * Los lotes de la línea, ya registrados en el maestro.
+     *
+     * Una fila que ya trae `lot_id` manda; una que solo trae el número del
+     * proveedor se busca y se crea si hace falta. El id resuelto se escribe en
+     * la fila, de modo que la entrada quede apuntando al lote que movió y no al
+     * papel del proveedor.
+     *
+     * @return array<string, array{row: EntryLineLot, lot: ItemLot}>
      */
-    private function resolveLot(Entry $entry, EntryLine $line, ?Item $item): ?ItemLot
+    private function resolveLots(Entry $entry, EntryLine $line, ?Item $item): array
     {
-        if (filled($line->lot_id)) {
-            return $this->lots->findById($line->lot_id, $entry->company_id);
+        if (! $item instanceof Item || ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
+            return [];
         }
 
-        if (blank($line->lot_number) || ! $item instanceof Item) {
+        $resolved = [];
+
+        foreach ($line->lots as $row) {
+            /** @var EntryLineLot $row */
+            if ($row->status !== 'active') {
+                continue;
+            }
+
+            $lot = filled($row->lot_id)
+                ? $this->lots->findById($row->lot_id, $entry->company_id)
+                : $this->resolveLotByNumber($entry, $line, $row);
+
+            if (! $lot instanceof ItemLot) {
+                continue;
+            }
+
+            $this->repository->writeLineLot($row, new WriteEntryLineLotCommand(
+                lotId: $lot->id,
+                lotNumber: $lot->lot_number,
+            ));
+
+            $resolved[$row->id] = ['row' => $row, 'lot' => $lot];
+        }
+
+        return $resolved;
+    }
+
+    /** El lote del número que puso el proveedor: el que ya existe, o uno nuevo. */
+    private function resolveLotByNumber(Entry $entry, EntryLine $line, EntryLineLot $row): ?ItemLot
+    {
+        if (blank($row->lot_number)) {
             return null;
         }
 
-        if (! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
-            return null;
-        }
-
-        $lot = $this->findLotByNumber($entry->company_id, $line->item_id, (string) $line->lot_number)
+        return $this->findLotByNumber($entry->company_id, $line->item_id, (string) $row->lot_number)
             ?? $this->createLot->execute(new CreateItemLotCommand(
                 id: (string) Str::uuid7(),
                 companyId: (string) $entry->company_id,
                 itemId: $line->item_id,
-                lotNumber: (string) $line->lot_number,
+                lotNumber: (string) $row->lot_number,
                 createdBy: (string) $entry->created_by,
-                expiresAt: $line->expires_at?->toDateString(),
+                expiresAt: $row->expires_at?->toDateString(),
                 supplierId: $entry->supplier_id,
             ));
-
-        $this->repository->writeLineTraceability($line, new WriteEntryLineTraceabilityCommand(
-            lotId: $lot->id,
-            lotNumber: $lot->lot_number,
-        ));
-
-        return $lot;
     }
 
     /**
@@ -103,32 +157,92 @@ class EntryTraceabilityService
      * registrada vuelve a usarse tal cual: es la misma unidad física que en su
      * día salió y ahora regresa, no una nueva.
      *
-     * @return array<int, ItemSerial>
+     * @param  array<string, array{row: EntryLineLot, lot: ItemLot}>  $lots
+     * @return array<int, array{lot: ?ItemLot, serial: ItemSerial}>
      */
-    private function resolveSerials(Entry $entry, EntryLine $line, ?Item $item, ?ItemLot $lot): array
+    private function resolveSerials(Entry $entry, EntryLine $line, ?Item $item, array $lots): array
     {
-        $numbers = $line->serial_numbers ?? [];
-
-        if ($numbers === [] || ! $item instanceof Item || $item->type !== ItemSerial::TRACKABLE_ITEM_TYPE) {
+        if (! $item instanceof Item || $item->type !== ItemSerial::TRACKABLE_ITEM_TYPE) {
             return [];
         }
 
+        /** Con un solo lote no hace falta que la serie diga de cuál sale. */
+        $onlyLot = count($lots) === 1 ? reset($lots)['lot'] : null;
+
         $serials = [];
 
-        foreach ($numbers as $number) {
-            $serials[] = $this->findSerialByNumber($entry->company_id, $line->item_id, (string) $number)
+        foreach ($line->serials as $row) {
+            /** @var EntryLineSerial $row */
+            if ($row->status !== 'active' || blank($row->serial_number)) {
+                continue;
+            }
+
+            $lot = $lots[$row->entry_line_lot_id]['lot'] ?? $onlyLot;
+
+            $serial = filled($row->serial_id)
+                ? $this->serials->findById($row->serial_id, $entry->company_id)
+                : null;
+
+            $serial ??= $this->findSerialByNumber($entry->company_id, $line->item_id, (string) $row->serial_number)
                 ?? $this->createSerial->execute(new CreateItemSerialCommand(
                     id: (string) Str::uuid7(),
                     companyId: (string) $entry->company_id,
                     itemId: $line->item_id,
-                    serialNumber: (string) $number,
+                    serialNumber: (string) $row->serial_number,
                     createdBy: (string) $entry->created_by,
                     lotId: $lot?->id,
                     warehouseId: $entry->warehouse_id,
                 ));
+
+            $this->repository->writeLineSerial($row, new WriteEntryLineSerialCommand(
+                serialId: $serial->id,
+                serialNumber: $serial->serial_number,
+            ));
+
+            $serials[] = ['lot' => $lot, 'serial' => $serial];
         }
 
         return $serials;
+    }
+
+    /**
+     * Reparte lo aceptado entre los lotes en proporción a lo que trajo cada
+     * uno. El último absorbe el redondeo, para que la suma de los asientos sea
+     * exactamente lo que entra al inventario.
+     *
+     * @param  array<string, array{row: EntryLineLot, lot: ItemLot}>  $lots
+     * @return array<int, array{lot: ?ItemLot, serial: ?ItemSerial, baseQuantity: float}>
+     */
+    private function spread(array $lots, float $accepted): array
+    {
+        $total = round(array_sum(array_map(
+            static fn (array $entry): float => (float) $entry['row']->base_quantity,
+            $lots,
+        )), 4);
+
+        if ($total <= 0.0) {
+            return [];
+        }
+
+        $plan = [];
+        $assigned = 0.0;
+        $last = count($lots) - 1;
+
+        foreach (array_values($lots) as $position => $entry) {
+            $quantity = $position === $last
+                ? round($accepted - $assigned, 4)
+                : round((float) $entry['row']->base_quantity * $accepted / $total, 4);
+
+            $assigned = round($assigned + $quantity, 4);
+
+            if ($quantity <= 0.0) {
+                continue;
+            }
+
+            $plan[] = ['lot' => $entry['lot'], 'serial' => null, 'baseQuantity' => $quantity];
+        }
+
+        return $plan;
     }
 
     /**

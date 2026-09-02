@@ -18,6 +18,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/', [PurchaseCreditNoteGetController::class, 'index'])->name('purchase-credit-notes.index');
             Route::get('/create', [PurchaseCreditNoteGetController::class, 'create'])->name('purchase-credit-notes.create');
             Route::post('/', PurchaseCreditNotePostController::class)->name('purchase-credit-notes.store');
+            Route::get('/lookup', [PurchaseCreditNoteGetController::class, 'lookup'])->name('purchase-credit-notes.lookup');
             Route::get('/{id}', [PurchaseCreditNoteGetController::class, 'show'])->where('id', $uuid)->name('purchase-credit-notes.show');
             Route::get('/{id}/edit', [PurchaseCreditNoteGetController::class, 'edit'])->where('id', $uuid)->name('purchase-credit-notes.edit');
             Route::put('/{id}', PurchaseCreditNotePutController::class)->where('id', $uuid)->name('purchase-credit-notes.update');

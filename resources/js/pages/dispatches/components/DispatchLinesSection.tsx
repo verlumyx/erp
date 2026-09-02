@@ -1,20 +1,15 @@
-import { ChevronDown, ClipboardCopy, Plus, X } from 'lucide-react';
+import { ChevronDown, ClipboardCopy, Layers, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
-import { CurrencyInput } from '@/components/ui/currency-input';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { cn } from '@/lib/utils';
-import { taxOptionLabel } from '@/types/tax';
 import { useDispatchFormContext } from '../contexts/DispatchFormContext';
-import { lineAmounts } from '../hooks/useDispatchForm';
-import { formatAmount } from '../types/Dispatch';
-
-/** Valor del select cuando la línea no lleva impuesto: '' no lo distingue. */
-const NO_TAX = 'none';
+import { DispatchLineTraceabilityDialog } from './DispatchLineTraceabilityDialog';
 
 /** Valor del select cuando la línea no sale de ninguna línea del pedido. */
 const NO_ORDER_LINE = 'none';
@@ -23,42 +18,27 @@ const NO_ORDER_LINE = 'none';
 const DEFAULT_LOCATION = 'default';
 
 /**
- * 1.2 Líneas del despacho. Cada fila fija artículo, unidad, cantidad y de dónde
- * sale la mercancía. El precio y sus cargos se copian del pedido y son
- * informativos: la guía enseña lo mismo que se vendió, pero no factura. El
- * costo con el que la mercancía sale tampoco se captura: lo pone el kardex.
+ * 1.2 Líneas del despacho. Cada fila dice qué artículo sale, en qué unidad,
+ * cuánto se pidió y cuánto se despacha. Nada más: el precio y sus cargos se
+ * decidieron en el pedido y los pone el backend —la guía no factura—, y la
+ * ubicación y la trazabilidad viven en el detalle de la línea.
  */
 export function DispatchLinesSection() {
     const {
         data,
         errors,
-        currency,
         catalog,
-        lots,
-        serials,
         addLine,
         removeLine,
         updateLine,
         setLineItem,
-        setLineTax,
-        setLineLot,
-        setLineSerial,
         setLineOrderLine,
         orderLines,
         remainingOf,
+        orderedQuantityOf,
         copyOrderLines,
         locations,
-        options,
     } = useDispatchFormContext();
-
-    /** El catálogo de impuestos es el mismo para todas las líneas. */
-    const taxOptions: OptionType[] = [
-        { value: NO_TAX, label: 'Sin impuesto' },
-        ...options.taxes.map((tax) => ({
-            value: tax.id,
-            label: taxOptionLabel(tax),
-        })),
-    ];
 
     const locationOptions: OptionType[] = [
         { value: DEFAULT_LOCATION, label: 'Ubicación por defecto' },
@@ -86,13 +66,16 @@ export function DispatchLinesSection() {
         (line) => remainingOf(line.id) > 0,
     );
 
-    const [openCharges, setOpenCharges] = useState<Record<string, boolean>>({});
+    const [openDetail, setOpenDetail] = useState<Record<string, boolean>>({});
 
-    const toggleCharges = (lineId: string) =>
-        setOpenCharges((current) => ({
+    const toggleDetail = (lineId: string) =>
+        setOpenDetail((current) => ({
             ...current,
             [lineId]: !current[lineId],
         }));
+
+    /** La línea cuyo detalle de lotes y series está abierto en el modal. */
+    const [traceabilityOf, setTraceabilityOf] = useState<number | null>(null);
 
     const fieldError = (index: number, field: string) =>
         (errors as Record<string, string | undefined>)[
@@ -125,17 +108,25 @@ export function DispatchLinesSection() {
             )}
 
             {data.lines.map((line, index) => {
-                const amounts = lineAmounts(line);
                 const units = unitsOf(line.item_id);
                 const unitOptions: OptionType[] = units.map((unit) => ({
                     value: unit.measurement_unit_id,
                     label: unit.name,
                 }));
-                const chargesOpen = openCharges[line.id] === true;
-                const hasCharges =
-                    line.discount_percent > 0 ||
-                    line.tax_id !== '' ||
-                    line.sourceable_id !== '';
+
+                const lots = line.lots.filter((lot) => lot.status === 'active');
+                const serials = line.serials.filter(
+                    (serial) => serial.status === 'active',
+                );
+
+                const detailOpen = openDetail[line.id] === true;
+                const hasDetail =
+                    line.location_id !== '' ||
+                    line.sourceable_id !== '' ||
+                    lots.length > 0 ||
+                    serials.length > 0;
+
+                const ordered = orderedQuantityOf(line);
                 const remaining = remainingOf(line.sourceable_id);
 
                 return (
@@ -143,7 +134,7 @@ export function DispatchLinesSection() {
                         key={line.id}
                         className="flex flex-col gap-3 rounded-[12px] border p-4"
                     >
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_1.2fr_1fr_1.2fr_auto]">
+                        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-[2.4fr_1.2fr_1fr_1.2fr_auto]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
@@ -155,21 +146,21 @@ export function DispatchLinesSection() {
                                         size="icon"
                                         className={cn(
                                             'relative size-[42px] shrink-0 rounded-[10px] bg-card',
-                                            hasCharges && 'text-primary',
+                                            hasDetail && 'text-primary',
                                         )}
-                                        onClick={() => toggleCharges(line.id)}
-                                        aria-expanded={chargesOpen}
+                                        onClick={() => toggleDetail(line.id)}
+                                        aria-expanded={detailOpen}
                                         aria-label={`${
-                                            chargesOpen ? 'Ocultar' : 'Mostrar'
-                                        } impuesto, descuento y trazabilidad de la línea ${index + 1}`}
+                                            detailOpen ? 'Ocultar' : 'Mostrar'
+                                        } ubicación y trazabilidad de la línea ${index + 1}`}
                                     >
                                         <ChevronDown
                                             className={cn(
                                                 'size-4 transition-transform',
-                                                chargesOpen && 'rotate-180',
+                                                detailOpen && 'rotate-180',
                                             )}
                                         />
-                                        {hasCharges && !chargesOpen && (
+                                        {hasDetail && !detailOpen && (
                                             <span className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-primary ring-2 ring-card" />
                                         )}
                                     </Button>
@@ -240,9 +231,34 @@ export function DispatchLinesSection() {
                                 )}
                             </div>
 
+                            {/**
+                             * Lo que pidió el cliente. No se edita aquí: se
+                             * cambia en el pedido, no al despachar.
+                             */}
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
-                                    Cantidad *
+                                    Cantidad
+                                </Label>
+                                <Input
+                                    value={
+                                        ordered ??
+                                        (line.sourceable_id === '' ? '—' : '…')
+                                    }
+                                    readOnly
+                                    disabled
+                                    className="h-[42px] rounded-[10px] tabular-nums"
+                                />
+                                <span className="text-[12px] text-muted-foreground">
+                                    {ordered === null &&
+                                    line.sourceable_id === ''
+                                        ? 'Sin pedido'
+                                        : 'Lo pedido'}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[13px] font-semibold">
+                                    Cantidad a despachar *
                                 </Label>
                                 <NumberInput
                                     value={line.quantity}
@@ -270,190 +286,104 @@ export function DispatchLinesSection() {
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Precio de venta
-                                </Label>
-                                <CurrencyInput
-                                    value={line.unit_price}
-                                    onValueChange={(value) =>
-                                        updateLine(index, 'unit_price', value)
-                                    }
-                                    min={0}
-                                    decimals={6}
-                                    className={`h-[42px] rounded-[10px] ${
-                                        fieldError(index, 'unit_price')
-                                            ? 'border-bad'
-                                            : ''
-                                    }`}
-                                />
-                                {fieldError(index, 'unit_price') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'unit_price')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex items-end gap-2">
-                                <LineNotePopover
-                                    value={line.notes}
-                                    onValueChange={(value) =>
-                                        updateLine(index, 'notes', value)
-                                    }
-                                    ariaLabel={`Nota de la línea ${index + 1}`}
-                                />
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-[42px] rounded-[10px] bg-card"
-                                    onClick={() => removeLine(index)}
-                                    aria-label="Quitar línea"
+                                <Label
+                                    aria-hidden
+                                    className="text-[13px] font-semibold opacity-0 select-none"
                                 >
-                                    <X className="size-4" />
-                                </Button>
+                                    &nbsp;
+                                </Label>
+                                <div className="flex gap-2">
+                                    <LineNotePopover
+                                        value={line.notes}
+                                        onValueChange={(value) =>
+                                            updateLine(index, 'notes', value)
+                                        }
+                                        ariaLabel={`Nota de la línea ${index + 1}`}
+                                    />
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="size-[42px] rounded-[10px] bg-card"
+                                        onClick={() => removeLine(index)}
+                                        aria-label="Quitar línea"
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-3">
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Ubicación
-                                </Label>
-                                <Select2
-                                    options={locationOptions}
-                                    value={
-                                        locationOptions.find(
-                                            (option) =>
-                                                option.value ===
-                                                (line.location_id ||
-                                                    DEFAULT_LOCATION),
-                                        ) ?? null
-                                    }
-                                    onChange={(option) =>
-                                        updateLine(
-                                            index,
-                                            'location_id',
-                                            !option ||
-                                                option.value ===
-                                                    DEFAULT_LOCATION
-                                                ? ''
-                                                : option.value,
-                                        )
-                                    }
-                                    error={!!fieldError(index, 'location_id')}
-                                    size="md"
-                                    placeholder="Ubicación por defecto"
-                                />
-                                {fieldError(index, 'location_id') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'location_id')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Lote
-                                </Label>
-                                <Select2Ajax
-                                    url={lots.url}
-                                    params={{ item_id: line.item_id }}
-                                    value={lots.optionOf(line.lot_id)}
-                                    onChange={(option) =>
-                                        setLineLot(index, option)
-                                    }
-                                    error={!!fieldError(index, 'lot_id')}
-                                    isClearable
-                                    isDisabled={line.item_id === ''}
-                                    size="md"
-                                    placeholder="Sin lote"
-                                />
-                                {fieldError(index, 'lot_id') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'lot_id')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Serie
-                                </Label>
-                                <Select2Ajax
-                                    url={serials.url}
-                                    params={{ item_id: line.item_id }}
-                                    value={serials.optionOf(line.serial_id)}
-                                    onChange={(option) =>
-                                        setLineSerial(index, option)
-                                    }
-                                    error={!!fieldError(index, 'serial_id')}
-                                    isClearable
-                                    isDisabled={line.item_id === ''}
-                                    size="md"
-                                    placeholder="Sin serie"
-                                />
-                                {fieldError(index, 'serial_id') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'serial_id')}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        {chargesOpen && (
+                        {detailOpen && (
                             <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Impuesto
+                                        Ubicación
                                     </Label>
                                     <Select2
-                                        options={taxOptions}
+                                        options={locationOptions}
                                         value={
-                                            taxOptions.find(
+                                            locationOptions.find(
                                                 (option) =>
                                                     option.value ===
-                                                    (line.tax_id || NO_TAX),
+                                                    (line.location_id ||
+                                                        DEFAULT_LOCATION),
                                             ) ?? null
                                         }
                                         onChange={(option) =>
-                                            setLineTax(
+                                            updateLine(
                                                 index,
+                                                'location_id',
                                                 !option ||
-                                                    option.value === NO_TAX
+                                                    option.value ===
+                                                        DEFAULT_LOCATION
                                                     ? ''
                                                     : option.value,
                                             )
                                         }
-                                        error={!!fieldError(index, 'tax_id')}
+                                        error={
+                                            !!fieldError(index, 'location_id')
+                                        }
                                         size="md"
-                                        placeholder="Sin impuesto"
+                                        placeholder="Ubicación por defecto"
                                     />
-                                    {fieldError(index, 'tax_id') && (
+                                    {fieldError(index, 'location_id') && (
                                         <p className="text-sm text-bad">
-                                            {fieldError(index, 'tax_id')}
+                                            {fieldError(index, 'location_id')}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Descuento %
+                                        Lotes y series
                                     </Label>
-                                    <NumberInput
-                                        value={line.discount_percent}
-                                        onValueChange={(value) =>
-                                            updateLine(
-                                                index,
-                                                'discount_percent',
-                                                value,
-                                            )
-                                        }
-                                        min={0}
-                                        max={100}
-                                        decimals={4}
-                                        className="h-[42px] rounded-[10px]"
-                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-[42px] justify-start rounded-[10px] bg-card font-semibold"
+                                        onClick={() => setTraceabilityOf(index)}
+                                    >
+                                        <Layers />
+                                        {lots.length === 0 &&
+                                        serials.length === 0
+                                            ? 'Sin trazabilidad'
+                                            : `${lots.length} lote${
+                                                  lots.length !== 1 ? 's' : ''
+                                              } · ${serials.length} serie${
+                                                  serials.length !== 1
+                                                      ? 's'
+                                                      : ''
+                                              }`}
+                                    </Button>
+                                    {(fieldError(index, 'lots') ||
+                                        fieldError(index, 'serials')) && (
+                                        <p className="text-sm text-bad">
+                                            {fieldError(index, 'lots') ??
+                                                fieldError(index, 'serials')}
+                                        </p>
+                                    )}
                                 </div>
 
                                 {orderLines.length > 0 && (
@@ -491,8 +421,9 @@ export function DispatchLinesSection() {
                                             placeholder="Sin línea del pedido"
                                         />
                                         <span className="text-[12px] text-muted-foreground">
-                                            Atarla limita lo despachado a lo que
-                                            se pidió
+                                            Atarla limita lo despachado al saldo
+                                            del pedido, y trae el precio con el
+                                            que se vendió
                                         </span>
                                         {fieldError(index, 'sourceable_id') && (
                                             <p className="text-sm text-bad">
@@ -506,27 +437,6 @@ export function DispatchLinesSection() {
                                 )}
                             </div>
                         )}
-
-                        <div className="flex flex-wrap justify-end gap-x-5 gap-y-1 border-t pt-3 text-[13px]">
-                            <span className="text-muted-foreground">
-                                Base{' '}
-                                <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.subtotal, currency)}
-                                </b>
-                            </span>
-                            <span className="text-muted-foreground">
-                                Impuesto{' '}
-                                <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.taxAmount, currency)}
-                                </b>
-                            </span>
-                            <span className="text-muted-foreground">
-                                Total{' '}
-                                <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.total, currency)}
-                                </b>
-                            </span>
-                        </div>
                     </div>
                 );
             })}
@@ -540,6 +450,11 @@ export function DispatchLinesSection() {
                 <Plus />
                 Agregar línea
             </Button>
+
+            <DispatchLineTraceabilityDialog
+                index={traceabilityOf}
+                onClose={() => setTraceabilityOf(null)}
+            />
         </div>
     );
 }

@@ -8,7 +8,10 @@ use App\Modules\SalesOrder\Models\SalesOrder;
 
 use function Pest\Laravel\actingAs;
 
-/** Un pedido confirmado, listo para facturarse. */
+/**
+ * Un pedido confirmado, listo para facturarse. Confirmarlo reserva existencia,
+ * así que la bodega tiene que tener con qué.
+ */
 function confirmedSalesOrder(
     \App\Modules\User\Models\User $user,
     \App\Modules\Company\Models\Company $company,
@@ -18,6 +21,8 @@ function confirmedSalesOrder(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): SalesOrder {
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item);
+
     $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit, $overrides);
 
     actingAs($user)

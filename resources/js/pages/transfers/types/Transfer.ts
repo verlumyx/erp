@@ -34,13 +34,9 @@ export interface TransferLine {
     item_code?: string;
     measurement_unit_id: string;
     measurement_unit_name?: string;
-    origin_location_id: string | null;
     origin_location_name?: string | null;
-    destination_location_id: string | null;
     destination_location_name?: string | null;
-    lot_id: string | null;
     lot_number?: string | null;
-    serial_id: string | null;
     serial_number?: string | null;
     quantity: string;
     base_quantity: string;
@@ -48,9 +44,6 @@ export interface TransferLine {
     unit_price: string;
     subtotal: string;
     total: string;
-    sent_quantity: string;
-    received_quantity: string;
-    difference_quantity: string;
     /** Costo con el que viaja: en borrador el promedio, confirmado el real. */
     unit_cost: string;
     status: 'active' | 'inactive';
@@ -66,8 +59,6 @@ export interface Transfer {
     destination_warehouse_id: string;
     destination_warehouse_name?: string;
     /** Con ella el traslado va en dos pasos; sin ella, en uno. */
-    transit_warehouse_id: string | null;
-    transit_warehouse_name?: string | null;
     transfer_date: string;
     expected_date: string | null;
     received_date: string | null;
@@ -204,23 +195,10 @@ export function isReceiptSettled(status: TransferMovementStatus): boolean {
     return SETTLED_MOVEMENT_STATUSES.includes(status);
 }
 
-/** El traslado viaja en dos pasos: lo decide la bodega de tránsito. */
-export function isTwoStep(model: Transfer): boolean {
-    return model.transit_warehouse_id !== null;
-}
-
 /**
  * Se registra la llegada de lo que está en la calle, y una sola vez. Un
  * traslado inmediato no tiene recepción: llegó al confirmarse.
  */
-export function canRegisterReceipt(model: Transfer): boolean {
-    return (
-        isTwoStep(model) &&
-        model.status === 'confirmed' &&
-        !isReceiptSettled(model.transfer_status)
-    );
-}
-
 export function formatAmount(value: number | string, currency: string): string {
     return formatMoney(value, currency);
 }

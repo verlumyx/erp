@@ -18,9 +18,14 @@ class DispatchResource extends JsonResource
             'id' => $this->id,
             'company_id' => $this->company_id,
             'code' => $this->code,
-            'client_id' => $this->client_id,
-            'client_name' => $this->whenLoaded('client', fn () => $this->client?->name),
-            'client_code' => $this->whenLoaded('client', fn () => $this->client?->code),
+            /**
+             * A quién va la mercancía. Un despacho de venta la lleva a un
+             * cliente; uno que sirve un traslado, a otra bodega propia.
+             */
+            'recipient_type' => $this->recipient_type,
+            'recipient_id' => $this->recipient_id,
+            'recipient_name' => $this->whenLoaded('recipient', fn () => $this->recipient?->name),
+            'recipient_code' => $this->whenLoaded('recipient', fn () => $this->recipient?->code),
             'sourceable_type' => $this->sourceable_type,
             'sourceable_id' => $this->sourceable_id,
             /** Etiqueta legible del origen, para no ir a buscarlo desde la pantalla. */

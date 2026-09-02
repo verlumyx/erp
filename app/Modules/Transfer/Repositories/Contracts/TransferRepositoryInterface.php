@@ -9,7 +9,6 @@ use App\Modules\Transfer\Commands\SearchTransferCommand;
 use App\Modules\Transfer\Commands\UpdateStatusTransferCommand;
 use App\Modules\Transfer\Commands\UpdateTransferCommand;
 use App\Modules\Transfer\Commands\WriteTransferLineCostCommand;
-use App\Modules\Transfer\Commands\WriteTransferReceiptCommand;
 use App\Modules\Transfer\Models\Transfer;
 use App\Modules\Transfer\Models\TransferLine;
 
@@ -37,9 +36,9 @@ interface TransferRepositoryInterface
     public function writeShipment(Transfer $model, ?string $sentBy): Transfer;
 
     /**
-     * Escribe la llegada ya resuelta. Solo lo llama `TransferReceiptService`.
+     * La mercancía llegó al destino: lo escribe la entrada al confirmarse.
      */
-    public function writeReceipt(Transfer $model, WriteTransferReceiptCommand $command): Transfer;
+    public function writeArrival(Transfer $model, string $receivedDate, ?string $receivedBy): Transfer;
 
     /**
      * Escribe en la línea el costo con el que la mercancía salió y la cantidad

@@ -36,6 +36,20 @@ interface PurchaseInvoiceRepositoryInterface
     public function updateStatus(PurchaseInvoice $model, UpdateStatusPurchaseInvoiceCommand $command): void;
 
     /**
+     * Las líneas vivas de la factura, en el orden en que se capturaron. Son las
+     * únicas que llegan al kardex y las únicas que suman al costo.
+     *
+     * @return array<int, PurchaseInvoiceLine>
+     */
+    public function activeLines(PurchaseInvoice $model): array;
+
+    /**
+     * Marca como vencidas las facturas que pasaron su fecha sin saldarse.
+     * Devuelve cuántas cambiaron.
+     */
+    public function markOverdue(string $onDate, ?string $companyId = null): int;
+
+    /**
      * La factura con su fila bloqueada, para que dos documentos que la abonan
      * a la vez no lean el mismo saldo.
      */

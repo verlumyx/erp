@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Dispatch\Commands;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Requests\CreateDispatchRequest;
 
 class CreateDispatchCommand
@@ -14,7 +15,13 @@ class CreateDispatchCommand
     public function __construct(
         public readonly string $id,
         public readonly string $companyId,
-        public readonly string $clientId,
+        /**
+         * A quién va la mercancía: el alias del destinatario en el morph map y
+         * su id. La pantalla solo crea despachos a un cliente; los de traslado
+         * los arma `TransferMirrorDispatchService`.
+         */
+        public readonly string $recipientType,
+        public readonly string $recipientId,
         public readonly string $warehouseId,
         public readonly string $dispatchDate,
         public readonly string $createdBy,
@@ -39,7 +46,8 @@ class CreateDispatchCommand
         return new self(
             id: $request->string('id')->toString(),
             companyId: $companyId ?? $request->route('company'),
-            clientId: $request->string('client_id')->toString(),
+            recipientType: Client::MORPH_ALIAS,
+            recipientId: $request->string('client_id')->toString(),
             warehouseId: $request->string('warehouse_id')->toString(),
             dispatchDate: $request->string('dispatch_date')->toString(),
             createdBy: $request->user()->id,

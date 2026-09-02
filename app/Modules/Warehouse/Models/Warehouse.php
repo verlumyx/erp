@@ -27,6 +27,12 @@ class Warehouse extends Model
 
     public const CODE_PREFIX = 'BOD';
 
+    /**
+     * Alias con el que la bodega viaja en las columnas `recipient_type`: es el
+     * destinatario de un despacho que mueve mercancía entre bodegas propias.
+     */
+    public const MORPH_ALIAS = 'warehouse';
+
     /** Ubicación por defecto creada junto con la bodega. */
     public const DEFAULT_LOCATION_CODE = 'PRINCIPAL';
 

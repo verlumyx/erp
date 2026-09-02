@@ -288,7 +288,7 @@ pantalla.
 | `lib/money.ts` + componente de importe dual + `todayRates` compartidas     | Hecho      |
 | Conversión del precio de lista a la moneda del documento (§6)              | Hecho      |
 | Facturas de compra (con `_ves` congelados en la cabecera)                  | Hecho      |
-| Facturas de venta y pagos (con `_ves` congelados)                          | Pendiente  |
+| Facturas de venta, cobros y pagos (con `_ves` congelados)                  | Hecho      |
 | Registro del diferencial cambiario                                         | Por definir |
 
 > **Cómo llega la tasa a una orden.** `DocumentRatesResolver` (módulo ExchangeRate) lee la configuración de la empresa y

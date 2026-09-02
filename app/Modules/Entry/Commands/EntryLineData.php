@@ -8,16 +8,19 @@ namespace App\Modules\Entry\Commands;
  * Una fila de `app_entry_lines` tal como llega desde la pantalla de la entrada,
  * con sus importes ya resueltos.
  *
- * Los montos se calculan aquí y no se leen del request: el cliente envía
- * cantidad, costo unitario y porcentajes, y el backend es el único que decide
- * cuánto vale lo recibido. Lo mismo con la cantidad aceptada: se captura lo que
- * llegó (`quantity`) y lo que se rechazó en inspección (`rejected_quantity`), y
- * lo aceptado es la resta —no un tercer número que pueda contradecir a los
- * otros dos—.
+ * La pantalla **no captura dinero**. El costo, el impuesto y el descuento se
+ * deciden en la orden de compra, así que llegan aquí en cero y los pone
+ * `EntryPricingService` con `withPricing()` —copiándolos de la línea de la
+ * orden o, sin orden, del costo promedio del artículo—. Un `unit_price` que
+ * mande el cliente se ignora: no es una decisión suya.
+ *
+ * De la línea sí se captura la cantidad: lo que se recibe (`quantity`) y lo que
+ * la inspección rechaza (`rejected_quantity`); lo aceptado es la resta —no un
+ * tercer número que pueda contradecir a los otros dos—.
  *
  * `base_quantity`, `unit_cost` y `landed_cost` son la excepción: dependen de
  * las unidades del artículo y de los gastos de la cabecera, así que los
- * resuelven el repositorio y `EntryLandedCostService`.
+ * resuelven el repositorio y el prorrateo de gastos.
  *
  * El `id` solo sirve para reconocer una fila que ya existe: nunca se usa para
  * insertar, así un id ajeno enviado desde el cliente no puede colisionar.
@@ -25,8 +28,8 @@ namespace App\Modules\Entry\Commands;
 class EntryLineData
 {
     /**
-     * @param  array<int, string>  $serialNumbers  Series recibidas; al confirmar
-     *                                             se crean en `app_item_serials`.
+     * @param  array<int, EntryLineLotData>  $lots  Los lotes con los que llegó la línea.
+     * @param  array<int, EntryLineSerialData>  $serials  Las unidades con serie.
      */
     public function __construct(
         public readonly ?string $id,
@@ -50,12 +53,10 @@ class EntryLineData
         public readonly ?string $sourceableId = null,
         /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
         public readonly ?string $locationId = null,
-        /** Lote del proveedor. Sin `lotId`, al confirmar se crea con este número. */
-        public readonly ?string $lotNumber = null,
-        public readonly ?string $lotId = null,
-        public readonly ?string $expiresAt = null,
-        /** @var array<int, string> */
-        public readonly array $serialNumbers = [],
+        /** @var array<int, EntryLineLotData> */
+        public readonly array $lots = [],
+        /** @var array<int, EntryLineSerialData> */
+        public readonly array $serials = [],
         public readonly ?string $rejectionReason = null,
         public readonly ?string $notes = null,
         public readonly string $status = 'active',
@@ -67,51 +68,32 @@ class EntryLineData
     public static function fromArray(array $row): self
     {
         $quantity = (float) ($row['quantity'] ?? 0);
-        $unitPrice = (float) ($row['unit_price'] ?? 0);
-        $gross = $quantity * $unitPrice;
-
-        /** El porcentaje manda: si viene un descuento en %, el monto se deriva de él. */
-        $discountPercent = (float) ($row['discount_percent'] ?? 0);
-        $discountAmount = $discountPercent > 0
-            ? round($gross * $discountPercent / 100, 2)
-            : round((float) ($row['discount_amount'] ?? 0), 2);
-
-        $subtotal = round($gross - $discountAmount, 2);
-
-        $taxPercent = (float) ($row['tax_percent'] ?? 0);
-        $taxAmount = round($subtotal * $taxPercent / 100, 2);
-
-        /** La retención se practica sobre el impuesto, no sobre la base imponible. */
-        $withholdingPercent = (float) ($row['withholding_percent'] ?? 0);
-        $withholdingAmount = round($taxAmount * $withholdingPercent / 100, 2);
 
         /** Lo rechazado no puede pasarse de lo que llegó. */
-        $rejected = min(round((float) ($row['rejected_quantity'] ?? 0), 4), round($quantity, 4));
+        $rejected = max(min(round((float) ($row['rejected_quantity'] ?? 0), 4), round($quantity, 4)), 0.0);
 
         return new self(
             id: isset($row['id']) ? (string) $row['id'] : null,
             itemId: (string) $row['item_id'],
             measurementUnitId: (string) $row['measurement_unit_id'],
             quantity: $quantity,
-            rejectedQuantity: max($rejected, 0.0),
-            receivedQuantity: round($quantity - max($rejected, 0.0), 4),
-            unitPrice: $unitPrice,
-            discountPercent: $discountPercent,
-            discountAmount: $discountAmount,
-            taxPercent: $taxPercent,
-            taxAmount: $taxAmount,
-            withholdingPercent: $withholdingPercent,
-            withholdingAmount: $withholdingAmount,
-            subtotal: $subtotal,
-            total: round($subtotal + $taxAmount, 2),
-            taxId: $row['tax_id'] ?? null,
+            rejectedQuantity: $rejected,
+            receivedQuantity: round($quantity - $rejected, 4),
+            unitPrice: 0.0,
+            discountPercent: 0.0,
+            discountAmount: 0.0,
+            taxPercent: 0.0,
+            taxAmount: 0.0,
+            withholdingPercent: 0.0,
+            withholdingAmount: 0.0,
+            subtotal: 0.0,
+            total: 0.0,
+            taxId: null,
             sourceableType: $row['sourceable_type'] ?? null,
             sourceableId: $row['sourceable_id'] ?? null,
             locationId: $row['location_id'] ?? null,
-            lotNumber: $row['lot_number'] ?? null,
-            lotId: $row['lot_id'] ?? null,
-            expiresAt: $row['expires_at'] ?? null,
-            serialNumbers: self::serials($row['serial_numbers'] ?? []),
+            lots: EntryLineLotData::collection($row['lots'] ?? []),
+            serials: EntryLineSerialData::collection($row['serials'] ?? []),
             rejectionReason: $row['rejection_reason'] ?? null,
             notes: $row['notes'] ?? null,
             status: (string) ($row['status'] ?? 'active'),
@@ -119,23 +101,85 @@ class EntryLineData
     }
 
     /**
-     * Series de la línea, limpias de vacíos y de repetidas: una serie identifica
-     * una unidad, así que no puede llegar dos veces en la misma línea.
+     * La misma línea con el costo y los cargos que le puso el sistema.
      *
-     * @return array<int, string>
+     * Los montos se derivan aquí y en ningún otro sitio: el descuento sale del
+     * porcentaje, el impuesto del subtotal y la retención del impuesto —no de
+     * la base imponible—.
      */
-    private static function serials(mixed $value): array
-    {
-        if (! is_array($value)) {
-            return [];
-        }
+    public function withPricing(
+        float $unitPrice,
+        ?string $taxId,
+        float $taxPercent,
+        float $withholdingPercent,
+        float $discountPercent,
+    ): self {
+        $gross = $this->quantity * $unitPrice;
 
-        $serials = array_filter(
-            array_map(static fn (mixed $serial): string => trim((string) $serial), $value),
-            static fn (string $serial): bool => $serial !== '',
+        $discountAmount = round($gross * $discountPercent / 100, 2);
+        $subtotal = round($gross - $discountAmount, 2);
+        $taxAmount = round($subtotal * $taxPercent / 100, 2);
+
+        return new self(
+            id: $this->id,
+            itemId: $this->itemId,
+            measurementUnitId: $this->measurementUnitId,
+            quantity: $this->quantity,
+            rejectedQuantity: $this->rejectedQuantity,
+            receivedQuantity: $this->receivedQuantity,
+            unitPrice: $unitPrice,
+            discountPercent: $discountPercent,
+            discountAmount: $discountAmount,
+            taxPercent: $taxPercent,
+            taxAmount: $taxAmount,
+            withholdingPercent: $withholdingPercent,
+            withholdingAmount: round($taxAmount * $withholdingPercent / 100, 2),
+            subtotal: $subtotal,
+            total: round($subtotal + $taxAmount, 2),
+            taxId: $taxId,
+            sourceableType: $this->sourceableType,
+            sourceableId: $this->sourceableId,
+            locationId: $this->locationId,
+            lots: $this->lots,
+            serials: $this->serials,
+            rejectionReason: $this->rejectionReason,
+            notes: $this->notes,
+            status: $this->status,
         );
+    }
 
-        return array_values(array_unique($serials));
+    /**
+     * Los lotes activos de la línea. Los desactivados no cuentan ni para el
+     * cuadre ni para el kardex.
+     *
+     * @return array<int, EntryLineLotData>
+     */
+    public function activeLots(): array
+    {
+        return array_values(array_filter(
+            $this->lots,
+            static fn (EntryLineLotData $lot): bool => $lot->status === 'active',
+        ));
+    }
+
+    /**
+     * @return array<int, EntryLineSerialData>
+     */
+    public function activeSerials(): array
+    {
+        return array_values(array_filter(
+            $this->serials,
+            static fn (EntryLineSerialData $serial): bool => $serial->status === 'active',
+        ));
+    }
+
+    /** Cuánto de la línea se repartió en lotes. */
+    public function lotQuantity(): float
+    {
+        return round(array_sum(array_map(
+            static fn (EntryLineLotData $lot): float => $lot->quantity,
+            $this->activeLots(),
+        )), 4);
     }
 
     /**

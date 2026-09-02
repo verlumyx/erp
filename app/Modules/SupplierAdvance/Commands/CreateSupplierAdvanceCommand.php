@@ -17,6 +17,8 @@ class CreateSupplierAdvanceCommand
         public readonly string $createdBy,
         /** Orden que motiva el anticipo. Vacía en un anticipo sin orden previa. */
         public readonly ?string $purchaseOrderId = null,
+        /** El pago cuyo excedente lo generó; nulo capturándolo a mano. */
+        public readonly ?string $originPaymentId = null,
         public readonly string $paymentMethod = 'transfer',
         public readonly ?string $reference = null,
         public readonly ?string $bankAccount = null,

@@ -2,197 +2,225 @@
 
 declare(strict_types=1);
 
-use App\Modules\Item\Models\ItemUnit;
-use App\Modules\MeasurementUnit\Models\MeasurementUnit;
-use App\Modules\Warehouse\Models\Warehouse;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
+use App\Modules\Dispatch\Models\DispatchLine;
+use App\Modules\Item\Models\Item;
+use App\Modules\Transfer\Models\Transfer;
+use App\Modules\Transfer\Models\TransferLine;
 
 use function Pest\Laravel\actingAs;
 
-test('an immediate transfer moves the goods from origin to destination in one act', function () {
+test('confirming a transfer writes the dispatch that will take the goods out', function () {
+    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
+
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
+
+    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
+
+    /** En borrador el traslado no ha generado nada. */
+    expect(transferDispatch($transfer))->toBeNull();
+
+    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
+
+    $dispatch = transferDispatch($transfer);
+
+    expect($dispatch)->not->toBeNull();
+    /** Nace en borrador: confirmar el traslado no saca nada de la bodega. */
+    expect($dispatch->status)->toBe('draft');
+    expect($dispatch->warehouse_id)->toBe($origin->id);
+    /** Va a otra bodega propia, no a un cliente. */
+    expect($dispatch->recipient_type)->toBe('warehouse');
+    expect($dispatch->recipient_id)->toBe($destination->id);
+
+    expect($dispatch->lines)->toHaveCount(1);
+
+    $line = $dispatch->lines->first();
+    expect($line->item_id)->toBe($item->id);
+    expect((float) $line->quantity)->toBe(2.0);
+    expect($line->sourceable_type)->toBe(TransferLine::MORPH_ALIAS);
+    expect($line->sourceable_id)->toBe($transfer->lines->first()->id);
+
+    /** Y el traslado por sí solo no tocó el kardex. */
+    expect(transferMovements($transfer))->toHaveCount(0);
+});
+
+test('a line of an item that carries no stock never reaches the dispatch', function () {
+    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
+
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
+
+    $service = Item::factory()->create(['company_id' => $company->id, 'type' => 'service']);
+
+    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
+        'company_id' => $company->id,
+        'item_id' => $service->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit, [
+        'lines' => [
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 2],
+            ['item_id' => $service->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1],
+        ],
+    ]);
+
+    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
+
+    $dispatch = transferDispatch($transfer);
+
+    expect($dispatch->lines)->toHaveCount(1);
+    expect($dispatch->lines->first()->item_id)->toBe($item->id);
+});
+
+test('the chain moves the goods from origin to destination as a transfer', function () {
     [$user, $company, $origin, $originLocation, $destination, $destinationLocation, $item, $unit] = transferScenario();
 
-    /** La bodega de origen tiene existencia comprada a 20 y a 40: promedio 30. */
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 20]);
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 40]);
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
 
     $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
 
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
-    $transfer->refresh();
-    expect($transfer->status)->toBe('confirmed');
-    /** Sin bodega de tránsito la mercancía llega en el mismo acto. */
-    expect($transfer->transfer_status)->toBe('received');
-    expect($transfer->sent_by)->toBe($user->id);
+    $dispatch = transferDispatch($transfer);
 
-    $movements = transferMovements($transfer);
+    /** Confirmar el despacho es lo que saca la mercancía del origen. */
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+
+    expect($transfer->refresh()->transfer_status)->toBe('in_transit');
+
+    $entry = dispatchEntry($dispatch->refresh());
+
+    expect($entry)->not->toBeNull();
+    expect($entry->status)->toBe('draft');
+    expect($entry->entry_type)->toBe('transfer');
+    expect($entry->warehouse_id)->toBe($destination->id);
+    /** La mercancía ya era de la empresa: no hay proveedor detrás. */
+    expect($entry->supplier_id)->toBeNull();
+
+    /** La entrada cuelga del traslado: es lo que originó el movimiento. */
+    expect($entry->sourceable_type)->toBe(Transfer::MORPH_ALIAS);
+    expect($entry->sourceable_id)->toBe($transfer->id);
+    expect($entry->sourceable)->toBeInstanceOf(Transfer::class);
+    /** Y el despacho que la trajo sigue trazado línea a línea. */
+    expect($entry->lines->first()->sourceable_type)->toBe(DispatchLine::MORPH_ALIAS);
+    expect($entry->lines->first()->sourceable_id)->toBe($dispatch->lines->first()->id);
+
+    /** El traslado los ve a los dos colgando de él. */
+    expect($transfer->dispatches()->pluck('id')->all())->toBe([$dispatch->id]);
+    expect($transfer->entries()->pluck('id')->all())->toBe([$entry->id]);
+
+    /** Y confirmar la entrada es lo que la mete en el destino. */
+    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
+
+    $movements = transferMovements($transfer->refresh());
+
     expect($movements)->toHaveCount(2);
+    /** El kardex sigue diciendo que esto fue un traslado, no una venta y una compra. */
+    expect($movements->pluck('type')->all())->toBe(['transfer_out', 'transfer_in']);
 
-    [$exit, $arrival] = [$movements[0], $movements[1]];
+    expect((float) stockAt($item, $originLocation)->quantity)->toBe(18.0);
+    expect((float) stockAt($item, $destinationLocation)->quantity)->toBe(2.0);
 
-    expect($exit->type)->toBe('transfer_out');
-    expect($exit->warehouse_id)->toBe($origin->id);
-    expect($exit->location_id)->toBe($originLocation->id);
-    expect((float) $exit->quantity)->toBe(2.0);
-    /** La salida se valora al promedio de la bodega de origen. */
-    expect((float) $exit->unit_cost)->toBe(30.0);
-
-    expect($arrival->type)->toBe('transfer_in');
-    expect($arrival->warehouse_id)->toBe($destination->id);
-    expect($arrival->location_id)->toBe($destinationLocation->id);
-    /** El costo viaja con la mercancía: entra con el del origen. */
-    expect((float) $arrival->unit_cost)->toBe(30.0);
-
-    /** El inventario cambió de sitio, no de valor. */
-    expect(warehouseBalance($company, $item, $origin))->toBe(18.0);
-    expect(warehouseBalance($company, $item, $destination))->toBe(2.0);
+    /** Llegar cierra el traslado. */
+    expect($transfer->refresh()->transfer_status)->toBe('received');
+    expect($transfer->status)->toBe('completed');
+    expect($transfer->received_date)->not->toBeNull();
 });
 
-test('the frozen cost is copied to the line and to the header', function () {
-    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
+test('the cost travels with the goods: the destination receives at the cost of the origin', function () {
+    [$user, $company, $origin, $originLocation, $destination, $destinationLocation, $item, $unit] = transferScenario();
 
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 20]);
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 40]);
+    /** Veinte unidades a 10: el origen vale 10 por unidad. */
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
 
     $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
 
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
-    $line = $transfer->refresh()->lines()->first();
-    expect((float) $line->unit_cost)->toBe(30.0);
-    expect((float) $line->sent_quantity)->toBe(2.0);
-    expect((float) $transfer->total_cost)->toBe(60.0);
-});
+    $dispatch = transferDispatch($transfer);
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
 
-test('the movements are written in the base unit of the item', function () {
-    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
+    /** El costo real de la salida se congela en la línea del traslado. */
+    expect((float) $transfer->refresh()->lines->first()->unit_cost)->toBe(10.0);
 
-    $box = MeasurementUnit::factory()->create(['company_id' => $company->id]);
-    ItemUnit::factory()->create([
-        'company_id' => $company->id,
-        'item_id' => $item->id,
-        'measurement_unit_id' => $box->id,
-        'is_base' => 'no',
-        'conversion_factor' => 12,
-    ]);
-
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 100, 'unitCost' => 5]);
-
-    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit, [
-        'lines' => [[
-            'item_id' => $item->id,
-            'measurement_unit_id' => $box->id,
-            'quantity' => 2,
-        ]],
-    ]);
-
-    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
+    $entry = dispatchEntry($dispatch->refresh());
+    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
 
     $movements = transferMovements($transfer);
-    expect((float) $movements[0]->quantity)->toBe(24.0);
-    expect((float) $movements[1]->quantity)->toBe(24.0);
+
+    /** Entra al costo con el que salió, no al promedio del destino. */
+    expect((float) $movements->last()->unit_cost)->toBe(10.0);
+    expect((float) stockAt($item, $destinationLocation)->quantity)->toBe(2.0);
 });
 
-test('a two step transfer parks the goods in the transit warehouse', function () {
-    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
-
-    [$transit] = warehouseWithDefaultLocation($company, $user);
-
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 30]);
-
-    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit, [
-        'transit_warehouse_id' => $transit->id,
-    ]);
-
-    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
-
-    $transfer->refresh();
-    expect($transfer->transfer_status)->toBe('in_transit');
-    expect($transfer->received_date)->toBeNull();
-
-    $movements = transferMovements($transfer);
-    expect($movements)->toHaveCount(2);
-    expect($movements[1]->warehouse_id)->toBe($transit->id);
-
-    /** La mercancía salió del origen pero todavía no llegó al destino. */
-    expect(warehouseBalance($company, $item, $origin))->toBe(8.0);
-    expect(warehouseBalance($company, $item, $transit))->toBe(2.0);
-    expect(warehouseBalance($company, $item, $destination))->toBe(0.0);
-});
-
-test('confirming without stock in the origin is rejected', function () {
+test('confirming the dispatch without stock in the origin is rejected', function () {
     [$user, $company, $origin, , $destination, , $item, $unit] = transferScenario();
 
     $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
 
-    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasErrors('status');
+    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
-    expect($transfer->refresh()->status)->toBe('draft');
+    $dispatch = transferDispatch($transfer);
+
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
+
+    expect($dispatch->refresh()->status)->toBe('draft');
     expect(transferMovements($transfer))->toHaveCount(0);
 });
 
-test('a warehouse without a default location blocks the confirmation', function () {
-    [$user, $company, $origin, $originLocation, , , $item, $unit] = transferScenario();
+test('cancelling the transfer cancels the dispatch it had generated', function () {
+    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
 
-    /** Una bodega sin ubicaciones no tiene sitio al que llevar la mercancía. */
-    $destination = Warehouse::factory()->create([
-        'company_id' => $company->id,
-        'uses_locations' => 'no',
-    ]);
-    WarehouseLocation::where('warehouse_id', $destination->id)->update(['is_default' => 'no']);
-
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 30]);
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
 
     $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
 
-    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasErrors('status');
+    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
-    expect($transfer->refresh()->status)->toBe('draft');
+    $dispatch = transferDispatch($transfer);
+
+    moveTransferTo($user, $company, $transfer, 'cancelled')->assertSessionHasNoErrors();
+
+    expect($dispatch->refresh()->status)->toBe('cancelled');
+    expect($transfer->refresh()->status)->toBe('cancelled');
 });
 
-test('cancelling a confirmed transfer brings every movement back', function () {
+test('a transfer whose dispatch already left cannot be cancelled', function () {
     [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
 
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 30]);
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
 
     $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
+
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
-    moveTransferTo($user, $company, $transfer, 'cancelled')->assertSessionHasNoErrors();
+    $dispatch = transferDispatch($transfer);
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
 
-    $transfer->refresh();
-    expect($transfer->status)->toBe('cancelled');
-    expect($transfer->cancelled_at)->not->toBeNull();
+    /** La mercancía ya salió: primero se anula el despacho que la sacó. */
+    moveTransferTo($user, $company, $transfer, 'cancelled')->assertSessionHasErrors('status');
 
-    /** Dos movimientos y sus dos contrapartidas: nada se borra. */
-    expect(transferMovements($transfer))->toHaveCount(4);
-
-    expect(warehouseBalance($company, $item, $origin))->toBe(10.0);
-    expect(warehouseBalance($company, $item, $destination))->toBe(0.0);
+    expect($transfer->refresh()->status)->toBe('confirmed');
+    expect((float) stockAt($item, $originLocation)->quantity)->toBe(18.0);
 });
 
-test('cancelling a two step transfer already received unwinds it from the end', function () {
+test('a dispatch whose entry already arrived cannot be cancelled', function () {
     [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
 
-    [$transit] = warehouseWithDefaultLocation($company, $user);
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
 
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 30]);
+    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
 
-    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit, [
-        'transit_warehouse_id' => $transit->id,
-    ]);
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
-    registerTransferReceipt($user, $company, $transfer)->assertSessionHasNoErrors();
 
-    moveTransferTo($user, $company, $transfer, 'cancelled')->assertSessionHasNoErrors();
+    $dispatch = transferDispatch($transfer);
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
 
-    /** Cuatro movimientos vivos y sus cuatro contrapartidas. */
-    expect(transferMovements($transfer))->toHaveCount(8);
+    $entry = dispatchEntry($dispatch->refresh());
+    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
 
-    expect(warehouseBalance($company, $item, $origin))->toBe(10.0);
-    expect(warehouseBalance($company, $item, $transit))->toBe(0.0);
-    expect(warehouseBalance($company, $item, $destination))->toBe(0.0);
+    moveDispatchTo($user, $company, $dispatch, 'cancelled')->assertSessionHasErrors('status');
+
+    expect($dispatch->refresh()->status)->toBe('confirmed');
 });
 
 test('cancelling a draft reverses nothing', function () {
@@ -206,29 +234,13 @@ test('cancelling a draft reverses nothing', function () {
     expect(transferMovements($transfer))->toHaveCount(0);
 });
 
-test('an immediate transfer can be closed right after confirming', function () {
+test('the transfer is not closed by hand: the entry closes it', function () {
     [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
 
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 30]);
+    stockWarehouse($company, $item, $origin, $originLocation, 20, 10);
 
     $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit);
-    moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
-    moveTransferTo($user, $company, $transfer, 'completed')->assertSessionHasNoErrors();
-
-    expect($transfer->refresh()->status)->toBe('completed');
-});
-
-test('a transfer still travelling cannot be closed', function () {
-    [$user, $company, $origin, $originLocation, $destination, , $item, $unit] = transferScenario();
-
-    [$transit] = warehouseWithDefaultLocation($company, $user);
-
-    registerInventoryMovement($company, $item, $origin, $originLocation, ['quantity' => 10, 'unitCost' => 30]);
-
-    $transfer = createTransfer($user, $company, $origin, $destination, $item, $unit, [
-        'transit_warehouse_id' => $transit->id,
-    ]);
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
     moveTransferTo($user, $company, $transfer, 'completed')->assertSessionHasErrors('status');

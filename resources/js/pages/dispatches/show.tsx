@@ -32,6 +32,7 @@ import {
     STATUS_PILL_KIND,
     STATUS_TRANSITIONS,
     type Dispatch,
+    type DispatchLine,
     type DispatchStatus,
 } from './types/Dispatch';
 
@@ -42,6 +43,24 @@ interface Props {
 interface PageProps {
     currentCompany?: { id: string; name: string } | null;
     [key: string]: unknown;
+}
+
+/** Los lotes activos de una línea, listados con lo que salió de cada uno. */
+function lotLabel(line: DispatchLine): string {
+    const lots = (line.lots ?? []).filter((lot) => lot.status === 'active');
+
+    if (lots.length === 0) {
+        return '—';
+    }
+
+    return lots
+        .map((lot) => `${lot.lot_number ?? 'Lote'} (${lot.quantity})`)
+        .join(', ');
+}
+
+function serialCount(line: DispatchLine): number {
+    return (line.serials ?? []).filter((serial) => serial.status === 'active')
+        .length;
 }
 
 function DataRow({ label, value }: { label: string; value: ReactNode }) {
@@ -134,7 +153,7 @@ export default function DispatchesShow({ dispatch }: Props) {
                         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                             <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
                                 <Contact className="size-3.5 opacity-80" />
-                                {dispatch.client_name ?? '—'}
+                                {dispatch.recipient_name ?? '—'}
                             </span>
                             <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
                                 <Warehouse className="size-3.5 opacity-80" />
@@ -339,11 +358,12 @@ export default function DispatchesShow({ dispatch }: Props) {
                     <div className="border-b p-5 text-[13px] font-bold text-muted-foreground">
                         Líneas
                     </div>
-                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2.2fr_1.2fr_1fr_1fr_1fr]">
+                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2fr_1.3fr_0.9fr_0.9fr_1fr_1fr]">
                         {[
                             '#',
                             'Artículo',
-                            'Lote / serie',
+                            'Lotes / series',
+                            'Pedido',
                             'Salió',
                             'Entregado',
                             'Costo',
@@ -360,7 +380,7 @@ export default function DispatchesShow({ dispatch }: Props) {
                         {activeLines.map((line) => (
                             <div
                                 key={line.id}
-                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2.2fr_1.2fr_1fr_1fr_1fr] lg:items-center"
+                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2fr_1.3fr_0.9fr_0.9fr_1fr_1fr] lg:items-center"
                             >
                                 <div className="text-[13.5px] font-semibold text-muted-foreground tabular-nums">
                                     {line.line_number}
@@ -379,11 +399,20 @@ export default function DispatchesShow({ dispatch }: Props) {
                                             : ''}
                                     </span>
                                 </div>
-                                <div className="truncate text-[13px] text-muted-foreground">
-                                    {line.lot_number ?? '—'}
-                                    {line.serial_number
-                                        ? ` / ${line.serial_number}`
-                                        : ''}
+                                <div className="flex min-w-0 flex-col text-[13px] text-muted-foreground">
+                                    <span className="truncate">
+                                        {lotLabel(line)}
+                                    </span>
+                                    {serialCount(line) > 0 && (
+                                        <span className="truncate text-[12.5px]">
+                                            {serialCount(line)} serie
+                                            {serialCount(line) !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                </div>
+                                {/** Lo que pidió el pedido; vacío en una línea suelta. */}
+                                <div className="text-[13.5px] text-muted-foreground tabular-nums">
+                                    {line.source_quantity ?? '—'}
                                 </div>
                                 <div className="text-[13.5px] tabular-nums">
                                     {line.quantity}

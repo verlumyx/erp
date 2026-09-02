@@ -25,10 +25,22 @@ class DispatchLineResource extends JsonResource
             'measurement_unit_name' => $this->whenLoaded('measurementUnit', fn () => $this->measurementUnit?->name),
             'sourceable_type' => $this->sourceable_type,
             'sourceable_id' => $this->sourceable_id,
-            'lot_id' => $this->lot_id,
-            'lot_number' => $this->whenLoaded('lot', fn () => $this->lot?->lot_number),
-            'serial_id' => $this->serial_id,
-            'serial_number' => $this->whenLoaded('serial', fn () => $this->serial?->serial_number),
+            /**
+             * La trazabilidad vive en sus propias tablas: la línea solo la
+             * agrupa. Se resuelve aquí mismo —igual que `DispatchResource` hace
+             * con las líneas— porque una colección de recursos sin resolver se
+             * serializa envuelta en `data` y la pantalla espera una lista.
+             */
+            'lots' => $this->whenLoaded(
+                'lots',
+                fn (): array => DispatchLineLotResource::collection($this->lots)->resolve($request),
+            ),
+            'serials' => $this->whenLoaded(
+                'serials',
+                fn (): array => DispatchLineSerialResource::collection($this->serials)->resolve($request),
+            ),
+            /** Lo que pidió la línea del pedido. Vacío en una línea sin origen. */
+            'source_quantity' => $this->whenLoaded('sourceable', fn () => $this->sourceable?->quantity),
             'location_id' => $this->location_id,
             'location_name' => $this->whenLoaded('location', fn () => $this->location?->name),
             'quantity' => $this->quantity,

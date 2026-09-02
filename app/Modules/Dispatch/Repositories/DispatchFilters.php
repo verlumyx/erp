@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Dispatch\Repositories;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Shared\Repositories\EloquentQueryFilters;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,11 +39,17 @@ class DispatchFilters extends EloquentQueryFilters
 
     /**
      * El nombre del método debe coincidir con la clave del filtro que llega
-     * en el request (`client_id`), no con su versión camelCase.
+     * en el request (`recipient_id`), no con su versión camelCase.
      */
-    public function client_id(string $value): Builder
+    public function recipient_id(string $value): Builder
     {
-        return $this->builder->where('client_id', $value);
+        return $this->builder->where('recipient_id', $value);
+    }
+
+    /** Solo los despachos dirigidos a un cliente, o solo los de traslado. */
+    public function recipient_type(string $value): Builder
+    {
+        return $this->builder->where('recipient_type', $value);
     }
 
     public function warehouse_id(string $value): Builder
@@ -93,7 +100,9 @@ class DispatchFilters extends EloquentQueryFilters
 
         return $this->builder
             ->whereIn('status', Dispatch::POSTED_STATUSES)
-            ->whereNotIn('delivery_status', Dispatch::REFUSED_DELIVERY_STATUSES);
+            ->whereNotIn('delivery_status', Dispatch::REFUSED_DELIVERY_STATUSES)
+            /** Un traslado no se factura: la mercancía no cambió de dueño. */
+            ->where('recipient_type', Client::MORPH_ALIAS);
     }
 
     public function date_from(string $value): Builder

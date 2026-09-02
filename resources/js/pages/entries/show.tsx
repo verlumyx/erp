@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import entries from '@/routes/entries';
 import purchaseOrders from '@/routes/purchase-orders';
+import transfers from '@/routes/transfers';
 import type { BreadcrumbItem } from '@/types';
 import {
     INSPECTION_LABELS,
@@ -26,8 +27,10 @@ import {
     STATUS_LABELS,
     STATUS_PILL_KIND,
     STATUS_TRANSITIONS,
+    TRANSFER,
     TYPE_LABELS,
     type Entry,
+    type EntryLine,
     type EntryStatus,
 } from './types/Entry';
 
@@ -38,6 +41,22 @@ interface Props {
 interface PageProps {
     currentCompany?: { id: string; name: string } | null;
     [key: string]: unknown;
+}
+
+/** Los lotes activos de una línea, listados con lo que trajo cada uno. */
+function lotLabel(line: EntryLine): string {
+    const lots = (line.lots ?? []).filter((lot) => lot.status === 'active');
+
+    if (lots.length === 0) {
+        return '—';
+    }
+
+    return lots.map((lot) => `${lot.lot_number} (${lot.quantity})`).join(', ');
+}
+
+function serialCount(line: EntryLine): number {
+    return (line.serials ?? []).filter((serial) => serial.status === 'active')
+        .length;
 }
 
 function DataRow({ label, value }: { label: string; value: ReactNode }) {
@@ -154,6 +173,21 @@ export default function EntriesShow({ entry }: Props) {
                                             'Orden de compra'}
                                     </Link>
                                 )}
+                            {entry.sourceable_type === TRANSFER &&
+                                entry.sourceable_id && (
+                                    <Link
+                                        href={
+                                            transfers.show({
+                                                company: companyId,
+                                                id: entry.sourceable_id,
+                                            }).url
+                                        }
+                                        className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-primary"
+                                    >
+                                        <ClipboardList className="size-3.5 opacity-80" />
+                                        {entry.sourceable_code ?? 'Traslado'}
+                                    </Link>
+                                )}
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
@@ -217,7 +251,11 @@ export default function EntriesShow({ entry }: Props) {
                             value={TYPE_LABELS[entry.entry_type]}
                         />
                         <DataRow
-                            label="Orden de origen"
+                            label={
+                                entry.sourceable_type === TRANSFER
+                                    ? 'Traslado de origen'
+                                    : 'Orden de origen'
+                            }
                             value={entry.sourceable_code ?? '—'}
                         />
                         <DataRow
@@ -310,11 +348,12 @@ export default function EntriesShow({ entry }: Props) {
                     <div className="border-b p-5 text-[13px] font-bold text-muted-foreground">
                         Líneas
                     </div>
-                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2.2fr_1.2fr_0.9fr_0.9fr_1fr_1fr]">
+                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2fr_1.4fr_0.8fr_0.8fr_0.8fr_1fr_1fr]">
                         {[
                             '#',
                             'Artículo',
-                            'Lote / series',
+                            'Lotes / series',
+                            'Ordenado',
                             'Llegó',
                             'Aceptado',
                             'Costo final',
@@ -332,7 +371,7 @@ export default function EntriesShow({ entry }: Props) {
                         {activeLines.map((line) => (
                             <div
                                 key={line.id}
-                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2.2fr_1.2fr_0.9fr_0.9fr_1fr_1fr] lg:items-center"
+                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2fr_1.4fr_0.8fr_0.8fr_0.8fr_1fr_1fr] lg:items-center"
                             >
                                 <div className="text-[13.5px] font-semibold text-muted-foreground tabular-nums">
                                     {line.line_number}
@@ -354,15 +393,20 @@ export default function EntriesShow({ entry }: Props) {
                                             : ''}
                                     </span>
                                 </div>
-                                <div className="truncate text-[13px] text-muted-foreground">
-                                    {line.lot_number ?? '—'}
-                                    {line.serial_numbers.length > 0
-                                        ? ` / ${line.serial_numbers.length} serie${
-                                              line.serial_numbers.length !== 1
-                                                  ? 's'
-                                                  : ''
-                                          }`
-                                        : ''}
+                                <div className="flex min-w-0 flex-col text-[13px] text-muted-foreground">
+                                    <span className="truncate">
+                                        {lotLabel(line)}
+                                    </span>
+                                    {serialCount(line) > 0 && (
+                                        <span className="truncate text-[12.5px]">
+                                            {serialCount(line)} serie
+                                            {serialCount(line) !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                </div>
+                                {/** Lo que pidió la orden; vacío en una línea suelta. */}
+                                <div className="text-[13.5px] text-muted-foreground tabular-nums">
+                                    {line.source_quantity ?? '—'}
                                 </div>
                                 <div className="text-[13.5px] tabular-nums">
                                     {line.quantity}

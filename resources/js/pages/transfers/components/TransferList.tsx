@@ -340,9 +340,6 @@ export function TransferList({
                                 </span>
                                 <span className="truncate text-[12.5px] text-muted-foreground">
                                     {REASON_LABELS[row.reason]}
-                                    {row.transit_warehouse_name
-                                        ? ` · vía ${row.transit_warehouse_name}`
-                                        : ''}
                                     {row.driver_name
                                         ? ` · ${row.driver_name}`
                                         : ''}

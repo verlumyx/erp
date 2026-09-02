@@ -9,6 +9,7 @@ use App\Modules\SupplierAdvance\Commands\CreateSupplierAdvanceCommand;
 use App\Modules\SupplierAdvance\Commands\SearchSupplierAdvanceCommand;
 use App\Modules\SupplierAdvance\Commands\UpdateStatusSupplierAdvanceCommand;
 use App\Modules\SupplierAdvance\Commands\UpdateSupplierAdvanceCommand;
+use App\Modules\SupplierAdvance\Commands\WriteSupplierAdvanceAppliedCommand;
 use App\Modules\SupplierAdvance\Models\SupplierAdvance;
 
 interface SupplierAdvanceRepositoryInterface
@@ -28,6 +29,15 @@ interface SupplierAdvanceRepositoryInterface
      * a la vez no lean el mismo saldo.
      */
     public function lockById(string $id, ?string $companyId = null): ?SupplierAdvance;
+
+    /**
+     * Escribe lo aplicado y lo disponible ya resueltos. Solo lo llama
+     * `SupplierPaymentCreditSourceService`.
+     */
+    public function writeApplied(
+        SupplierAdvance $model,
+        WriteSupplierAdvanceAppliedCommand $command,
+    ): SupplierAdvance;
 
     /** @return array{ data: SupplierAdvance[], total: int } */
     public function search(SearchSupplierAdvanceCommand $command): array;

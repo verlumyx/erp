@@ -29,8 +29,9 @@ class DispatchOptionResource extends JsonResource
             'label' => "{$this->code} · {$this->dispatch_date?->format('Y-m-d')}",
             'meta' => [
                 'code' => $this->code,
-                'client_id' => $this->client_id,
-                'client_name' => $this->client?->name,
+                'recipient_type' => $this->recipient_type,
+                'recipient_id' => $this->recipient_id,
+                'recipient_name' => $this->recipient?->name,
                 'client_address_id' => $this->client_address_id,
                 'warehouse_id' => $this->warehouse_id,
                 'sourceable_type' => $this->sourceable_type,
@@ -58,7 +59,6 @@ class DispatchOptionResource extends JsonResource
                         'withholding_percent' => (string) $line->withholding_percent,
                         'sourceable_type' => $line->sourceable_type,
                         'sourceable_id' => $line->sourceable_id,
-                        'lot_id' => $line->lot_id,
                         'notes' => $line->notes,
                     ])
                     ->values()

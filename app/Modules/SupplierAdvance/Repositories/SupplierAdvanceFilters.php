@@ -28,6 +28,12 @@ class SupplierAdvanceFilters extends EloquentQueryFilters
         return $this->builder->where('purchase_order_id', $value);
     }
 
+    /** El pago cuyo excedente generó el anticipo. */
+    public function origin_payment_id(string $value): Builder
+    {
+        return $this->builder->where('origin_payment_id', $value);
+    }
+
     public function reference(string $value): Builder
     {
         return $this->builder->where('reference', 'like', "%{$value}%");

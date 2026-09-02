@@ -57,8 +57,7 @@ class TransferFilters extends EloquentQueryFilters
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
             $query->where('origin_warehouse_id', $value)
-                ->orWhere('destination_warehouse_id', $value)
-                ->orWhere('transit_warehouse_id', $value);
+                ->orWhere('destination_warehouse_id', $value);
         });
     }
 

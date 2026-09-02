@@ -1,4 +1,5 @@
 import { formatAmount as formatNumber, formatMoney } from '@/lib/money';
+import type { DispatchStatus } from '@/pages/dispatches/types/Dispatch';
 import type { TaxOption } from '@/types/tax';
 
 export type SalesOrderStatus =
@@ -81,6 +82,15 @@ export interface SalesOrder {
     created_at: string;
     updated_at: string | null;
     lines?: SalesOrderLine[];
+    /** Despachos que sacan la mercancía; el primero nace al aprobar el pedido. */
+    dispatches?: SalesOrderDispatch[];
+}
+
+/** Un despacho colgado del pedido, tal como lo enseña la pantalla de detalle. */
+export interface SalesOrderDispatch {
+    id: string;
+    code: string;
+    status: DispatchStatus;
 }
 
 export interface SalesOrderMeta {

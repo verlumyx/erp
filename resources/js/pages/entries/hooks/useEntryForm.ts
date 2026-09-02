@@ -13,7 +13,6 @@ import { generateUUID } from '@/lib/utils';
 import entries from '@/routes/entries';
 import purchaseOrders from '@/routes/purchase-orders';
 import suppliers from '@/routes/suppliers';
-import { taxWithholdingPercent, type TaxOption } from '@/types/tax';
 import {
     INITIAL_TYPE,
     PURCHASE_ORDER,
@@ -21,6 +20,7 @@ import {
     SUPPLIER_TYPE,
     type Entry,
     type EntryInspectionStatus,
+    type EntryLine,
     type EntryOptions,
     type EntryType,
     type PurchaseOrderOptionLine,
@@ -35,30 +35,49 @@ interface UseEntryFormProps {
     onSuccess?: () => void;
 }
 
+/**
+ * Uno de los lotes con los que llega la línea. El número es lo único que se
+ * captura: el lote del maestro lo resuelve el backend al confirmar.
+ */
+export interface EntryLineLotRow {
+    id: string;
+    lot_number: string;
+    expires_at: string;
+    quantity: number;
+    status: 'active' | 'inactive';
+}
+
+/**
+ * Una de las unidades con serie que llegan en la línea. `lot_number` dice de
+ * cuál de sus lotes sale, cuando la línea lleva más de uno.
+ */
+export interface EntryLineSerialRow {
+    id: string;
+    serial_number: string;
+    lot_number: string;
+    status: 'active' | 'inactive';
+}
+
+/**
+ * La pantalla de la entrada solo captura cantidad y trazabilidad: el costo, el
+ * impuesto y el descuento se deciden en la orden de compra y los pone el
+ * backend, así que no viajan en la fila.
+ */
 export interface EntryLineRow {
     id: string;
     item_id: string;
     measurement_unit_id: string;
-    /** Lo que llegó, y de eso lo que la inspección rechazó. */
+    /** Lo que se recibe, y de eso lo que la inspección rechazó. */
     quantity: number;
     rejected_quantity: number;
     rejection_reason: string;
-    unit_price: number;
-    discount_percent: number;
-    /** Impuesto del catálogo. De él salen los dos porcentajes de abajo. */
-    tax_id: string;
-    tax_percent: number;
-    withholding_percent: number;
     /** Línea de la orden que esta línea recibe; vacía en una suelta. */
     sourceable_type: string;
     sourceable_id: string;
     /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
     location_id: string;
-    /** Lote del proveedor: al confirmar se crea si no existía. */
-    lot_number: string;
-    expires_at: string;
-    /** Una serie por unidad aceptada, en artículos serializados. */
-    serial_numbers: string[];
+    lots: EntryLineLotRow[];
+    serials: EntryLineSerialRow[];
     notes: string;
 }
 
@@ -129,23 +148,6 @@ function itemLabel(entry: ItemCatalogEntry): string {
     return entry.code ? `${entry.code} — ${entry.name}` : entry.name;
 }
 
-/**
- * La línea con un impuesto del catálogo aplicado: sus dos porcentajes salen de
- * ahí y ya no se capturan a mano. Sin impuesto, ambos vuelven a cero.
- */
-function withTax(line: EntryLineRow, tax: TaxOption | undefined): EntryLineRow {
-    if (!tax) {
-        return { ...line, tax_id: '', tax_percent: 0, withholding_percent: 0 };
-    }
-
-    return {
-        ...line,
-        tax_id: tax.id,
-        tax_percent: Number(tax.percentage),
-        withholding_percent: taxWithholdingPercent(tax),
-    };
-}
-
 /** La unidad en la que se recibe por defecto: la base del artículo. */
 function baseUnitId(item: ItemCatalogEntry | undefined): string {
     if (!item) {
@@ -160,16 +162,24 @@ function baseUnitId(item: ItemCatalogEntry | undefined): string {
 }
 
 export interface EntryTotals {
-    /** Cantidad por costo, antes de cualquier rebaja. */
-    gross: number;
-    discountAmount: number;
-    subtotal: number;
-    taxAmount: number;
-    withholdingAmount: number;
-    total: number;
-    /** Unidades aceptadas y su valor ya con los gastos repartidos. */
-    receivedValue: number;
-    landedTotal: number;
+    lines: number;
+    /** Unidades aceptadas y rechazadas, en las unidades de cada línea. */
+    receivedQuantity: number;
+    rejectedQuantity: number;
+}
+
+/**
+ * ¿Esa fila de trazabilidad ya está guardada? Una que nunca llegó a la base se
+ * puede quitar sin más; una que sí, se desactiva.
+ */
+function isSaved(
+    id: string,
+    model: Entry | undefined,
+    collection: 'lots' | 'serials',
+): boolean {
+    return (model?.lines ?? []).some((line) =>
+        (line[collection] ?? []).some((row) => row.id === id),
+    );
 }
 
 function emptyLine(): EntryLineRow {
@@ -180,19 +190,46 @@ function emptyLine(): EntryLineRow {
         quantity: 1,
         rejected_quantity: 0,
         rejection_reason: '',
-        unit_price: 0,
-        discount_percent: 0,
-        tax_id: '',
-        tax_percent: 0,
-        withholding_percent: 0,
         sourceable_type: '',
         sourceable_id: '',
         location_id: '',
-        lot_number: '',
-        expires_at: '',
-        serial_numbers: [],
+        lots: [],
+        serials: [],
         notes: '',
     };
+}
+
+/** Los lotes activos de una línea guardada, en el orden en que se capturaron. */
+function lotRows(line: EntryLine): EntryLineLotRow[] {
+    return (line.lots ?? [])
+        .filter((lot) => lot.status === 'active')
+        .sort((a, b) => a.line_number - b.line_number)
+        .map((lot) => ({
+            id: lot.id,
+            lot_number: lot.lot_number,
+            expires_at: lot.expires_at ?? '',
+            quantity: Number(lot.quantity),
+            status: 'active' as const,
+        }));
+}
+
+/** Las series activas de una línea guardada, cada una atada a su lote. */
+function serialRows(line: EntryLine): EntryLineSerialRow[] {
+    const lotNumberOf = new Map(
+        (line.lots ?? []).map((lot) => [lot.id, lot.lot_number]),
+    );
+
+    return (line.serials ?? [])
+        .filter((serial) => serial.status === 'active')
+        .sort((a, b) => a.line_number - b.line_number)
+        .map((serial) => ({
+            id: serial.id,
+            serial_number: serial.serial_number,
+            lot_number: serial.entry_line_lot_id
+                ? (lotNumberOf.get(serial.entry_line_lot_id) ?? '')
+                : '',
+            status: 'active' as const,
+        }));
 }
 
 /**
@@ -210,17 +247,11 @@ function lineRows(model?: Entry): EntryLineRow[] {
             quantity: Number(line.quantity),
             rejected_quantity: Number(line.rejected_quantity),
             rejection_reason: line.rejection_reason ?? '',
-            unit_price: Number(line.unit_price),
-            discount_percent: Number(line.discount_percent),
-            tax_id: line.tax_id ?? '',
-            tax_percent: Number(line.tax_percent),
-            withholding_percent: Number(line.withholding_percent),
             sourceable_type: line.sourceable_type ?? '',
             sourceable_id: line.sourceable_id ?? '',
             location_id: line.location_id ?? '',
-            lot_number: line.lot_number ?? '',
-            expires_at: line.expires_at ?? '',
-            serial_numbers: line.serial_numbers ?? [],
+            lots: lotRows(line),
+            serials: serialRows(line),
             notes: line.notes ?? '',
         }));
 
@@ -232,46 +263,21 @@ function round2(value: number): number {
 }
 
 /**
- * Espejo del cálculo del backend (`EntryLineData`): sirve para mostrar el
- * resumen mientras se captura. El importe que se guarda siempre lo recalcula el
- * servidor.
+ * Lo aceptado de una línea: lo que se recibe menos lo que la inspección
+ * rechaza. Es lo único que llega al inventario, y la única cuenta que la
+ * pantalla necesita hacer: el dinero lo pone el backend.
  */
-export function lineAmounts(line: EntryLineRow): {
-    gross: number;
-    discountAmount: number;
-    subtotal: number;
-    taxAmount: number;
-    withholdingAmount: number;
-    total: number;
-    /** Lo aceptado es lo que llegó menos lo rechazado. */
-    receivedQuantity: number;
-    /** Valor de lo aceptado, que es sobre lo que se reparten los gastos. */
-    receivedValue: number;
-} {
-    const gross = line.quantity * line.unit_price;
-    const discountAmount = round2((gross * line.discount_percent) / 100);
-    const subtotal = round2(gross - discountAmount);
-    const taxAmount = round2((subtotal * line.tax_percent) / 100);
+export function acceptedQuantity(line: EntryLineRow): number {
+    return Math.max(round2(line.quantity - line.rejected_quantity), 0);
+}
 
-    const receivedQuantity = Math.max(
-        round2(line.quantity - line.rejected_quantity),
-        0,
+/** Cuánto de la línea se repartió ya en lotes. */
+export function assignedToLots(line: EntryLineRow): number {
+    return round2(
+        line.lots
+            .filter((lot) => lot.status === 'active')
+            .reduce((total, lot) => total + lot.quantity, 0),
     );
-
-    return {
-        gross: round2(gross),
-        discountAmount,
-        subtotal,
-        taxAmount,
-        /** La retención se practica sobre el impuesto, no sobre la base. */
-        withholdingAmount: round2((taxAmount * line.withholding_percent) / 100),
-        total: round2(subtotal + taxAmount),
-        receivedQuantity,
-        receivedValue:
-            line.quantity > 0
-                ? round2((subtotal * receivedQuantity) / line.quantity)
-                : 0,
-    };
 }
 
 export function useEntryForm({
@@ -501,17 +507,11 @@ export function useEntryForm({
                 ),
                 rejected_quantity: 0,
                 rejection_reason: '',
-                unit_price: Number(line.unit_price),
-                discount_percent: Number(line.discount_percent),
-                tax_id: line.tax_id ?? '',
-                tax_percent: Number(line.tax_percent),
-                withholding_percent: Number(line.withholding_percent),
                 sourceable_type: PURCHASE_ORDER_LINE,
                 sourceable_id: line.id,
                 location_id: '',
-                lot_number: '',
-                expires_at: '',
-                serial_numbers: [],
+                lots: [],
+                serials: [],
                 notes: '',
             })),
         );
@@ -537,10 +537,6 @@ export function useEntryForm({
             ),
         );
 
-    /** El impuesto del catálogo con ese id, si sigue activo. */
-    const taxOf = (taxId: string | null | undefined): TaxOption | undefined =>
-        taxId ? options.taxes.find((tax) => tax.id === taxId) : undefined;
-
     /**
      * Cambiar de artículo invalida la unidad, la trazabilidad a la orden y todo
      * lo que identificaba a la mercancía anterior: ya no es la misma.
@@ -552,37 +548,24 @@ export function useEntryForm({
             'lines',
             data.lines.map((line, i) =>
                 i === index
-                    ? withTax(
-                          {
-                              ...line,
-                              item_id: item?.id ?? '',
-                              measurement_unit_id: baseUnitId(item),
-                              sourceable_type: '',
-                              sourceable_id: '',
-                              lot_number: '',
-                              expires_at: '',
-                              serial_numbers: [],
-                          },
-                          taxOf(item?.purchase_tax_id),
-                      )
+                    ? {
+                          ...line,
+                          item_id: item?.id ?? '',
+                          measurement_unit_id: baseUnitId(item),
+                          sourceable_type: '',
+                          sourceable_id: '',
+                          lots: [],
+                          serials: [],
+                      }
                     : line,
             ),
         );
     };
 
-    /** Cambiar el impuesto de una línea trae su porcentaje y su retención. */
-    const setLineTax = (index: number, taxId: string) =>
-        setData(
-            'lines',
-            data.lines.map((line, i) =>
-                i === index ? withTax(line, taxOf(taxId)) : line,
-            ),
-        );
-
     /**
-     * Atar una línea a la de la orden copia lo que se pidió: artículo, unidad,
-     * costo y sus cargos. Es lo que hace que el backend pueda comprobar que no
-     * llega más de lo pedido.
+     * Atar una línea a la de la orden copia lo que se pidió: artículo y unidad.
+     * Es lo que hace que el backend pueda comprobar que no llega más de lo
+     * pedido —y de donde saca el costo con el que se valora—.
      */
     const setLineOrderLine = (index: number, orderLineId: string) => {
         const source = orderLineOf(orderLineId);
@@ -605,11 +588,6 @@ export function useEntryForm({
                     item_id: source.item_id,
                     /** La línea se recibe en la unidad en la que se pidió. */
                     measurement_unit_id: source.measurement_unit_id,
-                    unit_price: Number(source.unit_price),
-                    discount_percent: Number(source.discount_percent),
-                    tax_id: source.tax_id ?? '',
-                    tax_percent: Number(source.tax_percent),
-                    withholding_percent: Number(source.withholding_percent),
                 };
             }),
         );
@@ -659,58 +637,159 @@ export function useEntryForm({
         }));
     };
 
+    /**
+     * Cuánto entra al inventario, en las unidades de cada línea. La pantalla no
+     * enseña importes: el costo lo pone el backend con la orden o con el
+     * promedio del artículo, así que aquí no hay nada que sumar en dinero.
+     */
     const totals: EntryTotals = data.lines.reduce(
-        (accumulator, line) => {
-            const amounts = lineAmounts(line);
-
-            return {
-                gross: round2(accumulator.gross + amounts.gross),
-                discountAmount: round2(
-                    accumulator.discountAmount + amounts.discountAmount,
-                ),
-                subtotal: round2(accumulator.subtotal + amounts.subtotal),
-                taxAmount: round2(accumulator.taxAmount + amounts.taxAmount),
-                withholdingAmount: round2(
-                    accumulator.withholdingAmount + amounts.withholdingAmount,
-                ),
-                total: round2(accumulator.total + amounts.total),
-                receivedValue: round2(
-                    accumulator.receivedValue + amounts.receivedValue,
-                ),
-                landedTotal: 0,
-            };
-        },
-        {
-            gross: 0,
-            discountAmount: 0,
-            subtotal: 0,
-            taxAmount: 0,
-            withholdingAmount: 0,
-            total: 0,
-            receivedValue: 0,
-            landedTotal: 0,
-        },
+        (accumulator, line) => ({
+            lines: accumulator.lines + 1,
+            receivedQuantity: round2(
+                accumulator.receivedQuantity + acceptedQuantity(line),
+            ),
+            rejectedQuantity: round2(
+                accumulator.rejectedQuantity + line.rejected_quantity,
+            ),
+        }),
+        { lines: 0, receivedQuantity: 0, rejectedQuantity: 0 },
     );
 
-    /** Valor ingresado: lo aceptado más los gastos que se le suman al costo. */
-    totals.landedTotal = round2(
-        totals.receivedValue +
-            Number(data.freight_amount) +
-            Number(data.other_charges),
-    );
+    /** ---- Trazabilidad de la línea: lotes y series ---- */
+
+    const mapLine = (
+        index: number,
+        change: (line: EntryLineRow) => EntryLineRow,
+    ) =>
+        setData(
+            'lines',
+            data.lines.map((line, i) => (i === index ? change(line) : line)),
+        );
+
+    const addLineLot = (index: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            lots: [
+                ...line.lots,
+                {
+                    id: generateUUID(),
+                    lot_number: '',
+                    expires_at: '',
+                    /** Lo que falta por repartir: casi siempre es todo. */
+                    quantity: Math.max(
+                        round2(line.quantity - assignedToLots(line)),
+                        0,
+                    ),
+                    status: 'active' as const,
+                },
+            ],
+        }));
+
+    const updateLineLot = <K extends keyof EntryLineLotRow>(
+        index: number,
+        lotIndex: number,
+        field: K,
+        value: EntryLineLotRow[K],
+    ) =>
+        mapLine(index, (line) => ({
+            ...line,
+            lots: line.lots.map((lot, i) =>
+                i === lotIndex ? { ...lot, [field]: value } : lot,
+            ),
+        }));
 
     /**
-     * Cuánto suben los gastos el costo de cada unidad, en tanto por ciento.
-     * Es la misma proporción que aplica el backend al repartirlos por valor.
+     * Una fila que nunca se guardó desaparece; una que ya existe se desactiva.
+     * La política de no borrado también alcanza a la trazabilidad.
      */
-    const landedRatio =
-        totals.receivedValue > 0
-            ? round2(
-                  ((Number(data.freight_amount) + Number(data.other_charges)) *
-                      100) /
-                      totals.receivedValue,
-              )
-            : 0;
+    const removeLineLot = (index: number, lotIndex: number) =>
+        mapLine(index, (line) => {
+            const lot = line.lots[lotIndex];
+
+            if (!lot) {
+                return line;
+            }
+
+            /** Las series que salían de ese lote se quedan sin lote. */
+            const serials = line.serials.map((serial) =>
+                serial.lot_number === lot.lot_number
+                    ? { ...serial, lot_number: '' }
+                    : serial,
+            );
+
+            return isSaved(lot.id, initialData, 'lots')
+                ? {
+                      ...line,
+                      serials,
+                      lots: line.lots.map((current, i) =>
+                          i === lotIndex
+                              ? { ...current, status: 'inactive' as const }
+                              : current,
+                      ),
+                  }
+                : {
+                      ...line,
+                      serials,
+                      lots: line.lots.filter((_, i) => i !== lotIndex),
+                  };
+        });
+
+    const addLineSerials = (index: number, numbers: string[]) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: [
+                ...line.serials,
+                ...numbers.map((serial_number) => ({
+                    id: generateUUID(),
+                    serial_number,
+                    lot_number: '',
+                    status: 'active' as const,
+                })),
+            ],
+        }));
+
+    const updateLineSerial = <K extends keyof EntryLineSerialRow>(
+        index: number,
+        serialIndex: number,
+        field: K,
+        value: EntryLineSerialRow[K],
+    ) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: line.serials.map((serial, i) =>
+                i === serialIndex ? { ...serial, [field]: value } : serial,
+            ),
+        }));
+
+    const removeLineSerial = (index: number, serialIndex: number) =>
+        mapLine(index, (line) => {
+            const serial = line.serials[serialIndex];
+
+            if (!serial) {
+                return line;
+            }
+
+            return isSaved(serial.id, initialData, 'serials')
+                ? {
+                      ...line,
+                      serials: line.serials.map((current, i) =>
+                          i === serialIndex
+                              ? { ...current, status: 'inactive' as const }
+                              : current,
+                      ),
+                  }
+                : {
+                      ...line,
+                      serials: line.serials.filter((_, i) => i !== serialIndex),
+                  };
+        });
+
+    /** Lo que pidió la línea de la orden. Vacío en una línea suelta. */
+    const orderedQuantityOf = (line: EntryLineRow): number | null => {
+        const source = orderLineOf(line.sourceable_id);
+
+        return source ? Number(source.quantity) : null;
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -752,7 +831,6 @@ export function useEntryForm({
         reset,
         mode,
         totals,
-        landedRatio,
         supplierLookupUrl: supplier.url,
         supplierOption: supplier.optionOf(data.supplier_id),
         selectSupplier,
@@ -770,8 +848,14 @@ export function useEntryForm({
         removeLine,
         updateLine,
         setLineItem,
-        setLineTax,
         setLineOrderLine,
+        addLineLot,
+        updateLineLot,
+        removeLineLot,
+        addLineSerials,
+        updateLineSerial,
+        removeLineSerial,
+        orderedQuantityOf,
         catalog,
         /** El inventario inicial no admite proveedor ni orden de origen. */
         allowsSupplier: data.entry_type !== INITIAL_TYPE,

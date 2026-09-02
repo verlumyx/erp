@@ -15,6 +15,7 @@ class SalesCreditNoteUpdateStatusService
     public function __construct(
         private readonly SalesCreditNoteRepositoryInterface $repository,
         private readonly SalesCreditNotePostingService $posting,
+        private readonly SalesCreditNoteApplicationService $applications,
         private readonly SalesCreditNoteReturnSyncService $returns,
     ) {}
 
@@ -45,6 +46,7 @@ class SalesCreditNoteUpdateStatusService
             /** Un borrador anulado no revierte nada: nunca movió mercancía. */
             if ($command->status === 'cancelled' && $wasPosted) {
                 $this->posting->reverse($model);
+                $this->applications->revert($model);
             }
 
             /** Anularla suelta la devolución que acreditaba: ese crédito ya no existe. */
@@ -53,6 +55,14 @@ class SalesCreditNoteUpdateStatusService
             }
 
             $this->repository->updateStatus($model, $command);
+
+            /**
+             * La nota gasta su crédito después de quedar confirmada, no antes:
+             * aplicarla puede agotarla, y agotada su estado es `completed`.
+             */
+            if ($command->status === 'confirmed') {
+                $this->applications->apply($model);
+            }
         });
 
         return $this->repository->findOrFail($id, $companyId);

@@ -27,6 +27,12 @@ class Client extends Model
 
     public const CODE_PREFIX = 'CLI';
 
+    /**
+     * Alias con el que el cliente viaja en las columnas `recipient_type` de los
+     * documentos que se le dirigen. Ver `SharedServiceProvider::MORPH_MAP`.
+     */
+    public const MORPH_ALIAS = 'client';
+
     /** Letra del RIF. `V`, `E` y `P` son naturales; `J`, `G` y `C` jurídicas. */
     public const DOCUMENT_TYPES = ['V', 'E', 'J', 'P', 'G', 'C'];
 

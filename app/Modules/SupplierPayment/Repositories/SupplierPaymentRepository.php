@@ -11,6 +11,7 @@ use App\Modules\SupplierPayment\Commands\SearchSupplierPaymentCommand;
 use App\Modules\SupplierPayment\Commands\SupplierPaymentApplicationData;
 use App\Modules\SupplierPayment\Commands\UpdateStatusSupplierPaymentCommand;
 use App\Modules\SupplierPayment\Commands\UpdateSupplierPaymentCommand;
+use App\Modules\SupplierPayment\Commands\WriteSupplierPaymentApplicationCommand;
 use App\Modules\SupplierPayment\Models\SupplierPayment;
 use App\Modules\SupplierPayment\Models\SupplierPaymentApplication;
 use App\Modules\SupplierPayment\Repositories\Contracts\SupplierPaymentRepositoryInterface;
@@ -28,6 +29,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
                 'supplier_id' => $command->supplierId,
                 'origin_type' => $command->originType,
                 'origin_id' => $command->originId,
+                'credit_source_id' => $this->creditSource($command->paymentMethod, $command->creditSourceId),
                 'payment_date' => $command->paymentDate,
                 'payment_method' => $command->paymentMethod,
                 'reference' => $command->reference,
@@ -65,6 +67,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
             /** El origen se congeló al crear el pago: no se reescribe aquí. */
             $model->update([
                 'supplier_id' => $command->supplierId,
+                'credit_source_id' => $this->creditSource($command->paymentMethod, $command->creditSourceId),
                 'payment_date' => $command->paymentDate,
                 'payment_method' => $command->paymentMethod,
                 'reference' => $command->reference,
@@ -96,12 +99,80 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
     public function activeApplications(SupplierPayment $model): array
     {
         return SupplierPaymentApplication::query()
-            ->where('source_type', SupplierPayment::APPLICATION_SOURCE)
-            ->where('source_id', $model->id)
+            ->where('source_type', $model->applicationSource())
+            ->where('source_id', $model->applicationSourceId())
             ->where('status', 'active')
             ->orderBy('created_at')
             ->get()
             ->all();
+    }
+
+    /**
+     * Las aplicaciones vivas de cualquier origen —pago, anticipo o nota de
+     * crédito—, en el orden en que se escribieron.
+     *
+     * @return array<int, SupplierPaymentApplication>
+     */
+    public function applicationsOf(string $sourceType, string $sourceId): array
+    {
+        return SupplierPaymentApplication::query()
+            ->where('source_type', $sourceType)
+            ->where('source_id', $sourceId)
+            ->where('status', 'active')
+            ->orderBy('created_at')
+            ->get()
+            ->all();
+    }
+
+    public function findApplication(
+        string $sourceType,
+        string $sourceId,
+        string $purchaseInvoiceId,
+    ): ?SupplierPaymentApplication {
+        return SupplierPaymentApplication::query()
+            ->where('source_type', $sourceType)
+            ->where('source_id', $sourceId)
+            ->where('purchase_invoice_id', $purchaseInvoiceId)
+            ->first();
+    }
+
+    /**
+     * Escribe —o reactiva— la fila con la que un anticipo o una nota abona una
+     * factura. La tabla es única por `(factura, origen)`, así que una segunda
+     * aplicación del mismo documento a la misma factura reescribe su fila en vez
+     * de agregar otra.
+     */
+    public function writeApplication(
+        WriteSupplierPaymentApplicationCommand $command,
+    ): SupplierPaymentApplication {
+        $attributes = [
+            'company_id' => $command->companyId,
+            'applied_amount' => $command->appliedAmount,
+            'applied_at' => now(),
+            'exchange_rate' => $command->exchangeRate,
+            'exchange_difference' => $command->exchangeDifference,
+            'status' => 'active',
+        ];
+
+        $existing = $this->findApplication(
+            $command->sourceType,
+            $command->sourceId,
+            $command->purchaseInvoiceId,
+        );
+
+        if ($existing !== null) {
+            $existing->update($attributes);
+
+            return $existing;
+        }
+
+        return SupplierPaymentApplication::create([
+            ...$attributes,
+            'purchase_invoice_id' => $command->purchaseInvoiceId,
+            'source_type' => $command->sourceType,
+            'source_id' => $command->sourceId,
+            'created_by' => $command->createdBy,
+        ]);
     }
 
     public function postApplication(
@@ -166,9 +237,12 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
      */
     private function syncApplications(SupplierPayment $payment, array $applications, ?string $createdBy): void
     {
+        $source = $payment->applicationSource();
+        $sourceId = $payment->applicationSourceId();
+
         $existing = SupplierPaymentApplication::query()
-            ->where('source_type', SupplierPayment::APPLICATION_SOURCE)
-            ->where('source_id', $payment->id)
+            ->where('source_type', $source)
+            ->where('source_id', $sourceId)
             ->get()
             ->keyBy('purchase_invoice_id');
 
@@ -195,18 +269,27 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
             $keep[] = SupplierPaymentApplication::create([
                 ...$attributes,
                 'purchase_invoice_id' => $row->purchaseInvoiceId,
-                'source_type' => SupplierPayment::APPLICATION_SOURCE,
-                'source_id' => $payment->id,
+                'source_type' => $source,
+                'source_id' => $sourceId,
                 'exchange_difference' => 0,
                 'created_by' => $createdBy,
             ])->id;
         }
 
         SupplierPaymentApplication::query()
-            ->where('source_type', SupplierPayment::APPLICATION_SOURCE)
-            ->where('source_id', $payment->id)
+            ->where('source_type', $source)
+            ->where('source_id', $sourceId)
             ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
             ->update(['status' => 'reversed']);
+    }
+
+    /**
+     * De qué crédito sale el pago. Solo tiene sentido pagando con un anticipo o
+     * con una nota; con dinero de por medio se limpia.
+     */
+    private function creditSource(string $paymentMethod, ?string $creditSourceId): ?string
+    {
+        return isset(SupplierPayment::CREDIT_METHODS[$paymentMethod]) ? $creditSourceId : null;
     }
 
     /**

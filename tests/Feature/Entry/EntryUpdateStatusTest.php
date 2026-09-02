@@ -10,6 +10,8 @@ use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
+use App\Modules\PurchaseOrder\Models\PurchaseOrder;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 
 test('confirming puts the goods into the warehouse at the landed cost', function () {
@@ -91,12 +93,13 @@ test('the entry is written in the base unit of the item', function () {
         'is_base' => 'no',
     ]);
 
+    $item->update(['average_cost' => 10]);
+
     $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
         'lines' => [[
             'item_id' => $item->id,
             'measurement_unit_id' => $box->id,
             'quantity' => 2,
-            'unit_price' => 120,
             'location_id' => $location->id,
         ]],
     ]);
@@ -111,37 +114,59 @@ test('the entry is written in the base unit of the item', function () {
 test('confirming refreshes the average cost of the item', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
 
-    expect((float) $item->refresh()->average_cost)->toBe(0.0);
+    $item->update(['average_cost' => 0]);
 
-    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
-        'lines' => [[
-            'item_id' => $item->id,
-            'measurement_unit_id' => $unit->id,
-            'quantity' => 10,
-            'unit_price' => 20,
-            'location_id' => $location->id,
-        ]],
-    ]);
+    /**
+     * El costo lo pone la orden de compra: la pantalla de la entrada no lo
+     * captura, así que para estrenar la valoración hace falta una orden detrás.
+     */
+    $entry = receiveOrderedAt($user, $company, $supplier, $warehouse, $item, $unit, $location, 20);
 
     moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
 
     expect((float) $item->refresh()->average_cost)->toBe(20.0);
 
     /** Una segunda entrada más cara pondera el promedio, no lo sustituye. */
-    $second = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
-        'lines' => [[
-            'item_id' => $item->id,
-            'measurement_unit_id' => $unit->id,
-            'quantity' => 10,
-            'unit_price' => 40,
-            'location_id' => $location->id,
-        ]],
-    ]);
+    $second = receiveOrderedAt($user, $company, $supplier, $warehouse, $item, $unit, $location, 40);
 
     moveEntryTo($user, $company, $second, 'confirmed')->assertSessionHasNoErrors();
 
     expect((float) $item->refresh()->average_cost)->toBe(30.0);
 });
+
+/** Diez unidades recibidas contra una orden que las pactó a ese costo. */
+function receiveOrderedAt(
+    $user,
+    $company,
+    $supplier,
+    $warehouse,
+    $item,
+    $unit,
+    $location,
+    float $unitPrice,
+): Entry {
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => $unitPrice,
+        ]],
+    ]);
+
+    return createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'location_id' => $location->id,
+            'sourceable_type' => PurchaseOrderLine::MORPH_ALIAS,
+            'sourceable_id' => $order->lines->first()->id,
+        ]],
+    ]);
+}
 
 test('the lot of the supplier is created when the entry is confirmed', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
@@ -151,15 +176,17 @@ test('the lot of the supplier is created when the entry is confirmed', function 
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 10,
-            'unit_price' => 25,
             'location_id' => $location->id,
-            'lot_number' => 'L-2026-04',
-            'expires_at' => now()->addYear()->toDateString(),
+            'lots' => [[
+                'lot_number' => 'L-2026-04',
+                'quantity' => 10,
+                'expires_at' => now()->addYear()->toDateString(),
+            ]],
         ]],
     ]);
 
     /** En borrador el lote todavía no existe: solo el número del papel. */
-    expect($entry->lines->first()->lot_id)->toBeNull();
+    expect($entry->lines->first()->lots->first()->lot_id)->toBeNull();
     expect(ItemLot::count())->toBe(0);
 
     moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
@@ -170,9 +197,62 @@ test('the lot of the supplier is created when the entry is confirmed', function 
     expect($lot->supplier_id)->toBe($supplier->id);
     expect($lot->expires_at?->toDateString())->toBe(now()->addYear()->toDateString());
 
-    /** Y la línea queda apuntando al lote, no al papel. */
-    expect($entry->lines()->first()->lot_id)->toBe($lot->id);
+    /** Y la fila de trazabilidad queda apuntando al lote, no al papel. */
+    expect($entry->lines()->first()->lots()->first()->lot_id)->toBe($lot->id);
     expect(entryMovements($entry)->first()->lot_id)->toBe($lot->id);
+});
+
+test('a line split across two lots writes one kardex movement per lot', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'location_id' => $location->id,
+            'lots' => [
+                ['lot_number' => 'L-A', 'quantity' => 4],
+                ['lot_number' => 'L-B', 'quantity' => 6],
+            ],
+        ]],
+    ]);
+
+    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
+
+    $movements = entryMovements($entry);
+    expect($movements)->toHaveCount(2);
+    expect($movements->pluck('quantity')->map(fn ($q): float => (float) $q)->all())->toBe([4.0, 6.0]);
+    expect($movements->pluck('lot_id')->filter()->unique())->toHaveCount(2);
+    expect(ItemLot::where('item_id', $item->id)->count())->toBe(2);
+});
+
+test('what inspection rejects is spread across the lots of the line', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
+
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'inspection_status' => 'partial',
+        'inspected_by' => $user->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'rejected_quantity' => 2,
+            'rejection_reason' => 'Dos cajas golpeadas.',
+            'location_id' => $location->id,
+            'lots' => [
+                ['lot_number' => 'L-A', 'quantity' => 4],
+                ['lot_number' => 'L-B', 'quantity' => 6],
+            ],
+        ]],
+    ]);
+
+    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
+
+    /** Ocho aceptadas repartidas en la misma proporción que llegaron: 3,2 y 4,8. */
+    $movements = entryMovements($entry);
+    expect($movements->pluck('quantity')->map(fn ($q): float => (float) $q)->all())->toBe([3.2, 4.8]);
+    expect((float) $movements->sum('quantity'))->toBe(8.0);
 });
 
 test('a lot that already exists is reused instead of duplicated', function () {
@@ -190,16 +270,15 @@ test('a lot that already exists is reused instead of duplicated', function () {
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 4,
-            'unit_price' => 25,
             'location_id' => $location->id,
-            'lot_number' => 'L-77',
+            'lots' => [['lot_number' => 'L-77', 'quantity' => 4]],
         ]],
     ]);
 
     moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
 
     expect(ItemLot::where('item_id', $item->id)->count())->toBe(1);
-    expect($entry->lines()->first()->lot_id)->toBe($existing->id);
+    expect($entry->lines()->first()->lots()->first()->lot_id)->toBe($existing->id);
 });
 
 test('a serialized item enters unit by unit and registers its serials', function () {
@@ -212,9 +291,12 @@ test('a serialized item enters unit by unit and registers its serials', function
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 3,
-            'unit_price' => 100,
             'location_id' => $location->id,
-            'serial_numbers' => ['S-1', 'S-2', 'S-3'],
+            'serials' => [
+                ['serial_number' => 'S-1'],
+                ['serial_number' => 'S-2'],
+                ['serial_number' => 'S-3'],
+            ],
         ]],
     ]);
 

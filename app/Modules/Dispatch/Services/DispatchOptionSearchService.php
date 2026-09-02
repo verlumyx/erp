@@ -30,7 +30,7 @@ class DispatchOptionSearchService
         $result = $this->repository->search($command);
 
         (new Collection($result['data']))->loadMissing([
-            'client',
+            'recipient',
             'lines.item',
             'lines.measurementUnit',
         ]);

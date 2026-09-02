@@ -47,6 +47,8 @@ export interface SupplierPayment {
     supplier_advance_balance?: string;
     origin_type: SupplierPaymentOriginType;
     origin_id: string | null;
+    /** De qué anticipo o nota sale el crédito, pagando sin dinero. */
+    credit_source_id: string | null;
     payment_date: string;
     payment_method: SupplierPaymentMethod;
     reference: string | null;

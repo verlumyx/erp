@@ -10,10 +10,13 @@ use App\Modules\SupplierPayment\Models\SupplierPaymentApplication;
 test('confirming a payment settles its invoices and lowers what the supplier is owed', function () {
     [$user, $company, , $warehouse, $item, $unit] = supplierPaymentScenario();
 
-    $supplier = Supplier::factory()->withBalance(500)->create(['company_id' => $company->id]);
+    /** La deuda no se siembra: la cargan las dos facturas al confirmarse. */
+    $supplier = Supplier::factory()->create(['company_id' => $company->id, 'current_balance' => 0]);
 
     $first = payablePurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
     $second = payablePurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
+
+    expect((float) $supplier->refresh()->current_balance)->toBe(500.0);
 
     $payment = createSupplierPayment($user, $company, $supplier, [
         'amount' => 300,
@@ -127,7 +130,8 @@ test('an invoice already settled by another payment blocks the confirmation', fu
 test('cancelling a confirmed payment gives the balance back', function () {
     [$user, $company, , $warehouse, $item, $unit] = supplierPaymentScenario();
 
-    $supplier = Supplier::factory()->withBalance(250)->create(['company_id' => $company->id]);
+    /** La deuda no se siembra: la carga la factura al confirmarse. */
+    $supplier = Supplier::factory()->create(['company_id' => $company->id, 'current_balance' => 0]);
 
     $invoice = payablePurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
 

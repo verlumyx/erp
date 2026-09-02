@@ -30,6 +30,7 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
         'warehouse',
         'priceList',
         'salesperson',
+        'dispatches',
     ];
 
     public function __construct(
@@ -341,6 +342,27 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
                 'status' => 'inactive',
             ]);
         }
+    }
+
+    /**
+     * @return array<int, SalesOrderLine>
+     */
+    public function activeLines(SalesOrder $model): array
+    {
+        return SalesOrderLine::query()
+            ->with(['item'])
+            ->where('sales_order_id', $model->id)
+            ->where('status', 'active')
+            ->orderBy('line_number')
+            ->get()
+            ->all();
+    }
+
+    public function writeLineReservation(SalesOrderLine $line, float $reservedQuantity): SalesOrderLine
+    {
+        $line->update(['reserved_quantity' => $reservedQuantity]);
+
+        return $line;
     }
 
     public function lockLineById(string $id, ?string $companyId = null): ?SalesOrderLine

@@ -10,6 +10,8 @@ use App\Modules\Company\Models\Company;
 use App\Modules\Route\Models\Route;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
+use App\Modules\Transfer\Models\Transfer;
+use App\Modules\Transfer\Models\TransferLine;
 use App\Modules\User\Models\User;
 use App\Modules\Warehouse\Models\Warehouse;
 use Database\Factories\DispatchFactory;
@@ -32,6 +34,13 @@ class Dispatch extends Model
 
     public const CODE_PREFIX = 'DES';
 
+    /**
+     * Alias con el que el despacho viaja en las columnas `sourceable_type` de
+     * los documentos que origina: la entrada que recibe en destino lo que este
+     * despacho sacó del origen.
+     */
+    public const MORPH_ALIAS = 'dispatch';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     /** Un despacho confirmado ya sacó la mercancía: no se edita, se anula. */
@@ -44,10 +53,19 @@ class Dispatch extends Model
      *
      * @var array<int, string>
      */
-    public const SOURCE_TYPES = [SalesOrder::MORPH_ALIAS];
+    public const SOURCE_TYPES = [SalesOrder::MORPH_ALIAS, Transfer::MORPH_ALIAS];
 
     /** Alias admitidos como línea origen, en el mismo orden que arriba. */
-    public const SOURCE_LINE_TYPES = [SalesOrderLine::MORPH_ALIAS];
+    public const SOURCE_LINE_TYPES = [SalesOrderLine::MORPH_ALIAS, TransferLine::MORPH_ALIAS];
+
+    /**
+     * A quién va dirigida la mercancía. Un despacho de venta la lleva a un
+     * cliente; uno de traslado, a otra bodega de la propia empresa. Por eso el
+     * destinatario es polimórfico y no un cliente a secas.
+     *
+     * @var array<int, string>
+     */
+    public const RECIPIENT_TYPES = [Client::MORPH_ALIAS, Warehouse::MORPH_ALIAS];
 
     /** Alias con el que el kardex reconoce al despacho como origen. */
     public const MOVEMENT_ORIGIN_TYPE = 'dispatch';
@@ -99,7 +117,8 @@ class Dispatch extends Model
         'id',
         'company_id',
         'code',
-        'client_id',
+        'recipient_type',
+        'recipient_id',
         'sourceable_type',
         'sourceable_id',
         'client_address_id',
@@ -157,9 +176,32 @@ class Dispatch extends Model
         return $this->belongsTo(Company::class, 'company_id', 'id');
     }
 
-    public function client(): BelongsTo
+    /**
+     * A quién va dirigida la mercancía: un cliente en un despacho de venta, una
+     * bodega propia en uno que sirve un traslado. No es un FK: el tipo guarda el
+     * alias del morph map, así que renombrar la clase no invalida lo escrito.
+     */
+    public function recipient(): MorphTo
     {
-        return $this->belongsTo(Client::class, 'client_id', 'id');
+        return $this->morphTo();
+    }
+
+    /** El cliente al que va, si va a un cliente. */
+    public function client(): ?Client
+    {
+        return $this->recipient instanceof Client ? $this->recipient : null;
+    }
+
+    /** Va dirigido a un cliente: es un despacho de venta, no de traslado. */
+    public function goesToClient(): bool
+    {
+        return $this->recipient_type === Client::MORPH_ALIAS;
+    }
+
+    /** La mercancía viaja entre bodegas propias: detrás hay un traslado. */
+    public function servesTransfer(): bool
+    {
+        return $this->sourceable_type === Transfer::MORPH_ALIAS;
     }
 
     /**

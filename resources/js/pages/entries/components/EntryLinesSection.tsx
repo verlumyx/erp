@@ -1,21 +1,16 @@
-import { ChevronDown, ClipboardCopy, Plus, X } from 'lucide-react';
+import { ChevronDown, ClipboardCopy, Layers, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { cn } from '@/lib/utils';
-import { taxOptionLabel } from '@/types/tax';
 import { useEntryFormContext } from '../contexts/EntryFormContext';
-import { lineAmounts } from '../hooks/useEntryForm';
-import { formatAmount } from '../types/Entry';
-
-/** Valor del select cuando la línea no lleva impuesto: '' no lo distingue. */
-const NO_TAX = 'none';
+import { acceptedQuantity } from '../hooks/useEntryForm';
+import { EntryLineTraceabilityDialog } from './EntryLineTraceabilityDialog';
 
 /** Valor del select cuando la línea no sale de ninguna línea de orden. */
 const NO_ORDER_LINE = 'none';
@@ -24,21 +19,10 @@ const NO_ORDER_LINE = 'none';
 const DEFAULT_LOCATION = 'default';
 
 /**
- * Convierte lo que el usuario escribe en el campo de series —separadas por
- * coma, punto y coma o salto de línea— en la lista que viaja al backend.
- */
-function parseSerials(value: string): string[] {
-    return value
-        .split(/[\n,;]/)
-        .map((serial) => serial.trim())
-        .filter((serial) => serial !== '');
-}
-
-/**
- * 3.2 Líneas de la entrada. Cada fila fija artículo, unidad, lo que llegó y a
- * qué costo; lo que la inspección rechaza se descuenta de lo que entra al
- * inventario. El costo con el que la mercancía se registra en el kardex no se
- * captura: lo calcula el backend repartiendo el flete y los gastos.
+ * 3.2 Líneas de la entrada. Cada fila dice qué artículo llega, en qué unidad,
+ * cuánto se pidió y cuánto se recibe. Nada más: el costo, el impuesto y el
+ * descuento se decidieron en la orden de compra y los pone el backend, y la
+ * ubicación, el rechazo y la trazabilidad viven en el detalle de la línea.
  */
 export function EntryLinesSection() {
     const {
@@ -49,23 +33,13 @@ export function EntryLinesSection() {
         removeLine,
         updateLine,
         setLineItem,
-        setLineTax,
         setLineOrderLine,
         orderLines,
         pendingOf,
+        orderedQuantityOf,
         copyOrderLines,
         locations,
-        options,
     } = useEntryFormContext();
-
-    /** El catálogo de impuestos es el mismo para todas las líneas. */
-    const taxOptions: OptionType[] = [
-        { value: NO_TAX, label: 'Sin impuesto' },
-        ...options.taxes.map((tax) => ({
-            value: tax.id,
-            label: taxOptionLabel(tax),
-        })),
-    ];
 
     const locationOptions: OptionType[] = [
         { value: DEFAULT_LOCATION, label: 'Ubicación por defecto' },
@@ -93,40 +67,16 @@ export function EntryLinesSection() {
         (line) => pendingOf(line.id) > 0,
     );
 
-    const [openCharges, setOpenCharges] = useState<Record<string, boolean>>({});
+    const [openDetail, setOpenDetail] = useState<Record<string, boolean>>({});
 
-    const toggleCharges = (lineId: string) =>
-        setOpenCharges((current) => ({
+    const toggleDetail = (lineId: string) =>
+        setOpenDetail((current) => ({
             ...current,
             [lineId]: !current[lineId],
         }));
 
-    /**
-     * Lo que el usuario lleva escrito en el campo de series, tal cual. La línea
-     * guarda la lista ya separada, y esa lista no puede alimentar el campo: al
-     * volver a unirla se comería el separador que se acaba de teclear.
-     */
-    const [serialDrafts, setSerialDrafts] = useState<Record<string, string>>(
-        {},
-    );
-
-    const serialsOf = (lineId: string, serials: string[]): string =>
-        serialDrafts[lineId] ?? serials.join(', ');
-
-    const writeSerials = (index: number, lineId: string, value: string) => {
-        setSerialDrafts((current) => ({ ...current, [lineId]: value }));
-        updateLine(index, 'serial_numbers', parseSerials(value));
-    };
-
-    /** Cambiar de artículo suelta las series: eran de otra mercancía. */
-    const changeItem = (
-        index: number,
-        lineId: string,
-        option: Parameters<typeof setLineItem>[1],
-    ) => {
-        setSerialDrafts((current) => ({ ...current, [lineId]: '' }));
-        setLineItem(index, option);
-    };
+    /** La línea cuyo detalle de lotes y series está abierto en el modal. */
+    const [traceabilityOf, setTraceabilityOf] = useState<number | null>(null);
 
     const fieldError = (index: number, field: string) =>
         (errors as Record<string, string | undefined>)[
@@ -160,18 +110,26 @@ export function EntryLinesSection() {
             )}
 
             {data.lines.map((line, index) => {
-                const amounts = lineAmounts(line);
                 const units = unitsOf(line.item_id);
                 const unitOptions: OptionType[] = units.map((unit) => ({
                     value: unit.measurement_unit_id,
                     label: unit.name,
                 }));
-                const chargesOpen = openCharges[line.id] === true;
-                const hasCharges =
-                    line.discount_percent > 0 ||
-                    line.tax_id !== '' ||
+
+                const lots = line.lots.filter((lot) => lot.status === 'active');
+                const serials = line.serials.filter(
+                    (serial) => serial.status === 'active',
+                );
+
+                const detailOpen = openDetail[line.id] === true;
+                const hasDetail =
+                    line.location_id !== '' ||
+                    line.rejected_quantity > 0 ||
                     line.sourceable_id !== '' ||
-                    line.rejected_quantity > 0;
+                    lots.length > 0 ||
+                    serials.length > 0;
+
+                const ordered = orderedQuantityOf(line);
                 const pending = pendingOf(line.sourceable_id);
 
                 return (
@@ -179,7 +137,7 @@ export function EntryLinesSection() {
                         key={line.id}
                         className="flex flex-col gap-3 rounded-[12px] border p-4"
                     >
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_1.2fr_1fr_1.2fr_auto]">
+                        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-[2.4fr_1.2fr_1fr_1.2fr_auto]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
@@ -191,21 +149,21 @@ export function EntryLinesSection() {
                                         size="icon"
                                         className={cn(
                                             'relative size-[42px] shrink-0 rounded-[10px] bg-card',
-                                            hasCharges && 'text-primary',
+                                            hasDetail && 'text-primary',
                                         )}
-                                        onClick={() => toggleCharges(line.id)}
-                                        aria-expanded={chargesOpen}
+                                        onClick={() => toggleDetail(line.id)}
+                                        aria-expanded={detailOpen}
                                         aria-label={`${
-                                            chargesOpen ? 'Ocultar' : 'Mostrar'
-                                        } impuesto, descuento, rechazo y trazabilidad de la línea ${index + 1}`}
+                                            detailOpen ? 'Ocultar' : 'Mostrar'
+                                        } ubicación, rechazo y trazabilidad de la línea ${index + 1}`}
                                     >
                                         <ChevronDown
                                             className={cn(
                                                 'size-4 transition-transform',
-                                                chargesOpen && 'rotate-180',
+                                                detailOpen && 'rotate-180',
                                             )}
                                         />
-                                        {hasCharges && !chargesOpen && (
+                                        {hasDetail && !detailOpen && (
                                             <span className="absolute top-1.5 right-1.5 size-[7px] rounded-full bg-primary ring-2 ring-card" />
                                         )}
                                     </Button>
@@ -218,11 +176,7 @@ export function EntryLinesSection() {
                                                 line.item_id,
                                             )}
                                             onChange={(option) =>
-                                                changeItem(
-                                                    index,
-                                                    line.id,
-                                                    option,
-                                                )
+                                                setLineItem(index, option)
                                             }
                                             formatLabel={catalog.labelOf}
                                             error={
@@ -280,9 +234,34 @@ export function EntryLinesSection() {
                                 )}
                             </div>
 
+                            {/**
+                             * Lo que pidió la orden. No se edita aquí: se
+                             * cambia en la orden de compra, no al recibir.
+                             */}
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
-                                    Cantidad *
+                                    Cantidad
+                                </Label>
+                                <Input
+                                    value={
+                                        ordered ??
+                                        (line.sourceable_id === '' ? '—' : '…')
+                                    }
+                                    readOnly
+                                    disabled
+                                    className="h-[42px] rounded-[10px] tabular-nums"
+                                />
+                                <span className="text-[12px] text-muted-foreground">
+                                    {ordered === null &&
+                                    line.sourceable_id === ''
+                                        ? 'Sin orden'
+                                        : 'Lo pedido'}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[13px] font-semibold">
+                                    Cantidad a recibir *
                                 </Label>
                                 <NumberInput
                                     value={line.quantity}
@@ -310,253 +289,104 @@ export function EntryLinesSection() {
                             </div>
 
                             <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Costo unitario *
-                                </Label>
-                                <CurrencyInput
-                                    value={line.unit_price}
-                                    onValueChange={(value) =>
-                                        updateLine(index, 'unit_price', value)
-                                    }
-                                    min={0}
-                                    decimals={6}
-                                    className={`h-[42px] rounded-[10px] ${
-                                        fieldError(index, 'unit_price')
-                                            ? 'border-bad'
-                                            : ''
-                                    }`}
-                                />
-                                {fieldError(index, 'unit_price') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'unit_price')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex items-end gap-2">
-                                <LineNotePopover
-                                    value={line.notes}
-                                    onValueChange={(value) =>
-                                        updateLine(index, 'notes', value)
-                                    }
-                                    ariaLabel={`Nota de la línea ${index + 1}`}
-                                />
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-[42px] rounded-[10px] bg-card"
-                                    onClick={() => removeLine(index)}
-                                    aria-label="Quitar línea"
+                                <Label
+                                    aria-hidden
+                                    className="text-[13px] font-semibold opacity-0 select-none"
                                 >
-                                    <X className="size-4" />
-                                </Button>
+                                    &nbsp;
+                                </Label>
+                                <div className="flex gap-2">
+                                    <LineNotePopover
+                                        value={line.notes}
+                                        onValueChange={(value) =>
+                                            updateLine(index, 'notes', value)
+                                        }
+                                        ariaLabel={`Nota de la línea ${index + 1}`}
+                                    />
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="size-[42px] rounded-[10px] bg-card"
+                                        onClick={() => removeLine(index)}
+                                        aria-label="Quitar línea"
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-3">
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Ubicación
-                                </Label>
-                                <Select2
-                                    options={locationOptions}
-                                    value={
-                                        locationOptions.find(
-                                            (option) =>
-                                                option.value ===
-                                                (line.location_id ||
-                                                    DEFAULT_LOCATION),
-                                        ) ?? null
-                                    }
-                                    onChange={(option) =>
-                                        updateLine(
-                                            index,
-                                            'location_id',
-                                            !option ||
-                                                option.value ===
-                                                    DEFAULT_LOCATION
-                                                ? ''
-                                                : option.value,
-                                        )
-                                    }
-                                    error={!!fieldError(index, 'location_id')}
-                                    size="md"
-                                    placeholder="Ubicación por defecto"
-                                />
-                                {fieldError(index, 'location_id') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'location_id')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Lote del proveedor
-                                </Label>
-                                <Input
-                                    value={line.lot_number}
-                                    onChange={(e) =>
-                                        updateLine(
-                                            index,
-                                            'lot_number',
-                                            e.target.value,
-                                        )
-                                    }
-                                    maxLength={60}
-                                    placeholder="Sin lote"
-                                    className={`h-[42px] rounded-[10px] ${
-                                        fieldError(index, 'lot_number')
-                                            ? 'border-bad'
-                                            : ''
-                                    }`}
-                                />
-                                <span className="text-[12px] text-muted-foreground">
-                                    Se registra al confirmar la entrada
-                                </span>
-                                {fieldError(index, 'lot_number') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'lot_number')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
-                                    Vencimiento del lote
-                                </Label>
-                                <Input
-                                    type="date"
-                                    value={line.expires_at}
-                                    onChange={(e) =>
-                                        updateLine(
-                                            index,
-                                            'expires_at',
-                                            e.target.value,
-                                        )
-                                    }
-                                    disabled={line.lot_number === ''}
-                                    className={`h-[42px] rounded-[10px] ${
-                                        fieldError(index, 'expires_at')
-                                            ? 'border-bad'
-                                            : ''
-                                    }`}
-                                />
-                                {fieldError(index, 'expires_at') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'expires_at')}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col gap-1.5 sm:col-span-3">
-                                <Label className="text-[13px] font-semibold">
-                                    Series recibidas
-                                </Label>
-                                <Input
-                                    value={serialsOf(
-                                        line.id,
-                                        line.serial_numbers,
-                                    )}
-                                    onChange={(e) =>
-                                        writeSerials(
-                                            index,
-                                            line.id,
-                                            e.target.value,
-                                        )
-                                    }
-                                    placeholder="Solo en artículos serializados: una serie por unidad aceptada"
-                                    className={`h-[42px] rounded-[10px] ${
-                                        fieldError(index, 'serial_numbers')
-                                            ? 'border-bad'
-                                            : ''
-                                    }`}
-                                />
-                                {line.serial_numbers.length > 0 && (
-                                    <span className="text-[12px] text-muted-foreground">
-                                        {line.serial_numbers.length} serie
-                                        {line.serial_numbers.length !== 1
-                                            ? 's'
-                                            : ''}{' '}
-                                        para {amounts.receivedQuantity} unidad
-                                        {amounts.receivedQuantity !== 1
-                                            ? 'es'
-                                            : ''}{' '}
-                                        aceptada
-                                        {amounts.receivedQuantity !== 1
-                                            ? 's'
-                                            : ''}
-                                    </span>
-                                )}
-                                {fieldError(index, 'serial_numbers') && (
-                                    <p className="text-sm text-bad">
-                                        {fieldError(index, 'serial_numbers')}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        {chargesOpen && (
+                        {detailOpen && (
                             <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Impuesto
+                                        Ubicación
                                     </Label>
                                     <Select2
-                                        options={taxOptions}
+                                        options={locationOptions}
                                         value={
-                                            taxOptions.find(
+                                            locationOptions.find(
                                                 (option) =>
                                                     option.value ===
-                                                    (line.tax_id || NO_TAX),
+                                                    (line.location_id ||
+                                                        DEFAULT_LOCATION),
                                             ) ?? null
                                         }
                                         onChange={(option) =>
-                                            setLineTax(
+                                            updateLine(
                                                 index,
+                                                'location_id',
                                                 !option ||
-                                                    option.value === NO_TAX
+                                                    option.value ===
+                                                        DEFAULT_LOCATION
                                                     ? ''
                                                     : option.value,
                                             )
                                         }
-                                        error={!!fieldError(index, 'tax_id')}
+                                        error={
+                                            !!fieldError(index, 'location_id')
+                                        }
                                         size="md"
-                                        placeholder="Sin impuesto"
+                                        placeholder="Ubicación por defecto"
                                     />
-                                    {line.withholding_percent > 0 && (
-                                        <span className="text-[12px] text-muted-foreground">
-                                            Retiene {line.withholding_percent}%
-                                            del impuesto
-                                        </span>
-                                    )}
-                                    {fieldError(index, 'tax_id') && (
+                                    {fieldError(index, 'location_id') && (
                                         <p className="text-sm text-bad">
-                                            {fieldError(index, 'tax_id')}
+                                            {fieldError(index, 'location_id')}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Descuento %
+                                        Lotes y series
                                     </Label>
-                                    <NumberInput
-                                        value={line.discount_percent}
-                                        onValueChange={(value) =>
-                                            updateLine(
-                                                index,
-                                                'discount_percent',
-                                                value,
-                                            )
-                                        }
-                                        min={0}
-                                        max={100}
-                                        decimals={4}
-                                        className="h-[42px] rounded-[10px]"
-                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-[42px] justify-start rounded-[10px] bg-card font-semibold"
+                                        onClick={() => setTraceabilityOf(index)}
+                                    >
+                                        <Layers />
+                                        {lots.length === 0 &&
+                                        serials.length === 0
+                                            ? 'Sin trazabilidad'
+                                            : `${lots.length} lote${
+                                                  lots.length !== 1 ? 's' : ''
+                                              } · ${serials.length} serie${
+                                                  serials.length !== 1
+                                                      ? 's'
+                                                      : ''
+                                              }`}
+                                    </Button>
+                                    {(fieldError(index, 'lots') ||
+                                        fieldError(index, 'serials')) && (
+                                        <p className="text-sm text-bad">
+                                            {fieldError(index, 'lots') ??
+                                                fieldError(index, 'serials')}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-1.5">
@@ -667,7 +497,8 @@ export function EntryLinesSection() {
                                         />
                                         <span className="text-[12px] text-muted-foreground">
                                             Atarla limita lo recibido a lo que
-                                            queda pendiente
+                                            queda pendiente, y trae el costo con
+                                            el que se pidió
                                         </span>
                                         {fieldError(index, 'sourceable_id') && (
                                             <p className="text-sm text-bad">
@@ -686,42 +517,7 @@ export function EntryLinesSection() {
                             <span className="text-muted-foreground">
                                 Aceptado{' '}
                                 <b className="font-bold text-foreground tabular-nums">
-                                    {amounts.receivedQuantity}
-                                </b>
-                            </span>
-                            <span className="text-muted-foreground">
-                                Base{' '}
-                                <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(
-                                        amounts.subtotal,
-                                        data.currency,
-                                    )}
-                                </b>
-                            </span>
-                            <span className="text-muted-foreground">
-                                Impuesto{' '}
-                                <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(
-                                        amounts.taxAmount,
-                                        data.currency,
-                                    )}
-                                </b>
-                            </span>
-                            {amounts.withholdingAmount > 0 && (
-                                <span className="text-muted-foreground">
-                                    Retención{' '}
-                                    <b className="font-bold text-foreground tabular-nums">
-                                        {formatAmount(
-                                            amounts.withholdingAmount,
-                                            data.currency,
-                                        )}
-                                    </b>
-                                </span>
-                            )}
-                            <span className="text-muted-foreground">
-                                Total{' '}
-                                <b className="font-bold text-foreground tabular-nums">
-                                    {formatAmount(amounts.total, data.currency)}
+                                    {acceptedQuantity(line)}
                                 </b>
                             </span>
                         </div>
@@ -738,6 +534,11 @@ export function EntryLinesSection() {
                 <Plus />
                 Agregar línea
             </Button>
+
+            <EntryLineTraceabilityDialog
+                index={traceabilityOf}
+                onClose={() => setTraceabilityOf(null)}
+            />
         </div>
     );
 }

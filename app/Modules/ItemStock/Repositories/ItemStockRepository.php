@@ -114,6 +114,29 @@ class ItemStockRepository extends ItemStockFilters implements ItemStockRepositor
         ];
     }
 
+    public function warehouseAvailable(?string $companyId, string $itemId, string $warehouseId): float
+    {
+        $row = ItemStock::query()
+            ->selectRaw('COALESCE(SUM(available_quantity), 0) as available')
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->where('item_id', $itemId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        return round((float) ($row?->available ?? 0), 4);
+    }
+
+    public function warehouseQuantity(?string $companyId, string $warehouseId): float
+    {
+        $row = ItemStock::query()
+            ->selectRaw('COALESCE(SUM(quantity), 0) as quantity')
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        return round((float) ($row?->quantity ?? 0), 4);
+    }
+
     public function companyBalance(?string $companyId, string $itemId): array
     {
         $row = ItemStock::query()

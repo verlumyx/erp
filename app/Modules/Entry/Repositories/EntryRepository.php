@@ -9,9 +9,12 @@ use App\Modules\Entry\Commands\EntryLineData;
 use App\Modules\Entry\Commands\SearchEntryCommand;
 use App\Modules\Entry\Commands\UpdateEntryCommand;
 use App\Modules\Entry\Commands\UpdateStatusEntryCommand;
-use App\Modules\Entry\Commands\WriteEntryLineTraceabilityCommand;
+use App\Modules\Entry\Commands\WriteEntryLineLotCommand;
+use App\Modules\Entry\Commands\WriteEntryLineSerialCommand;
 use App\Modules\Entry\Models\Entry;
 use App\Modules\Entry\Models\EntryLine;
+use App\Modules\Entry\Models\EntryLineLot;
+use App\Modules\Entry\Models\EntryLineSerial;
 use App\Modules\Entry\Repositories\Contracts\EntryRepositoryInterface;
 use App\Modules\ExchangeRate\Commands\DocumentRatesData;
 use App\Modules\Item\Models\Item;
@@ -25,10 +28,10 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
         private readonly ItemRepositoryInterface $items,
     ) {}
 
-    public function create(CreateEntryCommand $command, DocumentRatesData $rates): void
+    public function create(CreateEntryCommand $command, DocumentRatesData $rates, array $lines): void
     {
-        DB::transaction(function () use ($command, $rates): void {
-            $costs = $this->lineCosts($command->companyId, $command->lines, $command->freightAmount + $command->otherCharges);
+        DB::transaction(function () use ($command, $rates, $lines): void {
+            $costs = $this->lineCosts($command->companyId, $lines, $command->freightAmount + $command->otherCharges);
 
             $entry = Entry::create([
                 'id' => $command->id,
@@ -49,14 +52,14 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
                 ...$rates->toAttributes(),
                 'freight_amount' => $command->freightAmount,
                 'other_charges' => $command->otherCharges,
-                ...$this->totals($command->lines, $costs),
+                ...$this->totals($lines, $costs),
                 'is_invoiced' => 'no',
                 'notes' => $command->notes,
                 'status' => 'draft',
                 'created_by' => $command->createdBy,
             ]);
 
-            $this->syncLines($entry, $command->lines, $costs);
+            $this->syncLines($entry, $lines, $costs);
         });
     }
 
@@ -76,10 +79,10 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
             ->findOrFail($id);
     }
 
-    public function update(Entry $model, UpdateEntryCommand $command, DocumentRatesData $rates): void
+    public function update(Entry $model, UpdateEntryCommand $command, DocumentRatesData $rates, array $lines): void
     {
-        DB::transaction(function () use ($model, $command, $rates): void {
-            $costs = $this->lineCosts($model->company_id, $command->lines, $command->freightAmount + $command->otherCharges);
+        DB::transaction(function () use ($model, $command, $rates, $lines): void {
+            $costs = $this->lineCosts($model->company_id, $lines, $command->freightAmount + $command->otherCharges);
 
             /** La marca de facturado y la de anulación no se editan aquí. */
             $model->update([
@@ -98,11 +101,11 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
                 ...$rates->toAttributes(),
                 'freight_amount' => $command->freightAmount,
                 'other_charges' => $command->otherCharges,
-                ...$this->totals($command->lines, $costs),
+                ...$this->totals($lines, $costs),
                 'notes' => $command->notes,
             ]);
 
-            $this->syncLines($model, $command->lines, $costs);
+            $this->syncLines($model, $lines, $costs);
         });
     }
 
@@ -145,7 +148,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     public function activeLines(Entry $model): array
     {
         return EntryLine::query()
-            ->with(['item', 'measurementUnit'])
+            ->with(['item', 'measurementUnit', 'lots', 'serials'])
             ->where('entry_id', $model->id)
             ->where('status', 'active')
             ->orderBy('line_number')
@@ -153,16 +156,24 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
             ->all();
     }
 
-    public function writeLineTraceability(
-        EntryLine $line,
-        WriteEntryLineTraceabilityCommand $command,
-    ): EntryLine {
-        $line->update([
+    public function writeLineLot(EntryLineLot $row, WriteEntryLineLotCommand $command): EntryLineLot
+    {
+        $row->update([
             'lot_id' => $command->lotId,
             'lot_number' => $command->lotNumber,
         ]);
 
-        return $line;
+        return $row;
+    }
+
+    public function writeLineSerial(EntryLineSerial $row, WriteEntryLineSerialCommand $command): EntryLineSerial
+    {
+        $row->update([
+            'serial_id' => $command->serialId,
+            'serial_number' => $command->serialNumber,
+        ]);
+
+        return $row;
     }
 
     /**
@@ -236,7 +247,10 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
             'lines.item',
             'lines.measurementUnit',
             'lines.location',
-            'lines.lot',
+            'lines.lots.lot',
+            'lines.serials.serial',
+            /** La cantidad que pidió la orden se lee de la línea origen. */
+            'lines.sourceable',
         ];
     }
 
@@ -273,11 +287,6 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
                 'sourceable_type' => $line->sourceableType,
                 'sourceable_id' => $line->sourceableId,
                 'location_id' => $line->locationId,
-                'lot_number' => $line->lotNumber,
-                /** El lote resuelto es del confirmado: en borrador solo se conserva. */
-                'lot_id' => $line->lotId ?? $current?->lot_id,
-                'expires_at' => $line->expiresAt,
-                'serial_numbers' => $line->serialNumbers === [] ? null : $line->serialNumbers,
                 'quantity' => $line->quantity,
                 'base_quantity' => $cost['base_quantity'],
                 'unit_price' => $line->unitPrice,
@@ -302,19 +311,140 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
             if ($current !== null) {
                 $current->update($attributes);
                 $keep[] = $current->id;
+                $this->syncLineTraceability($current, $line, $cost['factor']);
 
                 continue;
             }
 
-            $keep[] = EntryLine::create([
+            $persisted = EntryLine::create([
                 ...$attributes,
                 'entry_id' => $entry->id,
                 'line_number' => ++$nextNumber,
-            ])->id;
+            ]);
+
+            $keep[] = $persisted->id;
+            $this->syncLineTraceability($persisted, $line, $cost['factor']);
         }
 
         EntryLine::query()
             ->where('entry_id', $entry->id)
+            ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
+            ->update(['status' => 'inactive']);
+    }
+
+    /**
+     * Alinea los lotes y las series de una línea con lo enviado.
+     *
+     * Mismo criterio que las líneas: se reconocen por `id`, conservan su
+     * `line_number` y las que dejan de venir se desactivan. El `lot_id` y el
+     * `serial_id` ya resueltos se conservan: los escribe el confirmado, no la
+     * pantalla.
+     */
+    private function syncLineTraceability(EntryLine $line, EntryLineData $data, float $factor): void
+    {
+        $lotIds = $this->syncLineLots($line, $data, $factor);
+
+        $this->syncLineSerials($line, $data, $lotIds);
+    }
+
+    /**
+     * @return array<string, string> Número de lote → id de la fila persistida.
+     */
+    private function syncLineLots(EntryLine $line, EntryLineData $data, float $factor): array
+    {
+        $existing = EntryLineLot::query()
+            ->where('entry_line_id', $line->id)
+            ->get()
+            ->keyBy('id');
+
+        $nextNumber = (int) $existing->max('line_number');
+        $keep = [];
+        $byNumber = [];
+
+        foreach ($data->lots as $lot) {
+            $current = $lot->id !== null ? $existing->get($lot->id) : null;
+
+            $attributes = [
+                'company_id' => $line->company_id,
+                'lot_number' => $lot->lotNumber,
+                /** El lote resuelto es del confirmado: en borrador solo se conserva. */
+                'lot_id' => $lot->lotId ?? $current?->lot_id,
+                'expires_at' => $lot->expiresAt,
+                'quantity' => $lot->quantity,
+                'base_quantity' => round($lot->quantity * $factor, 4),
+                'status' => $lot->status,
+                'notes' => $lot->notes,
+            ];
+
+            if ($current !== null) {
+                $current->update($attributes);
+                $keep[] = $current->id;
+                $byNumber[$lot->lotNumber] = $current->id;
+
+                continue;
+            }
+
+            $persisted = EntryLineLot::create([
+                ...$attributes,
+                'entry_line_id' => $line->id,
+                'line_number' => ++$nextNumber,
+            ]);
+
+            $keep[] = $persisted->id;
+            $byNumber[$lot->lotNumber] = $persisted->id;
+        }
+
+        EntryLineLot::query()
+            ->where('entry_line_id', $line->id)
+            ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
+            ->update(['status' => 'inactive']);
+
+        return $byNumber;
+    }
+
+    /**
+     * @param  array<string, string>  $lotIds  Número de lote → id de la fila.
+     */
+    private function syncLineSerials(EntryLine $line, EntryLineData $data, array $lotIds): void
+    {
+        $existing = EntryLineSerial::query()
+            ->where('entry_line_id', $line->id)
+            ->get()
+            ->keyBy('id');
+
+        $nextNumber = (int) $existing->max('line_number');
+        $keep = [];
+
+        foreach ($data->serials as $serial) {
+            $current = $serial->id !== null ? $existing->get($serial->id) : null;
+
+            $attributes = [
+                'company_id' => $line->company_id,
+                'entry_line_lot_id' => $serial->lotNumber !== null
+                    ? ($lotIds[$serial->lotNumber] ?? null)
+                    : null,
+                'serial_number' => $serial->serialNumber,
+                /** La serie resuelta es del confirmado: en borrador solo se conserva. */
+                'serial_id' => $serial->serialId ?? $current?->serial_id,
+                'status' => $serial->status,
+            ];
+
+            if ($current !== null) {
+                $current->update($attributes);
+                $keep[] = $current->id;
+
+                continue;
+            }
+
+            $keep[] = EntryLineSerial::create([
+                ...$attributes,
+                'entry_line_id' => $line->id,
+                'line_number' => ++$nextNumber,
+            ])->id;
+        }
+
+        EntryLineSerial::query()
+            ->where('entry_line_id', $line->id)
             ->when($keep !== [], fn ($q) => $q->whereNotIn('id', $keep))
             ->update(['status' => 'inactive']);
     }

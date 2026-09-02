@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useSupplierPaymentFormContext } from '../contexts/SupplierPaymentFormContext';
+import { isCreditMethod } from '../hooks/useSupplierPaymentForm';
 import {
     ORIGIN_TYPE_LABELS,
     PAYMENT_METHOD_LABELS,
@@ -52,8 +53,20 @@ const ORIGIN_OPTIONS: OptionType[] = [
     { value: 'invoice', label: ORIGIN_TYPE_LABELS.invoice },
 ];
 
+/**
+ * `advance` y `credit_note` entran aquí como formas de pago de pleno derecho:
+ * no sacan dinero, gastan el crédito que ya se tiene con el proveedor.
+ */
 const PAYMENT_METHOD_OPTIONS: OptionType[] = (
-    ['cash', 'transfer', 'check', 'card', 'other'] as SupplierPaymentMethod[]
+    [
+        'cash',
+        'transfer',
+        'check',
+        'card',
+        'advance',
+        'credit_note',
+        'other',
+    ] as SupplierPaymentMethod[]
 ).map((method) => ({ value: method, label: PAYMENT_METHOD_LABELS[method] }));
 
 /** Uno de los dos indicadores del proveedor elegido. */
@@ -99,6 +112,10 @@ export function SupplierPaymentForm() {
         selectOriginInvoice,
         selectOriginType,
         selectCurrency,
+        selectPaymentMethod,
+        creditSourceLookupUrl,
+        creditSourceOption,
+        selectCreditSource,
     } = useSupplierPaymentFormContext();
 
     /** El origen se congela al crear el pago: en edición solo se muestra. */
@@ -269,8 +286,7 @@ export function SupplierPaymentForm() {
                                     ) ?? null
                                 }
                                 onChange={(option) =>
-                                    setData(
-                                        'payment_method',
+                                    selectPaymentMethod(
                                         (option?.value ??
                                             'transfer') as SupplierPaymentMethod,
                                     )
@@ -284,6 +300,45 @@ export function SupplierPaymentForm() {
                                 </p>
                             )}
                         </div>
+
+                        {isCreditMethod(data.payment_method) && (
+                            <div className="flex flex-col gap-1.5">
+                                <Label
+                                    htmlFor="credit_source_id"
+                                    className="text-[13px] font-semibold"
+                                >
+                                    {data.payment_method === 'advance'
+                                        ? 'Anticipo *'
+                                        : 'Nota de crédito *'}
+                                </Label>
+                                <Select2Ajax
+                                    inputId="credit_source_id"
+                                    url={creditSourceLookupUrl}
+                                    params={{
+                                        open: 'yes',
+                                        supplier_id: data.supplier_id,
+                                    }}
+                                    value={creditSourceOption}
+                                    onChange={selectCreditSource}
+                                    error={!!errors.credit_source_id}
+                                    isClearable
+                                    size="md"
+                                    placeholder={
+                                        data.payment_method === 'advance'
+                                            ? 'Busca un anticipo con saldo'
+                                            : 'Busca una nota con saldo'
+                                    }
+                                />
+                                <span className="text-[12px] text-muted-foreground">
+                                    El pago gasta su crédito, no sale dinero
+                                </span>
+                                {errors.credit_source_id && (
+                                    <p className="text-sm text-bad">
+                                        {errors.credit_source_id}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex flex-col gap-1.5">
                             <Label

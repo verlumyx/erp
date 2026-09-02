@@ -9,6 +9,7 @@ use App\Modules\SalesCreditNote\Commands\CreateSalesCreditNoteCommand;
 use App\Modules\SalesCreditNote\Commands\SearchSalesCreditNoteCommand;
 use App\Modules\SalesCreditNote\Commands\UpdateSalesCreditNoteCommand;
 use App\Modules\SalesCreditNote\Commands\UpdateStatusSalesCreditNoteCommand;
+use App\Modules\SalesCreditNote\Commands\WriteSalesCreditNoteAppliedCommand;
 use App\Modules\SalesCreditNote\Models\SalesCreditNote;
 use App\Modules\SalesCreditNote\Models\SalesCreditNoteLine;
 
@@ -27,6 +28,21 @@ interface SalesCreditNoteRepositoryInterface
     ): void;
 
     public function updateStatus(SalesCreditNote $model, UpdateStatusSalesCreditNoteCommand $command): void;
+
+    /**
+     * La nota con su fila bloqueada, para que dos documentos que gastan su
+     * crédito a la vez no lean el mismo disponible.
+     */
+    public function lockById(string $id, ?string $companyId = null): ?SalesCreditNote;
+
+    /**
+     * Escribe lo aplicado y lo disponible ya resueltos. Solo lo llama
+     * `SalesCreditNoteApplicationService`.
+     */
+    public function writeApplied(
+        SalesCreditNote $model,
+        WriteSalesCreditNoteAppliedCommand $command,
+    ): SalesCreditNote;
 
     /** @return array{ data: SalesCreditNote[], total: int } */
     public function search(SearchSalesCreditNoteCommand $command): array;

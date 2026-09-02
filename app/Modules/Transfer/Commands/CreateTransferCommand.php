@@ -19,8 +19,6 @@ class CreateTransferCommand
         public readonly string $transferDate,
         public readonly string $createdBy,
         public readonly array $lines = [],
-        /** Con bodega de tránsito el traslado va en dos pasos; sin ella, en uno. */
-        public readonly ?string $transitWarehouseId = null,
         public readonly ?string $expectedDate = null,
         public readonly string $reason = 'restock',
         public readonly ?string $reasonDetail = null,
@@ -41,7 +39,6 @@ class CreateTransferCommand
             transferDate: $request->string('transfer_date')->toString(),
             createdBy: $request->user()->id,
             lines: TransferLineData::collection($request->input('lines', [])),
-            transitWarehouseId: $request->input('transit_warehouse_id'),
             expectedDate: $request->input('expected_date'),
             reason: (string) $request->input('reason', 'restock'),
             reasonDetail: $request->input('reason_detail'),

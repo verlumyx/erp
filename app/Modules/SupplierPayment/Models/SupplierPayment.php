@@ -47,6 +47,18 @@ class SupplierPayment extends Model
     public const PAYMENT_METHODS = ['cash', 'transfer', 'check', 'card', 'advance', 'credit_note', 'other'];
 
     /**
+     * Formas de pago que no sacan dinero: cancelan la factura con un saldo a
+     * favor que ya existe. Exigen `credit_source_id` —de qué documento sale ese
+     * crédito— y escriben el reparto con su propio `source_type`.
+     *
+     * @var array<string, string>
+     */
+    public const CREDIT_METHODS = [
+        'advance' => 'advance',
+        'credit_note' => 'credit_note',
+    ];
+
+    /**
      * Transiciones permitidas. `completed` y `cancelled` son terminales.
      *
      * @var array<string, array<int, string>>
@@ -65,6 +77,7 @@ class SupplierPayment extends Model
         'supplier_id',
         'origin_type',
         'origin_id',
+        'credit_source_id',
         'payment_date',
         'payment_method',
         'reference',
@@ -103,6 +116,27 @@ class SupplierPayment extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Con qué `source_type` viaja este pago en el reparto: el suyo cuando sale
+     * dinero, y el del crédito que lo respalda cuando no.
+     */
+    public function applicationSource(): string
+    {
+        return self::CREDIT_METHODS[$this->payment_method] ?? self::APPLICATION_SOURCE;
+    }
+
+    /** El documento cuyo crédito gasta este pago; su propio id si saca dinero. */
+    public function applicationSourceId(): string
+    {
+        return $this->fundedByCredit() ? (string) $this->credit_source_id : $this->id;
+    }
+
+    /** Un pago que no saca dinero: lo respalda un anticipo o una nota. */
+    public function fundedByCredit(): bool
+    {
+        return isset(self::CREDIT_METHODS[$this->payment_method]) && filled($this->credit_source_id);
     }
 
     public function company(): BelongsTo

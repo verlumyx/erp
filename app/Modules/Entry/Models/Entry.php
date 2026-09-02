@@ -7,6 +7,7 @@ namespace App\Modules\Entry\Models;
 use App\Modules\Company\Models\Company;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\Supplier\Models\Supplier;
+use App\Modules\Transfer\Models\Transfer;
 use App\Modules\User\Models\User;
 use App\Modules\Warehouse\Models\Warehouse;
 use Database\Factories\EntryFactory;
@@ -31,7 +32,10 @@ class Entry extends Model
 
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
-    public const TYPES = ['purchase', 'production', 'return', 'donation', 'initial', 'other'];
+    public const TYPES = ['purchase', 'production', 'return', 'donation', 'initial', 'transfer', 'other'];
+
+    /** Tipo que llega desde otra bodega propia: no hay proveedor detrás. */
+    public const TRANSFER_TYPE = 'transfer';
 
     /** Tipo que exige proveedor: lo que se compra viene de alguien. */
     public const SUPPLIER_TYPE = 'purchase';
@@ -44,8 +48,15 @@ class Entry extends Model
 
     public const INSPECTION_STATUSES = ['pending', 'approved', 'rejected', 'partial'];
 
-    /** Documentos que hoy pueden originar una entrada. */
-    public const SOURCE_TYPES = [PurchaseOrder::MORPH_ALIAS];
+    /**
+     * Documentos que hoy pueden originar una entrada: la orden que la compró,
+     * o el traslado que mandó la mercancía desde otra bodega propia.
+     *
+     * La entrada de un traslado cuelga del traslado y no del despacho que la
+     * generó: lo que hay que poder reconocer de un vistazo es qué originó el
+     * movimiento. El despacho sigue trazado línea a línea.
+     */
+    public const SOURCE_TYPES = [PurchaseOrder::MORPH_ALIAS, Transfer::MORPH_ALIAS];
 
     /** Alias con el que el kardex reconoce a la entrada como origen. */
     public const MOVEMENT_ORIGIN_TYPE = 'entry';
@@ -172,6 +183,18 @@ class Entry extends Model
     public function capitalizableCharges(): float
     {
         return round((float) $this->freight_amount + (float) $this->other_charges, 2);
+    }
+
+    /** La mercancía viene de otra bodega propia: detrás hay un traslado. */
+    public function comesFromTransfer(): bool
+    {
+        return $this->entry_type === self::TRANSFER_TYPE;
+    }
+
+    /** El documento que originó el movimiento es un traslado. */
+    public function servesTransfer(): bool
+    {
+        return $this->sourceable_type === Transfer::MORPH_ALIAS;
     }
 
     protected static function newFactory(): EntryFactory

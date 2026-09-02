@@ -10,6 +10,8 @@ use App\Modules\Dispatch\Commands\WriteDispatchDeliveryCommand;
 use App\Modules\Dispatch\Exceptions\DispatchNotFoundException;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Models\DispatchLine;
+use App\Modules\Dispatch\Models\DispatchLineLot;
+use App\Modules\Dispatch\Models\DispatchLineSerial;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
 use App\Modules\InventoryMovement\Commands\RegisterInventoryMovementCommand;
 use App\Modules\InventoryMovement\Exceptions\NonInventoriedItemException;
@@ -220,26 +222,93 @@ class DispatchDeliveryService
             : 1.0;
 
         try {
-            $this->movements->execute(new RegisterInventoryMovementCommand(
-                companyId: (string) $dispatch->company_id,
-                itemId: $line->item_id,
-                warehouseId: $dispatch->warehouse_id,
-                locationId: $this->posting->locationFor($dispatch, $line),
-                type: 'in',
-                originType: Dispatch::MOVEMENT_ORIGIN_TYPE,
-                originId: $dispatch->id,
-                quantity: round($quantity * $factor, 4),
-                /** Vuelve al costo con el que salió, no al promedio de hoy. */
-                unitCost: round((float) $line->unit_cost, 6),
-                movementDate: $dispatch->delivery_date?->toDateString(),
-                originLineId: $line->id,
-                lotId: $line->lot_id,
-                serialId: $line->serial_id,
-                notes: "Reingreso por entrega del despacho {$dispatch->code}.",
-                createdBy: $dispatch->created_by,
-            ));
+            foreach ($this->returnPlan($line, round($quantity * $factor, 4)) as $back) {
+                $this->movements->execute(new RegisterInventoryMovementCommand(
+                    companyId: (string) $dispatch->company_id,
+                    itemId: $line->item_id,
+                    warehouseId: $dispatch->warehouse_id,
+                    locationId: $this->posting->locationFor($dispatch, $line),
+                    type: 'in',
+                    originType: Dispatch::MOVEMENT_ORIGIN_TYPE,
+                    originId: $dispatch->id,
+                    quantity: $back['quantity'],
+                    /** Vuelve al costo con el que salió, no al promedio de hoy. */
+                    unitCost: round((float) $line->unit_cost, 6),
+                    movementDate: $dispatch->delivery_date?->toDateString(),
+                    originLineId: $line->id,
+                    lotId: $back['lotId'],
+                    serialId: $back['serialId'],
+                    notes: "Reingreso por entrega del despacho {$dispatch->code}.",
+                    createdBy: $dispatch->created_by,
+                ));
+            }
         } catch (NonInventoriedItemException) {
             // Un artículo sin existencia no salió del kardex: tampoco vuelve.
         }
+    }
+
+    /**
+     * Qué vuelve de cada lote y de qué serie, en unidad base.
+     *
+     * De una línea serializada vuelven las **últimas** series: el cliente se
+     * quedó con las primeras que le entregaron, y hace falta un criterio fijo
+     * para que dos entregas iguales devuelvan lo mismo. De una línea con lotes
+     * vuelve lo suyo a cada uno, en proporción a lo que salió, con el último
+     * absorbiendo el redondeo para que la suma cuadre.
+     *
+     * @return array<int, array{lotId: ?string, serialId: ?string, quantity: float}>
+     */
+    private function returnPlan(DispatchLine $line, float $base): array
+    {
+        if ($base <= 0.0) {
+            return [];
+        }
+
+        $serials = $line->serials->where('status', 'active')->values();
+
+        if ($serials->isNotEmpty()) {
+            return $serials
+                ->slice(max($serials->count() - (int) round($base), 0))
+                ->map(static fn (DispatchLineSerial $serial): array => [
+                    'lotId' => $serial->dispatchLineLot?->lot_id,
+                    'serialId' => $serial->serial_id,
+                    'quantity' => 1.0,
+                ])
+                ->values()
+                ->all();
+        }
+
+        $lots = $line->lots->where('status', 'active')->values();
+
+        if ($lots->isEmpty()) {
+            return [['lotId' => null, 'serialId' => null, 'quantity' => $base]];
+        }
+
+        $total = round($lots->sum(static fn (DispatchLineLot $lot): float => (float) $lot->base_quantity), 4);
+
+        if ($total <= 0.0) {
+            return [['lotId' => null, 'serialId' => null, 'quantity' => $base]];
+        }
+
+        $plan = [];
+        $assigned = 0.0;
+        $last = $lots->count() - 1;
+
+        foreach ($lots as $position => $lot) {
+            /** @var DispatchLineLot $lot */
+            $back = $position === $last
+                ? round($base - $assigned, 4)
+                : round((float) $lot->base_quantity * $base / $total, 4);
+
+            $assigned = round($assigned + $back, 4);
+
+            if ($back <= 0.0) {
+                continue;
+            }
+
+            $plan[] = ['lotId' => $lot->lot_id, 'serialId' => null, 'quantity' => $back];
+        }
+
+        return $plan;
     }
 }

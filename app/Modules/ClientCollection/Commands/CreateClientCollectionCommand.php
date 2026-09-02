@@ -21,6 +21,8 @@ class CreateClientCollectionCommand
         /** `client` o `invoice`: el cobro espejo de un anticipo no nace aquí. */
         public readonly string $originType = 'client',
         public readonly ?string $originId = null,
+        /** De qué anticipo o nota sale el crédito, cobrando sin dinero. */
+        public readonly ?string $creditSourceId = null,
         public readonly string $paymentMethod = 'cash',
         public readonly ?string $reference = null,
         public readonly ?string $bankAccount = null,
@@ -49,6 +51,7 @@ class CreateClientCollectionCommand
             applications: ClientCollectionApplicationData::collection($request->input('applications', [])),
             originType: $request->string('origin_type', 'client')->toString(),
             originId: $request->input('origin_id'),
+            creditSourceId: $request->input('credit_source_id'),
             paymentMethod: $request->string('payment_method', 'cash')->toString(),
             reference: $request->input('reference'),
             bankAccount: $request->input('bank_account'),

@@ -31,6 +31,7 @@ class SalesOrderApplyDispatchService
 {
     public function __construct(
         private readonly SalesOrderRepositoryInterface $repository,
+        private readonly SalesOrderReservationService $reservations,
     ) {}
 
     public function execute(ApplySalesOrderDispatchCommand $command): SalesOrderLine
@@ -62,9 +63,42 @@ class SalesOrderApplyDispatchService
                 ),
             );
 
+            /**
+             * Y la existencia deja de tenerlo comprometido: la salida ya lo
+             * descontó del saldo, así que mantener la reserva lo restaría dos
+             * veces de lo disponible.
+             */
+            $this->releaseStock($written, $released);
+
             $this->repository->refreshDispatchedPercent($written->sales_order_id);
 
             return $written;
         });
+    }
+    /**
+     * Suelta en la bodega del pedido lo que la salida acaba de llevarse, en
+     * unidad base. Una línea sin pedido detrás no reserva nada, así que
+     * tampoco suelta nada.
+     */
+    private function releaseStock(SalesOrderLine $line, float $released): void
+    {
+        if ($released <= 0.0) {
+            return;
+        }
+
+        $order = $line->salesOrder;
+
+        if ($order === null) {
+            return;
+        }
+
+        $ordered = round((float) $line->quantity, 4);
+
+        $this->reservations->moveStockReservation(
+            $order->company_id,
+            $order->warehouse_id,
+            $line->item_id,
+            $ordered > 0 ? -round($released * (float) $line->base_quantity / $ordered, 4) : 0.0,
+        );
     }
 }

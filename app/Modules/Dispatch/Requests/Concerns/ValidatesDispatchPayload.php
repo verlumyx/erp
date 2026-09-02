@@ -107,34 +107,38 @@ trait ValidatesDispatchPayload
                 'required_with:lines.*.sourceable_id',
             ],
             'lines.*.sourceable_id' => ['nullable', 'uuid', 'required_with:lines.*.sourceable_type'],
-            'lines.*.lot_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_item_lots', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.serial_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_item_serials', 'id')->where('company_id', $companyId),
-            ],
             'lines.*.location_id' => [
                 'nullable',
                 'uuid',
                 Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
             ],
             'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'lines.*.unit_price' => ['nullable', 'numeric', 'min:0'],
-            'lines.*.discount_percent' => ['nullable', 'numeric', 'between:0,100'],
-            'lines.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'lines.*.tax_id' => [
-                'nullable',
+
+            /**
+             * Trazabilidad de la línea. El despacho consume lo que ya existe:
+             * el lote y la serie se eligen del maestro, nunca se estrenan aquí.
+             */
+            'lines.*.lots' => ['nullable', 'array'],
+            'lines.*.lots.*.id' => ['nullable', 'uuid'],
+            'lines.*.lots.*.lot_id' => [
+                'required',
                 'uuid',
-                Rule::exists('app_taxes', 'id')
-                    ->where('company_id', $companyId)
-                    ->where('status', 'active'),
+                Rule::exists('app_item_lots', 'id')->where('company_id', $companyId),
             ],
-            'lines.*.tax_percent' => ['nullable', 'numeric', 'between:0,100'],
-            'lines.*.withholding_percent' => ['nullable', 'numeric', 'between:0,100'],
+            'lines.*.lots.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'lines.*.lots.*.notes' => ['nullable', 'string', 'max:500'],
+            'lines.*.lots.*.status' => ['nullable', 'string', 'in:active,inactive'],
+
+            'lines.*.serials' => ['nullable', 'array'],
+            'lines.*.serials.*.id' => ['nullable', 'uuid'],
+            'lines.*.serials.*.serial_id' => [
+                'required',
+                'uuid',
+                Rule::exists('app_item_serials', 'id')->where('company_id', $companyId),
+            ],
+            'lines.*.serials.*.lot_id' => ['nullable', 'uuid'],
+            'lines.*.serials.*.status' => ['nullable', 'string', 'in:active,inactive'],
+
             'lines.*.notes' => ['nullable', 'string', 'max:500'],
             'lines.*.status' => ['nullable', 'string', 'in:active,inactive'],
         ];
@@ -164,9 +168,11 @@ trait ValidatesDispatchPayload
             'lines.*.measurement_unit_id.required' => 'Selecciona la unidad de la línea.',
             'lines.*.sourceable_type.in' => 'Ese tipo de línea origen no es válido para un despacho.',
             'lines.*.quantity.gt' => 'La cantidad debe ser mayor que cero.',
-            'lines.*.tax_id.exists' => 'El impuesto de la línea no existe o está inactivo.',
-            'lines.*.lot_id.exists' => 'El lote de la línea no existe en esta empresa.',
-            'lines.*.serial_id.exists' => 'La serie de la línea no existe en esta empresa.',
+            'lines.*.lots.*.lot_id.required' => 'Elige el lote del que sale la mercancía.',
+            'lines.*.lots.*.lot_id.exists' => 'El lote indicado no existe en esta empresa.',
+            'lines.*.lots.*.quantity.gt' => 'La cantidad del lote debe ser mayor que cero.',
+            'lines.*.serials.*.serial_id.required' => 'Elige la serie que sale.',
+            'lines.*.serials.*.serial_id.exists' => 'La serie indicada no existe en esta empresa.',
             'lines.*.location_id.exists' => 'La ubicación de la línea no existe en esta empresa.',
         ];
     }
@@ -191,6 +197,7 @@ trait ValidatesDispatchPayload
         }
 
         $this->validateLineUnits($validator, $lines);
+        $this->validateTraceabilityShape($validator, $lines);
         $this->validateLineLocations($validator, $lines);
     }
 
@@ -230,6 +237,100 @@ trait ValidatesDispatchPayload
                 );
             }
         }
+    }
+
+    /**
+     * Lo que la trazabilidad tiene que cumplir sin mirar el maestro de
+     * artículos: que los lotes cubran lo que sale, que ni un lote ni una serie
+     * se repitan, y que cada serie salga de un lote de su propia línea.
+     *
+     * Lo que sí depende del artículo —si admite lote, si admite serie, cuántas
+     * series hacen falta— lo comprueba `DispatchSourceService`.
+     *
+     * @param  array<int, array<string, mixed>>  $lines
+     */
+    private function validateTraceabilityShape(Validator $validator, array $lines): void
+    {
+        /** Una serie identifica una unidad: no puede salir dos veces. */
+        $seenSerials = [];
+
+        foreach ($lines as $index => $line) {
+            if (($line['status'] ?? 'active') !== 'active') {
+                continue;
+            }
+
+            $lots = $this->activeRows($line['lots'] ?? []);
+            $serials = $this->activeRows($line['serials'] ?? []);
+
+            $lotIds = [];
+
+            foreach ($lots as $lot) {
+                $lotId = (string) ($lot['lot_id'] ?? '');
+
+                if ($lotId !== '' && isset($lotIds[$lotId])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.lots",
+                        'Ese lote está repetido en la línea.',
+                    );
+                }
+
+                $lotIds[$lotId] = true;
+            }
+
+            if ($lots !== []) {
+                $assigned = round(array_sum(array_map(
+                    static fn (array $lot): float => (float) ($lot['quantity'] ?? 0),
+                    $lots,
+                )), 4);
+
+                if ($assigned !== round((float) ($line['quantity'] ?? 0), 4)) {
+                    $validator->errors()->add(
+                        "lines.{$index}.lots",
+                        'Los lotes tienen que sumar la cantidad que sale en la línea.',
+                    );
+                }
+            }
+
+            foreach ($serials as $serial) {
+                $serialId = (string) ($serial['serial_id'] ?? '');
+
+                if ($serialId !== '' && isset($seenSerials[$serialId])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.serials",
+                        'Esa serie está repetida en el despacho.',
+                    );
+                }
+
+                $seenSerials[$serialId] = true;
+
+                $lotId = (string) ($serial['lot_id'] ?? '');
+
+                if ($lotId !== '' && ! isset($lotIds[$lotId])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.serials",
+                        'Esa serie sale de un lote que no está en su línea.',
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Las filas activas de una colección de detalle. Una fila desactivada no
+     * cuenta: la política de no borrado la conserva, no la revive.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function activeRows(mixed $rows): array
+    {
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_filter($rows, 'is_array'),
+            static fn (array $row): bool => ($row['status'] ?? 'active') === 'active',
+        ));
     }
 
     /**
