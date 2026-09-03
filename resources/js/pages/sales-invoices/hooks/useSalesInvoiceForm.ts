@@ -3,6 +3,10 @@ import { useState } from 'react';
 import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
 import {
+    useInvoiceableOrderLines,
+    type InvoiceableOrderLine,
+} from '@/hooks/use-invoiceable-order-lines';
+import {
     useItemCatalog,
     type ItemCatalogEntry,
     type ItemCatalogSeed,
@@ -20,7 +24,6 @@ import type {
     ClientOptionMeta,
     SalesInvoice,
     SalesInvoiceOptions,
-    SalesOrderLineOption,
     SalesOrderOptionMeta,
     SaleType,
 } from '../types/SalesInvoice';
@@ -276,12 +279,29 @@ function itemLabel(entry: ItemCatalogEntry): string {
     return entry.sku ? `${entry.sku} — ${entry.name}` : entry.name;
 }
 
-/** Lo que queda por facturar de una línea del pedido. */
-function pendingQuantity(line: SalesOrderLineOption): number {
-    return Math.max(
-        round(Number(line.quantity) - Number(line.invoiced_quantity), 4),
-        0,
-    );
+/**
+ * Una línea por facturar del pedido, convertida en línea de la factura.
+ *
+ * Nace con el saldo pendiente y con las condiciones congeladas del pedido: el
+ * precio, el descuento y el impuesto son los que se pactaron, no los que la
+ * lista del cliente diga hoy. Por eso `list_price` sale igual que `unit_price`:
+ * así una revaluación posterior lo respeta como precio pactado.
+ */
+function lineFromOrder(line: InvoiceableOrderLine): SalesInvoiceLineRow {
+    return {
+        id: generateUUID(),
+        sourceable_id: line.id,
+        item_id: line.item_id,
+        measurement_unit_id: line.measurement_unit_id,
+        quantity: Number(line.pending_quantity),
+        unit_price: Number(line.unit_price),
+        list_price: Number(line.unit_price),
+        discount_percent: Number(line.discount_percent),
+        tax_id: line.tax_id ?? '',
+        tax_percent: Number(line.tax_percent),
+        withholding_percent: Number(line.withholding_percent),
+        notes: line.notes ?? '',
+    };
 }
 
 export function useSalesInvoiceForm({
@@ -333,12 +353,19 @@ export function useSalesInvoiceForm({
         hydrate: true,
     });
 
-    /** El pedido de origen: de su `meta` salen las líneas por facturar. */
+    /** El pedido de origen, acotado al cliente elegido. */
     const source = useRemoteOption({
         url: salesOrders.lookup(companyId).url,
         seed: sourceSeed(initialData),
         hydrate: true,
     });
+
+    /** Lo que al pedido elegido le queda por facturar, en su propia petición. */
+    const invoiceableLines = useInvoiceableOrderLines(
+        (orderId) =>
+            salesOrders.invoiceableLines({ company: companyId, id: orderId })
+                .url,
+    );
 
     const initialCurrency =
         initialData?.currency ?? configuration?.base_currency ?? '';
@@ -438,9 +465,13 @@ export function useSalesInvoiceForm({
      * Elegir el cliente arrastra sus condiciones comerciales: vendedor
      * asignado, días de crédito y su dirección de entrega sugerida. Todo eso
      * llega en el `meta` de la opción del select remoto.
+     *
+     * Cambiar de cliente invalida el pedido de origen, que era de otro.
      */
     const selectClient = (option: AjaxOption | null) => {
         client.select(option);
+        source.select(null);
+        setOrderSeeds([]);
 
         const meta = (option?.meta ?? {}) as Partial<ClientOptionMeta>;
         const listId = meta.price_list_id ?? '';
@@ -454,26 +485,36 @@ export function useSalesInvoiceForm({
             ...current,
             client_id: option?.value ?? '',
             client_address_id: defaultAddress?.id ?? '',
+            sourceable_type: '',
+            sourceable_id: '',
             /** Sin vendedor asignado se respeta el que la pantalla ya tenga. */
             salesperson_id: meta.salesperson_id ?? current.salesperson_id,
             /** Sin días de crédito la venta es de contado y vence el mismo día. */
             sale_type: days === 0 ? 'cash' : 'credit',
             due_date: dueDateFrom(current.invoice_date, days),
             /** La lista del cliente revalúa las líneas sin precio pactado. */
-            lines: current.lines.map((line) =>
-                repriceLine(line, listId, current.currency),
-            ),
+            lines: current.lines.map((line) => ({
+                /** Las líneas del pedido anterior pierden su origen. */
+                ...repriceLine(line, listId, current.currency),
+                sourceable_id: '',
+            })),
         }));
     };
 
     /**
      * Elegir el pedido de origen arma la factura con lo que le queda por
      * facturar: su cabecera y sus líneas pendientes, ya con precio e impuesto.
+     *
+     * Las líneas se piden aparte y no viajan en el `meta` del select: el saldo
+     * por facturar solo interesa del pedido elegido. El cliente ya está puesto
+     * —es el que acota este select—, así que de aquí solo llega lo demás.
      */
-    const selectSource = (option: AjaxOption | null) => {
+    const selectSource = async (option: AjaxOption | null) => {
         source.select(option);
 
         if (!option) {
+            setOrderSeeds([]);
+
             setData((current) => ({
                 ...current,
                 sourceable_type: '',
@@ -490,47 +531,28 @@ export function useSalesInvoiceForm({
 
         const meta = option.meta as unknown as SalesOrderOptionMeta;
 
-        /** El cliente lo manda el pedido: facturar a otro sería otro documento. */
-        client.select({
-            value: meta.client_id,
-            label: meta.client_name ?? meta.code,
-        });
-
-        const pending = (meta.lines ?? []).filter(
-            (line) => pendingQuantity(line) > 0,
-        );
-
         setData((current) => ({
             ...current,
             sourceable_type: 'sales_order',
             sourceable_id: option.value,
-            client_id: meta.client_id,
-            client_address_id: meta.client_address_id ?? '',
+            client_address_id:
+                meta.client_address_id ?? current.client_address_id,
             warehouse_id: meta.warehouse_id,
             salesperson_id: meta.salesperson_id ?? current.salesperson_id,
             currency: meta.currency,
             exchange_rate: catalogRate(meta.currency),
             sale_type: meta.payment_term_days === 0 ? 'cash' : 'credit',
             due_date: dueDateFrom(current.invoice_date, meta.payment_term_days),
-            lines:
-                pending.length > 0
-                    ? pending.map((line) => ({
-                          id: generateUUID(),
-                          sourceable_id: line.id,
-                          item_id: line.item_id,
-                          measurement_unit_id: line.measurement_unit_id,
-                          /** El precio viene congelado del pedido: no se revalúa. */
-                          quantity: pendingQuantity(line),
-                          unit_price: Number(line.unit_price),
-                          list_price: Number(line.unit_price),
-                          discount_percent: Number(line.discount_percent),
-                          tax_id: line.tax_id ?? '',
-                          tax_percent: Number(line.tax_percent),
-                          withholding_percent: Number(line.withholding_percent),
-                          notes: line.notes ?? '',
-                      }))
-                    : current.lines,
         }));
+
+        const pending = await invoiceableLines.fetchLines(option.value);
+
+        /** Un pedido sin saldo deja intacto lo que el usuario ya capturó. */
+        if (pending.length === 0) {
+            return;
+        }
+
+        setData('lines', pending.map(lineFromOrder));
 
         /** El artículo de cada línea del pedido pasa al catálogo de la pantalla. */
         setOrderSeeds(
@@ -747,6 +769,8 @@ export function useSalesInvoiceForm({
         client: clientMeta,
         sourceLookupUrl: source.url,
         sourceOption: source.optionOf(data.sourceable_id),
+        loadingOrderLines: invoiceableLines.loading,
+        orderLinesFailed: invoiceableLines.failed,
         selectClient,
         selectSource,
         selectInvoiceDate,

@@ -279,3 +279,67 @@ test('a cancelled order cannot be invoiced', function () {
         ->post(route('sales-invoices.store', ['company' => $company->id]), $payload)
         ->assertSessionHasErrors('sourceable_id');
 });
+
+test('a line cannot invoice more than the order has left', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
+
+    $order = confirmedSalesOrder($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 10, 'unit_price' => 100],
+        ],
+    ]);
+    $orderLine = $order->lines->first();
+
+    /** Seis ya facturadas dejan cuatro por facturar. */
+    $orderLine->update(['invoiced_quantity' => 6]);
+
+    $payload = salesInvoicePayload($client, $warehouse, $item, $unit, [
+        'sourceable_type' => 'sales_order',
+        'sourceable_id' => $order->id,
+        'lines' => [
+            [
+                'sourceable_type' => 'sales_order_line',
+                'sourceable_id' => $orderLine->id,
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 5,
+                'unit_price' => 100,
+            ],
+        ],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.quantity');
+});
+
+test('a line can invoice exactly what the order has left', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
+
+    $order = confirmedSalesOrder($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 10, 'unit_price' => 100],
+        ],
+    ]);
+    $orderLine = $order->lines->first();
+
+    $orderLine->update(['invoiced_quantity' => 6]);
+
+    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit, [
+        'sourceable_type' => 'sales_order',
+        'sourceable_id' => $order->id,
+        'lines' => [
+            [
+                'sourceable_type' => 'sales_order_line',
+                'sourceable_id' => $orderLine->id,
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 4,
+                'unit_price' => 100,
+            ],
+        ],
+    ]);
+
+    expect((float) $invoice->lines->first()->quantity)->toBe(4.0);
+});

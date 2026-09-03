@@ -8,6 +8,8 @@ use App\Modules\Currency\Rules\ActiveCurrency;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoiceLine;
+use App\Modules\PurchaseOrder\Models\PurchaseOrder;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -153,6 +155,7 @@ trait ValidatesPurchaseInvoicePayload
     protected function validatePurchaseInvoiceInvariants(Validator $validator): void
     {
         $this->validateSourcePair($validator);
+        $this->validateSource($validator);
 
         /** @var array<int, array<string, mixed>> $lines */
         $lines = $this->input('lines', []);
@@ -199,6 +202,87 @@ trait ValidatesPurchaseInvoicePayload
 
             if (blank($lineType) && filled($lineId)) {
                 $validator->errors()->add("lines.{$index}.sourceable_type", 'Falta el tipo de la línea origen.');
+            }
+        }
+    }
+
+    /**
+     * El documento origen no es un FK: su integridad se valida aquí.
+     *
+     * Debe ser del mismo proveedor y de la misma empresa que la factura, y cada
+     * línea origen tiene que pertenecer a esa orden y llevar su misma unidad,
+     * porque de ella sale la cantidad ya facturada de la orden.
+     *
+     * Esa cantidad es también el tope: no se factura más de lo que a la orden le
+     * queda por facturar. Se mide contra `invoiced_quantity`, que solo se mueve
+     * al confirmar, así que un borrador todavía no consume saldo.
+     */
+    private function validateSource(Validator $validator): void
+    {
+        $sourceId = $this->input('sourceable_id');
+
+        if ($this->input('sourceable_type') !== PurchaseOrder::MORPH_ALIAS || blank($sourceId)) {
+            return;
+        }
+
+        $order = PurchaseOrder::query()
+            ->where('company_id', session('current_company_id'))
+            ->find($sourceId);
+
+        if ($order === null) {
+            $validator->errors()->add('sourceable_id', 'La orden de origen no existe en esta empresa.');
+
+            return;
+        }
+
+        if ($order->supplier_id !== $this->input('supplier_id')) {
+            $validator->errors()->add('sourceable_id', 'La orden de origen es de otro proveedor.');
+        }
+
+        if ($order->status === 'cancelled') {
+            $validator->errors()->add('sourceable_id', 'No se puede facturar una orden anulada.');
+        }
+
+        $orderLines = PurchaseOrderLine::query()
+            ->where('purchase_order_id', $order->id)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($this->input('lines', []) as $index => $line) {
+            $lineSourceId = $line['sourceable_id'] ?? null;
+
+            if (blank($lineSourceId)) {
+                continue;
+            }
+
+            $orderLine = $orderLines->get($lineSourceId);
+
+            if ($orderLine === null) {
+                $validator->errors()->add(
+                    "lines.{$index}.sourceable_id",
+                    'Esa línea no pertenece a la orden de origen.',
+                );
+
+                continue;
+            }
+
+            if ($orderLine->measurement_unit_id !== ($line['measurement_unit_id'] ?? null)) {
+                $validator->errors()->add(
+                    "lines.{$index}.measurement_unit_id",
+                    'La unidad debe ser la misma que la de la línea de la orden.',
+                );
+            }
+
+            $pending = max(
+                round((float) $orderLine->quantity - (float) $orderLine->invoiced_quantity, 4),
+                0,
+            );
+
+            if (round((float) ($line['quantity'] ?? 0), 4) > $pending) {
+                $validator->errors()->add(
+                    "lines.{$index}.quantity",
+                    "Esa línea de la orden solo tiene {$pending} por facturar.",
+                );
             }
         }
     }

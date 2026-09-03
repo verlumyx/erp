@@ -1,4 +1,4 @@
-import { ChevronDown, Plus, X } from 'lucide-react';
+import { ChevronDown, Link2, Loader2, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Select2Ajax } from '@/components/select2-ajax';
@@ -31,6 +31,8 @@ export function PurchaseInvoiceLinesSection() {
         setLineItem,
         setLineTax,
         options,
+        loadingOrderLines,
+        orderLinesFailed,
     } = usePurchaseInvoiceFormContext();
 
     /** El catálogo de impuestos es el mismo para todas las líneas. */
@@ -61,6 +63,20 @@ export function PurchaseInvoiceLinesSection() {
         <div className="flex flex-col gap-4 p-5">
             {errors.lines && <p className="text-sm text-bad">{errors.lines}</p>}
 
+            {loadingOrderLines && (
+                <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Trayendo lo que la orden tiene por facturar…
+                </p>
+            )}
+
+            {orderLinesFailed && (
+                <p className="text-[13px] text-warn">
+                    No se pudieron traer las líneas de la orden. Vuelve a
+                    elegirla o captúralas a mano.
+                </p>
+            )}
+
             {data.lines.map((line, index) => {
                 const amounts = lineAmounts(line);
                 const units = unitsOf(line.item_id);
@@ -71,6 +87,7 @@ export function PurchaseInvoiceLinesSection() {
                 const chargesOpen = openCharges[line.id] === true;
                 const hasCharges =
                     line.discount_percent > 0 || line.tax_id !== '';
+                const fromOrder = line.sourceable_id !== '';
 
                 return (
                     <div
@@ -79,8 +96,17 @@ export function PurchaseInvoiceLinesSection() {
                     >
                         <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_1.2fr_1fr_1.2fr_auto]">
                             <div className="flex flex-col gap-1.5">
-                                <Label className="text-[13px] font-semibold">
+                                <Label className="flex items-center gap-1.5 text-[13px] font-semibold">
                                     Artículo *
+                                    {fromOrder && (
+                                        <span
+                                            className="inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground"
+                                            title="Esta línea viene de la orden de origen"
+                                        >
+                                            <Link2 className="size-3.5" />
+                                            de la orden
+                                        </span>
+                                    )}
                                 </Label>
                                 <div className="flex items-center gap-2">
                                     <Button
@@ -154,7 +180,8 @@ export function PurchaseInvoiceLinesSection() {
                                             option?.value ?? '',
                                         )
                                     }
-                                    isDisabled={units.length === 0}
+                                    /** La unidad de una línea de la orden no se cambia. */
+                                    isDisabled={units.length === 0 || fromOrder}
                                     error={
                                         !!fieldError(
                                             index,

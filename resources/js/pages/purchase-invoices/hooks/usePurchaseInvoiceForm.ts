@@ -1,9 +1,15 @@
 import { useForm, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
 import {
+    useInvoiceableOrderLines,
+    type InvoiceableOrderLine,
+} from '@/hooks/use-invoiceable-order-lines';
+import {
     useItemCatalog,
     type ItemCatalogEntry,
+    type ItemCatalogSeed,
 } from '@/hooks/use-item-catalog';
 import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
@@ -78,6 +84,9 @@ interface PageProps {
 
 /** Alias del morph map con el que viaja la orden de compra como origen. */
 const PURCHASE_ORDER = 'purchase_order';
+
+/** Y el de su línea, con el que cada línea facturada apunta a la que pidió. */
+const PURCHASE_ORDER_LINE = 'purchase_order_line';
 
 /**
  * El proveedor de la factura que se edita, con la etiqueta que trae su
@@ -180,6 +189,30 @@ function emptyLine(): PurchaseInvoiceLineRow {
 }
 
 /**
+ * Una línea por facturar de la orden, convertida en línea de la factura.
+ *
+ * Nace con el saldo pendiente y con las condiciones congeladas de la orden: el
+ * costo, el descuento y el impuesto son los que se pactaron, no los que el
+ * catálogo tenga hoy.
+ */
+function lineFromOrder(line: InvoiceableOrderLine): PurchaseInvoiceLineRow {
+    return {
+        id: generateUUID(),
+        item_id: line.item_id,
+        measurement_unit_id: line.measurement_unit_id,
+        quantity: Number(line.pending_quantity),
+        unit_price: Number(line.unit_price),
+        discount_percent: Number(line.discount_percent),
+        tax_id: line.tax_id ?? '',
+        tax_percent: Number(line.tax_percent),
+        withholding_percent: Number(line.withholding_percent),
+        sourceable_type: PURCHASE_ORDER_LINE,
+        sourceable_id: line.id,
+        notes: line.notes ?? '',
+    };
+}
+
+/**
  * Solo se editan las líneas activas: las inactivas se conservan en la base por
  * la política de no borrado, pero no vuelven al formulario.
  */
@@ -250,19 +283,30 @@ export function usePurchaseInvoiceForm({
     const todayRates = useTodayRates();
 
     /**
+     * Artículos que la factura copió de la orden de origen. Entran como semilla
+     * del catálogo para que sus líneas muestren el artículo sin que el usuario
+     * lo vuelva a buscar.
+     */
+    const [orderSeeds, setOrderSeeds] = useState<ItemCatalogSeed[]>([]);
+
+    /**
      * El catálogo de artículos ya no viaja en las props: la pantalla solo
-     * conoce los que trae la factura y los que el usuario va eligiendo.
+     * conoce los que trae la factura, los que llegan con la orden de origen y
+     * los que el usuario va eligiendo.
      */
     const catalog = useItemCatalog({
         companyId,
         formatLabel: itemLabel,
-        seed: (initialData?.lines ?? [])
-            .filter((line) => line.status === 'active')
-            .map((line) => ({
-                id: line.item_id,
-                code: line.item_code,
-                name: line.item_name,
-            })),
+        seed: [
+            ...(initialData?.lines ?? [])
+                .filter((line) => line.status === 'active')
+                .map((line) => ({
+                    id: line.item_id,
+                    code: line.item_code,
+                    name: line.item_name,
+                })),
+            ...orderSeeds,
+        ],
     });
 
     /** El padrón de proveedores se busca contra su endpoint de opciones. */
@@ -276,6 +320,13 @@ export function usePurchaseInvoiceForm({
         url: purchaseOrders.lookup(companyId).url,
         seed: sourceSeed(initialData),
     });
+
+    /** Lo que a la orden elegida le queda por facturar, en su propia petición. */
+    const invoiceableLines = useInvoiceableOrderLines(
+        (orderId) =>
+            purchaseOrders.invoiceableLines({ company: companyId, id: orderId })
+                .url,
+    );
 
     const initialCurrency =
         initialData?.currency ?? configuration?.base_currency ?? '';
@@ -364,6 +415,7 @@ export function usePurchaseInvoiceForm({
     const selectSupplier = (option: AjaxOption | null) => {
         supplier.select(option);
         sourceOrder.select(null);
+        setOrderSeeds([]);
 
         const meta = (option?.meta ?? {}) as Partial<SupplierOptionMeta>;
 
@@ -372,6 +424,12 @@ export function usePurchaseInvoiceForm({
             supplier_id: option?.value ?? '',
             sourceable_type: '',
             sourceable_id: '',
+            /** Las líneas que venían de la orden anterior pierden su origen. */
+            lines: current.lines.map((line) => ({
+                ...line,
+                sourceable_type: '',
+                sourceable_id: '',
+            })),
             due_date:
                 meta.payment_term_days === undefined
                     ? current.due_date
@@ -384,25 +442,66 @@ export function usePurchaseInvoiceForm({
     };
 
     /**
-     * Elegir la orden origen copia lo que la factura hereda de ella —bodega y
-     * moneda—, pero no sus líneas: lo que se factura es lo que el proveedor
-     * imprimió, que puede no coincidir con lo pedido.
+     * Elegir la orden origen arma la factura con lo que le queda por facturar:
+     * su cabecera —bodega y moneda— y sus líneas pendientes, ya con el costo,
+     * el descuento y el impuesto que se pactaron con el proveedor.
+     *
+     * Las líneas se piden aparte y no viajan en el `meta` del select: el saldo
+     * por facturar solo interesa de la orden elegida. La cantidad queda
+     * editable hacia abajo —manda lo que el proveedor imprimió— pero el backend
+     * no admite más de lo pendiente.
      */
-    const selectSourceOrder = (option: AjaxOption | null) => {
+    const selectSourceOrder = async (option: AjaxOption | null) => {
         sourceOrder.select(option);
 
-        const meta = (option?.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
+        if (!option) {
+            setOrderSeeds([]);
+
+            setData((current) => ({
+                ...current,
+                sourceable_type: '',
+                sourceable_id: '',
+                /** Sin orden origen, sus líneas tampoco pueden venir de una. */
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_type: '',
+                    sourceable_id: '',
+                })),
+            }));
+
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
 
         setData((current) => ({
             ...current,
-            sourceable_type: option ? PURCHASE_ORDER : '',
-            sourceable_id: option?.value ?? '',
+            sourceable_type: PURCHASE_ORDER,
+            sourceable_id: option.value,
             warehouse_id: meta.warehouse_id ?? current.warehouse_id,
         }));
 
         if (meta.currency) {
             selectCurrency(meta.currency);
         }
+
+        const pending = await invoiceableLines.fetchLines(option.value);
+
+        /** Una orden sin saldo deja intacto lo que el usuario ya capturó. */
+        if (pending.length === 0) {
+            return;
+        }
+
+        setData('lines', pending.map(lineFromOrder));
+
+        /** El artículo de cada línea de la orden pasa al catálogo de la pantalla. */
+        setOrderSeeds(
+            pending.map((line) => ({
+                id: line.item_id,
+                code: line.item_code,
+                name: line.item_name,
+            })),
+        );
     };
 
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);
@@ -470,6 +569,9 @@ export function usePurchaseInvoiceForm({
                               measurement_unit_id: baseUnitId(item),
                               unit_price:
                                   line.unit_price > 0 ? line.unit_price : cost,
+                              /** Otro artículo ya no es la línea que pidió la orden. */
+                              sourceable_type: '',
+                              sourceable_id: '',
                           },
                           taxOf(item?.purchase_tax_id),
                       )
@@ -576,6 +678,8 @@ export function usePurchaseInvoiceForm({
         sourceOrderLookupUrl: sourceOrder.url,
         sourceOrderOption: sourceOrder.optionOf(data.sourceable_id),
         selectSourceOrder,
+        loadingOrderLines: invoiceableLines.loading,
+        orderLinesFailed: invoiceableLines.failed,
         selectCurrency,
         addLine,
         removeLine,

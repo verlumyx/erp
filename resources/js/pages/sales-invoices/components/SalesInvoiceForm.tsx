@@ -91,9 +91,6 @@ export function SalesInvoiceForm() {
         })),
     ];
 
-    /** El pedido de origen manda el cliente: elegirlo aparte lo contradiría. */
-    const fromOrder = data.sourceable_id !== '';
-
     return (
         <form
             onSubmit={handleSubmit}
@@ -104,42 +101,9 @@ export function SalesInvoiceForm() {
                     <FormSectionHead
                         step={1}
                         title="Cabecera"
-                        sub="Documento origen, cliente y fechas de la factura"
+                        sub="Cliente, documento origen y fechas de la factura"
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-                        <div className="flex flex-col gap-1.5 sm:col-span-2">
-                            <Label
-                                htmlFor="sourceable_id"
-                                className="text-[13px] font-semibold"
-                            >
-                                Pedido de origen
-                            </Label>
-                            <Select2Ajax
-                                inputId="sourceable_id"
-                                url={sourceLookupUrl}
-                                value={sourceOption}
-                                onChange={selectSource}
-                                error={
-                                    !!errors.sourceable_id ||
-                                    !!errors.sourceable_type
-                                }
-                                size="md"
-                                isClearable
-                                placeholder="Busca un pedido confirmado, o déjalo vacío para una factura directa"
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Elegirlo trae el cliente y las líneas que le
-                                quedan por facturar
-                            </span>
-                            {(errors.sourceable_id ||
-                                errors.sourceable_type) && (
-                                <p className="text-sm text-bad">
-                                    {errors.sourceable_id ??
-                                        errors.sourceable_type}
-                                </p>
-                            )}
-                        </div>
-
                         <div className="flex flex-col gap-1.5">
                             <Label
                                 htmlFor="client_id"
@@ -152,16 +116,10 @@ export function SalesInvoiceForm() {
                                 url={clientLookupUrl}
                                 value={clientOption}
                                 onChange={selectClient}
-                                isDisabled={fromOrder}
                                 error={!!errors.client_id}
                                 size="md"
                                 placeholder="Busca un cliente"
                             />
-                            {fromOrder && (
-                                <span className="text-[12px] text-muted-foreground">
-                                    Lo fija el pedido de origen
-                                </span>
-                            )}
                             {client?.credit_blocked === 'yes' && (
                                 <span className="text-[12px] font-semibold text-warn">
                                     Este cliente tiene el crédito bloqueado
@@ -170,6 +128,45 @@ export function SalesInvoiceForm() {
                             {errors.client_id && (
                                 <p className="text-sm text-bad">
                                     {errors.client_id}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Pedido de origen
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={sourceLookupUrl}
+                                params={{ client_id: data.client_id }}
+                                value={sourceOption}
+                                onChange={selectSource}
+                                error={
+                                    !!errors.sourceable_id ||
+                                    !!errors.sourceable_type
+                                }
+                                size="md"
+                                isClearable
+                                isDisabled={data.client_id === ''}
+                                placeholder={
+                                    data.client_id === ''
+                                        ? 'Elige antes el cliente'
+                                        : 'Sin pedido previo'
+                                }
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Elegirlo trae las líneas que al pedido le quedan
+                                por facturar
+                            </span>
+                            {(errors.sourceable_id ||
+                                errors.sourceable_type) && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id ??
+                                        errors.sourceable_type}
                                 </p>
                             )}
                         </div>

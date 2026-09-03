@@ -146,6 +146,10 @@ Además de las columnas comunes de línea:
 **Reglas**
 
 - Al confirmar, se incrementa `incoming_quantity` en `app_item_stocks`.
+- El **pendiente por facturar** de una línea se deriva: `quantity - invoiced_quantity`. No tiene columna propia —
+  `pending_quantity` es el pendiente por *recibir*— y lo expone
+  `GET /{company}/purchase-orders/{id}/invoiceable-lines`, que la pantalla de la factura de compra pide en cuanto
+  se elige la orden para armar sus líneas.
 - Solo se edita en `draft`. Confirmada, se modifica creando una nueva versión o anulando.
 - Se cierra automáticamente (`completed`) cuando todas las líneas tienen `pending_quantity = 0`.
 - Anular una orden con recepciones parciales exige anular primero las entradas asociadas.
@@ -228,6 +232,9 @@ Además de las columnas comunes de línea:
 
 **Reglas**
 
+- La cantidad de una línea con origen no puede superar lo que a la línea de la orden le queda por facturar
+  (`quantity - invoiced_quantity`). El tope se mide contra `invoiced_quantity`, que solo se mueve al confirmar: un
+  borrador todavía no consume saldo.
 - Al confirmar: si `affects_inventory = 'yes'`, genera movimientos `in` en el kardex y recalcula el costo promedio del
   artículo con `landed_cost`.
 - Aumenta `current_balance` del proveedor por `total - withholding_amount`.

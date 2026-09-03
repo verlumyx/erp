@@ -192,6 +192,10 @@ trait ValidatesSalesInvoicePayload
      * Debe ser del mismo cliente y de la misma empresa que la factura, y cada
      * línea origen tiene que pertenecer a ese documento y llevar la misma
      * unidad, porque de ella sale la cantidad ya facturada del pedido.
+     *
+     * Esa cantidad es también el tope: no se factura más de lo que al pedido le
+     * queda por facturar. Se mide contra `invoiced_quantity`, que solo se mueve
+     * al confirmar, así que un borrador todavía no consume saldo.
      */
     private function validateSource(Validator $validator): void
     {
@@ -248,6 +252,18 @@ trait ValidatesSalesInvoicePayload
                 $validator->errors()->add(
                     "lines.{$index}.measurement_unit_id",
                     'La unidad debe ser la misma que la de la línea del pedido.',
+                );
+            }
+
+            $pending = max(
+                round((float) $orderLine->quantity - (float) $orderLine->invoiced_quantity, 4),
+                0,
+            );
+
+            if (round((float) ($line['quantity'] ?? 0), 4) > $pending) {
+                $validator->errors()->add(
+                    "lines.{$index}.quantity",
+                    "Esa línea del pedido solo tiene {$pending} por facturar.",
                 );
             }
         }

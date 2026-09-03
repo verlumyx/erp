@@ -159,27 +159,12 @@ export interface ClientOptionMeta {
     addresses: ClientAddressOption[];
 }
 
-/** Una línea del pedido que se va a facturar, tal como llega en su `meta`. */
-export interface SalesOrderLineOption {
-    id: string;
-    item_id: string;
-    item_name: string | null;
-    item_sku: string | null;
-    measurement_unit_id: string;
-    measurement_unit_name: string | null;
-    quantity: string;
-    invoiced_quantity: string;
-    unit_price: string;
-    discount_percent: string;
-    tax_id: string | null;
-    tax_percent: string;
-    withholding_percent: string;
-    notes: string | null;
-}
-
 /**
  * Lo que la factura copia de un pedido con solo haberlo elegido: viaja en el
  * `meta` de la opción que devuelve `sales-orders.lookup`.
+ *
+ * Las líneas no están aquí aunque el endpoint las mande: el saldo por facturar
+ * se pide aparte contra `sales-orders.invoiceable-lines`, ya calculado.
  */
 export interface SalesOrderOptionMeta {
     code: string;
@@ -191,7 +176,6 @@ export interface SalesOrderOptionMeta {
     currency: string;
     payment_term_days: number;
     status: string;
-    lines: SalesOrderLineOption[];
 }
 
 /**

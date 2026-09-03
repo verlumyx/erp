@@ -552,3 +552,101 @@ test('the form only offers the active taxes of the active company', function () 
                 ->has('options.taxes', 1),
         );
 });
+
+test('a line cannot invoice more than the order has left', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
+
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit);
+    $orderLine = $order->lines->first();
+
+    /** Seis ya facturadas de las diez pedidas dejan cuatro por facturar. */
+    $orderLine->update(['invoiced_quantity' => 6]);
+
+    $payload = purchaseInvoicePayload($supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 5,
+                'unit_price' => 25,
+                'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrderLine::MORPH_ALIAS,
+                'sourceable_id' => $orderLine->id,
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.quantity');
+});
+
+test('a line can invoice exactly what the order has left', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
+
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit);
+    $orderLine = $order->lines->first();
+
+    $orderLine->update(['invoiced_quantity' => 6]);
+
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 4,
+                'unit_price' => 25,
+                'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrderLine::MORPH_ALIAS,
+                'sourceable_id' => $orderLine->id,
+            ],
+        ],
+    ]);
+
+    expect((float) $invoice->lines->first()->quantity)->toBe(4.0);
+});
+
+test('a line cannot come from an order line of another order', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
+
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit);
+    $other = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit);
+
+    $payload = purchaseInvoicePayload($supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1,
+                'unit_price' => 25,
+                'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrderLine::MORPH_ALIAS,
+                'sourceable_id' => $other->lines->first()->id,
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.sourceable_id');
+});
+
+test('an invoice cannot be born from an order of another supplier', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
+
+    $other = \App\Modules\Supplier\Models\Supplier::factory()->create(['company_id' => $company->id]);
+
+    $order = sourcePurchaseOrder($user, $company, $other, $warehouse, $item, $unit);
+
+    $payload = purchaseInvoicePayload($supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('purchase-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('sourceable_id');
+});

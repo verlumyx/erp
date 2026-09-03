@@ -7,10 +7,13 @@ namespace App\Modules\SalesOrder\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\SalesOrder\Commands\SearchSalesOrderCommand;
 use App\Modules\SalesOrder\Models\SalesOrder;
+use App\Modules\SalesOrder\Models\SalesOrderLine;
+use App\Modules\SalesOrder\Resources\SalesOrderInvoiceableLineResource;
 use App\Modules\SalesOrder\Resources\SalesOrderOptionResource;
 use App\Modules\SalesOrder\Resources\SalesOrderResource;
 use App\Modules\SalesOrder\Services\SalesOrderFindService;
 use App\Modules\SalesOrder\Services\SalesOrderFormOptionsService;
+use App\Modules\SalesOrder\Services\SalesOrderInvoiceableLinesService;
 use App\Modules\SalesOrder\Services\SalesOrderOptionSearchService;
 use App\Modules\SalesOrder\Services\SalesOrderSearchService;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +39,7 @@ class SalesOrderGetController extends Controller
         private readonly SalesOrderFindService $findService,
         private readonly SalesOrderFormOptionsService $formOptionsService,
         private readonly SalesOrderOptionSearchService $optionSearchService,
+        private readonly SalesOrderInvoiceableLinesService $invoiceableLinesService,
     ) {}
 
     public function index(Request $request): Response
@@ -123,6 +127,28 @@ class SalesOrderGetController extends Controller
                 $result['data'],
             ),
             'has_more' => $result['total'] > $command->offset + $command->limit,
+        ]);
+    }
+
+    /**
+     * Las líneas de un pedido que todavía admiten factura.
+     *
+     * Devuelve JSON, no Inertia: la pide la pantalla de la factura de venta en
+     * cuanto se elige el pedido, y con ella arma sus líneas. Va aparte del
+     * `lookup` a propósito: el saldo por facturar solo interesa del pedido
+     * elegido, y meterlo en cada opción del select engordaría el menú entero.
+     */
+    public function invoiceableLines(Request $request, string $company, string $id): JsonResponse
+    {
+        abort_unless($request->user()?->hasPermission('sales-orders.list') ?? false, 403);
+
+        $lines = $this->invoiceableLinesService->execute($id, $company);
+
+        return response()->json([
+            'data' => array_map(
+                fn (SalesOrderLine $line): array => (new SalesOrderInvoiceableLineResource($line))->resolve(),
+                $lines,
+            ),
         ]);
     }
 

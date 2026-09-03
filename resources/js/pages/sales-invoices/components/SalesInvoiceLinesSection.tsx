@@ -1,4 +1,4 @@
-import { ChevronDown, Link2, Plus, X } from 'lucide-react';
+import { ChevronDown, Link2, Loader2, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Select2Ajax } from '@/components/select2-ajax';
@@ -31,6 +31,8 @@ export function SalesInvoiceLinesSection() {
         selectLineItem,
         selectLineTax,
         options,
+        loadingOrderLines,
+        orderLinesFailed,
     } = useSalesInvoiceFormContext();
 
     /** El catálogo de impuestos es el mismo para todas las líneas. */
@@ -58,6 +60,20 @@ export function SalesInvoiceLinesSection() {
     return (
         <div className="flex flex-col gap-4 p-5">
             {errors.lines && <p className="text-sm text-bad">{errors.lines}</p>}
+
+            {loadingOrderLines && (
+                <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Trayendo lo que el pedido tiene por facturar…
+                </p>
+            )}
+
+            {orderLinesFailed && (
+                <p className="text-[13px] text-warn">
+                    No se pudieron traer las líneas del pedido. Vuelve a
+                    elegirlo o captúralas a mano.
+                </p>
+            )}
 
             {data.lines.map((line, index) => {
                 const item = catalog.itemOf(line.item_id);

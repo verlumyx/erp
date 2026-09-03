@@ -7,10 +7,13 @@ namespace App\Modules\PurchaseOrder\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\PurchaseOrder\Commands\SearchPurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
+use App\Modules\PurchaseOrder\Resources\PurchaseOrderInvoiceableLineResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderOptionResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderResource;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFindService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFormOptionsService;
+use App\Modules\PurchaseOrder\Services\PurchaseOrderInvoiceableLinesService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderOptionSearchService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderSearchService;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +44,7 @@ class PurchaseOrderGetController extends Controller
         private readonly PurchaseOrderFindService $findService,
         private readonly PurchaseOrderFormOptionsService $formOptionsService,
         private readonly PurchaseOrderOptionSearchService $optionSearchService,
+        private readonly PurchaseOrderInvoiceableLinesService $invoiceableLinesService,
     ) {}
 
     public function index(Request $request): Response
@@ -127,6 +131,28 @@ class PurchaseOrderGetController extends Controller
                 $result['data'],
             ),
             'has_more' => $result['total'] > $command->offset + $command->limit,
+        ]);
+    }
+
+    /**
+     * Las líneas de una orden que todavía admiten factura.
+     *
+     * Devuelve JSON, no Inertia: la pide la pantalla de la factura de compra en
+     * cuanto se elige la orden, y con ella arma sus líneas. Va aparte del
+     * `lookup` a propósito: el saldo por facturar solo interesa de la orden
+     * elegida, y meterlo en cada opción del select engordaría el menú entero.
+     */
+    public function invoiceableLines(Request $request, string $company, string $id): JsonResponse
+    {
+        abort_unless($request->user()?->hasPermission('purchase-orders.list') ?? false, 403);
+
+        $lines = $this->invoiceableLinesService->execute($id, $company);
+
+        return response()->json([
+            'data' => array_map(
+                fn (PurchaseOrderLine $line): array => (new PurchaseOrderInvoiceableLineResource($line))->resolve(),
+                $lines,
+            ),
         ]);
     }
 

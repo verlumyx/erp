@@ -21,6 +21,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::post('/', SalesOrderPostController::class)->name('sales-orders.store');
             Route::get('/{id}', [SalesOrderGetController::class, 'show'])->where('id', $uuid)->name('sales-orders.show');
             Route::get('/{id}/edit', [SalesOrderGetController::class, 'edit'])->where('id', $uuid)->name('sales-orders.edit');
+            Route::get('/{id}/invoiceable-lines', [SalesOrderGetController::class, 'invoiceableLines'])->where('id', $uuid)->name('sales-orders.invoiceable-lines');
             Route::put('/{id}', SalesOrderPutController::class)->where('id', $uuid)->name('sales-orders.update');
             Route::put('/{id}/status', SalesOrderUpdateStatusController::class)->where('id', $uuid)->name('sales-orders.update-status');
         });

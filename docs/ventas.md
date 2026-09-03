@@ -173,6 +173,10 @@ Además de las columnas comunes de línea:
 **Reglas**
 
 - Al confirmar: valida disponibilidad (`available_quantity`) y crédito; incrementa `reserved_quantity`.
+- El **pendiente por facturar** de una línea se deriva: `quantity - invoiced_quantity`. No tiene columna propia —
+  `pending_quantity` es el pendiente por *despachar*— y lo expone
+  `GET /{company}/sales-orders/{id}/invoiceable-lines`, que la pantalla de la factura de venta pide en cuanto se
+  elige el pedido para armar sus líneas.
 - La reserva se libera al despachar (pasa a salida real) o al anular la orden.
 - El precio se congela en la línea: cambios posteriores en la lista no afectan el pedido.
 - No se permite `unit_price < item.min_price` sin el permiso correspondiente.
@@ -262,6 +266,9 @@ Además de las columnas comunes de línea:
 
 **Reglas**
 
+- La cantidad de una línea con origen no puede superar lo que a la línea del pedido le queda por facturar
+  (`quantity - invoiced_quantity`). El tope se mide contra `invoiced_quantity`, que solo se mueve al confirmar: un
+  borrador todavía no consume saldo.
 - Al confirmar: si `affects_inventory = 'yes'`, genera movimientos `out` y congela `unit_cost` con el costo vigente del
   artículo. Aumenta `current_balance` del cliente.
 - `invoice_number` se asigna al confirmar, nunca en borrador, y es correlativo por serie.
