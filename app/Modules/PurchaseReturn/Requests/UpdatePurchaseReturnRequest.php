@@ -43,8 +43,8 @@ class UpdatePurchaseReturnRequest extends FormRequest
     }
 
     /**
-     * Solo se edita en `draft`. Confirmada, la mercancía ya salió de la bodega
-     * y el kardex lo tiene escrito: se corrige anulándola y emitiendo otra.
+     * Solo se edita en `draft`. Confirmada, la factura de origen ya tiene
+     * apuntado lo devuelto: se corrige anulándola y emitiendo otra.
      */
     private function validateStillEditable(Validator $validator): void
     {

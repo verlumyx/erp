@@ -40,7 +40,6 @@ test('a purchase invoice can be created', function () {
     expect($invoice->supplier_id)->toBe($supplier->id);
     expect($invoice->supplier_invoice_number)->toBe('00-123456');
     expect($invoice->supplier_invoice_series)->toBe('A');
-    expect($invoice->affects_inventory)->toBe('yes');
     expect($invoice->lines)->toHaveCount(1);
 
     $line = $invoice->lines->first();
@@ -97,8 +96,6 @@ test('the totals are calculated on the backend and ignore what the client sends'
         'subtotal' => 999999,
         'total' => 999999,
         'discount_amount' => 50,
-        'freight_amount' => 30,
-        'other_charges' => 20,
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -129,40 +126,36 @@ test('the totals are calculated on the backend and ignore what the client sends'
     /** La retención se practica sobre el impuesto, no sobre la base. */
     expect((float) $line->withholding_amount)->toBe(108.0);
 
-    // Cabecera: 900 − 50 de descuento + 144 de impuesto + 30 de flete + 20 de gastos.
+    // Cabecera: 900 − 50 de descuento + 144 de impuesto.
     expect((float) $invoice->subtotal)->toBe(900.0);
     expect((float) $invoice->discount_amount)->toBe(50.0);
     expect((float) $invoice->tax_amount)->toBe(144.0);
     expect((float) $invoice->withholding_amount)->toBe(108.0);
-    expect((float) $invoice->freight_amount)->toBe(30.0);
-    expect((float) $invoice->other_charges)->toBe(20.0);
-    expect((float) $invoice->total)->toBe(1044.0);
+    expect((float) $invoice->total)->toBe(994.0);
     /** La deuda nace entera: nadie ha pagado todavía. */
     expect((float) $invoice->paid_amount)->toBe(0.0);
-    expect((float) $invoice->balance)->toBe(1044.0);
+    expect((float) $invoice->balance)->toBe(994.0);
 });
 
-test('the freight and the other charges are prorated into the landed cost', function () {
+test('a freight charged in the same invoice is one more line and nothing else', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
 
-    $second = \App\Modules\Item\Models\Item::factory()->create([
+    /** El flete se cobra como servicio: se debe, pero no lleva existencia. */
+    $freight = \App\Modules\Item\Models\Item::factory()->create([
         'company_id' => $company->id,
+        'type' => 'service',
         'is_purchasable' => 'yes',
     ]);
     ItemUnit::factory()->base()->create([
         'company_id' => $company->id,
-        'item_id' => $second->id,
+        'item_id' => $freight->id,
         'measurement_unit_id' => $unit->id,
     ]);
 
     $payload = purchaseInvoicePayload($supplier, $warehouse, $item, $unit, [
-        'freight_amount' => 100,
-        'other_charges' => 50,
         'lines' => [
-            // 300 de base: 2/3 del subtotal → 100 de los 150 de cargos.
             ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 10, 'unit_price' => 30],
-            // 150 de base: 1/3 del subtotal → 50 de los 150 de cargos.
-            ['item_id' => $second->id, 'measurement_unit_id' => $unit->id, 'quantity' => 5, 'unit_price' => 30],
+            ['item_id' => $freight->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'unit_price' => 150],
         ],
     ]);
 
@@ -170,15 +163,18 @@ test('the freight and the other charges are prorated into the landed cost', func
         ->post(route('purchase-invoices.store', ['company' => $company->id]), $payload)
         ->assertSessionHasNoErrors();
 
-    $lines = PurchaseInvoice::with('lines')->find($payload['id'])->lines->sortBy('line_number')->values();
+    $invoice = PurchaseInvoice::with('lines')->find($payload['id']);
+    $lines = $invoice->lines->sortBy('line_number')->values();
 
-    // (300 + 100) / 10 = 40 por unidad base.
-    expect((float) $lines[0]->landed_cost)->toBe(40.0);
-    // (150 + 50) / 5 = 40 por unidad base.
-    expect((float) $lines[1]->landed_cost)->toBe(40.0);
+    /** El flete entra al total: 300 de mercancía más 150 de flete. */
+    expect((float) $invoice->total)->toBe(450.0);
+
+    /** Y no se reparte sobre el costo de la mercancía: 300 / 10 sigue siendo 30. */
+    expect((float) $lines[0]->landed_cost)->toBe(30.0);
+    expect((float) $lines[1]->landed_cost)->toBe(150.0);
 });
 
-test('without charges the landed cost is the cost of the line itself', function () {
+test('the landed cost is the cost of the line itself', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
 
     $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);

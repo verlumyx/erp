@@ -51,7 +51,6 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 'vehicle_plate' => $command->vehiclePlate,
                 'carrier' => $command->carrier,
                 'tracking_number' => $command->trackingNumber,
-                'freight_amount' => $command->freightAmount,
                 'delivery_status' => 'pending',
                 'notes' => $command->notes,
                 'status' => 'draft',
@@ -101,7 +100,6 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 'vehicle_plate' => $command->vehiclePlate,
                 'carrier' => $command->carrier,
                 'tracking_number' => $command->trackingNumber,
-                'freight_amount' => $command->freightAmount,
                 'notes' => $command->notes,
             ]);
 

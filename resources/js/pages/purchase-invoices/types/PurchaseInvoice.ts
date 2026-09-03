@@ -73,13 +73,10 @@ export interface PurchaseInvoice {
     /** Moneda principal de la empresa congelada al emitir, con su tasa. */
     base_currency: string | null;
     base_exchange_rate: string | null;
-    affects_inventory: 'yes' | 'no';
     subtotal: string;
     discount_amount: string;
     tax_amount: string;
     withholding_amount: string;
-    freight_amount: string;
-    other_charges: string;
     total: string;
     /** Importes en bolívares congelados: la factura tiene valor legal. */
     subtotal_ves: string;

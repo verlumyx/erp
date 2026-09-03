@@ -12,15 +12,17 @@ use App\Modules\SalesInvoice\Repositories\Contracts\SalesInvoiceRepositoryInterf
 use App\Modules\SalesReturn\Commands\SalesReturnLineData;
 
 /**
- * A qué costo vuelve cada línea al inventario.
+ * A qué costo se valora cada línea devuelta.
  *
- * La mercancía reingresa **al costo con el que salió** —el `unit_cost` que la
- * factura congeló al confirmarse—, no al promedio vigente: si volviera al
+ * La devolución no reingresa la mercancía —eso lo hace la Entrada que la
+ * recibe—, pero deja escrito **el costo con el que salió**: el `unit_cost` que
+ * la factura congeló al confirmarse, no el promedio vigente. Si se valorara al
  * promedio, devolver mercancía inventaría o destruiría margen sin que nadie
- * comprara ni vendiera nada.
+ * comprara ni vendiera nada, y la Entrada que la reciba se apoya en este
+ * número.
  *
- * Sin línea de factura de origen no hay costo congelado que copiar, y se cae
- * al costo promedio del artículo, que es lo que el kardex usaría de todos modos.
+ * Sin línea de factura de origen no hay costo congelado que copiar, y se cae al
+ * costo promedio del artículo.
  *
  * El costo no se captura en la pantalla: lo resuelve este servicio y lo escribe
  * el repositorio en `unit_cost`.

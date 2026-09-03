@@ -73,19 +73,17 @@ class InventoryMovement extends Model
     /**
      * Documentos que pueden originar un movimiento.
      *
+     * Son tres y solo tres: la Entrada mete la mercancía, el Despacho la saca y
+     * el Ajuste cuadra lo que el conteo desmiente. Un documento comercial
+     * —factura, nota de crédito, devolución, traslado— describe un acuerdo con
+     * un tercero, no un hecho físico, y nunca escribe aquí.
+     *
      * @var array<int, string>
      */
     public const ORIGIN_TYPES = [
-        'purchase_invoice',
-        'sales_invoice',
-        'dispatch',
-        'transfer',
         'entry',
+        'dispatch',
         'adjustment',
-        'purchase_return',
-        'sales_return',
-        'purchase_credit_note',
-        'sales_credit_note',
     ];
 
     protected $fillable = [

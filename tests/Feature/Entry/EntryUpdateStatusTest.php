@@ -18,7 +18,6 @@ test('confirming puts the goods into the warehouse at the landed cost', function
     [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
 
     $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
-        'freight_amount' => 50,
         'lines' => [[
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
@@ -28,8 +27,8 @@ test('confirming puts the goods into the warehouse at the landed cost', function
         ]],
     ]);
 
-    /** 50 de flete sobre 250 de mercancía: cada unidad entra a 30. */
-    expect((float) $entry->lines->first()->landed_cost)->toBe(30.0);
+    /** 250 de mercancía entre 10 unidades base: cada una entra a 25. */
+    expect((float) $entry->lines->first()->landed_cost)->toBe(25.0);
 
     moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
 
@@ -43,8 +42,8 @@ test('confirming puts the goods into the warehouse at the landed cost', function
     expect($movement->warehouse_id)->toBe($warehouse->id);
     expect($movement->location_id)->toBe($location->id);
     expect((float) $movement->quantity)->toBe(10.0);
-    expect((float) $movement->unit_cost)->toBe(30.0);
-    expect((float) $movement->total_cost)->toBe(300.0);
+    expect((float) $movement->unit_cost)->toBe(25.0);
+    expect((float) $movement->total_cost)->toBe(250.0);
     expect((float) $movement->balance_quantity)->toBe(10.0);
 });
 

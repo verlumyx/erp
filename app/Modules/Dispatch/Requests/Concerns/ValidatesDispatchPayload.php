@@ -83,7 +83,6 @@ trait ValidatesDispatchPayload
             'vehicle_plate' => ['nullable', 'string', 'max:20'],
             'carrier' => ['nullable', 'string', 'max:150'],
             'tracking_number' => ['nullable', 'string', 'max:60'],
-            'freight_amount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
 
             'lines' => ['required', 'array', 'min:1'],
@@ -160,7 +159,6 @@ trait ValidatesDispatchPayload
             'warehouse_id.exists' => 'La bodega seleccionada no está disponible.',
             'dispatch_date.required' => 'La fecha de salida es obligatoria.',
             'driver_id.exists' => 'El conductor indicado no existe.',
-            'freight_amount.min' => 'El costo del flete no puede ser negativo.',
             'lines.required' => 'El despacho debe tener al menos una línea.',
             'lines.min' => 'El despacho debe tener al menos una línea.',
             'lines.*.item_id.required' => 'Selecciona el artículo de la línea.',

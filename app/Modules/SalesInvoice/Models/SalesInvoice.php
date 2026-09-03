@@ -31,9 +31,6 @@ class SalesInvoice extends Model
 
     public const CODE_PREFIX = 'FVE';
 
-    /** Con este tipo viaja la factura en `app_inventory_movements`. */
-    public const MOVEMENT_ORIGIN_TYPE = 'sales_invoice';
-
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     /** Una factura confirmada no se edita: se anula y se emite otra. */
@@ -92,12 +89,10 @@ class SalesInvoice extends Model
         'exchange_rate',
         'base_currency',
         'base_exchange_rate',
-        'affects_inventory',
         'subtotal',
         'discount_amount',
         'tax_amount',
         'withholding_amount',
-        'freight_amount',
         'total',
         'total_cost',
         'subtotal_ves',
@@ -130,7 +125,6 @@ class SalesInvoice extends Model
             'discount_amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'withholding_amount' => 'decimal:2',
-            'freight_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'total_cost' => 'decimal:2',
             'subtotal_ves' => 'decimal:2',

@@ -329,14 +329,6 @@ export default function SalesInvoicesShow({ salesInvoice: invoice }: Props) {
                             value={SALE_TYPE_LABELS[invoice.sale_type]}
                         />
                         <DataRow
-                            label="Descarga inventario"
-                            value={
-                                invoice.affects_inventory === 'yes'
-                                    ? 'Sí'
-                                    : 'No: salió con un despacho'
-                            }
-                        />
-                        <DataRow
                             label="Estado"
                             value={STATUS_LABELS[invoice.status]}
                         />
@@ -373,17 +365,6 @@ export default function SalesInvoicesShow({ salesInvoice: invoice }: Props) {
                                 />
                             }
                         />
-                        {Number(invoice.freight_amount) > 0 && (
-                            <DataRow
-                                label="Flete"
-                                value={
-                                    <Amount
-                                        invoice={invoice}
-                                        value={invoice.freight_amount}
-                                    />
-                                }
-                            />
-                        )}
                         <DataRow
                             label="Total"
                             value={

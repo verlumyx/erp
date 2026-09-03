@@ -6,30 +6,14 @@ use App\Modules\InventoryMovement\Models\InventoryMovement;
 use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNote;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoiceLine;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 
 use function Pest\Laravel\actingAs;
 
-/** Los movimientos vivos que escribió la devolución, sin contrapartidas. */
-function returnMovements(PurchaseReturn $return): \Illuminate\Database\Eloquent\Collection
-{
-    return InventoryMovement::query()
-        ->where('origin_type', PurchaseReturn::MOVEMENT_ORIGIN_TYPE)
-        ->where('origin_id', $return->id)
-        ->orderBy('created_at')
-        ->get();
-}
-
-test('confirming takes the goods out of the warehouse at the original purchase cost', function () {
+test('confirming marks what was returned on the invoice line', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    /** La bodega tiene existencia, comprada a 20 y revalorada a 30 después. */
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 40]);
 
     $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
     $invoiceLine = $invoice->lines->first();
-    PurchaseInvoiceLine::where('id', $invoiceLine->id)->update(['landed_cost' => 20]);
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit, [
         'purchase_invoice_id' => $invoice->id,
@@ -51,115 +35,35 @@ test('confirming takes the goods out of the warehouse at the original purchase c
 
     expect($return->refresh()->status)->toBe('confirmed');
 
-    $movements = returnMovements($return);
-    expect($movements)->toHaveCount(1);
-
-    $movement = $movements->first();
-    expect($movement->type)->toBe('out');
-    expect($movement->warehouse_id)->toBe($warehouse->id);
-    expect($movement->location_id)->toBe($location->id);
-    expect((float) $movement->quantity)->toBe(4.0);
-    /** Sale al costo de la compra (20), no al promedio vigente (30). */
-    expect((float) $movement->unit_cost)->toBe(20.0);
-    expect((float) $movement->total_cost)->toBe(80.0);
-    expect((float) $movement->balance_quantity)->toBe(16.0);
-
-    /** Y la factura apunta lo devuelto. */
+    /** Confirmar consume el cupo de la factura: es lo que habilita la nota de crédito. */
     expect((float) PurchaseInvoiceLine::find($invoiceLine->id)->returned_quantity)->toBe(4.0);
 });
 
-test('the exit is written in the base unit of the item', function () {
+test('confirming a return writes nothing in the kardex', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
 
-    $box = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()->create(['company_id' => $company->id]);
-    \App\Modules\Item\Models\ItemUnit::factory()->create([
-        'company_id' => $company->id,
-        'item_id' => $item->id,
-        'measurement_unit_id' => $box->id,
-        'is_base' => 'no',
-        'conversion_factor' => 12,
-    ]);
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 100, 'unitCost' => 5]);
-
-    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit, [
-        'lines' => [[
-            'item_id' => $item->id,
-            'measurement_unit_id' => $box->id,
-            'quantity' => 2,
-            'unit_price' => 60,
-            'location_id' => $location->id,
-        ]],
-    ]);
-
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
-            'status' => 'confirmed',
-        ])
-        ->assertSessionHasNoErrors();
-
-    /** 2 cajas de 12 son 24 unidades base. */
-    expect((float) returnMovements($return)->first()->quantity)->toBe(24.0);
-});
-
-test('a line without location falls back to the default one of the warehouse', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
-
-    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
-
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
-            'status' => 'confirmed',
-        ])
-        ->assertSessionHasNoErrors();
-
-    expect(returnMovements($return)->first()->location_id)->toBe($location->id);
-});
-
-test('a warehouse without a default location cannot confirm the return', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
-
-    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
-
-    WarehouseLocation::where('id', $location->id)->update(['is_default' => 'no']);
-
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
-            'status' => 'confirmed',
-        ])
-        ->assertSessionHasErrors('status');
-
-    expect($return->refresh()->status)->toBe('draft');
-    expect(returnMovements($return))->toHaveCount(0);
-});
-
-test('a warehouse without enough stock cannot confirm the return', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 1, 'unitCost' => 5]);
-
-    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
-
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
-            'status' => 'confirmed',
-        ])
-        ->assertSessionHasErrors('status');
-
-    $return->refresh();
-    expect($return->status)->toBe('draft');
-    /** La transacción cae entera: ni kardex ni saldo quedan a medias. */
-    expect(returnMovements($return))->toHaveCount(0);
-});
-
-test('cancelling a confirmed return brings the goods back with a counter-entry', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
+    /** La bodega ya tiene existencia antes de la devolución. */
     registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
+
+    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($return->refresh()->status)->toBe('confirmed');
+
+    /** La devolución es el acuerdo con el proveedor, no la salida: esa la asienta el despacho. */
+    expect(InventoryMovement::query()->where('origin_id', $return->id)->count())->toBe(0);
+
+    /** Y la existencia queda intacta: siguen las 10 unidades que ya estaban. */
+    expect(warehouseBalance($company, $item, $warehouse))->toBe(10.0);
+});
+
+test('cancelling a confirmed return gives the quota back to the invoice line', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
     $invoiceLine = $invoice->lines->first();
@@ -191,23 +95,11 @@ test('cancelling a confirmed return brings the goods back with a counter-entry',
     expect($return->status)->toBe('cancelled');
     expect($return->cancelled_at)->not->toBeNull();
 
-    $movements = returnMovements($return);
-    expect($movements)->toHaveCount(2);
-
-    $exit = $movements->firstWhere('type', 'out');
-    $entry = $movements->firstWhere('type', 'in');
-
-    /** El original no se borra: queda revertido y apuntado por su contrapartida. */
-    expect($exit->status)->toBe('reversed');
-    expect($entry->reversal_of_id)->toBe($exit->id);
-    expect((float) $entry->quantity)->toBe(4.0);
-    expect((float) $entry->balance_quantity)->toBe(10.0);
-
-    /** Y la factura recupera el cupo devuelto. */
+    /** Anular libera el cupo: la factura vuelve a poder devolver esas unidades. */
     expect((float) PurchaseInvoiceLine::find($invoiceLine->id)->returned_quantity)->toBe(0.0);
 });
 
-test('cancelling a draft moves nothing', function () {
+test('a draft return can be cancelled', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
@@ -219,7 +111,6 @@ test('cancelling a draft moves nothing', function () {
         ->assertSessionHasNoErrors();
 
     expect($return->refresh()->status)->toBe('cancelled');
-    expect(returnMovements($return))->toHaveCount(0);
 });
 
 test('a confirmed return can be completed once its credit note exists', function () {
@@ -242,9 +133,7 @@ test('a confirmed return can be completed once its credit note exists', function
 });
 
 test('confirming does not recalculate the frozen rate', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
 
@@ -344,9 +233,7 @@ test('a user without permission cannot change the status', function () {
 });
 
 test('a credit note pointing at the return marks it as credited', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
 
@@ -366,9 +253,7 @@ test('a credit note pointing at the return marks it as credited', function () {
 });
 
 test('cancelling the credit note gives the return back to confirmed', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
 
@@ -411,9 +296,7 @@ test('a draft return cannot be credited yet', function () {
 });
 
 test('a return does not take a second live credit note', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
 

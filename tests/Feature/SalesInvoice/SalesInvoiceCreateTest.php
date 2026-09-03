@@ -58,7 +58,6 @@ test('the totals are computed from the lines and never taken from the payload', 
         /** Importes inventados: el backend los ignora y recalcula. */
         'subtotal' => 999999,
         'total' => 999999,
-        'freight_amount' => 15,
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -92,9 +91,9 @@ test('the totals are computed from the lines and never taken from the payload', 
     expect((float) $invoice->discount_amount)->toBe(50.0);
     expect((float) $invoice->tax_amount)->toBe(72.0);
     expect((float) $invoice->withholding_amount)->toBe(54.0);
-    /** El flete cobrado suma al total; la retención no lo baja. */
-    expect((float) $invoice->total)->toBe(537.0);
-    expect((float) $invoice->balance)->toBe(537.0);
+    /** La retención no baja el total: la salda el cliente con su comprobante. */
+    expect((float) $invoice->total)->toBe(522.0);
+    expect((float) $invoice->balance)->toBe(522.0);
 });
 
 test('the bolivar amounts are frozen because an invoice has legal value', function () {

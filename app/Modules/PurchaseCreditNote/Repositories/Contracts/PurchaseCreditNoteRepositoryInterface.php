@@ -46,7 +46,7 @@ interface PurchaseCreditNoteRepositoryInterface
 
     /**
      * Las líneas vivas de la nota, en el orden en que se capturaron. Son las
-     * únicas que salen del kardex.
+     * únicas que suman al crédito.
      *
      * @return array<int, PurchaseCreditNoteLine>
      */

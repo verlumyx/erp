@@ -237,14 +237,6 @@ export default function PurchaseCreditNotesShow({ purchaseCreditNote }: Props) {
                                 purchaseCreditNote.purchase_invoice_code ?? '—'
                             }
                         />
-                        <DataRow
-                            label="Afecta inventario"
-                            value={
-                                purchaseCreditNote.affects_inventory === 'yes'
-                                    ? 'Sí, la mercancía sale'
-                                    : 'No, solo la deuda'
-                            }
-                        />
                         {purchaseCreditNote.reason_detail && (
                             <DataRow
                                 label="Detalle"

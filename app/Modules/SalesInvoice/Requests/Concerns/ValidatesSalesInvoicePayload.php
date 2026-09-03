@@ -70,8 +70,6 @@ trait ValidatesSalesInvoicePayload
             'invoice_date' => ['required', 'date'],
             'due_date' => ['required', 'date', 'after_or_equal:invoice_date'],
             'sale_type' => ['nullable', 'string', 'in:cash,credit'],
-            'affects_inventory' => ['nullable', 'string', 'in:yes,no'],
-            'freight_amount' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['required', 'string', new ActiveCurrency],
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],

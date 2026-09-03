@@ -45,8 +45,8 @@ class UpdateSalesCreditNoteRequest extends FormRequest
 
     /**
      * Solo se edita en `draft`. Confirmada ya bajó la cuenta por cobrar del
-     * cliente, quemó su correlativo fiscal y, si afecta inventario, movió el
-     * kardex: se corrige anulándola y emitiendo otra.
+     * cliente y quemó su correlativo fiscal: se corrige anulándola y emitiendo
+     * otra.
      */
     private function validateStillEditable(Validator $validator): void
     {

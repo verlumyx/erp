@@ -39,8 +39,6 @@ test('a purchase credit note can be created', function () {
     expect($note->supplier_id)->toBe($supplier->id);
     expect($note->supplier_document_number)->toBe('NC-000123');
     expect($note->reason)->toBe('discount');
-    /** Una nota que no saca mercancía es lo normal: solo baja la deuda. */
-    expect($note->affects_inventory)->toBe('no');
     expect($note->lines)->toHaveCount(1);
 
     $line = $note->lines->first();
@@ -213,33 +211,6 @@ test('the reason detail is required when the reason is other', function () {
     expect($note->reason_detail)->toBe('El proveedor reconoció un error de facturación del año pasado.');
 });
 
-test('a note that affects inventory needs a warehouse on every line', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseCreditNoteScenario();
-
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('purchase-credit-notes.store', ['company' => $company->id]),
-            purchaseCreditNotePayload($supplier, $item, $unit, ['affects_inventory' => 'yes']),
-        )
-        ->assertSessionHasErrors('lines.0.warehouse_id');
-
-    $note = createPurchaseCreditNote($user, $company, $supplier, $item, $unit, [
-        'affects_inventory' => 'yes',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 2,
-                'unit_price' => 25,
-                'warehouse_id' => $warehouse->id,
-            ],
-        ],
-    ]);
-
-    expect($note->affects_inventory)->toBe('yes');
-    expect($note->lines->first()->warehouse_id)->toBe($warehouse->id);
-});
-
 test('a warehouse from another company is rejected on the line', function () {
     [$user, $company, $supplier, , $item, $unit] = purchaseCreditNoteScenario();
 
@@ -247,7 +218,6 @@ test('a warehouse from another company is rejected on the line', function () {
         ->post(
             route('purchase-credit-notes.store', ['company' => $company->id]),
             purchaseCreditNotePayload($supplier, $item, $unit, [
-                'affects_inventory' => 'yes',
                 'lines' => [
                     [
                         'item_id' => $item->id,

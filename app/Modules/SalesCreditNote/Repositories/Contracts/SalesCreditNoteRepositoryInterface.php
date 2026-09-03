@@ -48,8 +48,8 @@ interface SalesCreditNoteRepositoryInterface
     public function search(SearchSalesCreditNoteCommand $command): array;
 
     /**
-     * Las líneas vivas de la nota, en orden. Es lo que el asiento en el kardex
-     * recorre al confirmarla.
+     * Las líneas vivas de la nota, en orden. Son las únicas que suman al
+     * crédito.
      *
      * @return array<int, SalesCreditNoteLine>
      */

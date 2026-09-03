@@ -103,8 +103,6 @@ class Entry extends Model
         'base_currency',
         'base_exchange_rate',
         'total_quantity',
-        'freight_amount',
-        'other_charges',
         'total_cost',
         'is_invoiced',
         'cancelled_at',
@@ -123,8 +121,6 @@ class Entry extends Model
             'exchange_rate' => 'decimal:8',
             'base_exchange_rate' => 'decimal:8',
             'total_quantity' => 'decimal:4',
-            'freight_amount' => 'decimal:2',
-            'other_charges' => 'decimal:2',
             'total_cost' => 'decimal:2',
             'cancelled_at' => 'datetime',
             'created_at' => 'datetime',
@@ -177,12 +173,6 @@ class Entry extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(EntryLine::class, 'entry_id', 'id');
-    }
-
-    /** Gastos capitalizables de la cabecera que se reparten entre las líneas. */
-    public function capitalizableCharges(): float
-    {
-        return round((float) $this->freight_amount + (float) $this->other_charges, 2);
     }
 
     /** La mercancía viene de otra bodega propia: detrás hay un traslado. */

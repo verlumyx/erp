@@ -68,8 +68,6 @@ interface SalesInvoiceFormData {
     invoice_date: string;
     due_date: string;
     sale_type: SaleType;
-    affects_inventory: 'yes' | 'no';
-    freight_amount: number;
     currency: string;
     /**
      * Corrección manual de la tasa. Vacío —el caso normal— hace que la
@@ -404,8 +402,6 @@ export function useSalesInvoiceForm({
             invoice_date: initialData?.invoice_date ?? today,
             due_date: initialData?.due_date ?? today,
             sale_type: initialData?.sale_type ?? 'credit',
-            affects_inventory: initialData?.affects_inventory ?? 'yes',
-            freight_amount: Number(initialData?.freight_amount ?? 0),
             /** Una factura nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),
@@ -691,16 +687,13 @@ export function useSalesInvoiceForm({
 
     const totals = {
         ...lineTotals,
-        freight: data.freight_amount,
         /**
-         * El flete cobrado suma al total; la retención no lo baja: es un
-         * impuesto que el cliente entera al fisco y se salda con su
-         * comprobante, no con la factura.
+         * La retención no baja el total: es un impuesto que el cliente entera
+         * al fisco y se salda con su comprobante, no con la factura. Un flete
+         * cobrado al cliente va como una línea más, así que ya viene dentro del
+         * subtotal.
          */
-        total: round(
-            lineTotals.subtotal + lineTotals.taxAmount + data.freight_amount,
-            2,
-        ),
+        total: round(lineTotals.subtotal + lineTotals.taxAmount, 2),
     };
 
     const handleSubmit = (e: React.FormEvent) => {

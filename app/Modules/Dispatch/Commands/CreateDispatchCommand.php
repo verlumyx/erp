@@ -37,7 +37,6 @@ class CreateDispatchCommand
         public readonly ?string $vehiclePlate = null,
         public readonly ?string $carrier = null,
         public readonly ?string $trackingNumber = null,
-        public readonly float $freightAmount = 0,
         public readonly ?string $notes = null,
     ) {}
 
@@ -61,7 +60,6 @@ class CreateDispatchCommand
             vehiclePlate: $request->input('vehicle_plate'),
             carrier: $request->input('carrier'),
             trackingNumber: $request->input('tracking_number'),
-            freightAmount: (float) $request->input('freight_amount', 0),
             notes: $request->input('notes'),
         );
     }

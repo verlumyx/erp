@@ -7,7 +7,7 @@ un conjunto de módulos relacionados.
 |--------------------------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
 | [catalogo.md](catalogo.md)     | Catálogo   | Categorías, Listas de precio de venta, Unidades de medida, Impuestos, Tipo de proveedor, Tipo de cliente, Tasas                                     |
 | [inventario.md](inventario.md) | Inventario | Catálogo de artículos, Bodegas, Existencias, Kardex                                                                                                 |
-| [logistica.md](logistica.md)   | Logística  | Despachos, Traslados, Entradas, Rutas, Ajustes                                                                                                      |
+| [logistica.md](logistica.md)   | Logística  | Despachos, Traslados, Entradas, Rutas, Ajustes, Importaciones (§6, diseño en revisión)                                                              |
 | [compras.md](compras.md)       | Compras    | Proveedores, Órdenes de compra, Facturas de compra, Notas de crédito a proveedor, Anticipos a proveedor, Pagos a proveedor, Devoluciones de compras |
 | [ventas.md](ventas.md)         | Ventas     | Clientes, Órdenes de venta, Facturas de venta, Notas de crédito a cliente, Anticipos de clientes, Cobros a clientes, Devoluciones de ventas         |
 | [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (pendiente de definir)                                                                                                            |

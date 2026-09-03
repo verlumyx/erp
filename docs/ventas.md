@@ -190,7 +190,8 @@ Además de las columnas comunes de línea:
 
 ## 3. Facturas de venta
 
-Documento fiscal que genera la cuenta por cobrar y descarga inventario si no hubo despacho previo.
+Documento fiscal que genera la cuenta por cobrar. **No descarga inventario**: la mercancía sale con su Despacho, y de
+ese movimiento la factura lee el costo que congela. Ver [inventario.md § 4.1](inventario.md).
 
 ### 3.1 Cabecera — `app_sales_invoices` — Prefijo `FVE`
 
@@ -210,12 +211,10 @@ Documento fiscal que genera la cuenta por cobrar y descarga inventario si no hub
 | `sale_type`           | `enum`          | No   | `'credit'`  | `cash` (contado) o `credit`.                                             |
 | `currency`            | `string(3)`     | No   | `'USD'`     |                                                                          |
 | `exchange_rate`       | `decimal(18,8)` | No   | `1`         |                                                                          |
-| `affects_inventory`   | `enum`          | No   | `'yes'`     | `no` si el stock ya salió con un despacho.                               |
 | `subtotal`            | `decimal(18,2)` | No   | `0`         |                                                                          |
 | `discount_amount`     | `decimal(18,2)` | No   | `0`         |                                                                          |
 | `tax_amount`          | `decimal(18,2)` | No   | `0`         |                                                                          |
 | `withholding_amount`  | `decimal(18,2)` | No   | `0`         | Retención practicada por el cliente.                                     |
-| `freight_amount`      | `decimal(18,2)` | No   | `0`         | Flete cobrado.                                                           |
 | `total`               | `decimal(18,2)` | No   | `0`         |                                                                          |
 | `total_cost`          | `decimal(18,2)` | No   | `0`         | Costo de la mercancía vendida; base del margen.                          |
 | `paid_amount`         | `decimal(18,2)` | No   | `0`         | Cobrado + anticipos + notas de crédito aplicadas.                        |
@@ -274,17 +273,21 @@ Además de las columnas comunes de línea:
 - La cantidad de una línea con origen no puede superar lo que a la línea del pedido le queda por facturar
   (`quantity - invoiced_quantity`). El tope se mide contra `invoiced_quantity`, que solo se mueve al confirmar: un
   borrador todavía no consume saldo.
-- Al confirmar: si `affects_inventory = 'yes'`, genera movimientos `out` y congela `unit_cost` con el costo vigente del
-  artículo. Aumenta `current_balance` del cliente.
+- Al confirmar no toca el kardex: la mercancía sale con su Despacho. Lo que sí hace es congelar `unit_cost` contra el
+  movimiento de ese despacho, y sin despacho conserva el costo que la captura le puso. Aumenta `current_balance` del
+  cliente.
+- Un flete cobrado al cliente va como **una línea más**, con un artículo de tipo `service`. La cabecera ya no
+  lleva importe de flete: el total es la suma de sus líneas más el impuesto.
 - `invoice_number` se asigna al confirmar, nunca en borrador, y es correlativo por serie.
 - Una factura confirmada **no se edita**: se anula y se emite una nueva, o se corrige con nota de crédito.
-- Anular exige que no tenga cobros aplicados y genera movimientos de contrapartida.
+- Anular exige que no tenga cobros aplicados. No revierte movimientos de kardex: la factura nunca los escribió.
 
 ---
 
 ## 4. Notas de crédito a clientes
 
-Disminuye la cuenta por cobrar: devoluciones, descuentos posteriores o correcciones.
+Disminuye la cuenta por cobrar: devoluciones, descuentos posteriores o correcciones. **No mueve inventario**: la
+mercancía que reingresa entra con su Entrada. Ver [inventario.md § 4.1](inventario.md).
 
 ### 4.1 Cabecera — `app_sales_credit_notes` — Prefijo `NCC`
 
@@ -298,7 +301,6 @@ Disminuye la cuenta por cobrar: devoluciones, descuentos posteriores o correccio
 | `note_date`         | `date`          | No   |            |                                                                               |
 | `reason`            | `enum`          | No   | `'return'` | `return`, `discount`, `price_correction`, `damaged`, `cancellation`, `other`. |
 | `reason_detail`     | `string(500)`   | Sí   |            |                                                                               |
-| `affects_inventory` | `enum`          | No   | `'no'`     | `yes` si reingresa mercancía.                                                 |
 | `currency`          | `string(3)`     | No   | `'USD'`    |                                                                               |
 | `exchange_rate`     | `decimal(18,8)` | No   | `1`        |                                                                               |
 | `subtotal`          | `decimal(18,2)` | No   | `0`        |                                                                               |
@@ -323,14 +325,14 @@ Además de las columnas comunes de línea:
 | Columna                 | Tipo            | Nulo | Descripción                                    |
 |-------------------------|-----------------|------|------------------------------------------------|
 | `sales_invoice_line_id` | `uuid`          | Sí   | FK → línea facturada.                          |
-| `warehouse_id`          | `uuid`          | Sí   | Bodega de reingreso si `affects_inventory`.    |
+| `warehouse_id`          | `uuid`          | Sí   | Bodega a la que se refiere la línea. Informativa. |
 | `lot_id`                | `uuid`          | Sí   | FK → `app_item_lots.id`.                       |
 | `unit_cost`             | `decimal(18,6)` | No   | Costo al que reingresa (el mismo de la venta). |
 
 **Reglas**
 
-- Al confirmar disminuye `current_balance` del cliente y, si `affects_inventory`, genera movimientos `in`
-  al costo original de la venta.
+- Al confirmar disminuye `current_balance` del cliente. No genera movimientos de kardex: la mercancía que reingresa
+  entra con su Entrada.
 - El monto no puede superar el saldo pendiente de la factura más lo ya cobrado.
 - Se aplica a facturas mediante `app_client_collection_applications` (tipo `credit_note`).
 
@@ -497,7 +499,8 @@ detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la fac
 
 ## 7. Devoluciones de ventas
 
-Reingreso físico de mercancía desde el cliente. Deriva normalmente en una nota de crédito.
+Acuerdo de reingreso de mercancía desde el cliente. Deriva normalmente en una nota de crédito. **No mueve
+inventario**: el reingreso físico lo asienta la Entrada. Ver [inventario.md § 4.1](inventario.md).
 
 ### 7.1 Cabecera — `app_sales_returns` — Prefijo `DVV`
 
@@ -540,8 +543,8 @@ Además de las columnas comunes de línea:
 
 **Reglas**
 
-- Al confirmar genera movimientos `in` al costo original de la venta, **no** al promedio actual:
-  así no se distorsiona la valuación.
+- Al confirmar apunta lo devuelto en la línea de la factura de origen y habilita la nota de crédito. No toca el kardex:
+  el reingreso físico lo asienta la Entrada, al costo original de la venta.
 - `condition = damaged` reingresa a una bodega `quarantine`; `condition = scrap` no reingresa stock y se registra como
   pérdida vía Ajuste.
 - La cantidad devuelta no puede superar `quantity - returned_quantity` de la línea de factura.

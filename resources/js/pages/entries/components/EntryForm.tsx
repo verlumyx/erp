@@ -1,11 +1,9 @@
 import { Check } from 'lucide-react';
-import { AmountDual } from '@/components/amount-dual';
 import { CurrencySelect } from '@/components/currency-select';
 import { ExchangeRateField } from '@/components/exchange-rate-field';
 import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
@@ -421,54 +419,10 @@ export function EntryForm() {
                 <Card className="gap-0 overflow-hidden rounded-2xl py-0">
                     <FormSectionHead
                         step={4}
-                        title="Costos y moneda"
-                        sub="Flete y gastos que se suman al costo, moneda y tasa"
+                        title="Moneda"
+                        sub="La moneda del documento y su tasa de cambio"
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                Flete
-                            </Label>
-                            <CurrencyInput
-                                value={data.freight_amount}
-                                onValueChange={(value) =>
-                                    setData('freight_amount', value)
-                                }
-                                min={0}
-                                decimals={2}
-                                className={`h-[42px] rounded-[10px] ${errors.freight_amount ? 'border-bad' : ''}`}
-                            />
-                            {errors.freight_amount && (
-                                <p className="text-sm text-bad">
-                                    {errors.freight_amount}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                Otros gastos
-                            </Label>
-                            <CurrencyInput
-                                value={data.other_charges}
-                                onValueChange={(value) =>
-                                    setData('other_charges', value)
-                                }
-                                min={0}
-                                decimals={2}
-                                className={`h-[42px] rounded-[10px] ${errors.other_charges ? 'border-bad' : ''}`}
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Aduana, seguro y todo lo que se capitaliza al
-                                costo
-                            </span>
-                            {errors.other_charges && (
-                                <p className="text-sm text-bad">
-                                    {errors.other_charges}
-                                </p>
-                            )}
-                        </div>
-
                         <div className="flex flex-col gap-1.5">
                             <Label
                                 htmlFor="currency"
@@ -560,9 +514,9 @@ export function EntryForm() {
                 </div>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
                     La entrada no captura el costo: sale de la orden de compra
-                    o, sin orden, del promedio del artículo. Al confirmarla, la
-                    mercancía aceptada entra al inventario con el flete y los
-                    gastos ya repartidos dentro de ese costo.
+                    o, sin orden, del promedio del artículo. Lo que cuesta traer
+                    la mercancía se reparte después, con un expediente de
+                    importación.
                 </p>
                 <Button
                     type="submit"

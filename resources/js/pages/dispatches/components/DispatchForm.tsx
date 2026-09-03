@@ -2,7 +2,6 @@ import { Check } from 'lucide-react';
 import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
@@ -374,28 +373,6 @@ export function DispatchForm() {
                             {errors.tracking_number && (
                                 <p className="text-sm text-bad">
                                     {errors.tracking_number}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                Costo del flete
-                            </Label>
-                            <CurrencyInput
-                                value={data.freight_amount}
-                                onValueChange={(value) =>
-                                    setData('freight_amount', value)
-                                }
-                                min={0}
-                                className={`h-[42px] rounded-[10px] ${errors.freight_amount ? 'border-bad' : ''}`}
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                En {currency}, la moneda de la empresa
-                            </span>
-                            {errors.freight_amount && (
-                                <p className="text-sm text-bad">
-                                    {errors.freight_amount}
                                 </p>
                             )}
                         </div>

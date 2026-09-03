@@ -66,8 +66,6 @@ trait ValidatesEntryPayload
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],
             /** Gastos capitalizables: se prorratean al costo, no se facturan aparte. */
-            'freight_amount' => ['nullable', 'numeric', 'min:0'],
-            'other_charges' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
 
             'lines' => ['required', 'array', 'min:1'],
@@ -142,8 +140,6 @@ trait ValidatesEntryPayload
             'inspected_by.exists' => 'El usuario que inspecciona la mercancía no existe.',
             'currency.required' => 'La moneda de la entrada es obligatoria.',
             'exchange_rate.gt' => 'La tasa de cambio debe ser mayor que cero.',
-            'freight_amount.min' => 'El flete no puede ser negativo.',
-            'other_charges.min' => 'Los otros gastos no pueden ser negativos.',
             'lines.required' => 'La entrada debe tener al menos una línea.',
             'lines.min' => 'La entrada debe tener al menos una línea.',
             'lines.*.item_id.required' => 'Selecciona el artículo de la línea.',

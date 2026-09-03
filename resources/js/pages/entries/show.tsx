@@ -315,24 +315,6 @@ export default function EntriesShow({ entry }: Props) {
                             value={entry.total_quantity}
                         />
                         <DataRow
-                            label="Flete"
-                            value={
-                                <Amount
-                                    model={entry}
-                                    value={entry.freight_amount}
-                                />
-                            }
-                        />
-                        <DataRow
-                            label="Otros gastos"
-                            value={
-                                <Amount
-                                    model={entry}
-                                    value={entry.other_charges}
-                                />
-                            }
-                        />
-                        <DataRow
                             label="Valor ingresado"
                             value={
                                 <Amount

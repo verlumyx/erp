@@ -260,7 +260,7 @@ movimiento de contrapartida, nunca editando el original.
 |--------------------|-----------------|------|---------|------------------------------------------------------------------------------------------------------------------------------------------|
 | `movement_date`    | `datetime`      | No   |         | Fecha/hora contable del movimiento.                                                                                                      |
 | `type`             | `enum`          | No   |         | `in` (entrada), `out` (salida), `transfer_in`, `transfer_out`, `adjustment_in`, `adjustment_out`.                                        |
-| `origin_type`      | `string(50)`    | No   |         | Documento origen: `purchase_invoice`, `sales_invoice`, `dispatch`, `transfer`, `entry`, `adjustment`, `purchase_return`, `sales_return`. |
+| `origin_type`      | `string(50)`    | No   |         | Documento origen: `entry`, `dispatch`, `adjustment`. Ver «Quién escribe en el kardex».                                                    |
 | `origin_id`        | `uuid`          | No   |         | Id del documento origen (relación polimórfica).                                                                                          |
 | `origin_line_id`   | `uuid`          | Sí   |         | Id de la línea origen.                                                                                                                   |
 | `item_id`          | `uuid`          | No   |         | FK → `app_items.id` (`restrictOnDelete`).                                                                                                |
@@ -286,6 +286,44 @@ movimiento de contrapartida, nunca editando el original.
 - El movimiento y la actualización de `app_item_stocks` ocurren en la misma transacción.
 - Anular un documento genera movimientos inversos con `reversal_of_id`, no borra los originales.
 - `balance_*` se calcula en el momento del registro para que el kardex sea auditable sin recalcular.
+
+### 4.1 Quién escribe en el kardex
+
+**Solo tres documentos mueven existencia: Ajuste, Entrada y Despacho.** Ningún otro módulo escribe en
+`app_inventory_movements` ni toca `app_item_stocks`, y `origin_type` no admite más valores que `adjustment`,
+`entry` y `dispatch`.
+
+| Documento | Qué escribe                                                     |
+|-----------|-----------------------------------------------------------------|
+| Entrada   | `in` — la mercancía llega y con ella el costo promedio.          |
+| Despacho  | `out` — la mercancía sale, valorada al promedio vigente.         |
+| Ajuste    | `adjustment_in` / `adjustment_out` — cuadres, mermas y hallazgos. |
+
+La razón es tener **un solo lugar donde el stock cambia**. Un documento comercial —una factura, una nota de
+crédito, una devolución, un traslado— describe un acuerdo con un tercero, no un hecho físico. El hecho físico
+lo levanta siempre un documento logístico, y ese es el que asienta.
+
+**Qué hace entonces cada documento comercial**
+
+- **Factura de compra** y **Factura de venta**: generan la deuda o la cuenta por cobrar y apuntan el avance en
+  la orden que las originó. La mercancía entró con su Entrada o salió con su Despacho, antes o después.
+- **Notas de crédito** (a proveedor y a cliente): mueven el saldo del tercero. La mercancía que las motiva
+  vuelve —o se va— por su documento logístico.
+- **Devoluciones** (de compra y de venta): apuntan lo devuelto en la factura de origen y habilitan la nota de
+  crédito. El movimiento físico lo hace el Despacho (compra) o la Entrada (venta).
+- **Traslado**: genera su Despacho en el origen y su Entrada en el destino. Ver
+  [logistica.md](logistica.md).
+
+**Consecuencias**
+
+- Un documento comercial no necesita decir si afecta inventario: nunca lo afecta. Por eso ni las facturas ni
+  las notas de crédito llevan una bandera `affects_inventory`.
+- El **costo promedio** del artículo solo lo recalculan Entrada y Ajuste, que son quienes meten mercancía
+  valorada.
+- El **costo congelado** de una línea de venta se lee del movimiento del Despacho que sacó la mercancía. Una
+  factura sin despacho conserva el costo que la captura le puso.
+- Anular un documento comercial no revierte movimientos de kardex, porque nunca los escribió. Para deshacer el
+  movimiento físico se anula el documento logístico.
 
 ---
 

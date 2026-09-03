@@ -39,7 +39,6 @@ class PurchaseCreditNoteRepository extends PurchaseCreditNoteFilters implements 
                 'note_date' => $command->noteDate,
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
-                'affects_inventory' => $command->affectsInventory,
                 ...$rates->toAttributes(),
                 ...$this->totals($command->lines, $rates),
                 /** El crédito nace entero: lo consumen las aplicaciones a facturas. */
@@ -84,7 +83,6 @@ class PurchaseCreditNoteRepository extends PurchaseCreditNoteFilters implements 
                 'note_date' => $command->noteDate,
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
-                'affects_inventory' => $command->affectsInventory,
                 ...$rates->toAttributes(),
                 ...$this->totals($command->lines, $rates, (float) $model->applied_amount),
                 'notes' => $command->notes,

@@ -78,8 +78,6 @@ export function SalesCreditNoteLinesSection() {
 
     const unitsOf = (itemId: string) => catalog.itemOf(itemId)?.units ?? [];
 
-    const showsWarehouse = data.affects_inventory === 'yes';
-
     return (
         <div className="flex flex-col gap-4 p-5">
             {errors.lines && <p className="text-sm text-bad">{errors.lines}</p>}
@@ -288,42 +286,38 @@ export function SalesCreditNoteLinesSection() {
                             </div>
                         </div>
 
-                        {showsWarehouse && (
-                            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[13px] font-semibold">
-                                        Bodega *
-                                    </Label>
-                                    <Select2
-                                        options={warehouseOptions}
-                                        value={
-                                            warehouseOptions.find(
-                                                (option) =>
-                                                    option.value ===
-                                                    line.warehouse_id,
-                                            ) ?? null
-                                        }
-                                        onChange={(option) =>
-                                            updateLine(
-                                                index,
-                                                'warehouse_id',
-                                                option?.value ?? '',
-                                            )
-                                        }
-                                        error={
-                                            !!fieldError(index, 'warehouse_id')
-                                        }
-                                        size="md"
-                                        placeholder="A dónde vuelve la mercancía"
-                                    />
-                                    {fieldError(index, 'warehouse_id') && (
-                                        <p className="text-sm text-bad">
-                                            {fieldError(index, 'warehouse_id')}
-                                        </p>
-                                    )}
-                                </div>
+                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[13px] font-semibold">
+                                    Bodega
+                                </Label>
+                                <Select2
+                                    options={warehouseOptions}
+                                    value={
+                                        warehouseOptions.find(
+                                            (option) =>
+                                                option.value ===
+                                                line.warehouse_id,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
+                                        updateLine(
+                                            index,
+                                            'warehouse_id',
+                                            option?.value ?? '',
+                                        )
+                                    }
+                                    error={!!fieldError(index, 'warehouse_id')}
+                                    size="md"
+                                    placeholder="A dónde vuelve la mercancía"
+                                />
+                                {fieldError(index, 'warehouse_id') && (
+                                    <p className="text-sm text-bad">
+                                        {fieldError(index, 'warehouse_id')}
+                                    </p>
+                                )}
                             </div>
-                        )}
+                        </div>
 
                         {chargesOpen && (
                             <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">

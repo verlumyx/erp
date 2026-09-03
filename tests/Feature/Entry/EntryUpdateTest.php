@@ -136,17 +136,14 @@ test('a confirmed entry can no longer be edited', function () {
     expect($entry->refresh()->carrier)->toBeNull();
 });
 
-test('saving the draft again re-prorates the charges over the new lines', function () {
+test('saving the draft again recalculates the cost over the new lines', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
 
-    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
-        'freight_amount' => 50,
-    ]);
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit);
 
-    expect((float) $entry->lines->first()->landed_cost)->toBe(30.0);
+    expect((float) $entry->lines->first()->landed_cost)->toBe(25.0);
 
     $payload = entryPayload($supplier, $warehouse, $item, $unit, [
-        'freight_amount' => 50,
         'lines' => [[
             'id' => $entry->lines->first()->id,
             'item_id' => $item->id,
@@ -161,8 +158,8 @@ test('saving the draft again re-prorates the charges over the new lines', functi
         ->put(route('entries.update', ['company' => $company->id, 'id' => $entry->id]), $payload)
         ->assertSessionHasNoErrors();
 
-    /** El mismo flete repartido sobre el doble de mercancía pesa la mitad. */
-    expect((float) $entry->refresh()->lines()->first()->landed_cost)->toBe(27.5);
+    /** El doble de mercancía al mismo precio: el costo por unidad no se mueve. */
+    expect((float) $entry->refresh()->lines()->first()->landed_cost)->toBe(25.0);
 });
 
 test('the edit screen renders the entry with its catalogs', function () {

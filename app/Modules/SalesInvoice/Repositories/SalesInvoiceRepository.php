@@ -60,8 +60,6 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
                 'due_date' => $command->dueDate,
                 'sale_type' => $command->saleType,
                 ...$rates->toAttributes(),
-                'affects_inventory' => $command->affectsInventory,
-                'freight_amount' => $command->freightAmount,
                 /** Nada cobrado todavía: el saldo lo fija `refreshTotals`. */
                 'paid_amount' => 0,
                 'payment_status' => 'pending',
@@ -108,8 +106,6 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
                 'due_date' => $command->dueDate,
                 'sale_type' => $command->saleType,
                 ...$rates->toAttributes(),
-                'affects_inventory' => $command->affectsInventory,
-                'freight_amount' => $command->freightAmount,
                 'notes' => $command->notes,
             ]);
 
@@ -244,8 +240,7 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
      * mercancía vendida, carga la cuenta por cobrar del cliente y avanza el
      * pedido que la originó.
      *
-     * Los movimientos de inventario que exige `affects_inventory = 'yes'`
-     * quedan pendientes del módulo de Movimientos, que aún no existe.
+     * La factura no mueve existencia: eso lo hizo el despacho.
      */
     private function confirm(SalesInvoice $invoice): void
     {
@@ -453,8 +448,7 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
 
         $subtotal = round((float) $lines->sum('subtotal'), 2);
         $taxAmount = round((float) $lines->sum('tax_amount'), 2);
-        $freight = round((float) $invoice->freight_amount, 2);
-        $total = round($subtotal + $taxAmount + $freight, 2);
+        $total = round($subtotal + $taxAmount, 2);
         $rate = (float) $invoice->exchange_rate;
 
         $invoice->update([
@@ -471,18 +465,15 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
     }
 
     /**
-     * Congela el costo de la mercancía vendida al confirmar.
+     * Costo provisional de la mercancía vendida, puesto al confirmar con el
+     * costo que el artículo tiene guardado.
      *
-     * Con `affects_inventory = 'no'` el stock ya salió con un despacho y el
-     * costo lo fija el movimiento de ese despacho: queda pendiente del módulo
-     * de Despachos.
+     * Es solo el punto de partida: si la mercancía salió con un despacho,
+     * `SalesInvoicePostingService` vuelve a escribirlo con el costo real del
+     * movimiento. Una factura sin despacho se queda con este.
      */
     private function freezeCosts(SalesInvoice $invoice): void
     {
-        if ($invoice->affects_inventory !== 'yes') {
-            return;
-        }
-
         $lines = SalesInvoiceLine::query()
             ->where('sales_invoice_id', $invoice->id)
             ->where('status', 'active')

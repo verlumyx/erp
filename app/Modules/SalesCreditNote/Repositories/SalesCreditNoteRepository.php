@@ -46,7 +46,6 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
                 'note_date' => $command->noteDate,
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
-                'affects_inventory' => $command->affectsInventory,
                 ...$rates->toAttributes(),
                 ...$this->totals($command->lines, $rates),
                 /** El crédito nace entero: lo consumen las aplicaciones a facturas. */
@@ -91,7 +90,6 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
                 'note_date' => $command->noteDate,
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
-                'affects_inventory' => $command->affectsInventory,
                 ...$rates->toAttributes(),
                 ...$this->totals($command->lines, $rates, (float) $model->applied_amount),
                 'notes' => $command->notes,
@@ -282,7 +280,7 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
                 'withholding_amount' => $line->withholdingAmount,
                 'subtotal' => $line->subtotal,
                 'total' => $line->total,
-                /** La mercancía reingresa al costo con el que salió en la venta. */
+                /** El costo con el que la mercancía salió en la venta, para el margen. */
                 'unit_cost' => $costs[$this->costKey($line)] ?? 0.0,
                 'status' => $line->status,
                 'notes' => $line->notes,
@@ -339,11 +337,12 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
     }
 
     /**
-     * Costo unitario con el que cada línea reingresa la mercancía.
+     * Costo unitario que cada línea deja escrito.
      *
-     * Manda el costo congelado en la línea de la factura: es el que salió con
-     * la venta, y devolverla no puede inventar ni destruir margen. Una línea
-     * suelta —sin factura detrás— se valora al costo vigente del artículo.
+     * La nota no mueve existencia, pero sí anota a cuánto había salido lo que
+     * acredita: de ahí sale el margen que la venta pierde. Manda el costo
+     * congelado en la línea de la factura; una línea suelta —sin factura
+     * detrás— se valora al costo vigente del artículo.
      *
      * @param  array<int, SalesCreditNoteLineData>  $lines
      * @return array<string, float>

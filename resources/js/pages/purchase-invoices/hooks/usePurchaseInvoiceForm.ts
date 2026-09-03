@@ -69,10 +69,7 @@ interface PurchaseInvoiceFormData {
      * el backend con el catálogo a la fecha de la factura.
      */
     exchange_rate: string;
-    affects_inventory: 'yes' | 'no';
     discount_amount: number;
-    freight_amount: number;
-    other_charges: number;
     notes: string;
     lines: PurchaseInvoiceLineRow[];
 }
@@ -366,10 +363,7 @@ export function usePurchaseInvoiceForm({
             /** Una factura nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),
-            affects_inventory: initialData?.affects_inventory ?? 'yes',
             discount_amount: Number(initialData?.discount_amount ?? 0),
-            freight_amount: Number(initialData?.freight_amount ?? 0),
-            other_charges: Number(initialData?.other_charges ?? 0),
             notes: initialData?.notes ?? '',
             lines: lineRows(initialData),
         });
@@ -621,11 +615,7 @@ export function usePurchaseInvoiceForm({
     );
 
     totals.total = round2(
-        totals.subtotal -
-            data.discount_amount +
-            totals.taxAmount +
-            data.freight_amount +
-            data.other_charges,
+        totals.subtotal - data.discount_amount + totals.taxAmount,
     );
 
     /** La retención no baja el valor de la factura, baja lo que se paga. */

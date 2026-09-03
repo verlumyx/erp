@@ -35,7 +35,6 @@ class PurchaseCreditNoteResource extends JsonResource
             'note_date' => $this->note_date?->format('Y-m-d'),
             'reason' => $this->reason,
             'reason_detail' => $this->reason_detail,
-            'affects_inventory' => $this->affects_inventory,
             'currency' => $this->currency,
             'exchange_rate' => $this->exchange_rate,
             'base_currency' => $this->base_currency,

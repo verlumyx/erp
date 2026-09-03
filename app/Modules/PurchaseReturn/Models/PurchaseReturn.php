@@ -33,12 +33,9 @@ class PurchaseReturn extends Model
 
     public const REASONS = ['damaged', 'wrong_item', 'expired', 'excess', 'quality', 'other'];
 
-    /** Alias con el que el kardex reconoce a la devolución como origen. */
-    public const MOVEMENT_ORIGIN_TYPE = 'purchase_return';
-
     /**
-     * Estados en los que la mercancía ya salió de la bodega. Confirmar es lo
-     * que la saca; anular desde aquí es lo que la devuelve.
+     * Estados en los que la devolución ya consumió cupo de la factura.
+     * Confirmar es lo que lo consume; anular desde aquí es lo que lo libera.
      *
      * @var array<int, string>
      */

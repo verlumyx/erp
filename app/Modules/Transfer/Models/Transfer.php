@@ -42,9 +42,6 @@ class Transfer extends Model
     /** Un traslado confirmado ya sacó la mercancía: no se edita, se anula. */
     public const EDITABLE_STATUSES = ['draft'];
 
-    /** Alias con el que el kardex reconoce al traslado como origen. */
-    public const MOVEMENT_ORIGIN_TYPE = 'transfer';
-
     /**
      * Por qué se mueve la mercancía.
      *

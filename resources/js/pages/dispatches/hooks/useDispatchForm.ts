@@ -97,7 +97,6 @@ interface DispatchFormData {
     vehicle_plate: string;
     carrier: string;
     tracking_number: string;
-    freight_amount: number;
     notes: string;
     lines: DispatchLineRow[];
 }
@@ -347,7 +346,6 @@ export function useDispatchForm({
             vehicle_plate: initialData?.vehicle_plate ?? '',
             carrier: initialData?.carrier ?? '',
             tracking_number: initialData?.tracking_number ?? '',
-            freight_amount: Number(initialData?.freight_amount ?? 0),
             notes: initialData?.notes ?? '',
             lines: lineRows(initialData),
         });

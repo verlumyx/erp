@@ -80,12 +80,10 @@ export interface SalesInvoice {
     /** Moneda principal de la empresa congelada al emitir, con su tasa. */
     base_currency: string | null;
     base_exchange_rate: string | null;
-    affects_inventory: 'yes' | 'no';
     subtotal: string;
     discount_amount: string;
     tax_amount: string;
     withholding_amount: string;
-    freight_amount: string;
     total: string;
     total_cost: string;
     /** Importes en bolívares congelados: la factura tiene valor legal. */

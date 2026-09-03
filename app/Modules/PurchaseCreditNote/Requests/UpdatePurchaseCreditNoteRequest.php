@@ -43,9 +43,8 @@ class UpdatePurchaseCreditNoteRequest extends FormRequest
     }
 
     /**
-     * Solo se edita en `draft`. Confirmada ya bajó el saldo del proveedor y, si
-     * afecta inventario, movió el kardex: se corrige anulándola y emitiendo
-     * otra.
+     * Solo se edita en `draft`. Confirmada ya bajó el saldo del proveedor: se
+     * corrige anulándola y emitiendo otra.
      */
     private function validateStillEditable(Validator $validator): void
     {

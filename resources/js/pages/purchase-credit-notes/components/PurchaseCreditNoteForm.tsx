@@ -44,12 +44,6 @@ const REASON_OPTIONS: OptionType[] = Object.entries(REASON_LABELS).map(
     ([value, label]) => ({ value, label }),
 );
 
-/** Sí/no de la nota: si saca mercancía del inventario o solo baja la deuda. */
-const INVENTORY_OPTIONS: OptionType[] = [
-    { value: 'no', label: 'No, solo disminuye la deuda' },
-    { value: 'yes', label: 'Sí, la mercancía sale de la bodega' },
-];
-
 export function PurchaseCreditNoteForm() {
     const {
         data,
@@ -251,35 +245,6 @@ export function PurchaseCreditNoteForm() {
                             {errors.reason && (
                                 <p className="text-sm text-bad">
                                     {errors.reason}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                Afecta inventario
-                            </Label>
-                            <Select2
-                                options={INVENTORY_OPTIONS}
-                                value={
-                                    INVENTORY_OPTIONS.find(
-                                        (option) =>
-                                            option.value ===
-                                            data.affects_inventory,
-                                    ) ?? null
-                                }
-                                onChange={(option) =>
-                                    setData(
-                                        'affects_inventory',
-                                        (option?.value ?? 'no') as 'yes' | 'no',
-                                    )
-                                }
-                                error={!!errors.affects_inventory}
-                                size="md"
-                            />
-                            {errors.affects_inventory && (
-                                <p className="text-sm text-bad">
-                                    {errors.affects_inventory}
                                 </p>
                             )}
                         </div>

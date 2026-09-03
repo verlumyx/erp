@@ -29,7 +29,7 @@ interface SalesInvoiceRepositoryInterface
 
     /**
      * Las líneas vivas de la factura, en el orden en que se capturaron. Son las
-     * únicas que salen del kardex y las únicas que suman al costo.
+     * únicas que suman a los totales y las únicas que reciben el costo congelado.
      *
      * @return array<int, SalesInvoiceLine>
      */

@@ -5,7 +5,6 @@ import { ExchangeRateField } from '@/components/exchange-rate-field';
 import { Select2Ajax } from '@/components/select2-ajax';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { CurrencyInput } from '@/components/ui/currency-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
@@ -20,11 +19,6 @@ const NO_SALESPERSON = 'none';
 const SALE_TYPE_OPTIONS: OptionType[] = Object.entries(SALE_TYPE_LABELS).map(
     ([value, label]) => ({ value, label }),
 );
-
-const INVENTORY_OPTIONS: OptionType[] = [
-    { value: 'yes', label: 'Sí: la factura descarga el inventario' },
-    { value: 'no', label: 'No: el stock ya salió con un despacho' },
-];
 
 interface FormSectionHeadProps {
     step: number;
@@ -414,65 +408,6 @@ export function SalesInvoiceForm() {
                             )}
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                ¿Descarga inventario?
-                            </Label>
-                            <Select2
-                                options={INVENTORY_OPTIONS}
-                                value={
-                                    INVENTORY_OPTIONS.find(
-                                        (option) =>
-                                            option.value ===
-                                            data.affects_inventory,
-                                    ) ?? null
-                                }
-                                onChange={(option) =>
-                                    setData(
-                                        'affects_inventory',
-                                        (option?.value ?? 'yes') as
-                                            | 'yes'
-                                            | 'no',
-                                    )
-                                }
-                                error={!!errors.affects_inventory}
-                                size="md"
-                                placeholder="Sí"
-                            />
-                            {errors.affects_inventory && (
-                                <p className="text-sm text-bad">
-                                    {errors.affects_inventory}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label
-                                htmlFor="freight_amount"
-                                className="text-[13px] font-semibold"
-                            >
-                                Flete cobrado
-                            </Label>
-                            <CurrencyInput
-                                id="freight_amount"
-                                value={data.freight_amount}
-                                onValueChange={(value) =>
-                                    setData('freight_amount', value)
-                                }
-                                min={0}
-                                decimals={2}
-                                className={`h-[42px] rounded-[10px] ${errors.freight_amount ? 'border-bad' : ''}`}
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Suma al total de la factura
-                            </span>
-                            {errors.freight_amount && (
-                                <p className="text-sm text-bad">
-                                    {errors.freight_amount}
-                                </p>
-                            )}
-                        </div>
-
                         <div className="flex flex-col gap-1.5 sm:col-span-2">
                             <Label
                                 htmlFor="notes"
@@ -567,21 +502,6 @@ export function SalesInvoiceForm() {
                             />
                         </b>
                     </div>
-                    {totals.freight > 0 && (
-                        <div className="flex items-center justify-between text-[13.5px]">
-                            <span className="font-medium text-muted-foreground">
-                                Flete
-                            </span>
-                            <b className="font-bold tabular-nums">
-                                <AmountDual
-                                    amount={totals.freight}
-                                    currency={data.currency}
-                                    rate={data.exchange_rate || undefined}
-                                    className="items-end"
-                                />
-                            </b>
-                        </div>
-                    )}
                     <div className="flex items-center justify-between border-t pt-2.5 text-[15px]">
                         <span className="font-semibold">Total</span>
                         <b className="font-extrabold tabular-nums">

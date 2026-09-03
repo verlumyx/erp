@@ -43,7 +43,6 @@ class DispatchFactory extends Factory
             'vehicle_plate' => null,
             'carrier' => null,
             'tracking_number' => null,
-            'freight_amount' => 0,
             'total_quantity' => 0,
             'total_weight' => 0,
             'total_volume' => 0,

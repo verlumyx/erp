@@ -61,7 +61,6 @@ interface PurchaseCreditNoteFormData {
     note_date: string;
     reason: PurchaseCreditNoteReason;
     reason_detail: string;
-    affects_inventory: 'yes' | 'no';
     currency: string;
     /**
      * Corrección manual de la tasa. Vacío —el caso normal— hace que la resuelva
@@ -315,7 +314,6 @@ export function usePurchaseCreditNoteForm({
                 initialData?.note_date ?? new Date().toISOString().slice(0, 10),
             reason: initialData?.reason ?? 'return',
             reason_detail: initialData?.reason_detail ?? '',
-            affects_inventory: initialData?.affects_inventory ?? 'no',
             /** Una nota nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),

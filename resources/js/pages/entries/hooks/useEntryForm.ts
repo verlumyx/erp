@@ -106,8 +106,6 @@ interface EntryFormData {
      */
     exchange_rate: string;
     /** Gastos capitalizables: se reparten entre las líneas, no se facturan. */
-    freight_amount: number;
-    other_charges: number;
     notes: string;
     lines: EntryLineRow[];
 }
@@ -362,8 +360,6 @@ export function useEntryForm({
             /** Una entrada nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),
-            freight_amount: Number(initialData?.freight_amount ?? 0),
-            other_charges: Number(initialData?.other_charges ?? 0),
             notes: initialData?.notes ?? '',
             lines: lineRows(initialData),
         });

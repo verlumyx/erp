@@ -37,7 +37,7 @@ interface PurchaseInvoiceRepositoryInterface
 
     /**
      * Las líneas vivas de la factura, en el orden en que se capturaron. Son las
-     * únicas que llegan al kardex y las únicas que suman al costo.
+     * únicas que suman a los totales y las únicas que consumen saldo de la orden.
      *
      * @return array<int, PurchaseInvoiceLine>
      */

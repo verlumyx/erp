@@ -36,7 +36,7 @@ class SalesCreditNoteLineData
         public readonly ?string $taxId = null,
         /** Línea de la factura que esta línea acredita. */
         public readonly ?string $salesInvoiceLineId = null,
-        /** Bodega a la que reingresa la mercancía si la nota afecta inventario. */
+        /** Bodega a la que se refiere la línea. Informativa: la nota no mueve stock. */
         public readonly ?string $warehouseId = null,
         public readonly ?string $lotId = null,
         public readonly ?string $notes = null,

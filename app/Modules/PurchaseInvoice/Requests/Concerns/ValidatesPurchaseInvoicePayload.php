@@ -66,7 +66,6 @@ trait ValidatesPurchaseInvoicePayload
             'currency' => ['required', 'string', new ActiveCurrency],
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],
-            'affects_inventory' => ['nullable', 'string', 'in:yes,no'],
 
             /** Documento origen: el alias tiene que estar en el morph map. */
             'sourceable_type' => ['nullable', 'string', Rule::in(PurchaseInvoice::SOURCE_TYPES)],
@@ -74,8 +73,6 @@ trait ValidatesPurchaseInvoicePayload
             'entry_id' => ['nullable', 'uuid'],
 
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'freight_amount' => ['nullable', 'numeric', 'min:0'],
-            'other_charges' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
 
             'lines' => ['required', 'array', 'min:1'],

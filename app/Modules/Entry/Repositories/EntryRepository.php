@@ -31,7 +31,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     public function create(CreateEntryCommand $command, DocumentRatesData $rates, array $lines): void
     {
         DB::transaction(function () use ($command, $rates, $lines): void {
-            $costs = $this->lineCosts($command->companyId, $lines, $command->freightAmount + $command->otherCharges);
+            $costs = $this->lineCosts($command->companyId, $lines);
 
             $entry = Entry::create([
                 'id' => $command->id,
@@ -50,8 +50,6 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
                 'inspected_by' => $command->inspectedBy,
                 'inspection_status' => $command->inspectionStatus,
                 ...$rates->toAttributes(),
-                'freight_amount' => $command->freightAmount,
-                'other_charges' => $command->otherCharges,
                 ...$this->totals($lines, $costs),
                 'is_invoiced' => 'no',
                 'notes' => $command->notes,
@@ -82,7 +80,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     public function update(Entry $model, UpdateEntryCommand $command, DocumentRatesData $rates, array $lines): void
     {
         DB::transaction(function () use ($model, $command, $rates, $lines): void {
-            $costs = $this->lineCosts($model->company_id, $lines, $command->freightAmount + $command->otherCharges);
+            $costs = $this->lineCosts($model->company_id, $lines);
 
             /** La marca de facturado y la de anulación no se editan aquí. */
             $model->update([
@@ -99,8 +97,6 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
                 'inspected_by' => $command->inspectedBy,
                 'inspection_status' => $command->inspectionStatus,
                 ...$rates->toAttributes(),
-                'freight_amount' => $command->freightAmount,
-                'other_charges' => $command->otherCharges,
                 ...$this->totals($lines, $costs),
                 'notes' => $command->notes,
             ]);
@@ -450,34 +446,30 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     }
 
     /**
-     * Costo de cada línea, en la unidad base y con los gastos ya repartidos.
+     * Costo de cada línea, en la unidad base.
      *
-     * `unit_cost` es lo que la línea vale por unidad base antes de prorrateos:
-     * el subtotal —ya neto de descuento— dividido entre la cantidad en unidad
-     * base. `landed_cost` le añade la parte que le toca del flete y de los
-     * otros gastos.
+     * `unit_cost` es lo que la línea vale por unidad base: el subtotal —ya neto
+     * de descuento— dividido entre la cantidad en unidad base. `landed_cost`
+     * arranca igual, y es el que el kardex usa para valorar el ingreso.
      *
-     * El reparto es **por valor de línea**: cada línea carga con los gastos en
-     * la misma proporción en que aporta valor a lo recibido, lo que equivale a
-     * multiplicar su costo por un mismo factor. Solo lo aceptado entra en el
-     * reparto —lo rechazado no ingresa al inventario, así que no absorbe
-     * gastos— y unos gastos sin valor sobre el que repartirse se quedan fuera
-     * del costo en vez de inventarse uno.
+     * Los dos son el mismo número mientras nadie los separe. Lo que costó
+     * **traer** la mercancía —flete, seguro, aduana— ya no se captura aquí: se
+     * sabe después, en papeles distintos y casi siempre de terceros distintos,
+     * y lo reparte el expediente de Importaciones sobre lo que de verdad
+     * quedó en existencia.
      *
      * @param  array<int, EntryLineData>  $lines
      * @return array<int, array{factor: float, base_quantity: float, base_received: float, unit_cost: float, landed_cost: float}>
      */
-    private function lineCosts(?string $companyId, array $lines, float $charges): array
+    private function lineCosts(?string $companyId, array $lines): array
     {
         $factors = $this->conversionFactors($companyId, $lines);
         $costs = [];
-        $receivedValue = 0.0;
 
         foreach ($lines as $index => $line) {
             $factor = $factors[$line->itemId.'|'.$line->measurementUnitId] ?? 1.0;
 
             $baseQuantity = round($line->quantity * $factor, 4);
-            $baseReceived = round($line->receivedQuantity * $factor, 4);
 
             $unitCost = $baseQuantity > 0.0
                 ? round($line->subtotal / $baseQuantity, 6)
@@ -486,24 +478,10 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
             $costs[$index] = [
                 'factor' => $factor,
                 'base_quantity' => $baseQuantity,
-                'base_received' => $baseReceived,
+                'base_received' => round($line->receivedQuantity * $factor, 4),
                 'unit_cost' => $unitCost,
                 'landed_cost' => $unitCost,
             ];
-
-            if ($line->status === 'active') {
-                $receivedValue += $unitCost * $baseReceived;
-            }
-        }
-
-        $ratio = $receivedValue > 0.0 ? round($charges / $receivedValue, 10) : 0.0;
-
-        if ($ratio === 0.0) {
-            return $costs;
-        }
-
-        foreach ($costs as $index => $cost) {
-            $costs[$index]['landed_cost'] = round($cost['unit_cost'] * (1 + $ratio), 6);
         }
 
         return $costs;
@@ -543,8 +521,8 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
      * Totales de la cabecera. Suman **solo** las líneas activas.
      *
      * `total_quantity` es lo aceptado en unidad base —lo rechazado no entró— y
-     * `total_cost` es su valor ya con los gastos dentro, que es exactamente el
-     * valor que el kardex va a recibir.
+     * `total_cost` es su valor, que es exactamente el que el kardex va a
+     * recibir.
      *
      * @param  array<int, EntryLineData>  $lines
      * @param  array<int, array{base_received: float, landed_cost: float}>  $costs

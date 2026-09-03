@@ -185,7 +185,7 @@ test('the accepted quantity is what arrived minus what inspection rejected', fun
     expect((float) $entry->total_cost)->toBe(175.0);
 });
 
-test('the freight and other charges are prorated into the landed cost by line value', function () {
+test('the landed cost of a line is what the goods cost, with nothing prorated on top', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
 
     $item->update(['average_cost' => 30]);
@@ -201,10 +201,8 @@ test('the freight and other charges are prorated into the landed cost by line va
         'measurement_unit_id' => $unit->id,
     ]);
 
-    /** Dos líneas: una vale 300 y la otra 100, así que cargan 3 a 1. */
+    /** Dos líneas: una vale 300 y la otra 100. */
     $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
-        'freight_amount' => 30,
-        'other_charges' => 10,
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -221,14 +219,16 @@ test('the freight and other charges are prorated into the landed cost by line va
 
     $lines = $entry->lines->sortBy('line_number')->values();
 
-    /** 40 de gastos sobre 400 de mercancía: un 10 % a cada costo. */
+    /**
+     * La entrada valora por lo que costó comprar la mercancía y nada más: lo
+     * que costó traerla lo reparte después un expediente de importación.
+     */
     expect((float) $lines[0]->unit_cost)->toBe(30.0);
-    expect((float) $lines[0]->landed_cost)->toBe(33.0);
+    expect((float) $lines[0]->landed_cost)->toBe(30.0);
     expect((float) $lines[1]->unit_cost)->toBe(10.0);
-    expect((float) $lines[1]->landed_cost)->toBe(11.0);
+    expect((float) $lines[1]->landed_cost)->toBe(10.0);
 
-    /** Y el valor ingresado es la mercancía más los gastos, sin perder un centavo. */
-    expect((float) $entry->total_cost)->toBe(440.0);
+    expect((float) $entry->total_cost)->toBe(400.0);
 });
 
 test('the cost is expressed per base unit when the line uses another unit', function () {

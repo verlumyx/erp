@@ -1,7 +1,9 @@
 # Logística
 
-Movimiento físico de la mercancía. Todos los documentos de este grupo **afectan inventario** y generan movimientos en el
-kardex (`app_inventory_movements`).
+Movimiento físico de la mercancía y lo que cuesta ponerla en la bodega. Tres de estos documentos escriben en el
+kardex (`app_inventory_movements`) y son los únicos de todo el sistema que lo hacen: Despachos, Entradas y
+Ajustes. El resto ordena el movimiento o lo valora, y deja el asiento a los primeros
+([inventario.md §4.1](inventario.md)).
 
 > Las columnas base (`id`, `company_id`, `code`, `status`, `created_by`, `created_at`, `updated_at`),
 > los índices base, la estructura común de las tablas `*_lines`, los tipos numéricos y la política de
@@ -14,9 +16,10 @@ kardex (`app_inventory_movements`).
 | Entradas  | `app_entries` + `app_entry_lines` (+ trazabilidad)       | `ENT`   | `in`, o `transfer_in` si recibe un traslado |
 | Rutas     | `app_routes` (+ `app_route_stops`, `app_route_clients`) | `RUT`   | —                                  |
 | Ajustes   | `app_adjustments` + `app_adjustment_lines` (+ lotes y series) | `AJU`   | `adjustment_in` / `adjustment_out` |
+| Importaciones | `app_imports` + `app_import_costs`, `app_import_entries`, `app_import_lines` | `IMP` | — (lo escribe el ajuste de revaluación que genera) |
 
 **Depende de:** [Inventario](inventario.md) (artículos, bodegas, existencias), [Ventas](ventas.md)
-(órdenes de venta) y [Compras](compras.md) (órdenes de compra).
+(órdenes de venta) y [Compras](compras.md) (órdenes de compra y facturas de compra).
 
 ---
 
@@ -42,7 +45,6 @@ Salida física de mercancía hacia el cliente. Descarga inventario y libera la r
 | `vehicle_plate`          | `string(20)`    | Sí   |             | Placa del vehículo.                                                                |
 | `carrier`                | `string(150)`   | Sí   |             | Transportista externo.                                                             |
 | `tracking_number`        | `string(60)`    | Sí   |             | Guía de transporte.                                                                |
-| `freight_amount`         | `decimal(18,2)` | No   | `0`         | Costo del flete.                                                                   |
 | `total_quantity`         | `decimal(18,4)` | No   | `0`         | Suma de cantidades despachadas.                                                    |
 | `total_weight`           | `decimal(18,4)` | No   | `0`         | Peso total; para planificación de carga.                                           |
 | `total_volume`           | `decimal(18,4)` | No   | `0`         | Volumen total.                                                                     |
@@ -121,7 +123,8 @@ línea, y el resto queda en cero. Un precio enviado desde el cliente se ignora.
   y el despacho queda en `partial_delivered`. Con varios lotes, lo que vuelve se reparte entre ellos
   en proporción a lo que salió; con series, vuelven las últimas.
 - Un despacho rechazado completo (`rejected`) reingresa toda la mercancía.
-- Se factura después (`app_sales_invoices.dispatch_id`), con `affects_inventory = 'no'`.
+- Se factura después (`app_sales_invoices.dispatch_id`): la factura no vuelve a mover stock, solo lee de estos
+  movimientos el costo que congela.
 
 ### 1.3 Lotes de la línea — `app_dispatch_line_lots`
 
@@ -253,8 +256,6 @@ documento previo (producción, donación, hallazgo).
 | `currency`          | `string(3)`     | No   | `'USD'`      |                                                                                          |
 | `exchange_rate`     | `decimal(18,8)` | No   | `1`          |                                                                                          |
 | `total_quantity`    | `decimal(18,4)` | No   | `0`          |                                                                                          |
-| `freight_amount`    | `decimal(18,2)` | No   | `0`          | Flete a prorratear al costo.                                                             |
-| `other_charges`     | `decimal(18,2)` | No   | `0`          | Otros gastos capitalizables (aduana, seguro).                                            |
 | `total_cost`        | `decimal(18,2)` | No   | `0`          | Valor total ingresado.                                                                   |
 | `is_invoiced`       | `enum`          | No   | `'no'`       | `yes` cuando ya existe factura de compra asociada.                                       |
 | `cancelled_at`      | `timestamp`     | Sí   |              |                                                                                          |
@@ -303,8 +304,8 @@ Además de las columnas comunes de línea:
 | `location_id`            | `uuid`          | Sí   |         | Ubicación donde se almacena.                           |
 | `received_quantity`      | `decimal(18,4)` | No   | `0`     | Cantidad aceptada.                                     |
 | `rejected_quantity`      | `decimal(18,4)` | No   | `0`     | Cantidad rechazada en inspección.                      |
-| `unit_cost`              | `decimal(18,6)` | No   | `0`     | Costo antes de prorrateos.                             |
-| `landed_cost`            | `decimal(18,6)` | No   | `0`     | Costo final con flete y gastos prorrateados.           |
+| `unit_cost`              | `decimal(18,6)` | No   | `0`     | Costo de la mercancía, por unidad base.                |
+| `landed_cost`            | `decimal(18,6)` | No   | `0`     | Costo con el que se valora el ingreso. Ver más abajo.  |
 | `rejection_reason`       | `string(500)`   | Sí   |         |                                                        |
 
 **El costo no se captura**
@@ -320,11 +321,16 @@ enviado desde el cliente se ignora.
 > Se corrige después con un ajuste de revaluación: el costo no vuelve a la pantalla de la entrada
 > solo por ese caso.
 
+**Lo que costó traerla no se captura aquí**
+
+`landed_cost` arranca igual a `unit_cost`: la entrada valora la mercancía por lo que costó comprarla, y nada
+más. El flete, el seguro y la aduana ya no se capturan en la cabecera, porque no se saben el día que llega el
+camión: llegan después, en papeles distintos y casi siempre de terceros distintos. Los reparte el expediente de
+**Importaciones** (§6), que revaloriza con un ajuste lo que siga en existencia.
+
 **Reglas**
 
 - Al confirmar genera movimientos `in` con `landed_cost` y recalcula el costo promedio del artículo.
-- El prorrateo de `freight_amount` y `other_charges` se distribuye por valor de línea (por defecto)
-  o por peso, según configuración.
 - La cantidad recibida no puede superar lo pendiente de la orden de compra sin autorización (permiso
   `allow_over_receipt`).
 - `entry_type = initial` es el mecanismo de carga del inventario inicial; solo se permite una vez por artículo/bodega.
@@ -572,19 +578,321 @@ Sin cantidad: una serie **es** una unidad. La fila solo nombra qué unidad entra
 
 ---
 
+## 6. Importaciones
+
+> **Diseño en revisión.** El módulo todavía no existe: esta ficha es la especificación que hay que aprobar
+> antes de construirlo, y lo que propone cambia además dos módulos ya hechos. Ese cambio está en §6.7.
+
+Expediente de costos de una importación. Junta **lo que costó traer** la mercancía —flete, seguro, aduana,
+almacenaje— con **lo que llegó** de ella, reparte lo primero entre lo segundo y deja el inventario valorado al
+costo puesto en bodega.
+
+Nace de un problema de tiempos. La mercancía entra el día que llega al muelle, y lo que costó traerla se sabe
+después, en papeles distintos y casi siempre de terceros distintos: el transportista factura el flete, el agente
+factura la aduana, y ninguno de los dos es el proveedor de la mercancía. Sin un sitio donde juntarlos, el
+artículo queda valorado solo por lo que costó comprarlo, que es la mitad de lo que vale tenerlo aquí.
+
+**El expediente no toca el kardex.** Confirmarlo genera un **Ajuste** de tipo `revaluation` en borrador, y es ese
+ajuste el que reexpresa el costo. Solo Ajuste, Entrada y Despacho escriben en el kardex, y esa regla no tiene
+excepciones ([inventario.md §4.1](inventario.md)).
+
+**Flujo:** Entradas confirmadas → Importación → Ajuste de revaluación.
+
+### 6.1 Cabecera — `app_imports` — Prefijo `IMP`
+
+| Columna               | Tipo            | Nulo | Default   | Descripción                                                                        |
+|-----------------------|-----------------|------|-----------|------------------------------------------------------------------------------------|
+| `warehouse_id`        | `uuid`          | No   |           | FK → `app_warehouses.id` (`restrictOnDelete`). Dónde se revaloriza.                  |
+| `import_date`         | `date`          | No   |           | Fecha del expediente. Es la que lleva el ajuste que genera.                         |
+| `arrival_date`        | `date`          | Sí   |           | Llegada del embarque.                                                              |
+| `reference`           | `string(60)`    | Sí   |           | Número de embarque, conocimiento de embarque o guía aérea.                          |
+| `allocation_method`   | `enum`          | No   | `'value'` | Cómo se reparte el gasto: `value`, `quantity`, `weight`, `volume`.                  |
+| `currency`            | `string(3)`     | No   | `'USD'`   | Moneda del expediente. A ella se convierte cada costo.                              |
+| `exchange_rate`       | `decimal(18,8)` | No   | `1`       |                                                                                    |
+| `base_currency`       | `string(3)`     | Sí   |           | Moneda local congelada al confirmar.                                                |
+| `base_exchange_rate`  | `decimal(18,8)` | Sí   |           |                                                                                    |
+| `total_charges`       | `decimal(18,2)` | No   | `0`       | Suma de los costos activos, ya convertidos a la moneda del expediente.              |
+| `total_base_value`    | `decimal(18,2)` | No   | `0`       | Valor de la mercancía costeada, antes del reparto.                                  |
+| `total_landed_value`  | `decimal(18,2)` | No   | `0`       | `total_base_value + total_charges`. Lo que la mercancía vale puesta en bodega.       |
+| `capitalized_amount`  | `decimal(18,2)` | No   | `0`       | La parte del gasto que va al inventario. Estimada: la cierra el ajuste. Ver §6.6.    |
+| `variance_amount`     | `decimal(18,2)` | No   | `0`       | La parte que no pudo capitalizarse porque la mercancía ya salió. Va a gasto.        |
+| `adjustment_id`       | `uuid`          | Sí   |           | FK → `app_adjustments.id`. El ajuste de revaluación que generó al confirmarse.       |
+| `cancelled_at`        | `timestamp`     | Sí   |           |                                                                                    |
+| `cancellation_reason` | `string(500)`   | Sí   |           | Obligatorio al anular.                                                             |
+| `notes`               | `text`          | Sí   |           |                                                                                    |
+
+**Estados (`status`):** `draft` → `confirmed` (ajuste generado) → `completed` (ajuste confirmado), o `cancelled`.
+Cerrarlo no es una decisión de la pantalla: lo cierra el ajuste, igual que la entrada cierra el traslado.
+
+**Índices:** `index(warehouse_id)`, `index(import_date)`, `index(reference)`, `index(adjustment_id)`,
+`index(status)`.
+
+**Una bodega por expediente**
+
+El ajuste que el expediente genera lleva una sola bodega en su cabecera, así que el expediente también. Todas sus
+recepciones tienen que haber entrado a esa bodega. Un embarque que llegó partido en dos almacenes se costea con
+dos expedientes, cada uno con su parte del gasto.
+
+### 6.2 Costos — `app_import_costs`
+
+Lo que se está repartiendo. Una fila por cada cobro, con el documento que lo respalda.
+
+| Columna                     | Tipo            | Nulo | Default     | Descripción                                                                     |
+|-----------------------------|-----------------|------|-------------|---------------------------------------------------------------------------------|
+| `id`                        | `uuid`          | No   |             | PK.                                                                             |
+| `company_id`                | `uuid`          | Sí   |             | FK → `app_companies.id`. Heredado del expediente.                               |
+| `import_id`                 | `uuid`          | No   |             | FK → `app_imports.id` (`cascadeOnDelete`).                                      |
+| `line_number`               | `integer`       | No   |             | Único con `import_id`.                                                          |
+| `sourceable_type`           | `string(255)`   | Sí   |             | Alias del documento en el morph map. Hoy solo `purchase_invoice`.               |
+| `sourceable_id`             | `uuid`          | Sí   |             | ID del documento. Con `sourceable_type` forma la relación `sourceable`.         |
+| `supplier_id`               | `uuid`          | Sí   |             | FK → `app_suppliers.id`. Quién cobra. No tiene por qué ser el de la mercancía.  |
+| `concept`                   | `enum`          | No   | `'freight'` | `freight`, `insurance`, `customs`, `handling`, `storage`, `other`.              |
+| `description`               | `string(500)`   | Sí   |             | Obligatoria si `concept = other`.                                               |
+| `currency`                  | `string(3)`     | No   |             | Moneda en la que se cobró.                                                      |
+| `exchange_rate`             | `decimal(18,8)` | No   | `1`         | Tasa a la moneda del expediente.                                                |
+| `amount`                    | `decimal(18,2)` | No   | `0`         | Importe en su propia moneda.                                                    |
+| `converted_amount`          | `decimal(18,2)` | No   | `0`         | `amount * exchange_rate`. Es lo que entra al reparto.                           |
+| `status`                    | `enum`          | No   | `'active'`  | `active` / `inactive`. Los totales suman solo filas activas.                    |
+| `notes`                     | `string(500)`   | Sí   |             |                                                                                 |
+| `created_at` / `updated_at` | `timestamp`     | Sí   |             |                                                                                 |
+
+**Índices:** `index(import_id)`, `unique(import_id, line_number)`, `index(sourceable_type, sourceable_id)`,
+`index(supplier_id)`, `index(concept)`, `index(company_id)`, `index(status)`.
+
+**Un costo no es el total de su factura**
+
+Una fila que apunta a la factura del transportista o a la del agente aduanal toma su total: ese documento entero
+es gasto. Una que apunta a la factura del proveedor de la mercancía toma **solo sus líneas de servicio**, nunca
+su total, porque el resto es la mercancía misma y esa ya está costeada por la entrada. Repartirla otra vez la
+contaría dos veces.
+
+El importe queda editable en los dos casos. Una misma factura puede repartirse entre dos expedientes cuando el
+embarque llegó en dos viajes, y entonces ninguno de los dos toma el documento completo.
+
+### 6.3 Recepciones — `app_import_entries`
+
+Qué llegó. Es lo que va a absorber el gasto.
+
+| Columna                     | Tipo        | Nulo | Default    | Descripción                                            |
+|-----------------------------|-------------|------|------------|--------------------------------------------------------|
+| `id`                        | `uuid`      | No   |            | PK.                                                    |
+| `company_id`                | `uuid`      | Sí   |            | FK → `app_companies.id`. Heredado del expediente.      |
+| `import_id`                 | `uuid`      | No   |            | FK → `app_imports.id` (`cascadeOnDelete`).             |
+| `entry_id`                  | `uuid`      | No   |            | FK → `app_entries.id` (`restrictOnDelete`).            |
+| `line_number`               | `integer`   | No   |            | Único con `import_id`.                                 |
+| `status`                    | `enum`      | No   | `'active'` | `active` / `inactive`.                                 |
+| `created_at` / `updated_at` | `timestamp` | Sí   |            |                                                        |
+
+**Índices:** `unique(import_id, entry_id)`, `index(entry_id)`, `index(company_id)`, `index(status)`.
+
+La entrada es el ancla y no la factura, aunque el gasto venga de facturas. La factura dice lo que el proveedor
+cobró; la entrada dice lo que de verdad llegó y es la que escribió el kardex. Cuando el proveedor factura 100 y
+al muelle llegan 90, lo que se revaloriza son 90. Una factura puede cubrir tres entradas parciales y una entrada
+puede facturarse en dos documentos: costear contra la factura no sabría a qué asiento tocarle el costo.
+
+### 6.4 Ítems — `app_import_lines`
+
+| Columna                     | Tipo            | Nulo | Default    | Descripción                                                              |
+|-----------------------------|-----------------|------|------------|--------------------------------------------------------------------------|
+| `id`                        | `uuid`          | No   |            | PK.                                                                      |
+| `company_id`                | `uuid`          | Sí   |            | FK → `app_companies.id`. Heredado del expediente.                        |
+| `import_id`                 | `uuid`          | No   |            | FK → `app_imports.id` (`cascadeOnDelete`).                               |
+| `line_number`               | `integer`       | No   |            | Único con `import_id`.                                                   |
+| `entry_line_id`             | `uuid`          | No   |            | FK → `app_entry_lines.id` (`restrictOnDelete`). De aquí sale todo.       |
+| `item_id`                   | `uuid`          | No   |            | FK → `app_items.id` (`restrictOnDelete`).                                |
+| `measurement_unit_id`       | `uuid`          | No   |            | FK → `app_measurement_units.id`. La de la línea de entrada.              |
+| `location_id`               | `uuid`          | Sí   |            | FK → `app_warehouse_locations.id`. La de la línea de entrada.            |
+| `base_quantity`             | `decimal(18,4)` | No   | `0`        | Lo **aceptado** en la entrada, en unidad base. Es lo que absorbe gasto.  |
+| `remaining_quantity`        | `decimal(18,4)` | No   | `0`        | De eso, lo que sigue en existencia al costear.                           |
+| `unit_cost`                 | `decimal(18,6)` | No   | `0`        | Costo con el que entró: el `landed_cost` de la línea de entrada.         |
+| `base_value`                | `decimal(18,2)` | No   | `0`        | `base_quantity * unit_cost`.                                             |
+| `allocation_base`           | `decimal(18,4)` | No   | `0`        | El número con el que reparte, según `allocation_method`.                 |
+| `allocated_amount`          | `decimal(18,2)` | No   | `0`        | El gasto que le tocó.                                                    |
+| `unit_delta`                | `decimal(18,6)` | No   | `0`        | `allocated_amount / base_quantity`. Lo que sube cada unidad.             |
+| `new_unit_cost`             | `decimal(18,6)` | No   | `0`        | El costo que el ajuste va a escribir. Ver **El costo nuevo** más abajo.  |
+| `capitalized_amount`        | `decimal(18,2)` | No   | `0`        | `remaining_quantity * unit_delta`. Lo que llega al inventario.           |
+| `variance_amount`           | `decimal(18,2)` | No   | `0`        | `allocated_amount - capitalized_amount`. Lo que va a gasto.              |
+| `status`                    | `enum`          | No   | `'active'` | `active` / `inactive`.                                                   |
+| `notes`                     | `string(500)`   | Sí   |            |                                                                          |
+| `created_at` / `updated_at` | `timestamp`     | Sí   |            |                                                                          |
+
+**Índices:** `index(import_id)`, `unique(import_id, line_number)`, `index(entry_line_id)`, `index(item_id)`,
+`index(company_id)`, `index(status)`.
+
+Una línea que lleva lotes es **la suma de los suyos**: sus cantidades e importes salen de las filas de §6.5, no
+al revés. Es el mismo trato que la línea de ajuste le da a los suyos.
+
+**Los ítems no se capturan**
+
+La pantalla no deja agregar ni quitar líneas aquí: se derivan de las recepciones. Cada línea viva de cada entrada
+asociada que mueva existencia entra como una línea del expediente, con su cantidad aceptada y su costo de
+entrada. Un artículo `service` o `non_inventoried` no entra: no lleva existencia, así que no hay costo que
+reexpresar. La respuesta la da `Item::movesStock()`, igual que en el resto de la cadena.
+
+Lo único editable de la sección es `status`: sacar una línea del reparto cuando ese ítem no viajó en ese
+embarque. El resto lo calcula el backend, y un valor enviado desde el cliente se ignora.
+
+### 6.5 Lotes de la línea — `app_import_line_lots`
+
+Cuando el artículo lleva lote, el gasto se reparte y el costo se reexpresa **por lote**, porque así es como el
+kardex lo tiene escrito: la entrada asentó un movimiento por cada caja, cada uno con su cantidad y su costo.
+
+| Columna                     | Tipo            | Nulo | Default    | Descripción                                                            |
+|-----------------------------|-----------------|------|------------|------------------------------------------------------------------------|
+| `id`                        | `uuid`          | No   |            | PK.                                                                    |
+| `company_id`                | `uuid`          | Sí   |            | FK → `app_companies.id`. Heredado del expediente.                      |
+| `import_line_id`            | `uuid`          | No   |            | FK → `app_import_lines.id` (`cascadeOnDelete`).                        |
+| `line_number`               | `integer`       | No   |            | Orden dentro de la línea. Único con `import_line_id`.                  |
+| `entry_line_lot_id`         | `uuid`          | No   |            | FK → `app_entry_line_lots.id` (`restrictOnDelete`). De aquí sale todo. |
+| `lot_id`                    | `uuid`          | No   |            | FK → `app_item_lots.id` (`restrictOnDelete`).                          |
+| `base_quantity`             | `decimal(18,4)` | No   | `0`        | Lo aceptado de ese lote, en unidad base.                               |
+| `remaining_quantity`        | `decimal(18,4)` | No   | `0`        | De eso, lo que sigue en existencia al costear.                         |
+| `allocation_base`           | `decimal(18,4)` | No   | `0`        | Su parte de la base de reparto de la línea.                            |
+| `allocated_amount`          | `decimal(18,2)` | No   | `0`        | El gasto que le tocó.                                                  |
+| `unit_delta`                | `decimal(18,6)` | No   | `0`        | `allocated_amount / base_quantity`.                                    |
+| `new_unit_cost`             | `decimal(18,6)` | No   | `0`        | El costo que el ajuste va a escribir para ese lote.                    |
+| `capitalized_amount`        | `decimal(18,2)` | No   | `0`        | `remaining_quantity * unit_delta`.                                     |
+| `variance_amount`           | `decimal(18,2)` | No   | `0`        | `allocated_amount - capitalized_amount`.                               |
+| `status`                    | `enum`          | No   | `'active'` | `active` / `inactive`.                                                 |
+| `created_at` / `updated_at` | `timestamp`     | Sí   |            |                                                                        |
+
+**Índices:** `index(import_line_id)`, `unique(import_line_id, line_number)`, `index(entry_line_lot_id)`,
+`index(lot_id)`, `index(company_id)`, `index(status)`.
+
+**Reglas del lote**
+
+- Tampoco se capturan: hay una fila por cada fila de lote de la línea de entrada, y sus `base_quantity` suman
+  exactamente la de la línea. Un artículo sin lote no tiene filas aquí y reparte por la línea entera.
+- `remaining_quantity` por lote es **exacta**: el lote sí se rastrea unidad a unidad, así que se sabe cuánto de
+  esa caja sigue en la bodega.
+- El reparto es por lote y no por línea prorrateada después: dos lotes de la misma línea pueden tener distinto
+  saldo vivo, y repartir por la línea capitalizaría en un lote gasto que le tocaba al otro.
+
+### Reglas
+
+- **El reparto.** `allocation_base` sale de `allocation_method`: `value` toma `base_value`, `quantity` toma
+  `base_quantity`, `weight` toma `base_quantity * item.weight` y `volume` toma `base_quantity * item.volume`.
+  Después, `ratio = total_charges / Σ allocation_base` y `allocated_amount = allocation_base * ratio`.
+- `weight` y `volume` exigen que el artículo los tenga registrados. Una línea activa con el dato en cero deja el
+  expediente sin confirmar: repartir por un peso que nadie cargó da un costo inventado.
+- Unos gastos sin base sobre la que repartirse se quedan fuera del costo en vez de inventar uno, igual que en la
+  entrada.
+- **Solo lo aceptado absorbe.** Lo rechazado en la inspección de la entrada no ingresó al inventario, así que no
+  carga con gastos.
+- Solo se costean entradas **confirmadas**, y todas de la bodega del expediente. Un borrador todavía no valoró
+  nada, y no hay costo que corregir.
+- Una entrada no puede estar en dos expedientes vivos. Si el gasto llega en dos tandas, se anula el expediente y
+  se rehace con todo, o se costea la segunda tanda contra un expediente nuevo una vez cerrado el primero.
+- Al confirmar nace el ajuste `AJU` de tipo `revaluation` en **borrador**, en la bodega del expediente, colgado de
+  él, con una línea por cada par `(artículo, ubicación)` con gasto capitalizable y sus filas de lote donde las
+  haya. El expediente queda `confirmed`; cuando ese ajuste se confirma, queda `completed`.
+- Un expediente confirmado **no se edita**: se anula y se hace otro. Anularlo exige anular antes su ajuste, igual
+  que un traslado exige anular antes su despacho.
+- Las tasas se congelan al confirmar, no al capturar, como en el resto de los documentos ([monedas.md](monedas.md)).
+
+**Lo que queda en existencia**
+
+`remaining_quantity` es lo que sigue en la bodega de aquella línea, topado por `base_quantity`. Con lote la cuenta
+es exacta y se hace por lote (§6.5). Sin lote es una aproximación deliberada: bajo promedio ponderado las unidades
+no se guardan por capa, así que se compara la existencia viva del artículo en esa ubicación contra lo que entró.
+Si la existencia cubre lo que entró, se capitaliza todo; si no, solo lo que queda.
+
+Es una aproximación conservadora y hay que saberlo al leer el número: nunca capitaliza más de lo que hay, pero
+puede capitalizar unidades que físicamente son de otro embarque. Bajo promedio ponderado eso da igual, porque lo
+que importa es que el valor total del inventario quede correcto, y queda.
+
+**El costo nuevo**
+
+`new_unit_cost` **no** es `unit_cost + unit_delta`. Es el **promedio vigente del artículo en esa bodega más
+`unit_delta`**. La diferencia importa: entre la entrada y el expediente pudo haber entrado más mercancía a otro
+precio, y el promedio ya no es el `landed_cost` de aquella línea. Escribir el costo de la entrada más el gasto
+borraría todo lo que pasó en medio. Lo que el expediente aporta es el **incremento por unidad**, no un costo
+absoluto.
+
+**La varianza**
+
+`variance_amount` es el gasto que no llegó al inventario porque la mercancía ya se vendió. Su costo de venta se
+congeló cuando salió y no se reescribe: el kardex es inmutable y una venta pasada no cambia de margen porque el
+flete llegara tarde. Esa diferencia es un gasto del período, y el expediente la deja escrita para que
+contabilidad la vea. **No genera movimiento de kardex.**
+
+### 6.6 El ajuste que genera
+
+El expediente le pasa al ajuste una sola cosa por línea: el costo nuevo. El ajuste hace el resto, y ya sabe
+hacerlo: en `type = revaluation` no mueve cantidad —`difference_quantity` y `base_quantity` quedan en cero— y su
+`total_cost` es el valor que el cambio de costo le suma o le resta al inventario, medido contra la existencia
+viva. El signo del movimiento sale del signo del delta.
+
+Eso significa que el impacto real en el valor del inventario lo calcula el ajuste contra el stock del momento en
+que se confirma, no contra el que el expediente vio al calcularse. Si entre una cosa y la otra se vendió más
+mercancía, el ajuste capitaliza menos de lo que el expediente estimó. Es el comportamiento correcto: manda lo que
+hay cuando el asiento se escribe.
+
+Varias líneas del expediente del mismo artículo y ubicación colapsan en **una** línea del ajuste, y sus lotes en
+las filas de lote de esa línea, porque el ajuste revaloriza una existencia y no una recepción. El `unit_delta`
+del grupo es la suma de los gastos asignados dividida entre la suma de las cantidades que entraron.
+
+El ajuste nace en borrador y con el umbral de aprobación que la empresa tenga configurado. Una revaluación grande
+va a pedir una segunda firma, que es exactamente lo que debe pasar.
+
+### 6.7 Lo que ya cambió en el resto de los módulos
+
+El expediente se lleva el prorrateo, así que los campos que lo hacían **ya se quitaron** de donde estaban. Esa
+parte no está pendiente de aprobación: está hecha, y el resto de las fichas la refleja.
+
+**De la Entrada se fueron `freight_amount` y `other_charges`.** Su único trabajo era valorizar, y la entrada no
+es el sitio donde ese número se sabe. Con ellos se fue el prorrateo de `EntryRepository`, y `landed_cost` de la
+línea quedó igual a `unit_cost`: el costo de comprar la mercancía, sin gastos. Los gastos entran después, por el
+expediente.
+
+> El precio de tener un solo camino es que una compra local con veinte de flete también pide un expediente. Se
+> asume a propósito: dos sitios donde escribir el mismo número es justo la inconsistencia que este módulo viene a
+> cerrar.
+
+**De las dos facturas se fueron los mismos campos de cabecera, pero el flete no desapareció: se cobra como una
+línea.** Una línea con un artículo de tipo `service`, como cualquier otro cargo del mismo papel. Las facturas ya
+aceptaban servicios, así que no hizo falta nada nuevo.
+
+Es importante que sea así y no un simple borrado. Esos campos sumaban al `total`, y el total es lo que se le debe
+al proveedor —o lo que se le cobra al cliente—: si el proveedor cobra 250 de mercancía y 50 de flete, la deuda es
+300. Quitando el campo sin poner la línea, la factura valdría 250 y se perderían 50 de cuenta por pagar. Como
+línea el total sigue correcto, el cargo se puede gravar y descontar como cualquier otro, y el expediente tiene
+algo estructurado que tomar en vez de un campo suelto de cabecera.
+
+**Del Despacho se fue `freight_amount`**, que no calculaba nada: era un dato suelto que nadie leía.
+
+**Lo que sigue pendiente es el vínculo entre la entrada y la factura**, que hoy no existe: `app_purchase_invoices.entry_id`
+está declarado pero no se valida contra la tabla ni contra la empresa, ninguna pantalla lo llena y nadie lo lee;
+y `app_entries.is_invoiced` solo se escribe como `no` al crearse, así que su filtro no filtra nada. Sin ese
+vínculo la sección de costos no puede ofrecer las recepciones que le corresponden a una factura, y hay que
+elegirlas a mano. Es el prerrequisito del módulo, y va con la convención de
+[documentos-origen.md](documentos-origen.md): la entrada como documento origen de la factura, con su endpoint
+`invoiceable-lines` y el avance en la línea.
+
+---
+
 ## Diagrama del grupo
 
 ```
 Compras                      Logística                     Inventario
 ─────────                    ─────────                     ──────────
 app_purchase_orders ──> app_entries ──────────────┐
-                                                  │
-Ventas                                            ├──> app_inventory_movements
+                             ^                    │
+Ventas                       │                    ├──> app_inventory_movements
 app_sales_orders ─────> app_dispatches ───────────┤         (kardex)
-                             │                    │              │
-app_routes ──> app_route_stops                    │              v
-       └────> app_route_clients                   │      app_item_stocks
+                             ^                    │              │
+Traslados                    │                    │              v
+app_transfers ───────────────┘                    │      app_item_stocks
                                                   │
-                        app_transfers ────────────┤
+app_routes ──> app_route_stops                    │
+       └────> app_route_clients                   │
+                                                  │
                         app_adjustments ──────────┘
+                             ^
+app_purchase_invoices ──> app_imports
+   (costos)                (reparte y manda revalorizar)
 ```
+
+Las flechas que llegan al kardex son tres: entradas, despachos y ajustes. El traslado no tiene ninguna: confirmarlo
+genera el despacho que escribe `transfer_out` en el origen, y confirmar ese despacho genera la entrada que escribe
+`transfer_in` en el destino. La importación tampoco: llega por el ajuste de revaluación que genera.

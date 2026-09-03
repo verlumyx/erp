@@ -61,7 +61,6 @@ trait ValidatesSalesCreditNotePayload
                 'string',
                 'max:500',
             ],
-            'affects_inventory' => ['nullable', 'string', 'in:yes,no'],
             'currency' => ['required', 'string', new ActiveCurrency],
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],
@@ -161,28 +160,6 @@ trait ValidatesSalesCreditNotePayload
 
         $this->validateLineUnits($validator, $lines);
         $this->validateCreditedLines($validator, $lines);
-        $this->validateInventoryWarehouses($validator, $lines);
-        $this->validateReturnInventory($validator);
-    }
-
-    /**
-     * Una nota que acredita una devolución no vuelve a mover el inventario: la
-     * devolución ya reingresó la mercancía al confirmarse, y hacerlo otra vez
-     * contaría dos veces la misma existencia. La nota solo baja la cuenta por
-     * cobrar.
-     */
-    private function validateReturnInventory(Validator $validator): void
-    {
-        if (blank($this->input('sales_return_id'))) {
-            return;
-        }
-
-        if ($this->input('affects_inventory', 'no') === 'yes') {
-            $validator->errors()->add(
-                'affects_inventory',
-                'La devolución ya reingresó la mercancía: la nota que la acredita no vuelve a moverla.',
-            );
-        }
     }
 
     /**
@@ -240,32 +217,6 @@ trait ValidatesSalesCreditNotePayload
                 $validator->errors()->add(
                     "lines.{$index}.sales_invoice_line_id",
                     'Elige la factura afectada antes de acreditar una de sus líneas.',
-                );
-            }
-        }
-    }
-
-    /**
-     * Si la nota reingresa mercancía al inventario, cada línea activa tiene que
-     * decir a qué bodega entra: la cabecera no lleva bodega propia.
-     *
-     * @param  array<int, array<string, mixed>>  $lines
-     */
-    private function validateInventoryWarehouses(Validator $validator, array $lines): void
-    {
-        if ($this->input('affects_inventory', 'no') !== 'yes') {
-            return;
-        }
-
-        foreach ($lines as $index => $line) {
-            if (($line['status'] ?? 'active') !== 'active') {
-                continue;
-            }
-
-            if (blank($line['warehouse_id'] ?? null)) {
-                $validator->errors()->add(
-                    "lines.{$index}.warehouse_id",
-                    'Indica la bodega: la mercancía reingresa al inventario.',
                 );
             }
         }

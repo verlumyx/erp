@@ -38,7 +38,7 @@ class PurchaseReturnLineData
         public readonly ?string $purchaseInvoiceLineId = null,
         public readonly ?string $lotId = null,
         public readonly ?string $serialId = null,
-        /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
+        /** Ubicación desde la que se toma la mercancía. Informativa. */
         public readonly ?string $locationId = null,
         /** Motivo propio de la línea; sin él manda el de la cabecera. */
         public readonly ?string $reason = null,

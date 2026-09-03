@@ -29,9 +29,6 @@ class PurchaseInvoice extends Model
 
     public const CODE_PREFIX = 'FCO';
 
-    /** Con este tipo viaja la factura en `app_inventory_movements`. */
-    public const MOVEMENT_ORIGIN_TYPE = 'purchase_invoice';
-
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     public const PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'overdue'];
@@ -83,13 +80,10 @@ class PurchaseInvoice extends Model
         'exchange_rate',
         'base_currency',
         'base_exchange_rate',
-        'affects_inventory',
         'subtotal',
         'discount_amount',
         'tax_amount',
         'withholding_amount',
-        'freight_amount',
-        'other_charges',
         'total',
         'subtotal_ves',
         'tax_amount_ves',
@@ -119,8 +113,6 @@ class PurchaseInvoice extends Model
             'discount_amount' => 'decimal:2',
             'tax_amount' => 'decimal:2',
             'withholding_amount' => 'decimal:2',
-            'freight_amount' => 'decimal:2',
-            'other_charges' => 'decimal:2',
             'total' => 'decimal:2',
             'subtotal_ves' => 'decimal:2',
             'tax_amount_ves' => 'decimal:2',

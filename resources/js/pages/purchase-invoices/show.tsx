@@ -284,14 +284,6 @@ export default function PurchaseInvoicesShow({ purchaseInvoice }: Props) {
                             label="Vencimiento"
                             value={purchaseInvoice.due_date}
                         />
-                        <DataRow
-                            label="Afecta inventario"
-                            value={
-                                purchaseInvoice.affects_inventory === 'yes'
-                                    ? 'Sí'
-                                    : 'No, ya entró antes'
-                            }
-                        />
                     </Card>
 
                     <Card className="gap-3 rounded-2xl px-[18px] py-4">
@@ -334,24 +326,6 @@ export default function PurchaseInvoicesShow({ purchaseInvoice }: Props) {
                                 <Amount
                                     invoice={purchaseInvoice}
                                     value={purchaseInvoice.tax_amount}
-                                />
-                            }
-                        />
-                        <DataRow
-                            label="Flete"
-                            value={
-                                <Amount
-                                    invoice={purchaseInvoice}
-                                    value={purchaseInvoice.freight_amount}
-                                />
-                            }
-                        />
-                        <DataRow
-                            label="Otros gastos"
-                            value={
-                                <Amount
-                                    invoice={purchaseInvoice}
-                                    value={purchaseInvoice.other_charges}
                                 />
                             }
                         />

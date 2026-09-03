@@ -28,8 +28,6 @@ class CreateSalesInvoiceCommand
         public readonly ?string $salespersonId = null,
         public readonly ?string $invoiceSeries = null,
         public readonly string $saleType = 'credit',
-        public readonly string $affectsInventory = 'yes',
-        public readonly string $freightAmount = '0',
         /** El request siempre la exige: la pantalla la estrena con la de la empresa. */
         public readonly string $currency = 'USD',
         /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
@@ -55,8 +53,6 @@ class CreateSalesInvoiceCommand
             salespersonId: $request->input('salesperson_id'),
             invoiceSeries: $request->input('invoice_series'),
             saleType: (string) $request->input('sale_type', 'credit'),
-            affectsInventory: (string) $request->input('affects_inventory', 'yes'),
-            freightAmount: (string) $request->input('freight_amount', 0),
             currency: strtoupper($request->string('currency')->toString()),
             exchangeRateOverride: $request->filled('exchange_rate')
                 ? (string) $request->input('exchange_rate')

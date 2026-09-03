@@ -62,7 +62,6 @@ export interface PurchaseCreditNote {
     note_date: string;
     reason: PurchaseCreditNoteReason;
     reason_detail: string | null;
-    affects_inventory: 'yes' | 'no';
     currency: string;
     exchange_rate: string;
     /** Moneda principal de la empresa congelada al emitir, con su tasa. */

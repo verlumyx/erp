@@ -25,7 +25,6 @@ class CreateSalesCreditNoteCommand
         public readonly ?string $noteSeries = null,
         public readonly string $reason = 'return',
         public readonly ?string $reasonDetail = null,
-        public readonly string $affectsInventory = 'no',
         /** El request siempre la exige: la pantalla la estrena con la de la empresa. */
         public readonly string $currency = 'USD',
         /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
@@ -47,7 +46,6 @@ class CreateSalesCreditNoteCommand
             noteSeries: $request->input('note_series'),
             reason: $request->string('reason', 'return')->toString(),
             reasonDetail: $request->input('reason_detail'),
-            affectsInventory: $request->string('affects_inventory', 'no')->toString(),
             currency: strtoupper($request->string('currency')->toString()),
             exchangeRateOverride: $request->filled('exchange_rate')
                 ? (string) $request->input('exchange_rate')

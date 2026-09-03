@@ -440,10 +440,8 @@ function salesInvoiceScenario(): array
  * A valid `sales-invoices.store` / `sales-invoices.update` payload, overridable
  * per test. Without explicit lines it carries one line of the given item.
  *
- * It does not affect inventory: the goods are taken as already dispatched, so
- * the tests that only care about the receivable, the fiscal number or the
- * collection do not need stock in the warehouse. The ones that do test the
- * kardex pass `affects_inventory => 'yes'` and stock the warehouse first.
+ * A sales invoice never moves stock: the goods leave with their dispatch. So no
+ * test needs the warehouse stocked to confirm one.
  *
  * @param  array<string, mixed>  $overrides
  * @return array<string, mixed>
@@ -462,7 +460,6 @@ function salesInvoicePayload(
         'invoice_date' => now()->toDateString(),
         'due_date' => now()->toDateString(),
         'currency' => 'USD',
-        'affects_inventory' => 'no',
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -712,8 +709,8 @@ function createPurchaseCreditNote(
  * User + company + the minimum masters a purchase return needs.
  *
  * It is the purchase invoice scenario plus the default location of the
- * warehouse: confirming a return writes an exit in the kardex, and the kardex
- * never moves stock without a place to take it from.
+ * warehouse: the return still records a location on each line, and the line
+ * validates that it belongs to the warehouse. The return itself moves no stock.
  *
  * @return array{
  *     0: \App\Modules\User\Models\User,
@@ -892,9 +889,8 @@ function supplierPaymentScenario(): array
  * A purchase invoice that already owes money: created over HTTP and confirmed,
  * which is the only state in which a payment can be applied to it.
  *
- * It does not affect inventory: what these tests care about is the payable, and
- * the goods are taken as already received with a previous entry. Confirming one
- * that does move stock needs the warehouse to have a default location.
+ * A purchase invoice never moves stock: the goods arrive with their entry. What
+ * these tests care about is the payable.
  *
  * @param  array<string, mixed>  $overrides
  */
@@ -907,10 +903,7 @@ function payablePurchaseInvoice(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): \App\Modules\PurchaseInvoice\Models\PurchaseInvoice {
-    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, [
-        'affects_inventory' => 'no',
-        ...$overrides,
-    ]);
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, $overrides);
 
     \Pest\Laravel\actingAs($user)
         ->withSession(['current_company_id' => $company->id])
@@ -1425,8 +1418,9 @@ function createSalesCreditNote(
  * that uses locations with one default location, an inventoried item and its
  * base unit.
  *
- * The warehouse uses locations because confirming a return writes to the
- * kardex, and the kardex does not move stock without a location.
+ * The warehouse uses locations because the return records one on each line,
+ * and because `dispatchScenario()` is an alias of this helper and dispatches do
+ * move stock. The return itself moves none.
  *
  * @return array{
  *     0: \App\Modules\User\Models\User,
@@ -1515,7 +1509,7 @@ function createSalesReturn(
 
 /**
  * Moves a sales return to the given status over HTTP, which is what actually
- * posts it to the kardex or reverses it.
+ * consumes the returned quota of the invoice line, or gives it back.
  */
 function moveSalesReturnTo(
     \App\Modules\User\Models\User $user,
@@ -1788,9 +1782,9 @@ function entryMovements(\App\Modules\Entry\Models\Entry $entry): \Illuminate\Dat
  * User + company + the masters a transfer needs: two warehouses that use
  * locations, each with a default one, plus an item and its base unit.
  *
- * Both warehouses use locations because confirming a transfer writes to the
- * kardex on the two sides at once, and the kardex does not move stock without a
- * location.
+ * Both warehouses use locations because a transfer moves stock through the
+ * dispatch it generates at the origin and the entry it generates at the
+ * destination, and neither writes to the kardex without a location.
  *
  * @return array{
  *     0: \App\Modules\User\Models\User,
@@ -1901,8 +1895,8 @@ function createTransfer(
 }
 
 /**
- * Moves a transfer to the given status over HTTP, which is what actually posts
- * it to the kardex or reverses it.
+ * Moves a transfer to the given status over HTTP, which is what actually
+ * generates its dispatch, or reverses it.
  */
 function moveTransferTo(
     \App\Modules\User\Models\User $user,
@@ -1919,8 +1913,9 @@ function moveTransferTo(
 }
 
 /**
- * The live kardex movements a transfer wrote, counter-entries included: the
- * tests that check a cancellation need to see both sides.
+ * The live kardex movements a transfer caused, counter-entries included. It
+ * writes none itself: they belong to the dispatch it generates at the origin
+ * and the entry at the destination, and the cancellation tests need both sides.
  *
  * @return \Illuminate\Database\Eloquent\Collection<int, \App\Modules\InventoryMovement\Models\InventoryMovement>
  */
@@ -2339,7 +2334,7 @@ function routeStopsOn(
 
 /**
  * Moves a sales credit note to the given status over HTTP, which is what
- * actually posts its stock, its balance and its credit to the invoice.
+ * actually posts its balance and its credit to the invoice.
  */
 function moveSalesCreditNoteTo(
     \App\Modules\User\Models\User $user,
@@ -2357,7 +2352,7 @@ function moveSalesCreditNoteTo(
 
 /**
  * Moves a purchase credit note to the given status over HTTP, which is what
- * actually posts its stock, its balance and its credit to the invoice.
+ * actually posts its balance and its credit to the invoice.
  */
 function movePurchaseCreditNoteTo(
     \App\Modules\User\Models\User $user,
@@ -2375,7 +2370,7 @@ function movePurchaseCreditNoteTo(
 
 /**
  * Issues a sales invoice over HTTP, which is what burns its fiscal number,
- * posts the receivable and moves the stock a direct sale takes out.
+ * posts the receivable and freezes the cost of the goods sold.
  */
 function confirmSalesInvoice(
     \App\Modules\User\Models\User $user,

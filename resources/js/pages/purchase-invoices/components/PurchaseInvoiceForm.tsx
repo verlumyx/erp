@@ -37,12 +37,6 @@ function FormSectionHead({ step, title, sub }: FormSectionHeadProps) {
     );
 }
 
-/** Sí/no de la factura: si mete la mercancía al inventario o ya entró antes. */
-const INVENTORY_OPTIONS: OptionType[] = [
-    { value: 'yes', label: 'Sí, la factura mete la mercancía' },
-    { value: 'no', label: 'No, ya entró con una entrada previa' },
-];
-
 export function PurchaseInvoiceForm() {
     const {
         data,
@@ -222,37 +216,6 @@ export function PurchaseInvoiceForm() {
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                            <Label className="text-[13px] font-semibold">
-                                Afecta inventario
-                            </Label>
-                            <Select2
-                                options={INVENTORY_OPTIONS}
-                                value={
-                                    INVENTORY_OPTIONS.find(
-                                        (option) =>
-                                            option.value ===
-                                            data.affects_inventory,
-                                    ) ?? null
-                                }
-                                onChange={(option) =>
-                                    setData(
-                                        'affects_inventory',
-                                        (option?.value ?? 'yes') as
-                                            | 'yes'
-                                            | 'no',
-                                    )
-                                }
-                                error={!!errors.affects_inventory}
-                                size="md"
-                            />
-                            {errors.affects_inventory && (
-                                <p className="text-sm text-bad">
-                                    {errors.affects_inventory}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
                             <Label
                                 htmlFor="invoice_date"
                                 className="text-[13px] font-semibold"
@@ -313,7 +276,7 @@ export function PurchaseInvoiceForm() {
                     <FormSectionHead
                         step={3}
                         title="Condiciones"
-                        sub="Moneda, tasa, vencimiento, descuento y gastos"
+                        sub="Moneda, tasa, vencimiento y descuento"
                     />
                     <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
@@ -392,60 +355,6 @@ export function PurchaseInvoiceForm() {
                             {errors.discount_amount && (
                                 <p className="text-sm text-bad">
                                     {errors.discount_amount}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label
-                                htmlFor="freight_amount"
-                                className="text-[13px] font-semibold"
-                            >
-                                Flete
-                            </Label>
-                            <CurrencyInput
-                                id="freight_amount"
-                                value={data.freight_amount}
-                                onValueChange={(value) =>
-                                    setData('freight_amount', value)
-                                }
-                                min={0}
-                                decimals={2}
-                                className={`h-[42px] rounded-[10px] ${errors.freight_amount ? 'border-bad' : ''}`}
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Se prorratea al costo de las líneas
-                            </span>
-                            {errors.freight_amount && (
-                                <p className="text-sm text-bad">
-                                    {errors.freight_amount}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label
-                                htmlFor="other_charges"
-                                className="text-[13px] font-semibold"
-                            >
-                                Otros gastos
-                            </Label>
-                            <CurrencyInput
-                                id="other_charges"
-                                value={data.other_charges}
-                                onValueChange={(value) =>
-                                    setData('other_charges', value)
-                                }
-                                min={0}
-                                decimals={2}
-                                className={`h-[42px] rounded-[10px] ${errors.other_charges ? 'border-bad' : ''}`}
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                También se capitalizan al costo
-                            </span>
-                            {errors.other_charges && (
-                                <p className="text-sm text-bad">
-                                    {errors.other_charges}
                                 </p>
                             )}
                         </div>
@@ -547,23 +456,6 @@ export function PurchaseInvoiceForm() {
                             />
                         </b>
                     </div>
-                    {(data.freight_amount > 0 || data.other_charges > 0) && (
-                        <div className="flex items-center justify-between text-[13.5px]">
-                            <span className="font-medium text-muted-foreground">
-                                Flete y gastos
-                            </span>
-                            <b className="font-bold tabular-nums">
-                                <AmountDual
-                                    amount={
-                                        data.freight_amount + data.other_charges
-                                    }
-                                    currency={data.currency}
-                                    rate={data.exchange_rate || undefined}
-                                    className="items-end"
-                                />
-                            </b>
-                        </div>
-                    )}
                     <div className="flex items-center justify-between border-t pt-2.5 text-[15px]">
                         <span className="font-semibold">Total</span>
                         <b className="font-extrabold tabular-nums">

@@ -61,7 +61,6 @@ trait ValidatesPurchaseCreditNotePayload
                 'string',
                 'max:500',
             ],
-            'affects_inventory' => ['nullable', 'string', 'in:yes,no'],
             'currency' => ['required', 'string', new ActiveCurrency],
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],
@@ -160,7 +159,6 @@ trait ValidatesPurchaseCreditNotePayload
 
         $this->validateLineUnits($validator, $lines);
         $this->validateCreditedLines($validator, $lines);
-        $this->validateInventoryWarehouses($validator, $lines);
     }
 
     /**
@@ -218,32 +216,6 @@ trait ValidatesPurchaseCreditNotePayload
                 $validator->errors()->add(
                     "lines.{$index}.purchase_invoice_line_id",
                     'Elige la factura afectada antes de acreditar una de sus líneas.',
-                );
-            }
-        }
-    }
-
-    /**
-     * Si la nota saca mercancía del inventario, cada línea activa tiene que
-     * decir de qué bodega sale: la cabecera no lleva bodega propia.
-     *
-     * @param  array<int, array<string, mixed>>  $lines
-     */
-    private function validateInventoryWarehouses(Validator $validator, array $lines): void
-    {
-        if ($this->input('affects_inventory', 'no') !== 'yes') {
-            return;
-        }
-
-        foreach ($lines as $index => $line) {
-            if (($line['status'] ?? 'active') !== 'active') {
-                continue;
-            }
-
-            if (blank($line['warehouse_id'] ?? null)) {
-                $validator->errors()->add(
-                    "lines.{$index}.warehouse_id",
-                    'Indica la bodega: la nota saca mercancía del inventario.',
                 );
             }
         }

@@ -37,7 +37,6 @@ class SalesCreditNoteFactory extends Factory
             'note_date' => now()->toDateString(),
             'reason' => 'return',
             'reason_detail' => null,
-            'affects_inventory' => 'no',
             'currency' => 'USD',
             'exchange_rate' => 1,
             'base_currency' => 'USD',

@@ -43,9 +43,8 @@ class UpdatePurchaseInvoiceRequest extends FormRequest
     }
 
     /**
-     * Solo se edita en `draft`. Confirmada ya generó la cuenta por pagar y, si
-     * afecta inventario, movió el kardex: se corrige anulándola y emitiendo
-     * otra.
+     * Solo se edita en `draft`. Confirmada ya generó la cuenta por pagar y
+     * consumió saldo de la orden: se corrige anulándola y emitiendo otra.
      */
     private function validateStillEditable(Validator $validator): void
     {

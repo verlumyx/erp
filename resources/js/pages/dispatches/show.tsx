@@ -277,13 +277,6 @@ export default function DispatchesShow({ dispatch }: Props) {
                             label="Guía"
                             value={dispatch.tracking_number ?? '—'}
                         />
-                        <DataRow
-                            label="Flete"
-                            value={formatAmount(
-                                dispatch.freight_amount,
-                                currency,
-                            )}
-                        />
                     </Card>
 
                     <Card className="gap-3 rounded-2xl px-[18px] py-4">

@@ -133,8 +133,6 @@ export interface Entry {
     base_currency: string | null;
     base_exchange_rate: string | null;
     total_quantity: string;
-    freight_amount: string;
-    other_charges: string;
     total_cost: string;
     is_invoiced: 'yes' | 'no';
     cancelled_at: string | null;

@@ -16,7 +16,6 @@ test('a draft invoice can be updated with its lines', function () {
 
     $payload = salesInvoicePayload($client, $warehouse, $item, $unit, [
         'notes' => 'Se corrigió la cantidad acordada.',
-        'freight_amount' => 20,
         'lines' => [
             [
                 'id' => $invoice->lines->first()->id,
@@ -38,7 +37,7 @@ test('a draft invoice can be updated with its lines', function () {
 
     expect($invoice->notes)->toBe('Se corrigió la cantidad acordada.');
     expect((float) $invoice->subtotal)->toBe(400.0);
-    expect((float) $invoice->total)->toBe(420.0);
+    expect((float) $invoice->total)->toBe(400.0);
     expect($invoice->lines)->toHaveCount(1);
     expect((float) $invoice->lines->first()->quantity)->toBe(5.0);
     /** El `code` no se recalcula al editar. */

@@ -131,7 +131,6 @@ class Dispatch extends Model
         'vehicle_plate',
         'carrier',
         'tracking_number',
-        'freight_amount',
         'total_quantity',
         'total_weight',
         'total_volume',
@@ -158,7 +157,6 @@ class Dispatch extends Model
         return [
             'dispatch_date' => 'date',
             'delivery_date' => 'date',
-            'freight_amount' => 'decimal:2',
             'total_quantity' => 'decimal:4',
             'total_weight' => 'decimal:4',
             'total_volume' => 'decimal:4',

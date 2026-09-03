@@ -14,16 +14,18 @@ class SalesCreditNoteUpdateStatusService
 {
     public function __construct(
         private readonly SalesCreditNoteRepositoryInterface $repository,
-        private readonly SalesCreditNotePostingService $posting,
         private readonly SalesCreditNoteApplicationService $applications,
         private readonly SalesCreditNoteReturnSyncService $returns,
     ) {}
 
     /**
      * Cambiar el estado no toca las tasas ni los importes: confirmada, la nota
-     * queda congelada tal como se guardó. Lo que sí mueve es el inventario —si
-     * la mercancía vuelve— y la cuenta por cobrar del cliente, y solo en los dos
-     * momentos que importan: confirmarla y anularla ya confirmada.
+     * queda congelada tal como se guardó. Lo que sí mueve es la cuenta por
+     * cobrar del cliente, y solo en los dos momentos que importan: confirmarla
+     * y anularla ya confirmada.
+     *
+     * La nota no mueve inventario. La mercancía que la motiva reingresa con su
+     * Entrada, que es la que escribe el kardex.
      */
     public function execute(
         string $id,
@@ -39,13 +41,8 @@ class SalesCreditNoteUpdateStatusService
         DB::transaction(function () use ($model, $command): void {
             $wasPosted = $model->status !== 'draft';
 
-            if ($command->status === 'confirmed') {
-                $this->posting->post($model);
-            }
-
-            /** Un borrador anulado no revierte nada: nunca movió mercancía. */
+            /** Un borrador anulado no revierte nada: nunca gastó su crédito. */
             if ($command->status === 'cancelled' && $wasPosted) {
-                $this->posting->reverse($model);
                 $this->applications->revert($model);
             }
 

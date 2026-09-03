@@ -29,8 +29,6 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
     public function create(CreatePurchaseInvoiceCommand $command, DocumentRatesData $rates, string $dueDate): void
     {
         DB::transaction(function () use ($command, $rates, $dueDate): void {
-            $charges = $command->freightAmount + $command->otherCharges;
-
             $invoice = PurchaseInvoice::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
@@ -46,14 +44,7 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
                 'received_date' => $command->receivedDate,
                 'due_date' => $dueDate,
                 ...$rates->toAttributes(),
-                'affects_inventory' => $command->affectsInventory,
-                ...$this->totals(
-                    $command->lines,
-                    $command->discountAmount,
-                    $command->freightAmount,
-                    $command->otherCharges,
-                    $rates,
-                ),
+                ...$this->totals($command->lines, $command->discountAmount, $rates),
                 /** La deuda nace entera: la mueven Pagos, Anticipos y Notas de crédito. */
                 'paid_amount' => 0,
                 'payment_status' => 'pending',
@@ -62,7 +53,7 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
                 'created_by' => $command->createdBy,
             ]);
 
-            $this->syncLines($invoice, $command->lines, $charges);
+            $this->syncLines($invoice, $command->lines);
         });
     }
 
@@ -89,8 +80,6 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
         string $dueDate,
     ): void {
         DB::transaction(function () use ($model, $command, $rates, $dueDate): void {
-            $charges = $command->freightAmount + $command->otherCharges;
-
             /** Lo aplicado por pagos y las marcas de anulación no se editan aquí. */
             $model->update([
                 'supplier_id' => $command->supplierId,
@@ -104,19 +93,16 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
                 'received_date' => $command->receivedDate,
                 'due_date' => $dueDate,
                 ...$rates->toAttributes(),
-                'affects_inventory' => $command->affectsInventory,
                 ...$this->totals(
                     $command->lines,
                     $command->discountAmount,
-                    $command->freightAmount,
-                    $command->otherCharges,
                     $rates,
                     (float) $model->paid_amount,
                 ),
                 'notes' => $command->notes,
             ]);
 
-            $this->syncLines($model, $command->lines, $charges);
+            $this->syncLines($model, $command->lines);
         });
     }
 
@@ -233,9 +219,8 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
      * una fila inactiva sigue ocupando el suyo.
      *
      * @param  array<int, PurchaseInvoiceLineData>  $lines
-     * @param  float  $charges  Flete más otros gastos, a prorratear en el costo.
      */
-    private function syncLines(PurchaseInvoice $invoice, array $lines, float $charges): void
+    private function syncLines(PurchaseInvoice $invoice, array $lines): void
     {
         $existing = PurchaseInvoiceLine::query()
             ->where('purchase_invoice_id', $invoice->id)
@@ -243,7 +228,6 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
             ->keyBy('id');
 
         $factors = $this->conversionFactors($invoice->company_id, $lines);
-        $prorated = $this->proratedCharges($lines, $charges);
         $nextNumber = (int) $existing->max('line_number');
         $keep = [];
 
@@ -275,7 +259,7 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
                 'withholding_amount' => $line->withholdingAmount,
                 'subtotal' => $line->subtotal,
                 'total' => $line->total,
-                'landed_cost' => $this->landedCost($line, $baseQuantity, $prorated[$index] ?? 0.0),
+                'landed_cost' => $this->landedCost($line, $baseQuantity),
                 'returned_quantity' => $returned,
                 'status' => $line->status,
                 'notes' => $line->notes,
@@ -302,46 +286,21 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
     }
 
     /**
-     * Reparto del flete y los demás gastos entre las líneas activas, en
-     * proporción a lo que pesa cada una en el subtotal. Una factura sin cargos
-     * —el caso normal— reparte cero y el costo de la línea queda en su propio
-     * importe.
+     * Costo unitario de la línea: su importe repartido entre la cantidad en
+     * unidad base.
      *
-     * @param  array<int, PurchaseInvoiceLineData>  $lines
-     * @return array<int, float>
+     * Lo que costó **traer** la mercancía ya no se prorratea aquí. El flete y
+     * los demás cargos que el proveedor cobre en el mismo papel van como una
+     * línea más de la factura, y lo que cuesta ponerla en la bodega lo reparte
+     * el expediente de Importaciones sobre la entrada que la recibió.
      */
-    private function proratedCharges(array $lines, float $charges): array
-    {
-        $shares = [];
-        $base = 0.0;
-
-        foreach ($lines as $line) {
-            if ($line->status === 'active') {
-                $base += $line->subtotal;
-            }
-        }
-
-        foreach ($lines as $index => $line) {
-            $shares[$index] = $charges > 0 && $base > 0 && $line->status === 'active'
-                ? round($charges * $line->subtotal / $base, 2)
-                : 0.0;
-        }
-
-        return $shares;
-    }
-
-    /**
-     * Costo unitario final de la línea: lo que costó, más su parte del flete y
-     * los gastos, repartido entre la cantidad en unidad base. Es el número con
-     * el que el inventario valorará la entrada.
-     */
-    private function landedCost(PurchaseInvoiceLineData $line, float $baseQuantity, float $share): float
+    private function landedCost(PurchaseInvoiceLineData $line, float $baseQuantity): float
     {
         if ($baseQuantity <= 0) {
             return 0.0;
         }
 
-        return round(($line->subtotal + $share) / $baseQuantity, 6);
+        return round($line->subtotal / $baseQuantity, 6);
     }
 
     /**
@@ -375,9 +334,9 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
     }
 
     /**
-     * Totales de la cabecera. Suman **solo** las líneas activas; el descuento
-     * global se resta después del subtotal y el flete y los gastos se suman al
-     * final, porque el proveedor los cobra en la misma factura.
+     * Totales de la cabecera. Suman **solo** las líneas activas, y el descuento
+     * global se resta después del subtotal. Un flete cobrado en el mismo papel
+     * es una línea más, así que ya viene dentro del subtotal.
      *
      * La retención no se resta del total: es una parte del impuesto que se
      * entera al fisco en vez de pagarse al proveedor, así que baja lo que se le
@@ -389,8 +348,6 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
     private function totals(
         array $lines,
         float $discountAmount,
-        float $freightAmount,
-        float $otherCharges,
         DocumentRatesData $rates,
         float $paidAmount = 0,
     ): array {
@@ -401,18 +358,14 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
         $withholding = round(array_sum(array_map(fn (PurchaseInvoiceLineData $line): float => $line->withholdingAmount, $active)), 2);
 
         $discount = round($discountAmount, 2);
-        $freight = round($freightAmount, 2);
-        $other = round($otherCharges, 2);
 
-        $total = round($subtotal - $discount + $tax + $freight + $other, 2);
+        $total = round($subtotal - $discount + $tax, 2);
 
         return [
             'subtotal' => $subtotal,
             'discount_amount' => $discount,
             'tax_amount' => $tax,
             'withholding_amount' => $withholding,
-            'freight_amount' => $freight,
-            'other_charges' => $other,
             'total' => $total,
             /** La factura tiene valor legal: su deuda en bolívares queda escrita. */
             'subtotal_ves' => $this->inLocalCurrency($subtotal, $rates),

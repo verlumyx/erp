@@ -41,8 +41,6 @@ test('a sales credit note can be created', function () {
     /** El correlativo fiscal se quema al confirmar, nunca en borrador. */
     expect($note->note_number)->toBeNull();
     expect($note->reason)->toBe('discount');
-    /** Una nota que no reingresa mercancía es lo normal: solo baja la deuda. */
-    expect($note->affects_inventory)->toBe('no');
     expect($note->lines)->toHaveCount(1);
 
     $line = $note->lines->first();
@@ -225,18 +223,15 @@ test('the reason detail is required when the reason is other', function () {
     expect($note->reason_detail)->toBe('El cliente reclamó un error de facturación del año pasado.');
 });
 
-test('a note that affects inventory needs a warehouse on every line', function () {
+test('the warehouse of a line is optional and merely informative', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesCreditNoteScenario();
 
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('sales-credit-notes.store', ['company' => $company->id]),
-            salesCreditNotePayload($client, $item, $unit, ['affects_inventory' => 'yes']),
-        )
-        ->assertSessionHasErrors('lines.0.warehouse_id');
+    /** La nota no mueve inventario, así que la línea puede ir sin bodega. */
+    $bare = createSalesCreditNote($user, $company, $client, $item, $unit);
+
+    expect($bare->lines->first()->warehouse_id)->toBeNull();
 
     $note = createSalesCreditNote($user, $company, $client, $item, $unit, [
-        'affects_inventory' => 'yes',
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -248,7 +243,7 @@ test('a note that affects inventory needs a warehouse on every line', function (
         ],
     ]);
 
-    expect($note->affects_inventory)->toBe('yes');
+    /** Si viene, se guarda: sirve para saber de dónde salió la mercancía. */
     expect($note->lines->first()->warehouse_id)->toBe($warehouse->id);
 });
 
@@ -259,7 +254,6 @@ test('a warehouse from another company is rejected on the line', function () {
         ->post(
             route('sales-credit-notes.store', ['company' => $company->id]),
             salesCreditNotePayload($client, $item, $unit, [
-                'affects_inventory' => 'yes',
                 'lines' => [
                     [
                         'item_id' => $item->id,

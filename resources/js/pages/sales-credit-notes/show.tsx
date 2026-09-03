@@ -237,14 +237,6 @@ export default function SalesCreditNotesShow({ salesCreditNote }: Props) {
                             label="Factura afectada"
                             value={salesCreditNote.sales_invoice_code ?? '—'}
                         />
-                        <DataRow
-                            label="Afecta inventario"
-                            value={
-                                salesCreditNote.affects_inventory === 'yes'
-                                    ? 'Sí, la mercancía vuelve'
-                                    : 'No, solo la cuenta por cobrar'
-                            }
-                        />
                         {salesCreditNote.reason_detail && (
                             <DataRow
                                 label="Detalle"

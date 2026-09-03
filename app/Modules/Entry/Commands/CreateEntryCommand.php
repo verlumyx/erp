@@ -35,8 +35,6 @@ class CreateEntryCommand
         /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
         public readonly ?string $exchangeRateOverride = null,
         /** Gastos capitalizables que se prorratean al costo de las líneas. */
-        public readonly float $freightAmount = 0.0,
-        public readonly float $otherCharges = 0.0,
         public readonly ?string $notes = null,
         /**
          * El usuario tiene el permiso que deja recibir más de lo pedido. Se
@@ -69,8 +67,6 @@ class CreateEntryCommand
             exchangeRateOverride: $request->filled('exchange_rate')
                 ? (string) $request->input('exchange_rate')
                 : null,
-            freightAmount: round((float) $request->input('freight_amount', 0), 2),
-            otherCharges: round((float) $request->input('other_charges', 0), 2),
             notes: $request->input('notes'),
             allowsOverReceipt: $request->user()?->hasPermission('entries.allow-over-receipt') ?? false,
         );

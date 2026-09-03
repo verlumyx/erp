@@ -6,11 +6,15 @@ use App\Modules\InventoryMovement\Models\InventoryMovement;
 use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNote;
 use App\Modules\Supplier\Models\Supplier;
 
-/** Movimientos del kardex que escribió una nota de crédito a proveedor. */
+/**
+ * Movimientos del kardex que apuntan a una nota de crédito a proveedor.
+ *
+ * Ya no hay tipo de origen que filtrar: la nota no escribe en el kardex, así
+ * que se busca por el id y lo que debe salir es la nada.
+ */
 function purchaseCreditNoteMovements(PurchaseCreditNote $note): \Illuminate\Database\Eloquent\Collection
 {
     return InventoryMovement::query()
-        ->where('origin_type', PurchaseCreditNote::MOVEMENT_ORIGIN_TYPE)
         ->where('origin_id', $note->id)
         ->orderBy('created_at')
         ->get();
@@ -41,34 +45,20 @@ test('confirming lowers what is owed to the supplier', function () {
     expect((float) $supplier->refresh()->current_balance)->toBe(450.0);
 });
 
-test('a note that does not affect inventory moves no stock', function () {
-    [$user, $company, $supplier, , $item, $unit] = purchaseReturnScenario();
+test('confirming a note writes nothing in the kardex', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
+    /** La línea normal ni siquiera nombra una bodega: la nota es solo dinero. */
     $note = createPurchaseCreditNote($user, $company, $supplier, $item, $unit);
+
+    expect($note->lines->first()->warehouse_id)->toBeNull();
 
     movePurchaseCreditNoteTo($user, $company, $note, 'confirmed')->assertSessionHasNoErrors();
 
     expect(purchaseCreditNoteMovements($note))->toHaveCount(0);
-});
 
-test('a note that affects inventory takes the goods out of the warehouse', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
-
-    /** La mercancía tiene que estar en la bodega antes de poder devolverla. */
-    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
-        'lines' => [[
-            'item_id' => $item->id,
-            'measurement_unit_id' => $unit->id,
-            'quantity' => 10,
-            'unit_price' => 25,
-            'location_id' => $location->id,
-        ]],
-    ]);
-
-    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
-
-    $note = createPurchaseCreditNote($user, $company, $supplier, $item, $unit, [
-        'affects_inventory' => 'yes',
+    /** Y con bodega en la línea tampoco: el dato queda guardado, pero es informativo. */
+    $withWarehouse = createPurchaseCreditNote($user, $company, $supplier, $item, $unit, [
         'lines' => [[
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
@@ -78,16 +68,14 @@ test('a note that affects inventory takes the goods out of the warehouse', funct
         ]],
     ]);
 
-    movePurchaseCreditNoteTo($user, $company, $note, 'confirmed')->assertSessionHasNoErrors();
+    expect($withWarehouse->lines->first()->warehouse_id)->toBe($warehouse->id);
 
-    $movements = purchaseCreditNoteMovements($note);
-    expect($movements)->toHaveCount(1);
+    movePurchaseCreditNoteTo($user, $company, $withWarehouse, 'confirmed')->assertSessionHasNoErrors();
 
-    $movement = $movements->first();
-    expect($movement->type)->toBe('out');
-    expect($movement->warehouse_id)->toBe($warehouse->id);
-    expect((float) $movement->quantity)->toBe(2.0);
-    expect((float) $movement->balance_quantity)->toBe(8.0);
+    expect(purchaseCreditNoteMovements($withWarehouse))->toHaveCount(0);
+
+    /** Solo Ajuste, Entrada y Despacho escriben el kardex: aquí no hay ni un renglón. */
+    expect(InventoryMovement::query()->where('company_id', $company->id)->count())->toBe(0);
 });
 
 test('cancelling a confirmed note gives the payable back', function () {

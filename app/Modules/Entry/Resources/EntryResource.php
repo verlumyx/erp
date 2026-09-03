@@ -48,8 +48,6 @@ class EntryResource extends JsonResource
             'base_currency' => $this->base_currency,
             'base_exchange_rate' => $this->base_exchange_rate,
             'total_quantity' => $this->total_quantity,
-            'freight_amount' => $this->freight_amount,
-            'other_charges' => $this->other_charges,
             'total_cost' => $this->total_cost,
             'is_invoiced' => $this->is_invoiced,
             'cancelled_at' => $this->cancelled_at?->format('Y-m-d H:i:s'),

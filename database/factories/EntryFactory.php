@@ -46,8 +46,6 @@ class EntryFactory extends Factory
             'base_currency' => 'USD',
             'base_exchange_rate' => 1,
             'total_quantity' => 0,
-            'freight_amount' => 0,
-            'other_charges' => 0,
             'total_cost' => 0,
             'is_invoiced' => 'no',
             'cancelled_at' => null,

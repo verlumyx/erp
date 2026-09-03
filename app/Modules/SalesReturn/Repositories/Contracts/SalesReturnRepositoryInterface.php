@@ -57,8 +57,8 @@ interface SalesReturnRepositoryInterface
     public function search(SearchSalesReturnCommand $command): array;
 
     /**
-     * Líneas activas de la devolución, con lo que el kardex necesita para
-     * valorar la entrada: el artículo y la línea de factura que la origina.
+     * Líneas activas de la devolución, con lo que hace falta para consumir el
+     * cupo: el artículo y la línea de factura que la origina.
      *
      * @return array<int, SalesReturnLine>
      */

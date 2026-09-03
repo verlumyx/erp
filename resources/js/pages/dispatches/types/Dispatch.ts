@@ -115,7 +115,6 @@ export interface Dispatch {
     vehicle_plate: string | null;
     carrier: string | null;
     tracking_number: string | null;
-    freight_amount: string;
     total_quantity: string;
     total_weight: string;
     total_volume: string;

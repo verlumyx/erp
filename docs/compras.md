@@ -163,8 +163,9 @@ Además de las columnas comunes de línea:
 
 ## 3. Facturas de compra
 
-Documento de deuda con el proveedor. Genera cuenta por pagar y, si no hubo entrada previa, **también afecta inventario y
-costo**.
+Documento de deuda con el proveedor. Genera cuenta por pagar y apunta el avance de facturación en la orden que la
+originó. **No mueve inventario**: la mercancía entra con su Entrada, antes o después de la factura. Ver
+[inventario.md § 4.1](inventario.md).
 
 ### 3.1 Cabecera — `app_purchase_invoices` — Prefijo `FCO`
 
@@ -182,13 +183,10 @@ costo**.
 | `due_date`                | `date`          | No   |             | Vencimiento = `invoice_date + payment_term_days`.            |
 | `currency`                | `string(3)`     | No   | `'USD'`     |                                                              |
 | `exchange_rate`           | `decimal(18,8)` | No   | `1`         |                                                              |
-| `affects_inventory`       | `enum`          | No   | `'yes'`     | `no` cuando el stock ya entró con una Entrada previa.        |
 | `subtotal`                | `decimal(18,2)` | No   | `0`         |                                                              |
 | `discount_amount`         | `decimal(18,2)` | No   | `0`         |                                                              |
 | `tax_amount`              | `decimal(18,2)` | No   | `0`         |                                                              |
 | `withholding_amount`      | `decimal(18,2)` | No   | `0`         | Retenciones aplicadas.                                       |
-| `freight_amount`          | `decimal(18,2)` | No   | `0`         | Flete prorrateado al costo de las líneas.                    |
-| `other_charges`           | `decimal(18,2)` | No   | `0`         | Otros gastos capitalizables al costo.                        |
 | `total`                   | `decimal(18,2)` | No   | `0`         |                                                              |
 | `paid_amount`             | `decimal(18,2)` | No   | `0`         | Total aplicado por pagos, anticipos y notas de crédito.      |
 | `balance`                 | `decimal(18,2)` | No   | `0`         | `total - paid_amount`. Saldo pendiente.                      |
@@ -232,7 +230,7 @@ Además de las columnas comunes de línea:
 | `sourceable_id`          | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad al pedido.                   |
 | `warehouse_id`           | `uuid`          | Sí   |         | Bodega de la línea si difiere de la cabecera.                    |
 | `lot_id`                 | `uuid`          | Sí   |         | FK → `app_item_lots.id`. Obligatorio si el artículo maneja lote. |
-| `landed_cost`            | `decimal(18,6)` | No   | `0`     | Costo unitario final incluyendo flete y gastos prorrateados.     |
+| `landed_cost`            | `decimal(18,6)` | No   | `0`     | Costo unitario de la línea, en unidad base.                      |
 | `returned_quantity`      | `decimal(18,4)` | No   | `0`     | Cantidad devuelta al proveedor.                                  |
 
 **Reglas**
@@ -240,19 +238,24 @@ Además de las columnas comunes de línea:
 - La cantidad de una línea con origen no puede superar lo que a la línea de la orden le queda por facturar
   (`quantity - invoiced_quantity`). El tope se mide contra `invoiced_quantity`, que solo se mueve al confirmar: un
   borrador todavía no consume saldo.
-- Al confirmar: si `affects_inventory = 'yes'`, genera movimientos `in` en el kardex y recalcula el costo promedio del
-  artículo con `landed_cost`.
+- Al confirmar no toca el kardex ni el costo promedio: el `landed_cost` de la línea es el costo que la Entrada ya
+  registró, y aquí solo se guarda como referencia del documento.
+- Un flete o cualquier otro cargo que el proveedor cobre en el mismo papel va como **una línea más**, con un
+  artículo de tipo `service`. La cabecera ya no lleva importes de flete: el total es la suma de sus líneas menos
+  el descuento global, más el impuesto. Lo que ese flete le añade al costo de la mercancía lo reparte el
+  expediente de Importaciones ([logistica.md §6](logistica.md)).
 - Aumenta `current_balance` del proveedor por `total - withholding_amount`.
 - `supplier_invoice_number` es único por proveedor y empresa: bloquea el registro duplicado.
 - `payment_status = overdue` lo marca un job diario comparando `due_date` con la fecha actual.
-- Anular genera movimientos de contrapartida y revierte el saldo del proveedor. No se puede anular si tiene pagos
+- Anular revierte el saldo del proveedor y libera lo facturado en la orden. No se puede anular si tiene pagos
   aplicados.
 
 ---
 
 ## 4. Notas de crédito a proveedor
 
-Disminuye la deuda con el proveedor: descuentos posteriores, devoluciones o correcciones de precio.
+Disminuye la deuda con el proveedor: descuentos posteriores, devoluciones o correcciones de precio. **No mueve
+inventario**: la mercancía que la motiva sale con su Despacho. Ver [inventario.md § 4.1](inventario.md).
 
 ### 4.1 Cabecera — `app_purchase_credit_notes` — Prefijo `NCP`
 
@@ -265,7 +268,6 @@ Disminuye la deuda con el proveedor: descuentos posteriores, devoluciones o corr
 | `note_date`                | `date`          | No   |            |                                                                            |
 | `reason`                   | `enum`          | No   | `'return'` | `return` (devolución), `discount`, `price_correction`, `damaged`, `other`. |
 | `reason_detail`            | `string(500)`   | Sí   |            | Obligatorio si `reason = other`.                                           |
-| `affects_inventory`        | `enum`          | No   | `'no'`     | `yes` cuando la nota implica salida física de mercancía.                   |
 | `currency`                 | `string(3)`     | No   | `'USD'`    |                                                                            |
 | `exchange_rate`            | `decimal(18,8)` | No   | `1`        |                                                                            |
 | `subtotal`                 | `decimal(18,2)` | No   | `0`        |                                                                            |
@@ -287,12 +289,12 @@ Además de las columnas comunes de línea:
 | Columna                    | Tipo   | Nulo | Descripción                                                   |
 |----------------------------|--------|------|---------------------------------------------------------------|
 | `purchase_invoice_line_id` | `uuid` | Sí   | FK → línea de la factura original.                            |
-| `warehouse_id`             | `uuid` | Sí   | Bodega desde la que sale la mercancía si `affects_inventory`. |
+| `warehouse_id`             | `uuid` | Sí   | Bodega a la que se refiere la línea. Solo informativa.        |
 | `lot_id`                   | `uuid` | Sí   | FK → `app_item_lots.id`.                                      |
 
 **Reglas**
 
-- Al confirmar, disminuye `current_balance` del proveedor y, si `affects_inventory`, genera movimientos `out`.
+- Al confirmar, disminuye `current_balance` del proveedor. No genera movimientos de kardex.
 - La cantidad acreditada no puede superar la facturada menos la ya acreditada.
 - Se aplica a facturas mediante `app_supplier_payment_applications` (tipo `credit_note`).
 
@@ -449,8 +451,9 @@ detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la fac
 
 ## 7. Devoluciones de compras
 
-Salida física de mercancía hacia el proveedor por defectos, exceso o error de despacho. Normalmente deriva en una nota
-de crédito.
+Acuerdo de devolución de mercancía al proveedor por defectos, exceso o error de despacho. Normalmente deriva en una
+nota de crédito. **No mueve inventario**: la salida física la asienta el Despacho. Ver
+[inventario.md § 4.1](inventario.md).
 
 ### 7.1 Cabecera — `app_purchase_returns` — Prefijo `DVC`
 
@@ -492,7 +495,7 @@ Además de las columnas comunes de línea:
 
 **Reglas**
 
-- Al confirmar genera movimientos `out` en el kardex al costo de la compra original (no al promedio actual).
+- Al confirmar apunta lo devuelto en la línea de la factura de origen y habilita la nota de crédito. No toca el kardex.
 - La cantidad devuelta no puede superar `quantity - returned_quantity` de la línea de factura.
 - Si el artículo maneja lote o serie, se devuelve exactamente el lote/serie recibido.
 

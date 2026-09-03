@@ -46,7 +46,6 @@ class DispatchResource extends JsonResource
             'vehicle_plate' => $this->vehicle_plate,
             'carrier' => $this->carrier,
             'tracking_number' => $this->tracking_number,
-            'freight_amount' => $this->freight_amount,
             'total_quantity' => $this->total_quantity,
             'total_weight' => $this->total_weight,
             'total_volume' => $this->total_volume,

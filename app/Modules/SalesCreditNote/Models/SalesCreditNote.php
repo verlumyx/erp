@@ -30,9 +30,6 @@ class SalesCreditNote extends Model
     /** Con este tipo viaja la nota en `app_client_collection_applications`. */
     public const APPLICATION_SOURCE = 'credit_note';
 
-    /** Con qué alias firma sus asientos en el kardex. */
-    public const MOVEMENT_ORIGIN_TYPE = 'sales_credit_note';
-
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     public const REASONS = ['return', 'discount', 'price_correction', 'damaged', 'cancellation', 'other'];
@@ -65,7 +62,6 @@ class SalesCreditNote extends Model
         'note_date',
         'reason',
         'reason_detail',
-        'affects_inventory',
         'currency',
         'exchange_rate',
         'base_currency',

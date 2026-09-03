@@ -51,12 +51,9 @@ class SalesReturn extends Model
     /** Tipo de bodega al que reingresa lo devuelto en mal estado. */
     public const QUARANTINE_WAREHOUSE_TYPE = 'quarantine';
 
-    /** Alias con el que el kardex reconoce a la devolución como origen. */
-    public const MOVEMENT_ORIGIN_TYPE = 'sales_return';
-
     /**
-     * Estados en los que la mercancía ya reingresó a la bodega. Confirmar es lo
-     * que la mete; anular desde aquí es lo que la vuelve a sacar.
+     * Estados en los que la devolución ya consumió cupo de la factura.
+     * Confirmar es lo que lo consume; anular desde aquí es lo que lo libera.
      *
      * @var array<int, string>
      */

@@ -49,37 +49,32 @@ test('the fiscal number is correlative inside its series', function () {
 });
 
 test('confirming freezes the cost of the goods sold and its margin', function () {
-    [$user, $company, $client, $warehouse, $item, $unit, $location] = salesReturnScenario();
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 
-    /** La bodega tiene existencia comprada a 20 y a 40: promedio 30. */
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
-    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 40]);
+    /** El artículo se costea al promedio, y el suyo vale 30. */
+    Item::where('id', $item->id)->update(['average_cost' => 30]);
 
-    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit, [
-        'affects_inventory' => 'yes',
-    ]);
+    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit);
 
     confirmSalesInvoice($user, $company, $invoice);
 
     $line = $invoice->refresh()->load('lines')->lines->first();
 
-    // 2 unidades al promedio vigente de 30, congelado contra el kardex.
+    // 2 unidades al costo provisional de 30: sin despacho detrás, es el del artículo.
     expect((float) $line->unit_cost)->toBe(30.0);
     expect((float) $line->total_cost)->toBe(60.0);
     expect((float) $line->margin_amount)->toBe(140.0);
     expect((float) $invoice->total_cost)->toBe(60.0);
 });
 
-test('an invoice without a dispatch behind it has no cost to freeze', function () {
+test('an invoice of an item that carries no cost has nothing to freeze', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 
-    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit, [
-        'affects_inventory' => 'no',
-    ]);
+    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit);
 
     confirmSalesInvoice($user, $company, $invoice);
 
-    /** Sin movimiento que la sacara no hay costo real que congelar. */
+    /** Ni despacho que la sacara ni costo en el artículo: no hay qué congelar. */
     expect((float) $invoice->refresh()->total_cost)->toBe(0.0);
 });
 

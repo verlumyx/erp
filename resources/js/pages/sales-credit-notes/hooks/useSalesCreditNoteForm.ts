@@ -56,7 +56,6 @@ interface SalesCreditNoteFormData {
     note_date: string;
     reason: SalesCreditNoteReason;
     reason_detail: string;
-    affects_inventory: 'yes' | 'no';
     currency: string;
     /**
      * Corrección manual de la tasa. Vacío —el caso normal— hace que la resuelva
@@ -138,7 +137,9 @@ function baseUnitId(item: ItemCatalogEntry | undefined): string {
 
     const base = item.units.find((unit) => unit.is_base === 'yes');
 
-    return base?.measurement_unit_id ?? item.units[0]?.measurement_unit_id ?? '';
+    return (
+        base?.measurement_unit_id ?? item.units[0]?.measurement_unit_id ?? ''
+    );
 }
 
 export interface SalesCreditNoteTotals {
@@ -284,7 +285,6 @@ export function useSalesCreditNoteForm({
                 initialData?.note_date ?? new Date().toISOString().slice(0, 10),
             reason: initialData?.reason ?? 'return',
             reason_detail: initialData?.reason_detail ?? '',
-            affects_inventory: initialData?.affects_inventory ?? 'no',
             /** Una nota nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),

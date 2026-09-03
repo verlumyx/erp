@@ -29,10 +29,7 @@ class UpdatePurchaseInvoiceCommand
         public readonly string $currency = 'USD',
         /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
         public readonly ?string $exchangeRateOverride = null,
-        public readonly string $affectsInventory = 'yes',
         public readonly float $discountAmount = 0,
-        public readonly float $freightAmount = 0,
-        public readonly float $otherCharges = 0,
         public readonly ?string $notes = null,
     ) {}
 
@@ -54,10 +51,7 @@ class UpdatePurchaseInvoiceCommand
             exchangeRateOverride: $request->filled('exchange_rate')
                 ? (string) $request->input('exchange_rate')
                 : null,
-            affectsInventory: $request->string('affects_inventory', 'yes')->toString(),
             discountAmount: (float) $request->input('discount_amount', 0),
-            freightAmount: (float) $request->input('freight_amount', 0),
-            otherCharges: (float) $request->input('other_charges', 0),
             notes: $request->input('notes'),
         );
     }

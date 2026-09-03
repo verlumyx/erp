@@ -25,7 +25,6 @@ test('a dispatch can be created', function () {
         'vehicle_plate' => 'AB123CD',
         'carrier' => 'Transporte Andino',
         'tracking_number' => 'GUIA-0001',
-        'freight_amount' => 25.5,
         'notes' => 'Entregar antes del mediodía.',
     ]);
 
@@ -48,7 +47,6 @@ test('a dispatch can be created', function () {
     expect($dispatch->recipient_id)->toBe($client->id);
     expect($dispatch->warehouse_id)->toBe($warehouse->id);
     expect($dispatch->carrier)->toBe('Transporte Andino');
-    expect((float) $dispatch->freight_amount)->toBe(25.5);
     /** Un despacho directo no viene de ningún pedido. */
     expect($dispatch->sourceable_type)->toBeNull();
     expect($dispatch->sourceable_id)->toBeNull();
