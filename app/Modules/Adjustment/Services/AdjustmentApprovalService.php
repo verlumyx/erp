@@ -6,6 +6,7 @@ namespace App\Modules\Adjustment\Services;
 
 use App\Modules\Adjustment\Models\Adjustment;
 use App\Modules\Adjustment\Models\AdjustmentLine;
+use App\Modules\Adjustment\Models\AdjustmentLineLot;
 use App\Modules\Adjustment\Repositories\Contracts\AdjustmentRepositoryInterface;
 use App\Modules\Configuration\Repositories\Contracts\ConfigurationRepositoryInterface;
 use Illuminate\Validation\ValidationException;
@@ -74,28 +75,21 @@ class AdjustmentApprovalService
             return;
         }
 
+        $checks = $this->checksOf($lines);
+
         $stock = $this->stock->resolveForKeys(
             $adjustment->company_id,
             $adjustment->warehouse_id,
-            array_map(
-                static fn (AdjustmentLine $line): array => [
-                    'item_id' => $line->item_id,
-                    'measurement_unit_id' => $line->measurement_unit_id,
-                    'location_id' => $line->location_id,
-                    'lot_id' => $line->lot_id,
-                ],
-                $lines,
-            ),
+            array_column($checks, 'key'),
         );
 
         $errors = [];
 
-        foreach ($lines as $index => $line) {
+        foreach ($checks as $index => $check) {
             $current = round($stock[$index]['system'] ?? 0.0, 4);
-            $captured = round((float) $line->system_quantity, 4);
 
-            if ($current !== $captured) {
-                $errors["lines.{$index}.system_quantity"] = "La existencia de la línea {$line->line_number} cambió de {$captured} a {$current} desde el conteo: hay que recontarla.";
+            if ($current !== $check['captured']) {
+                $errors[$check['field']] = "La existencia de {$check['label']} cambió de {$check['captured']} a {$current} desde el conteo: hay que recontarla.";
             }
         }
 
@@ -105,6 +99,56 @@ class AdjustmentApprovalService
                 'status' => 'La existencia cambió desde el conteo: vuelve a guardar el ajuste con los números de ahora.',
             ]);
         }
+    }
+
+    /**
+     * Cada existencia que el ajuste dice haber contado, con el número que
+     * capturó. Una línea con lotes no se comprueba entera: lo que se contó son
+     * sus lotes, y es el saldo de cada uno el que pudo moverse.
+     *
+     * @param  array<int, AdjustmentLine>  $lines
+     * @return array<int, array{key: array{item_id: string, measurement_unit_id: string, location_id: ?string, lot_id: ?string}, captured: float, field: string, label: string}>
+     */
+    private function checksOf(array $lines): array
+    {
+        $checks = [];
+
+        foreach ($lines as $index => $line) {
+            $lots = $line->lots->where('status', 'active');
+
+            if ($lots->isEmpty()) {
+                $checks[] = [
+                    'key' => [
+                        'item_id' => $line->item_id,
+                        'measurement_unit_id' => $line->measurement_unit_id,
+                        'location_id' => $line->location_id,
+                        'lot_id' => null,
+                    ],
+                    'captured' => round((float) $line->system_quantity, 4),
+                    'field' => "lines.{$index}.system_quantity",
+                    'label' => "la línea {$line->line_number}",
+                ];
+
+                continue;
+            }
+
+            foreach ($lots as $lot) {
+                /** @var AdjustmentLineLot $lot */
+                $checks[] = [
+                    'key' => [
+                        'item_id' => $line->item_id,
+                        'measurement_unit_id' => $line->measurement_unit_id,
+                        'location_id' => $line->location_id,
+                        'lot_id' => $lot->lot_id,
+                    ],
+                    'captured' => round((float) $lot->system_quantity, 4),
+                    'field' => "lines.{$index}.lots",
+                    'label' => "el lote {$lot->line_number} de la línea {$line->line_number}",
+                ];
+            }
+        }
+
+        return $checks;
     }
 
     /**

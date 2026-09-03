@@ -2049,6 +2049,24 @@ function warehouseBalance(
 }
 
 /**
+ * The stock balance of one lot of an item in a warehouse. Stock is kept per
+ * lot, so this is what tells apart a correction that landed on the right one.
+ */
+function lotBalance(
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    string $lotId,
+): float {
+    return (float) \App\Modules\ItemStock\Models\ItemStock::query()
+        ->where('company_id', $company->id)
+        ->where('item_id', $item->id)
+        ->where('warehouse_id', $warehouse->id)
+        ->where('lot_id', $lotId)
+        ->sum('quantity');
+}
+
+/**
  * User + company + the masters an adjustment needs: a warehouse that uses
  * locations with one default location, an item and its base unit.
  *

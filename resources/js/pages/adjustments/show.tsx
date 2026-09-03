@@ -38,8 +38,27 @@ import {
     STATUS_TRANSITIONS,
     TYPE_LABELS,
     type Adjustment,
+    type AdjustmentLine,
     type AdjustmentStatus,
 } from './types/Adjustment';
+
+/** Los lotes activos de una línea, listados con lo que se contó de cada uno. */
+function lotLabel(line: AdjustmentLine): string {
+    const lots = (line.lots ?? []).filter((lot) => lot.status === 'active');
+
+    if (lots.length === 0) {
+        return '—';
+    }
+
+    return lots
+        .map((lot) => `${lot.lot_number ?? 'Lote'} (${lot.counted_quantity})`)
+        .join(', ');
+}
+
+function serialCount(line: AdjustmentLine): number {
+    return (line.serials ?? []).filter((serial) => serial.status === 'active')
+        .length;
+}
 
 interface Props {
     adjustment: Adjustment;
@@ -372,11 +391,18 @@ export default function AdjustmentsShow({ adjustment, canApprove }: Props) {
                                                 : ''}
                                         </span>
                                     </div>
-                                    <div className="truncate text-[13px] text-muted-foreground">
-                                        {line.lot_number ?? '—'}
-                                        {line.serial_number
-                                            ? ` / ${line.serial_number}`
-                                            : ''}
+                                    <div className="flex min-w-0 flex-col text-[13px] text-muted-foreground">
+                                        <span className="truncate">
+                                            {lotLabel(line)}
+                                        </span>
+                                        {serialCount(line) > 0 && (
+                                            <span className="truncate text-[12.5px]">
+                                                {serialCount(line)} serie
+                                                {serialCount(line) !== 1
+                                                    ? 's'
+                                                    : ''}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="text-[13.5px] tabular-nums">
                                         {line.system_quantity}

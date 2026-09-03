@@ -1,23 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
-use App\Modules\Adjustment\Models\Adjustment;
 use App\Modules\Adjustment\Models\AdjustmentLine;
-use App\Modules\Item\Models\Item;
-use App\Modules\MeasurementUnit\Models\MeasurementUnit;
+use App\Modules\Adjustment\Models\AdjustmentLineLot;
+use App\Modules\ItemLot\Models\ItemLot;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Modules\Adjustment\Models\AdjustmentLine>
+ * @extends Factory<AdjustmentLineLot>
  */
-class AdjustmentLineFactory extends Factory
+class AdjustmentLineLotFactory extends Factory
 {
-    protected $model = AdjustmentLine::class;
+    protected $model = AdjustmentLineLot::class;
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -29,26 +28,23 @@ class AdjustmentLineFactory extends Factory
 
         return [
             'company_id' => null,
-            'adjustment_id' => Adjustment::factory(),
+            'adjustment_line_id' => AdjustmentLine::factory(),
             'line_number' => 1,
-            'item_id' => Item::factory(),
-            'measurement_unit_id' => MeasurementUnit::factory(),
-            'location_id' => null,
-            'system_quantity' => $system,
+            /** El ajuste corrige un lote que ya existe: nunca lo estrena. */
+            'lot_id' => ItemLot::factory(),
             'counted_quantity' => $counted,
+            'system_quantity' => $system,
             'difference_quantity' => $difference,
             'base_quantity' => $difference,
             'movement_type' => AdjustmentLine::MOVEMENT_IN,
             'unit_cost' => $unitCost,
             'total_cost' => abs($difference) * $unitCost,
-            'reason' => null,
-            'counted_by' => null,
             'status' => 'active',
             'notes' => null,
         ];
     }
 
-    /** Una línea con faltante: se contó menos de lo que decía el sistema. */
+    /** Un lote con faltante: se contó menos de lo que decía el sistema. */
     public function shortage(): static
     {
         return $this->state(fn (array $attributes): array => [

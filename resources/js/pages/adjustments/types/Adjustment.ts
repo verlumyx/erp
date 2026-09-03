@@ -25,6 +25,36 @@ export type AdjustmentDirection = 'in' | 'out' | 'mixed';
 /** La dirección que el kardex le dio a una línea. */
 export type AdjustmentMovementType = 'adjustment_in' | 'adjustment_out';
 
+/** Uno de los lotes que una línea contó; siempre del maestro. */
+export interface AdjustmentLineLot {
+    id: string;
+    adjustment_line_id: string;
+    line_number: number;
+    lot_id: string;
+    lot_number?: string | null;
+    /** Lo contado en el lote y lo que el sistema decía de él. */
+    counted_quantity: string;
+    system_quantity: string;
+    difference_quantity: string;
+    base_quantity: string;
+    movement_type: AdjustmentMovementType;
+    unit_cost: string;
+    total_cost: string;
+    status: 'active' | 'inactive';
+    notes: string | null;
+}
+
+/** Una de las unidades con serie que la línea nombra. */
+export interface AdjustmentLineSerial {
+    id: string;
+    adjustment_line_id: string;
+    adjustment_line_lot_id: string | null;
+    line_number: number;
+    serial_id: string;
+    serial_number?: string | null;
+    status: 'active' | 'inactive';
+}
+
 export interface AdjustmentLine {
     id: string;
     adjustment_id: string;
@@ -36,10 +66,9 @@ export interface AdjustmentLine {
     measurement_unit_name?: string;
     location_id: string | null;
     location_name?: string | null;
-    lot_id: string | null;
-    lot_number?: string | null;
-    serial_id: string | null;
-    serial_number?: string | null;
+    /** La trazabilidad vive en sus propias tablas: la línea solo la agrupa. */
+    lots: AdjustmentLineLot[];
+    serials: AdjustmentLineSerial[];
     /** Lo que decía el sistema al capturar, lo contado y la resta. */
     system_quantity: string;
     counted_quantity: string;

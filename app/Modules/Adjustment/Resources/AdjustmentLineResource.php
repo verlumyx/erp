@@ -25,10 +25,21 @@ class AdjustmentLineResource extends JsonResource
             'measurement_unit_name' => $this->whenLoaded('measurementUnit', fn () => $this->measurementUnit?->name),
             'location_id' => $this->location_id,
             'location_name' => $this->whenLoaded('location', fn () => $this->location?->name),
-            'lot_id' => $this->lot_id,
-            'lot_number' => $this->whenLoaded('lot', fn () => $this->lot?->lot_number),
-            'serial_id' => $this->serial_id,
-            'serial_number' => $this->whenLoaded('serial', fn () => $this->serial?->serial_number),
+            /**
+             * La trazabilidad vive en sus propias tablas: la línea solo la
+             * agrupa. Se resuelve aquí mismo —igual que `AdjustmentResource`
+             * hace con las líneas— porque una colección de recursos sin
+             * resolver se serializa envuelta en `data` y la pantalla espera una
+             * lista.
+             */
+            'lots' => $this->whenLoaded(
+                'lots',
+                fn (): array => AdjustmentLineLotResource::collection($this->lots)->resolve($request),
+            ),
+            'serials' => $this->whenLoaded(
+                'serials',
+                fn (): array => AdjustmentLineSerialResource::collection($this->serials)->resolve($request),
+            ),
             /** Lo que decía el sistema al capturar, lo contado y la resta. */
             'system_quantity' => $this->system_quantity,
             'counted_quantity' => $this->counted_quantity,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Adjustment\Services;
 
 use App\Modules\Adjustment\Commands\AdjustmentLineData;
+use App\Modules\Adjustment\Commands\AdjustmentLineLotData;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
@@ -25,6 +26,12 @@ use App\Modules\ItemStock\Repositories\Contracts\ItemStockRepositoryInterface;
  * compara contra el saldo de toda la bodega, que es lo que se cuenta cuando no
  * se cuenta un estante concreto.
  *
+ * Cada lote que la línea cuenta se resuelve aparte, con su propia clave: es lo
+ * que permite que el kardex escriba un movimiento por lote, cada uno con su
+ * diferencia y su costo. Cuando la línea trae lotes, lo que dice el sistema
+ * para la línea es la suma de los suyos: la línea cuenta esos lotes, no todo lo
+ * que haya en la ubicación.
+ *
  * Todo pasa por los repositorios de sus módulos: el módulo de ajustes nunca
  * consulta las tablas del inventario directamente.
  */
@@ -37,19 +44,100 @@ class AdjustmentStockService
 
     /**
      * @param  array<int, AdjustmentLineData>  $lines
-     * @return array<int, array{factor: float, system: float, base_system: float, average: float}>
+     * @return array<int, array{factor: float, system: float, base_system: float, average: float, lots: array<string, array{system: float, base_system: float, average: float}>}>
      */
     public function resolve(?string $companyId, string $warehouseId, array $lines): array
     {
-        return $this->resolveForKeys($companyId, $warehouseId, array_map(
-            static fn (AdjustmentLineData $line): array => [
+        $resolved = [];
+
+        foreach ($lines as $index => $line) {
+            $lots = $this->resolveLots($companyId, $warehouseId, $line);
+
+            $resolved[$index] = [
+                ...$this->lineBalance($companyId, $warehouseId, $line, $lots),
+                'lots' => $lots,
+            ];
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Lo que el sistema dice de cada lote que la línea cuenta, indexado por el
+     * lote del maestro: dentro de una línea un lote no se repite.
+     *
+     * @return array<string, array{system: float, base_system: float, average: float}>
+     */
+    private function resolveLots(?string $companyId, string $warehouseId, AdjustmentLineData $line): array
+    {
+        $lots = $line->activeLots();
+
+        if ($lots === []) {
+            return [];
+        }
+
+        $resolved = $this->resolveForKeys($companyId, $warehouseId, array_map(
+            static fn (AdjustmentLineLotData $lot): array => [
                 'item_id' => $line->itemId,
                 'measurement_unit_id' => $line->measurementUnitId,
                 'location_id' => $line->locationId,
-                'lot_id' => $line->lotId,
+                'lot_id' => $lot->lotId,
             ],
-            $lines,
+            $lots,
         ));
+
+        $byLot = [];
+
+        foreach ($lots as $index => $lot) {
+            $byLot[$lot->lotId] = [
+                'system' => $resolved[$index]['system'],
+                'base_system' => $resolved[$index]['base_system'],
+                'average' => $resolved[$index]['average'],
+            ];
+        }
+
+        return $byLot;
+    }
+
+    /**
+     * Contra qué se compara la línea entera. Sin lotes es el saldo de su clave;
+     * con lotes es la suma de los que cuenta, y el costo el promedio ponderado
+     * de esos mismos lotes: la línea no está contando nada más.
+     *
+     * @param  array<string, array{system: float, base_system: float, average: float}>  $lots
+     * @return array{factor: float, system: float, base_system: float, average: float}
+     */
+    private function lineBalance(
+        ?string $companyId,
+        string $warehouseId,
+        AdjustmentLineData $line,
+        array $lots,
+    ): array {
+        $resolved = $this->resolveForKeys($companyId, $warehouseId, [[
+            'item_id' => $line->itemId,
+            'measurement_unit_id' => $line->measurementUnitId,
+            'location_id' => $line->locationId,
+            'lot_id' => null,
+        ]])[0];
+
+        if ($lots === []) {
+            return $resolved;
+        }
+
+        $baseSystem = round(array_sum(array_column($lots, 'base_system')), 4);
+
+        $value = array_sum(array_map(
+            static fn (array $lot): float => $lot['base_system'] * $lot['average'],
+            $lots,
+        ));
+
+        return [
+            'factor' => $resolved['factor'],
+            'system' => round(array_sum(array_column($lots, 'system')), 4),
+            'base_system' => $baseSystem,
+            /** Sin saldo en los lotes no hay nada que ponderar: vale el de la ubicación. */
+            'average' => $baseSystem > 0.0 ? round($value / $baseSystem, 6) : $resolved['average'],
+        ];
     }
 
     /**

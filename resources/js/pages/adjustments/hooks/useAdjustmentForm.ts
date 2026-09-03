@@ -18,6 +18,7 @@ import {
     REVALUATION_TYPE,
     type Adjustment,
     type AdjustmentDirection,
+    type AdjustmentLine,
     type AdjustmentOptions,
     type AdjustmentType,
 } from '../types/Adjustment';
@@ -30,6 +31,26 @@ interface UseAdjustmentFormProps {
     onSuccess?: () => void;
 }
 
+/** Uno de los lotes que la línea contó; siempre elegido del maestro. */
+export interface AdjustmentLineLotRow {
+    id: string;
+    lot_id: string;
+    /** Lo que se encontró de ese lote, en la unidad de la línea. */
+    counted_quantity: number;
+    status: 'active' | 'inactive';
+}
+
+/**
+ * Una de las unidades con serie que la línea nombra. `lot_id` dice de cuál de
+ * sus lotes sale, cuando la línea cuenta más de uno.
+ */
+export interface AdjustmentLineSerialRow {
+    id: string;
+    serial_id: string;
+    lot_id: string;
+    status: 'active' | 'inactive';
+}
+
 export interface AdjustmentLineRow {
     id: string;
     item_id: string;
@@ -40,8 +61,8 @@ export interface AdjustmentLineRow {
     unit_cost: number;
     /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
     location_id: string;
-    lot_id: string;
-    serial_id: string;
+    lots: AdjustmentLineLotRow[];
+    serials: AdjustmentLineSerialRow[];
     reason: string;
     counted_by: string;
     notes: string;
@@ -99,8 +120,8 @@ function emptyLine(): AdjustmentLineRow {
         counted_quantity: 0,
         unit_cost: 0,
         location_id: '',
-        lot_id: '',
-        serial_id: '',
+        lots: [],
+        serials: [],
         reason: '',
         counted_by: '',
         notes: '',
@@ -122,14 +143,76 @@ function lineRows(model?: Adjustment): AdjustmentLineRow[] {
             counted_quantity: Number(line.counted_quantity),
             unit_cost: Number(line.unit_cost),
             location_id: line.location_id ?? '',
-            lot_id: line.lot_id ?? '',
-            serial_id: line.serial_id ?? '',
+            lots: lotRows(line),
+            serials: serialRows(line),
             reason: line.reason ?? '',
             counted_by: line.counted_by ?? '',
             notes: line.notes ?? '',
         }));
 
     return rows.length > 0 ? rows : [emptyLine()];
+}
+
+/** Los lotes activos de una línea guardada. */
+function lotRows(line: AdjustmentLine): AdjustmentLineLotRow[] {
+    return (line.lots ?? [])
+        .filter((lot) => lot.status === 'active')
+        .sort((a, b) => a.line_number - b.line_number)
+        .map((lot) => ({
+            id: lot.id,
+            lot_id: lot.lot_id,
+            counted_quantity: Number(lot.counted_quantity),
+            status: 'active' as const,
+        }));
+}
+
+/** Las series activas de una línea guardada, cada una atada a su lote. */
+function serialRows(line: AdjustmentLine): AdjustmentLineSerialRow[] {
+    const lotIdOf = new Map(
+        (line.lots ?? []).map((lot) => [lot.id, lot.lot_id]),
+    );
+
+    return (line.serials ?? [])
+        .filter((serial) => serial.status === 'active')
+        .sort((a, b) => a.line_number - b.line_number)
+        .map((serial) => ({
+            id: serial.id,
+            serial_id: serial.serial_id,
+            lot_id: serial.adjustment_line_lot_id
+                ? (lotIdOf.get(serial.adjustment_line_lot_id) ?? '')
+                : '',
+            status: 'active' as const,
+        }));
+}
+
+/** Cuánto de lo contado en la línea se repartió ya en lotes. */
+export function countedInLots(line: AdjustmentLineRow): number {
+    return round4(
+        line.lots
+            .filter((lot) => lot.status === 'active')
+            .reduce((total, lot) => total + lot.counted_quantity, 0),
+    );
+}
+
+/** Los lotes que de verdad cuentan: activos y con lote elegido. */
+export function activeLots(line: AdjustmentLineRow): AdjustmentLineLotRow[] {
+    return line.lots.filter(
+        (lot) => lot.status === 'active' && lot.lot_id !== '',
+    );
+}
+
+/**
+ * ¿Esa fila de trazabilidad ya está guardada? Una que nunca llegó a la base se
+ * puede quitar sin más; una que sí, se desactiva.
+ */
+function isSaved(
+    id: string,
+    model: Adjustment | undefined,
+    collection: 'lots' | 'serials',
+): boolean {
+    return (model?.lines ?? []).some((line) =>
+        (line[collection] ?? []).some((row) => row.id === id),
+    );
 }
 
 /**
@@ -236,14 +319,19 @@ export function useAdjustmentForm({
         seed: catalogSeed,
     });
 
+    /** Lotes y series elegidos en las líneas, aplanados de sus colecciones. */
     const lotSeed: RemoteOptionSeed[] = useMemo(
         () =>
             optionSeeds(
-                (initialData?.lines ?? []).map((line) => ({
-                    id: line.lot_id,
-                    label: line.lot_number,
-                })),
-                data.lines.map((line) => line.lot_id),
+                (initialData?.lines ?? []).flatMap((line) =>
+                    (line.lots ?? []).map((lot) => ({
+                        id: lot.lot_id,
+                        label: lot.lot_number,
+                    })),
+                ),
+                data.lines.flatMap((line) =>
+                    line.lots.map((lot) => lot.lot_id),
+                ),
             ),
         [initialData, data.lines],
     );
@@ -251,11 +339,15 @@ export function useAdjustmentForm({
     const serialSeed: RemoteOptionSeed[] = useMemo(
         () =>
             optionSeeds(
-                (initialData?.lines ?? []).map((line) => ({
-                    id: line.serial_id,
-                    label: line.serial_number,
-                })),
-                data.lines.map((line) => line.serial_id),
+                (initialData?.lines ?? []).flatMap((line) =>
+                    (line.serials ?? []).map((serial) => ({
+                        id: serial.serial_id,
+                        label: serial.serial_number,
+                    })),
+                ),
+                data.lines.flatMap((line) =>
+                    line.serials.map((serial) => serial.serial_id),
+                ),
             ),
         [initialData, data.lines],
     );
@@ -270,16 +362,27 @@ export function useAdjustmentForm({
         seed: serialSeed,
     });
 
-    /** La existencia con la que se compara cada línea. */
+    /**
+     * La existencia con la que se compara cada línea y cada uno de sus lotes:
+     * un lote es una existencia aparte, así que se pregunta aparte.
+     */
     const { stockOf } = useAdjustmentStock({
         companyId,
         warehouseId: data.warehouse_id,
-        keys: data.lines.map((line) => ({
-            item_id: line.item_id,
-            measurement_unit_id: line.measurement_unit_id,
-            location_id: line.location_id,
-            lot_id: line.lot_id,
-        })),
+        keys: data.lines.flatMap((line) => [
+            {
+                item_id: line.item_id,
+                measurement_unit_id: line.measurement_unit_id,
+                location_id: line.location_id,
+                lot_id: '',
+            },
+            ...activeLots(line).map((lot) => ({
+                item_id: line.item_id,
+                measurement_unit_id: line.measurement_unit_id,
+                location_id: line.location_id,
+                lot_id: lot.lot_id,
+            })),
+        ]),
     });
 
     const isRevaluation = data.type === REVALUATION_TYPE;
@@ -297,18 +400,73 @@ export function useAdjustmentForm({
     };
 
     /**
+     * Contra qué se compara la línea. Sin lotes es el saldo de su ubicación;
+     * con lotes es la suma de los que cuenta, valorados a su promedio
+     * ponderado: la línea no está contando nada más que esos lotes.
+     */
+    const systemOf = (line: AdjustmentLineRow) => {
+        const whole = stockOf({
+            item_id: line.item_id,
+            measurement_unit_id: line.measurement_unit_id,
+            location_id: line.location_id,
+            lot_id: '',
+        });
+
+        const lots = activeLots(line);
+
+        if (lots.length === 0) {
+            return whole;
+        }
+
+        const entries = lots.map((lot) =>
+            stockOf({
+                item_id: line.item_id,
+                measurement_unit_id: line.measurement_unit_id,
+                location_id: line.location_id,
+                lot_id: lot.lot_id,
+            }),
+        );
+
+        const system = round4(
+            entries.reduce((total, entry) => total + entry.system, 0),
+        );
+
+        const value = entries.reduce(
+            (total, entry) => total + entry.system * entry.average,
+            0,
+        );
+
+        return {
+            system,
+            average: system > 0 ? value / system : whole.average,
+        };
+    };
+
+    /** Lo que dice el sistema de uno de los lotes que la línea cuenta. */
+    const lotAmountsOf = (
+        line: AdjustmentLineRow,
+        lot: AdjustmentLineLotRow,
+    ) => {
+        const stock = stockOf({
+            item_id: line.item_id,
+            measurement_unit_id: line.measurement_unit_id,
+            location_id: line.location_id,
+            lot_id: lot.lot_id,
+        });
+
+        return {
+            system: stock.system,
+            difference: round4(lot.counted_quantity - stock.system),
+        };
+    };
+
+    /**
      * Espejo del cálculo del backend: sirve para enseñar la diferencia y su
      * impacto mientras se cuenta. Lo que se guarda siempre lo recalcula el
      * servidor contra la existencia del momento.
      */
     const amountsOf = (line: AdjustmentLineRow): AdjustmentLineAmounts => {
-        const stock = stockOf({
-            item_id: line.item_id,
-            measurement_unit_id: line.measurement_unit_id,
-            location_id: line.location_id,
-            lot_id: line.lot_id,
-        });
-
+        const stock = systemOf(line);
         const factor = factorOf(line);
         const baseSystem = round4(stock.system * factor);
 
@@ -424,8 +582,8 @@ export function useAdjustmentForm({
                           ...line,
                           item_id: item?.id ?? '',
                           measurement_unit_id: baseUnitId(item),
-                          lot_id: '',
-                          serial_id: '',
+                          lots: [],
+                          serials: [],
                           counted_quantity: 0,
                           unit_cost: 0,
                       }
@@ -434,21 +592,169 @@ export function useAdjustmentForm({
         );
     };
 
-    const setLineLot = (index: number, option: AjaxOption | null) => {
+    /** ---- Trazabilidad de la línea: lotes y series ---- */
+
+    const mapLine = (
+        index: number,
+        change: (line: AdjustmentLineRow) => AdjustmentLineRow,
+    ) =>
+        setData(
+            'lines',
+            data.lines.map((line, i) => (i === index ? change(line) : line)),
+        );
+
+    const addLineLot = (index: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            lots: [
+                ...line.lots,
+                {
+                    id: generateUUID(),
+                    lot_id: '',
+                    /** Lo que falta por repartir: casi siempre es todo. */
+                    counted_quantity: Math.max(
+                        round4(line.counted_quantity - countedInLots(line)),
+                        0,
+                    ),
+                    status: 'active' as const,
+                },
+            ],
+        }));
+
+    const setLineLot = (
+        index: number,
+        lotIndex: number,
+        option: AjaxOption | null,
+    ) => {
         if (option) {
             lots.remember(option);
         }
 
-        updateLine(index, 'lot_id', option?.value ?? '');
+        mapLine(index, (line) => ({
+            ...line,
+            lots: line.lots.map((lot, i) =>
+                i === lotIndex ? { ...lot, lot_id: option?.value ?? '' } : lot,
+            ),
+        }));
     };
 
-    const setLineSerial = (index: number, option: AjaxOption | null) => {
+    const updateLineLot = (
+        index: number,
+        lotIndex: number,
+        countedQuantity: number,
+    ) =>
+        mapLine(index, (line) => ({
+            ...line,
+            lots: line.lots.map((lot, i) =>
+                i === lotIndex
+                    ? { ...lot, counted_quantity: countedQuantity }
+                    : lot,
+            ),
+        }));
+
+    /**
+     * Una fila que nunca se guardó desaparece; una que ya existe se desactiva.
+     * La política de no borrado también alcanza a la trazabilidad.
+     */
+    const removeLineLot = (index: number, lotIndex: number) =>
+        mapLine(index, (line) => {
+            const lot = line.lots[lotIndex];
+
+            if (!lot) {
+                return line;
+            }
+
+            /** Las series que salían de ese lote se quedan sin lote. */
+            const serialRows = line.serials.map((serial) =>
+                serial.lot_id === lot.lot_id
+                    ? { ...serial, lot_id: '' }
+                    : serial,
+            );
+
+            return isSaved(lot.id, initialData, 'lots')
+                ? {
+                      ...line,
+                      serials: serialRows,
+                      lots: line.lots.map((current, i) =>
+                          i === lotIndex
+                              ? { ...current, status: 'inactive' as const }
+                              : current,
+                      ),
+                  }
+                : {
+                      ...line,
+                      serials: serialRows,
+                      lots: line.lots.filter((_, i) => i !== lotIndex),
+                  };
+        });
+
+    const addLineSerial = (index: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: [
+                ...line.serials,
+                {
+                    id: generateUUID(),
+                    serial_id: '',
+                    lot_id: '',
+                    status: 'active' as const,
+                },
+            ],
+        }));
+
+    const setLineSerial = (
+        index: number,
+        serialIndex: number,
+        option: AjaxOption | null,
+    ) => {
         if (option) {
             serials.remember(option);
         }
 
-        updateLine(index, 'serial_id', option?.value ?? '');
+        mapLine(index, (line) => ({
+            ...line,
+            serials: line.serials.map((serial, i) =>
+                i === serialIndex
+                    ? { ...serial, serial_id: option?.value ?? '' }
+                    : serial,
+            ),
+        }));
     };
+
+    const setLineSerialLot = (
+        index: number,
+        serialIndex: number,
+        lotId: string,
+    ) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: line.serials.map((serial, i) =>
+                i === serialIndex ? { ...serial, lot_id: lotId } : serial,
+            ),
+        }));
+
+    const removeLineSerial = (index: number, serialIndex: number) =>
+        mapLine(index, (line) => {
+            const serial = line.serials[serialIndex];
+
+            if (!serial) {
+                return line;
+            }
+
+            return isSaved(serial.id, initialData, 'serials')
+                ? {
+                      ...line,
+                      serials: line.serials.map((current, i) =>
+                          i === serialIndex
+                              ? { ...current, status: 'inactive' as const }
+                              : current,
+                      ),
+                  }
+                : {
+                      ...line,
+                      serials: line.serials.filter((_, i) => i !== serialIndex),
+                  };
+        });
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -487,8 +793,15 @@ export function useAdjustmentForm({
         removeLine,
         updateLine,
         setLineItem,
+        addLineLot,
         setLineLot,
+        updateLineLot,
+        removeLineLot,
+        addLineSerial,
         setLineSerial,
+        setLineSerialLot,
+        removeLineSerial,
+        lotAmountsOf,
         catalog,
         lots,
         serials,

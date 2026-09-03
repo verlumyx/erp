@@ -19,6 +19,10 @@ use Illuminate\Validation\Validator;
  * que hace que un ajuste pruebe algo. El costo tampoco, salvo en una
  * revaluación, donde el costo nuevo es justamente lo que el documento decide.
  *
+ * El lote y la serie tampoco están en la línea: un mismo artículo se cuenta
+ * repartido en varios lotes, así que viajan en sus propias colecciones y lo
+ * contado en ellas suma lo contado en la línea.
+ *
  * Lo que no cabe aquí porque exige haber resuelto la existencia —que la
  * dirección declarada sea la que las líneas producen, que el lote y la serie
  * sean de artículos que los llevan, que una revaluación tenga qué revaluar— lo
@@ -70,18 +74,33 @@ trait ValidatesAdjustmentPayload
                 'uuid',
                 Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
             ],
-            'lines.*.lot_id' => [
-                'nullable',
+            /** Lo que se encontró al contar. Cero es una respuesta válida. */
+            'lines.*.counted_quantity' => ['required', 'numeric', 'min:0'],
+
+            /**
+             * Trazabilidad de la línea. El ajuste corrige lo que ya existe: el
+             * lote y la serie se eligen del maestro, nunca se estrenan aquí.
+             */
+            'lines.*.lots' => ['nullable', 'array'],
+            'lines.*.lots.*.id' => ['nullable', 'uuid'],
+            'lines.*.lots.*.lot_id' => [
+                'required',
                 'uuid',
                 Rule::exists('app_item_lots', 'id')->where('company_id', $companyId),
             ],
-            'lines.*.serial_id' => [
-                'nullable',
+            'lines.*.lots.*.counted_quantity' => ['required', 'numeric', 'min:0'],
+            'lines.*.lots.*.notes' => ['nullable', 'string', 'max:500'],
+            'lines.*.lots.*.status' => ['nullable', 'string', 'in:active,inactive'],
+
+            'lines.*.serials' => ['nullable', 'array'],
+            'lines.*.serials.*.id' => ['nullable', 'uuid'],
+            'lines.*.serials.*.serial_id' => [
+                'required',
                 'uuid',
                 Rule::exists('app_item_serials', 'id')->where('company_id', $companyId),
             ],
-            /** Lo que se encontró al contar. Cero es una respuesta válida. */
-            'lines.*.counted_quantity' => ['required', 'numeric', 'min:0'],
+            'lines.*.serials.*.lot_id' => ['nullable', 'uuid'],
+            'lines.*.serials.*.status' => ['nullable', 'string', 'in:active,inactive'],
             /** Solo lo lee una revaluación: en el resto el costo lo pone el kardex. */
             'lines.*.unit_cost' => ['nullable', 'numeric', 'gt:0'],
             'lines.*.reason' => ['nullable', 'string', 'max:500'],
@@ -114,8 +133,12 @@ trait ValidatesAdjustmentPayload
             'lines.*.counted_quantity.required' => 'Indica la cantidad contada.',
             'lines.*.counted_quantity.min' => 'La cantidad contada no puede ser negativa.',
             'lines.*.unit_cost.gt' => 'El costo nuevo debe ser mayor que cero.',
-            'lines.*.lot_id.exists' => 'El lote de la línea no existe en esta empresa.',
-            'lines.*.serial_id.exists' => 'La serie de la línea no existe en esta empresa.',
+            'lines.*.lots.*.lot_id.required' => 'Elige el lote que se contó.',
+            'lines.*.lots.*.lot_id.exists' => 'El lote indicado no existe en esta empresa.',
+            'lines.*.lots.*.counted_quantity.required' => 'Indica cuánto se contó de ese lote.',
+            'lines.*.lots.*.counted_quantity.min' => 'Lo contado de un lote no puede ser negativo.',
+            'lines.*.serials.*.serial_id.required' => 'Elige la serie que entra en el conteo.',
+            'lines.*.serials.*.serial_id.exists' => 'La serie indicada no existe en esta empresa.',
             'lines.*.location_id.exists' => 'La ubicación de la línea no existe en esta empresa.',
             'lines.*.counted_by.exists' => 'El usuario que contó la línea no existe.',
         ];
@@ -141,8 +164,104 @@ trait ValidatesAdjustmentPayload
         }
 
         $this->validateLineUnits($validator, $lines);
+        $this->validateTraceabilityShape($validator, $lines);
         $this->validateLineLocations($validator, $lines);
         $this->validateUniqueLines($validator, $lines);
+    }
+
+    /**
+     * Lo que la trazabilidad tiene que cumplir sin mirar el maestro de
+     * artículos: que los lotes repartan exactamente lo contado, que ni un lote
+     * ni una serie se repitan, y que cada serie salga de un lote de su propia
+     * línea.
+     *
+     * Lo que sí depende del artículo —si admite lote, si admite serie, cuántas
+     * series nombra el conteo— lo comprueba `AdjustmentLimitsService`.
+     *
+     * @param  array<int, array<string, mixed>>  $lines
+     */
+    private function validateTraceabilityShape(Validator $validator, array $lines): void
+    {
+        /** Una serie identifica una unidad: no puede contarse dos veces. */
+        $seenSerials = [];
+
+        foreach ($lines as $index => $line) {
+            if (($line['status'] ?? 'active') !== 'active') {
+                continue;
+            }
+
+            $lots = $this->activeRows($line['lots'] ?? []);
+            $serials = $this->activeRows($line['serials'] ?? []);
+
+            $lotIds = [];
+
+            foreach ($lots as $lot) {
+                $lotId = (string) ($lot['lot_id'] ?? '');
+
+                if ($lotId !== '' && isset($lotIds[$lotId])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.lots",
+                        'Ese lote está repetido en la línea.',
+                    );
+                }
+
+                $lotIds[$lotId] = true;
+            }
+
+            if ($lots !== []) {
+                $counted = round(array_sum(array_map(
+                    static fn (array $lot): float => (float) ($lot['counted_quantity'] ?? 0),
+                    $lots,
+                )), 4);
+
+                if ($counted !== round((float) ($line['counted_quantity'] ?? 0), 4)) {
+                    $validator->errors()->add(
+                        "lines.{$index}.lots",
+                        'Los lotes tienen que sumar lo que se contó en la línea.',
+                    );
+                }
+            }
+
+            foreach ($serials as $serial) {
+                $serialId = (string) ($serial['serial_id'] ?? '');
+
+                if ($serialId !== '' && isset($seenSerials[$serialId])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.serials",
+                        'Esa serie está repetida en el ajuste.',
+                    );
+                }
+
+                $seenSerials[$serialId] = true;
+
+                $lotId = (string) ($serial['lot_id'] ?? '');
+
+                if ($lotId !== '' && ! isset($lotIds[$lotId])) {
+                    $validator->errors()->add(
+                        "lines.{$index}.serials",
+                        'Esa serie sale de un lote que no está en su línea.',
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Las filas activas de una colección de detalle. Una fila desactivada no
+     * cuenta: la política de no borrado la conserva, no la revive.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function activeRows(mixed $rows): array
+    {
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_filter($rows, 'is_array'),
+            static fn (array $row): bool => ($row['status'] ?? 'active') === 'active',
+        ));
     }
 
     /**
@@ -222,8 +341,9 @@ trait ValidatesAdjustmentPayload
 
     /**
      * Dos líneas activas no pueden contar lo mismo. Cada una se compara contra
-     * la existencia de su clave —artículo, ubicación, lote y serie—, así que
-     * repetirla aplicaría la misma diferencia dos veces.
+     * la existencia de su clave —artículo y ubicación—, así que repetirla
+     * aplicaría la misma diferencia dos veces. Contar el mismo artículo en
+     * varios lotes ya no pide otra línea: para eso están sus filas de lote.
      *
      * @param  array<int, array<string, mixed>>  $lines
      */
@@ -239,8 +359,6 @@ trait ValidatesAdjustmentPayload
             $key = implode('|', [
                 (string) $line['item_id'],
                 (string) ($line['location_id'] ?? ''),
-                (string) ($line['lot_id'] ?? ''),
-                (string) ($line['serial_id'] ?? ''),
             ]);
 
             if (isset($seen[$key])) {

@@ -11,13 +11,14 @@ use App\Modules\Adjustment\Commands\UpdateStatusAdjustmentCommand;
 use App\Modules\Adjustment\Commands\WriteAdjustmentLineCostCommand;
 use App\Modules\Adjustment\Models\Adjustment;
 use App\Modules\Adjustment\Models\AdjustmentLine;
+use App\Modules\Adjustment\Models\AdjustmentLineLot;
 
 interface AdjustmentRepositoryInterface
 {
     /**
-     * @param  array<int, array{factor: float, system: float, base_system: float, average: float}>  $stock
-     *                                                                                              Existencia y promedio de cada línea, ya resueltos por
-     *                                                                                              `AdjustmentStockService`.
+     * @param  array<int, array{factor: float, system: float, base_system: float, average: float, lots: array<string, array{system: float, base_system: float, average: float}>}>  $stock
+     *                                                                                                                                                                             Existencia y promedio de cada línea y de cada uno de sus
+     *                                                                                                                                                                             lotes, ya resueltos por `AdjustmentStockService`.
      */
     public function create(CreateAdjustmentCommand $command, array $stock): void;
 
@@ -26,7 +27,7 @@ interface AdjustmentRepositoryInterface
     public function findOrFail(string $id, ?string $companyId = null): Adjustment;
 
     /**
-     * @param  array<int, array{factor: float, system: float, base_system: float, average: float}>  $stock
+     * @param  array<int, array{factor: float, system: float, base_system: float, average: float, lots: array<string, array{system: float, base_system: float, average: float}>}>  $stock
      */
     public function update(Adjustment $model, UpdateAdjustmentCommand $command, array $stock): void;
 
@@ -37,7 +38,8 @@ interface AdjustmentRepositoryInterface
 
     /**
      * Líneas activas del ajuste, con lo que el kardex necesita para moverlas:
-     * el artículo con sus unidades y la unidad de la línea.
+     * el artículo con sus unidades, la unidad de la línea y la trazabilidad que
+     * parte el movimiento en varios.
      *
      * @return array<int, AdjustmentLine>
      */
@@ -51,6 +53,15 @@ interface AdjustmentRepositoryInterface
         AdjustmentLine $line,
         WriteAdjustmentLineCostCommand $command,
     ): AdjustmentLine;
+
+    /**
+     * Lo mismo para uno de los lotes de la línea: el kardex lo valora aparte,
+     * porque cada lote sale o entra a su propio costo.
+     */
+    public function writeLotCost(
+        AdjustmentLineLot $lot,
+        WriteAdjustmentLineCostCommand $command,
+    ): AdjustmentLineLot;
 
     /**
      * Recalcula los totales de la cabecera a partir de las líneas ya escritas.

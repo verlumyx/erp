@@ -23,13 +23,12 @@ return new class extends Migration
             /** Dónde se contó. Vacía usa la ubicación por defecto de la bodega. */
             $table->uuid('location_id')->nullable();
 
-            /** Lote y serie ya existentes: el ajuste no los crea, los corrige. */
-            $table->uuid('lot_id')->nullable();
-            $table->uuid('serial_id')->nullable();
-
             /**
              * Existencia según el sistema al capturar la línea, y lo que se
-             * contó físicamente. Ambas en la unidad de la línea.
+             * contó físicamente. Ambas en la unidad de la línea. El lote y la
+             * serie no están aquí: una misma línea puede contar varios lotes y
+             * nombrar varias unidades, así que viven en
+             * `app_adjustment_line_lots` y `app_adjustment_line_serials`.
              */
             $table->decimal('system_quantity', 18, 4)->default(0);
             $table->decimal('counted_quantity', 18, 4)->default(0);
@@ -80,16 +79,6 @@ return new class extends Migration
                 ->on('app_warehouse_locations')
                 ->nullOnDelete();
 
-            $table->foreign('lot_id')
-                ->references('id')
-                ->on('app_item_lots')
-                ->restrictOnDelete();
-
-            $table->foreign('serial_id')
-                ->references('id')
-                ->on('app_item_serials')
-                ->restrictOnDelete();
-
             /** Foreign key: quién contó físicamente la línea (trazabilidad) */
             $table->foreign('counted_by')
                 ->references('id')
@@ -98,7 +87,6 @@ return new class extends Migration
 
             $table->index('adjustment_id');
             $table->index('item_id');
-            $table->index('lot_id');
             $table->index('company_id');
             $table->index('status');
 
@@ -114,8 +102,6 @@ return new class extends Migration
             $table->dropForeign(['item_id']);
             $table->dropForeign(['measurement_unit_id']);
             $table->dropForeign(['location_id']);
-            $table->dropForeign(['lot_id']);
-            $table->dropForeign(['serial_id']);
             $table->dropForeign(['counted_by']);
         });
 

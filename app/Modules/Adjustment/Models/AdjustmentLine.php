@@ -6,8 +6,6 @@ namespace App\Modules\Adjustment\Models;
 
 use App\Modules\Company\Models\Company;
 use App\Modules\Item\Models\Item;
-use App\Modules\ItemLot\Models\ItemLot;
-use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\User\Models\User;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
@@ -16,6 +14,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AdjustmentLine extends Model
 {
@@ -40,8 +39,6 @@ class AdjustmentLine extends Model
         'item_id',
         'measurement_unit_id',
         'location_id',
-        'lot_id',
-        'serial_id',
         'system_quantity',
         'counted_quantity',
         'difference_quantity',
@@ -98,14 +95,20 @@ class AdjustmentLine extends Model
         return $this->belongsTo(WarehouseLocation::class, 'location_id', 'id');
     }
 
-    public function lot(): BelongsTo
+    /**
+     * Los lotes que la línea contó. La trazabilidad salió de la línea porque un
+     * mismo artículo se cuenta repartido en varios lotes, y cada uno tiene su
+     * propia diferencia contra el sistema.
+     */
+    public function lots(): HasMany
     {
-        return $this->belongsTo(ItemLot::class, 'lot_id', 'id');
+        return $this->hasMany(AdjustmentLineLot::class, 'adjustment_line_id', 'id');
     }
 
-    public function serial(): BelongsTo
+    /** Las unidades con serie que la línea nombra. */
+    public function serials(): HasMany
     {
-        return $this->belongsTo(ItemSerial::class, 'serial_id', 'id');
+        return $this->hasMany(AdjustmentLineSerial::class, 'adjustment_line_id', 'id');
     }
 
     /** Quién contó físicamente esta línea. */

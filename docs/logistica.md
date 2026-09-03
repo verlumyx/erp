@@ -13,7 +13,7 @@ kardex (`app_inventory_movements`).
 | Traslados | `app_transfers` + `app_transfer_lines`                  | `TRA`   | — (los escriben su despacho y su entrada) |
 | Entradas  | `app_entries` + `app_entry_lines` (+ trazabilidad)       | `ENT`   | `in`, o `transfer_in` si recibe un traslado |
 | Rutas     | `app_routes` (+ `app_route_stops`, `app_route_clients`) | `RUT`   | —                                  |
-| Ajustes   | `app_adjustments` + `app_adjustment_lines`              | `AJU`   | `adjustment_in` / `adjustment_out` |
+| Ajustes   | `app_adjustments` + `app_adjustment_lines` (+ lotes y series) | `AJU`   | `adjustment_in` / `adjustment_out` |
 
 **Depende de:** [Inventario](inventario.md) (artículos, bodegas, existencias), [Ventas](ventas.md)
 (órdenes de venta) y [Compras](compras.md) (órdenes de compra).
@@ -489,8 +489,6 @@ modifica stock sin un documento comercial detrás, y por eso exige motivo y auto
 | `item_id`                   | `uuid`          | No   |            | FK → `app_items.id` (`restrictOnDelete`).                     |
 | `measurement_unit_id`       | `uuid`          | No   |            | FK → `app_measurement_units.id`.                              |
 | `location_id`               | `uuid`          | Sí   |            | FK → `app_warehouse_locations.id`.                            |
-| `lot_id`                    | `uuid`          | Sí   |            | FK → `app_item_lots.id`.                                      |
-| `serial_id`                 | `uuid`          | Sí   |            | FK → `app_item_serials.id`.                                   |
 | `system_quantity`           | `decimal(18,4)` | No   | `0`        | Existencia según el sistema al momento del conteo.            |
 | `counted_quantity`          | `decimal(18,4)` | No   | `0`        | Existencia física contada.                                    |
 | `difference_quantity`       | `decimal(18,4)` | No   | `0`        | `counted_quantity - system_quantity`. Positivo = sobrante.    |
@@ -505,12 +503,67 @@ modifica stock sin un documento comercial detrás, y por eso exige motivo y auto
 | `created_at` / `updated_at` | `timestamp`     | Sí   |            |                                                               |
 
 **Índices:** `index(adjustment_id)`, `index(item_id)`, `unique(adjustment_id, line_number)`,
-`index(lot_id)`, `index(company_id)`, `index(status)`.
+`index(company_id)`, `index(status)`.
+
+### 5.3 Lotes de la línea — `app_adjustment_line_lots`
+
+El lote no cabe en la línea: un mismo artículo se cuenta repartido en varias cajas, y cada una tiene
+su propia existencia —el kardex guarda el saldo por lote—. Cada fila es una mini-línea con su propio
+cálculo.
+
+| Columna                     | Tipo            | Nulo | Default    | Descripción                                                    |
+|-----------------------------|-----------------|------|------------|----------------------------------------------------------------|
+| `id`                        | `uuid`          | No   |            | PK.                                                            |
+| `company_id`                | `uuid`          | Sí   |            | FK → `app_companies.id`. Heredado de la línea.                 |
+| `adjustment_line_id`        | `uuid`          | No   |            | FK → `app_adjustment_lines.id` (`cascadeOnDelete`).            |
+| `line_number`               | `integer`       | No   |            |                                                                |
+| `lot_id`                    | `uuid`          | No   |            | FK → `app_item_lots.id` (`restrictOnDelete`). Del maestro.     |
+| `counted_quantity`          | `decimal(18,4)` | No   | `0`        | Lo que se encontró de ese lote, en la unidad de la línea.      |
+| `system_quantity`           | `decimal(18,4)` | No   | `0`        | Lo que el sistema decía de ese lote.                           |
+| `difference_quantity`       | `decimal(18,4)` | No   | `0`        | `counted - system` del lote.                                   |
+| `base_quantity`             | `decimal(18,4)` | No   | `0`        | Esa diferencia en unidad base.                                 |
+| `movement_type`             | `enum`          | No   |            | `adjustment_in` o `adjustment_out`, derivado del signo.        |
+| `unit_cost`                 | `decimal(18,6)` | No   | `0`        | Costo con el que se valora ese lote.                           |
+| `total_cost`                | `decimal(18,2)` | No   | `0`        | `abs(base_quantity) * unit_cost`.                              |
+| `status`                    | `enum`          | No   | `'active'` | `active` / `inactive`.                                         |
+| `notes`                     | `string(500)`   | Sí   |            |                                                                |
+| `created_at` / `updated_at` | `timestamp`     | Sí   |            |                                                                |
+
+**Índices:** `index(adjustment_line_id)`, `index(lot_id)`, `index(company_id)`, `index(status)`,
+`unique(adjustment_line_id, line_number)`.
+
+### 5.4 Series de la línea — `app_adjustment_line_serials`
+
+Sin cantidad: una serie **es** una unidad. La fila solo nombra qué unidad entra en el conteo.
+
+| Columna                     | Tipo        | Nulo | Default    | Descripción                                                      |
+|-----------------------------|-------------|------|------------|------------------------------------------------------------------|
+| `id`                        | `uuid`      | No   |            | PK.                                                              |
+| `company_id`                | `uuid`      | Sí   |            | FK → `app_companies.id`.                                         |
+| `adjustment_line_id`        | `uuid`      | No   |            | FK → `app_adjustment_lines.id` (`cascadeOnDelete`).              |
+| `adjustment_line_lot_id`    | `uuid`      | Sí   |            | FK → `app_adjustment_line_lots.id`. De qué lote sale la unidad.  |
+| `line_number`               | `integer`   | No   |            |                                                                  |
+| `serial_id`                 | `uuid`      | No   |            | FK → `app_item_serials.id` (`restrictOnDelete`). Del maestro.    |
+| `status`                    | `enum`      | No   | `'active'` | `active` / `inactive`.                                           |
+| `created_at` / `updated_at` | `timestamp` | Sí   |            |                                                                  |
+
+**Índices:** `index(adjustment_line_id)`, `index(adjustment_line_lot_id)`, `index(serial_id)`,
+`index(company_id)`, `index(status)`, `unique(adjustment_line_id, line_number)`.
 
 **Reglas**
 
 - `system_quantity` se captura al **crear** la línea y se revalida al confirmar: si el stock cambió entre ambos
-  momentos, el sistema avisa y exige recontar.
+  momentos, el sistema avisa y exige recontar. Con lotes, la revalidación es **por lote**.
+- Si la línea trae filas de lote, lo contado en ellas suma **exactamente** lo contado en la línea, y
+  la línea es la suma de sus lotes: su `system_quantity` no es el saldo de toda la ubicación, sino el
+  de los lotes que cuenta.
+- El kardex escribe **un movimiento por lote**, cada uno con su propia diferencia y su propio costo.
+  Sin lotes, un solo movimiento por la línea. El asiento se identifica con una serie solo cuando no
+  hay ambigüedad: mueve una unidad y hay una sola serie a la que pueda referirse.
+- Las series nombran unidades enteras —las que se contaron o las que faltan—, así que su número tiene
+  que ser lo contado o la diferencia, ambos en unidad base.
+- Dos líneas activas no pueden contar la misma clave `(artículo, ubicación)`: contar el mismo artículo
+  en varios lotes se hace con sus filas de lote, no con otra línea.
 - Las salidas usan el costo promedio actual; las entradas por sobrante también, salvo en
   `type = revaluation`, donde el usuario define el nuevo costo.
 - Un ajuste confirmado **no se edita**: se anula (genera movimientos inversos) y se crea uno nuevo.

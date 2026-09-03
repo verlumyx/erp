@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Adjustment\Services;
 
 use App\Modules\Adjustment\Commands\AdjustmentLineData;
+use App\Modules\Adjustment\Commands\AdjustmentLineLotData;
+use App\Modules\Adjustment\Commands\AdjustmentLineSerialData;
 use App\Modules\Adjustment\Models\Adjustment;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
@@ -43,7 +45,7 @@ class AdjustmentLimitsService
     ): void {
         $items = $this->itemsOf($companyId, $lines);
 
-        $this->guardTraceability($lines, $items);
+        $this->guardTraceability($lines, $items, $stock);
 
         if ($type === Adjustment::REVALUATION_TYPE) {
             $this->guardRevaluation($lines, $stock);
@@ -133,18 +135,32 @@ class AdjustmentLimitsService
     }
 
     /**
-     * El lote y la serie solo tienen sentido en artículos que los llevan, y una
-     * serie identifica una unidad: contar dos de la misma serie no significa
-     * nada.
+     * Lo que la trazabilidad exige del maestro de artículos: que el lote y la
+     * serie sean de ese artículo y que solo se pidan a quien los lleva.
+     *
+     * De un artículo serializado se espera además que las series nombren
+     * unidades enteras: o las que se contaron, o las que faltan. Por eso su
+     * número tiene que ser lo contado o la diferencia, ambos en unidad base.
      *
      * @param  array<int, AdjustmentLineData>  $lines
      * @param  array<string, Item>  $items
+     * @param  array<int, array{factor: float, system: float}>  $stock
      *
      * @throws ValidationException
      */
-    private function guardTraceability(array $lines, array $items): void
+    private function guardTraceability(array $lines, array $items, array $stock): void
     {
         $errors = [];
+
+        $lotItems = ItemLot::query()
+            ->whereIn('id', $this->lotIdsOf($lines))
+            ->pluck('item_id', 'id')
+            ->all();
+
+        $serialItems = ItemSerial::query()
+            ->whereIn('id', $this->serialIdsOf($lines))
+            ->pluck('item_id', 'id')
+            ->all();
 
         foreach ($lines as $index => $line) {
             if ($line->status !== 'active') {
@@ -157,28 +173,105 @@ class AdjustmentLimitsService
                 continue;
             }
 
-            if (filled($line->lotId) && ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
-                $errors["lines.{$index}.lot_id"] = 'Ese artículo no se controla por lote.';
+            $lots = $line->activeLots();
+            $serials = $line->activeSerials();
+
+            if ($lots !== [] && ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
+                $errors["lines.{$index}.lots"] = 'Ese artículo no se controla por lote.';
             }
 
-            if (blank($line->serialId)) {
-                continue;
+            foreach ($lots as $lot) {
+                if (($lotItems[$lot->lotId] ?? null) !== $line->itemId) {
+                    $errors["lines.{$index}.lots"] = 'Alguno de los lotes no es de ese artículo.';
+
+                    break;
+                }
             }
 
             if ($item->type !== ItemSerial::TRACKABLE_ITEM_TYPE) {
-                $errors["lines.{$index}.serial_id"] = 'Ese artículo no se controla por serie.';
+                if ($serials !== []) {
+                    $errors["lines.{$index}.serials"] = 'Ese artículo no se controla por serie.';
+                }
 
                 continue;
             }
 
-            if (! in_array(round($line->countedQuantity, 4), [0.0, 1.0], true)) {
-                $errors["lines.{$index}.counted_quantity"] = 'Una serie es una unidad: cuenta 1 si está o 0 si no está.';
+            foreach ($serials as $serial) {
+                if (($serialItems[$serial->serialId] ?? null) !== $line->itemId) {
+                    $errors["lines.{$index}.serials"] = 'Alguna de las series no es de ese artículo.';
+
+                    break;
+                }
+            }
+
+            if ($serials === []) {
+                continue;
+            }
+
+            $factor = $stock[$index]['factor'] ?? 1.0;
+            $counted = round($line->countedQuantity * $factor, 4);
+            $difference = round(($line->countedQuantity - round($stock[$index]['system'] ?? 0.0, 4)) * $factor, 4);
+
+            if (! $this->namesWholeUnits(count($serials), $counted, $difference)) {
+                $errors["lines.{$index}.serials"] = 'Una serie es una unidad: nombra las que se contaron o las que faltan.';
             }
         }
 
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    /**
+     * ¿El número de series nombradas cuadra con lo que la línea dice? Vale que
+     * sean las contadas —el conteo identifica lo que encontró— o que sean las
+     * que faltan —el conteo identifica lo que se fue—.
+     */
+    private function namesWholeUnits(int $serials, float $counted, float $difference): bool
+    {
+        foreach ([$counted, abs($difference)] as $units) {
+            if ($units == (float) (int) $units && $serials === (int) $units) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @return array<int, string>
+     */
+    private function lotIdsOf(array $lines): array
+    {
+        $ids = [];
+
+        foreach ($lines as $line) {
+            foreach ($line->activeLots() as $lot) {
+                /** @var AdjustmentLineLotData $lot */
+                $ids[$lot->lotId] = $lot->lotId;
+            }
+        }
+
+        return array_values($ids);
+    }
+
+    /**
+     * @param  array<int, AdjustmentLineData>  $lines
+     * @return array<int, string>
+     */
+    private function serialIdsOf(array $lines): array
+    {
+        $ids = [];
+
+        foreach ($lines as $line) {
+            foreach ($line->activeSerials() as $serial) {
+                /** @var AdjustmentLineSerialData $serial */
+                $ids[$serial->serialId] = $serial->serialId;
+            }
+        }
+
+        return array_values($ids);
     }
 
     /**

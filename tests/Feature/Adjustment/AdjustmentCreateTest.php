@@ -6,6 +6,8 @@ use App\Modules\Adjustment\Models\Adjustment;
 use App\Modules\Adjustment\Models\AdjustmentLine;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
+use App\Modules\ItemLot\Models\ItemLot;
+use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
@@ -275,7 +277,7 @@ test('a line cannot carry a lot for an item that does not track lots', function 
         'measurement_unit_id' => $unit->id,
     ]);
 
-    $lot = \App\Modules\ItemLot\Models\ItemLot::factory()->create([
+    $lot = ItemLot::factory()->create([
         'company_id' => $company->id,
         'item_id' => $item->id,
     ]);
@@ -285,14 +287,228 @@ test('a line cannot carry a lot for an item that does not track lots', function 
             'item_id' => $service->id,
             'measurement_unit_id' => $unit->id,
             'counted_quantity' => 1,
-            'lot_id' => $lot->id,
+            'lots' => [['lot_id' => $lot->id, 'counted_quantity' => 1]],
         ]],
     ]);
 
     actingAs($user)
         ->withSession(['current_company_id' => $company->id])
         ->post(route('adjustments.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('lines.0.lot_id');
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('the lots of a line have to add up to what the line counted', function () {
+    [$user, $company, $warehouse, $location, $item, $unit] = adjustmentScenario();
+
+    $lot = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 10,
+        'unitCost' => 25,
+        'lotId' => $lot->id,
+    ]);
+
+    $payload = adjustmentPayload($warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'counted_quantity' => 12,
+            /** Se contaron 12 pero solo se repartieron 8. */
+            'lots' => [['lot_id' => $lot->id, 'counted_quantity' => 8]],
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('adjustments.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('the same lot cannot be counted twice in one line', function () {
+    [$user, $company, $warehouse, , $item, $unit] = adjustmentScenario();
+
+    $lot = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    $payload = adjustmentPayload($warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'counted_quantity' => 12,
+            'lots' => [
+                ['lot_id' => $lot->id, 'counted_quantity' => 6],
+                ['lot_id' => $lot->id, 'counted_quantity' => 6],
+            ],
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('adjustments.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.lots');
+});
+
+test('a line counts each of its lots against its own stock', function () {
+    [$user, $company, $warehouse, $location, $item, $unit] = adjustmentScenario();
+
+    $first = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    $second = ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    /** Diez unidades en el primer lote y cuatro en el segundo. */
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 10,
+        'unitCost' => 25,
+        'lotId' => $first->id,
+    ]);
+
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 4,
+        'unitCost' => 25,
+        'lotId' => $second->id,
+    ]);
+
+    /** Se cuentan 12 del primero —sobran 2— y 1 del segundo —faltan 3—. */
+    $adjustment = createAdjustment($user, $company, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'counted_quantity' => 13,
+            'lots' => [
+                ['lot_id' => $first->id, 'counted_quantity' => 12],
+                ['lot_id' => $second->id, 'counted_quantity' => 1],
+            ],
+        ]],
+    ]);
+
+    $line = $adjustment->lines->first();
+    /** La línea es la suma de sus lotes: 14 en el sistema, 13 contadas. */
+    expect((float) $line->system_quantity)->toBe(14.0);
+    expect((float) $line->difference_quantity)->toBe(-1.0);
+
+    $lots = $line->lots()->orderBy('line_number')->get();
+    expect($lots)->toHaveCount(2);
+
+    expect((float) $lots[0]->system_quantity)->toBe(10.0);
+    expect((float) $lots[0]->difference_quantity)->toBe(2.0);
+    expect($lots[0]->movement_type)->toBe(AdjustmentLine::MOVEMENT_IN);
+
+    expect((float) $lots[1]->system_quantity)->toBe(4.0);
+    expect((float) $lots[1]->difference_quantity)->toBe(-3.0);
+    expect($lots[1]->movement_type)->toBe(AdjustmentLine::MOVEMENT_OUT);
+
+    /** Los totales separan los dos lados, aunque vengan de la misma línea. */
+    expect((float) $adjustment->total_quantity_in)->toBe(2.0);
+    expect((float) $adjustment->total_quantity_out)->toBe(3.0);
+    expect((float) $adjustment->net_cost)->toBe(-25.0);
+});
+
+test('a serialized line names the units it counted', function () {
+    [$user, $company, $warehouse, $location, $item, $unit] = adjustmentScenario();
+
+    Item::where('id', $item->id)->update(['type' => ItemSerial::TRACKABLE_ITEM_TYPE]);
+
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 3,
+        'unitCost' => 25,
+    ]);
+
+    $serials = ItemSerial::factory()->count(3)->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    $adjustment = createAdjustment($user, $company, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'counted_quantity' => 3,
+            'serials' => $serials->map(fn ($serial): array => ['serial_id' => $serial->id])->all(),
+        ]],
+    ]);
+
+    $line = $adjustment->lines->first();
+    expect((float) $line->difference_quantity)->toBe(0.0);
+    expect($line->serials()->where('status', 'active')->count())->toBe(3);
+});
+
+test('a serialized line can name the unit that is missing', function () {
+    [$user, $company, $warehouse, $location, $item, $unit] = adjustmentScenario();
+
+    Item::where('id', $item->id)->update(['type' => ItemSerial::TRACKABLE_ITEM_TYPE]);
+
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 1,
+        'unitCost' => 25,
+    ]);
+
+    $serial = ItemSerial::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    /** No apareció: se cuenta cero y se nombra la unidad que falta. */
+    $adjustment = createAdjustment($user, $company, $warehouse, $item, $unit, [
+        'type' => 'loss',
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'counted_quantity' => 0,
+            'serials' => [['serial_id' => $serial->id]],
+        ]],
+    ]);
+
+    $line = $adjustment->lines->first();
+    expect((float) $line->difference_quantity)->toBe(-1.0);
+
+    applyAdjustment($user, $company, $adjustment)->assertSessionHasNoErrors();
+
+    /** El kardex nombra la unidad: no hay ambigüedad, sale una y hay una. */
+    $movement = adjustmentMovements($adjustment)->first();
+    expect($movement->type)->toBe('adjustment_out');
+    expect($movement->serial_id)->toBe($serial->id);
+});
+
+test('a serialized line cannot name a number of units that means nothing', function () {
+    [$user, $company, $warehouse, $location, $item, $unit] = adjustmentScenario();
+
+    Item::where('id', $item->id)->update(['type' => ItemSerial::TRACKABLE_ITEM_TYPE]);
+
+    registerInventoryMovement($company, $item, $warehouse, $location, [
+        'quantity' => 3,
+        'unitCost' => 25,
+    ]);
+
+    $serials = ItemSerial::factory()->count(2)->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    /** Se contaron 3 y falta 0, pero se nombran 2 unidades: no dice nada. */
+    $payload = adjustmentPayload($warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'counted_quantity' => 3,
+            'serials' => $serials->map(fn ($serial): array => ['serial_id' => $serial->id])->all(),
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('adjustments.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors('lines.0.serials');
 });
 
 test('the create screen renders with its catalogs', function () {
