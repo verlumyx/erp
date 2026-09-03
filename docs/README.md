@@ -13,6 +13,7 @@ un conjunto de módulos relacionados.
 | [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (pendiente de definir)                                                                                                            |
 | [monedas.md](monedas.md)       | Transversal | Monedas, tasas de cambio y configuración por empresa. Atraviesa todos los grupos.                                                                   |
 | [selects-remotos.md](selects-remotos.md) | Transversal | Selects que buscan contra el servidor (`Select2Ajax`) y el endpoint de lookup de cada módulo. Atraviesa todos los grupos. |
+| [tienda.md](tienda.md) | Tienda | Plan de la tienda en línea (app Next.js aparte): publicaciones con fotos, ajustes por empresa, API pública con llave, compradores vinculados a clientes y pedidos web que se convierten en órdenes de venta. |
 | [pendientes.md](pendientes.md) | Seguimiento | Flujos que estas fichas describen y que el código todavía no ejecuta. Se tacha lo que se cierra. |
 
 El orden de implementación recomendado es: **Catálogo → Inventario → Compras → Ventas → Logística → Reportes**, porque
