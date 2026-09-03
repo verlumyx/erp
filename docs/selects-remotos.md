@@ -66,7 +66,8 @@ instante en que se elige el registro**, para no tener que pedirlo en una segunda
 (de ahí sale la unidad base de la línea), los precios por lista (de ahí sale el precio sugerido), el costo estándar y
 el precio mínimo.
 
-**Devuelve JSON, no Inertia.** Es la única ruta de un módulo que no renderiza una pantalla.
+**Devuelve JSON, no Inertia**, como las rutas de saldo que describe
+[documentos-origen.md](documentos-origen.md): son las rutas de un módulo que no renderizan una pantalla.
 
 ---
 

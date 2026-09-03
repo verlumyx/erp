@@ -146,7 +146,9 @@ Además de las columnas comunes de línea:
 **Reglas**
 
 - Al confirmar, se incrementa `incoming_quantity` en `app_item_stocks`.
-- El saldo de una línea son **dos cuentas distintas**, una por cada camino que cumple la orden:
+- El saldo de una línea son **dos cuentas distintas**, una por cada camino que cumple la orden
+  (la regla completa de lo que un documento arrastra del que lo origina está en
+  [documentos-origen.md](documentos-origen.md)):
   `quantity - received_quantity` es lo que falta por llegar y `quantity - invoiced_quantity` lo que falta por
   facturar. Ninguna tiene columna propia: la columna `pending_quantity` es solo la primera, y no sirve para la
   segunda. Cada una tiene su ruta —`GET /{company}/purchase-orders/{id}/receivable-lines` para la Entrada y

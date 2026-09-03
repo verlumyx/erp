@@ -173,7 +173,9 @@ Además de las columnas comunes de línea:
 **Reglas**
 
 - Al confirmar: valida disponibilidad (`available_quantity`) y crédito; incrementa `reserved_quantity`.
-- El saldo de una línea son **dos cuentas distintas**, una por cada camino que cumple el pedido:
+- El saldo de una línea son **dos cuentas distintas**, una por cada camino que cumple el pedido
+  (la regla completa de lo que un documento arrastra del que lo origina está en
+  [documentos-origen.md](documentos-origen.md)):
   `quantity - dispatched_quantity` es lo que falta por salir y `quantity - invoiced_quantity` lo que falta por
   facturar. Ninguna tiene columna propia: la columna `pending_quantity` es solo la primera, y no sirve para la
   segunda. Cada una tiene su ruta —`GET /{company}/sales-orders/{id}/dispatchable-lines` para el Despacho y

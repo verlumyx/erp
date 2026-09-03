@@ -16,8 +16,26 @@ existen**: lo que falta aquí es comportamiento, no estructura.
 | ~~6~~ | ~~Control de crédito del cliente~~                 | Ventas            | —                    |
 | ~~7~~ | ~~Vencimiento diario de facturas~~                 | Ventas / Compras  | —                    |
 | ~~8~~ | ~~Menores~~                                        | Transversal       | —                    |
+| 9   | Las cadenas que cuelgan de una factura no cargan solas | Transversal    | No                   |
 
-No queda ningún pendiente abierto de la lista original.
+No queda ningún pendiente abierto de la lista original. El 9 es posterior.
+
+---
+
+## 9. Las cadenas que cuelgan de una factura no cargan solas
+
+**Lo especifica:** [documentos-origen.md](documentos-origen.md) §1 y §6.
+
+Elegir la factura en una devolución o en una nota de crédito copia su moneda y nada más: las líneas las trae un
+botón que hay que pulsar, y salen del `meta` del `lookup` en vez de un endpoint de saldo propio. Las cuatro
+cadenas que nacen de una orden ya cargan solas; estas cuatro no.
+
+Falta la ruta de saldo en `SalesInvoice` y `PurchaseInvoice` (contra `returned_quantity` para las devoluciones,
+contra lo ya acreditado para las notas) y cambiar el botón por la carga automática en las cuatro pantallas. La
+lista de archivos está en §6 de la ficha.
+
+Va con ello lo de §2: el despacho todavía pide el pedido antes que el cliente, al revés que las otras tres
+pantallas de la cadena.
 
 ---
 
