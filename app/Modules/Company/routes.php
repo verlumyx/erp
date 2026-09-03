@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Company\Controllers\CompanyGetController;
+use App\Modules\Company\Controllers\CompanyMenuUpdateController;
 use App\Modules\Company\Controllers\CompanyPostController;
 use App\Modules\Company\Controllers\CompanyPutController;
 use App\Modules\Company\Controllers\CompanySwitchController;
@@ -23,6 +24,10 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/{id}/edit', [CompanyGetController::class, 'edit'])->where('id', $uuid)->name('companies.edit');
             Route::put('/{id}', CompanyPutController::class)->where('id', $uuid)->name('companies.update');
             Route::put('/{id}/status', CompanyUpdateStatusController::class)->where('id', $uuid)->name('companies.update-status');
+
+            /** Qué menús ve la empresa: el dueño del sistema desmarca los que no tiene. */
+            Route::get('/{id}/menus', [CompanyGetController::class, 'menus'])->where('id', $uuid)->name('companies.menus.edit');
+            Route::put('/{id}/menus', CompanyMenuUpdateController::class)->where('id', $uuid)->name('companies.menus.update');
         });
     });
 

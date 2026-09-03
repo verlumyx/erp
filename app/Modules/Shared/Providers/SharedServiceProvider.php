@@ -11,6 +11,8 @@ use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
+use App\Modules\Shared\Repositories\CompanyDisabledMenuRepository;
+use App\Modules\Shared\Repositories\Contracts\CompanyDisabledMenuRepositoryInterface;
 use App\Modules\Shared\Repositories\Contracts\UserCompanyRepositoryInterface;
 use App\Modules\Shared\Repositories\UserCompanyRepository;
 use App\Modules\Transfer\Models\Transfer;
@@ -53,6 +55,11 @@ class SharedServiceProvider extends ServiceProvider
         $this->app->bind(
             UserCompanyRepositoryInterface::class,
             UserCompanyRepository::class,
+        );
+
+        $this->app->bind(
+            CompanyDisabledMenuRepositoryInterface::class,
+            CompanyDisabledMenuRepository::class,
         );
     }
 

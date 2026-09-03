@@ -20,3 +20,18 @@ export interface CompanyFilters {
     limit?: number;
     offset?: number;
 }
+
+/** Un nodo del árbol de menús tal como lo arma el backend. Sin `url` es un grupo. */
+export interface CompanyMenuNode {
+    id: string;
+    title: string;
+    icon: string | null;
+    url: string | null;
+    permission: string | null;
+    children: CompanyMenuNode[];
+}
+
+export interface CompanyMenus {
+    mainNavItems: CompanyMenuNode[];
+    footerNavItems: CompanyMenuNode[];
+}

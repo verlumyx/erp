@@ -32,7 +32,7 @@ class CompanyContextController extends Controller
         return response()->json([
             'company' => new AuthCompanyResource($membership),
             'permissions' => $user->getPermissions(),
-            'menu' => $this->getActiveMenusService->execute($user),
+            'menu' => $this->getActiveMenusService->execute($user, $company),
         ]);
     }
 }

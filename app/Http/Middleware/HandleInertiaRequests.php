@@ -106,7 +106,7 @@ class HandleInertiaRequests extends Middleware
                 }
             }
 
-            $menus = app(GetActiveMenusService::class)->execute($request->user());
+            $menus = app(GetActiveMenusService::class)->execute($request->user(), $currentCompanyId);
 
             if ($currentCompanyId) {
                 $menus = $this->prefixMenuUrls($menus, $currentCompanyId);

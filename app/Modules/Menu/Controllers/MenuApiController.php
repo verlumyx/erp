@@ -26,8 +26,11 @@ class MenuApiController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        /** La empresa la deja en sesión el middleware `company.access.api`. */
+        $companyId = session('current_company_id');
+
         return response()->json(
-            $this->getActiveMenusService->execute($user)
+            $this->getActiveMenusService->execute($user, is_string($companyId) ? $companyId : null)
         );
     }
 }

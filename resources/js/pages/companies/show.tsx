@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, Building2, Calendar, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Building2, Calendar, Clock, FileText, PanelLeft } from 'lucide-react';
 import { Company } from './types/Company';
 import type { BreadcrumbItem } from '@/types';
 import companies from '@/routes/companies';
@@ -66,6 +66,12 @@ export default function CompaniesShow({ company }: Props) {
                             >
                                 {company.status === 'active' ? 'Desactivar' : 'Activar'}
                             </Button>
+                            <Link href={companies.menus.edit({ company: companyId, id: company.id }).url}>
+                                <Button variant="outline" size="sm">
+                                    <PanelLeft className="w-4 h-4 mr-2" />
+                                    Menús
+                                </Button>
+                            </Link>
                             <Link href={companies.edit({ company: companyId, id: company.id }).url}>
                                 <Button size="sm">
                                     <Edit className="w-4 h-4 mr-2" />

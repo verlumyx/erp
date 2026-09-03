@@ -7,7 +7,9 @@ namespace App\Modules\Company\Models;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Modules\Shared\Models\CompanyDisabledMenu;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
@@ -33,6 +35,12 @@ class Company extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /** Menús que esta empresa no ve. */
+    public function disabledMenus(): HasMany
+    {
+        return $this->hasMany(CompanyDisabledMenu::class, 'company_id', 'id');
     }
 
     protected static function newFactory(): CompanyFactory
