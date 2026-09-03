@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Item\Models\Item;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 
@@ -223,4 +224,57 @@ test('a line already dispatched in full is left out unless the document already 
     expect($response->json('data'))->toHaveCount(1);
     expect($response->json('data.0.id'))->toBe($settled->id);
     expect((float) $response->json('data.0.pending_quantity'))->toBe(0.0);
+});
+
+/**
+ * Un servicio se factura pero no sale en un bulto: el despacho no lo lleva y
+ * la factura sí lo cobra.
+ */
+test('an item that carries no stock is left out of the dispatchable lines but not the invoiceable ones', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $service = Item::factory()->create([
+        'company_id' => $company->id,
+        'type' => 'service',
+    ]);
+
+    $order = SalesOrder::factory()->confirmed()->create([
+        'company_id' => $company->id,
+        'client_id' => $client->id,
+        'warehouse_id' => $warehouse->id,
+    ]);
+
+    $goods = SalesOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'sales_order_id' => $order->id,
+        'line_number' => 1,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 5,
+    ]);
+
+    $labour = SalesOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'sales_order_id' => $order->id,
+        'line_number' => 2,
+        'item_id' => $service->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 1,
+    ]);
+
+    $ask = fn (string $route): array => actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->getJson(route($route, ['company' => $company->id, 'id' => $order->id]))
+        ->assertOk()
+        ->json('data');
+
+    /* El despacho saca mercancía: el servicio no está. */
+    $dispatchable = $ask('sales-orders.dispatchable-lines');
+    expect($dispatchable)->toHaveCount(1);
+    expect($dispatchable[0]['id'])->toBe($goods->id);
+
+    /* La factura cobra las dos. */
+    $invoiceable = $ask('sales-orders.invoiceable-lines');
+    expect(array_column($invoiceable, 'id'))
+        ->toEqualCanonicalizing([$goods->id, $labour->id]);
 });

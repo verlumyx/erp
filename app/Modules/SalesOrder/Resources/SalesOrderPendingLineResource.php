@@ -63,9 +63,19 @@ class SalesOrderPendingLineResource extends JsonResource
         ];
     }
 
-    /** Lo pedido menos el avance por el que preguntaron, nunca negativo. */
+    /**
+     * Lo pedido menos el avance por el que preguntaron, nunca negativo.
+     *
+     * Un artículo sin existencia no debe nada por el lado de la mercancía. El
+     * servicio ya no lo ofrece, pero una línea así puede volver por `ids` —el
+     * documento la tenía atada— y entonces su saldo es cero, no lo pedido.
+     */
     private function pendingQuantity(): float
     {
+        if ($this->against === SalesOrderPendingLinesService::AGAINST_DISPATCHED && ! ($this->item?->movesStock() ?? true)) {
+            return 0.0;
+        }
+
         return max(round((float) $this->quantity - (float) $this->{$this->against}, 4), 0);
     }
 }

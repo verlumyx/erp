@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Item\Models\Item;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 
@@ -222,5 +223,95 @@ test('a line already received in full is left out unless the document already ha
     $response->assertOk();
     expect($response->json('data'))->toHaveCount(1);
     expect($response->json('data.0.id'))->toBe($settled->id);
+    expect((float) $response->json('data.0.pending_quantity'))->toBe(0.0);
+});
+
+/**
+ * Un servicio se factura pero no llega en una caja: la entrada no lo pide y la
+ * factura sí.
+ */
+test('an item that carries no stock is left out of the receivable lines but not the invoiceable ones', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $service = Item::factory()->create([
+        'company_id' => $company->id,
+        'type' => 'service',
+        'is_purchasable' => 'yes',
+    ]);
+
+    $order = PurchaseOrder::factory()->confirmed()->create([
+        'company_id' => $company->id,
+        'supplier_id' => $supplier->id,
+        'warehouse_id' => $warehouse->id,
+    ]);
+
+    $goods = PurchaseOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'purchase_order_id' => $order->id,
+        'line_number' => 1,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 5,
+    ]);
+
+    $installation = PurchaseOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'purchase_order_id' => $order->id,
+        'line_number' => 2,
+        'item_id' => $service->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 1,
+    ]);
+
+    $ask = fn (string $route): array => actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->getJson(route($route, ['company' => $company->id, 'id' => $order->id]))
+        ->assertOk()
+        ->json('data');
+
+    /* La entrada recibe mercancía: el servicio no está. */
+    $receivable = $ask('purchase-orders.receivable-lines');
+    expect($receivable)->toHaveCount(1);
+    expect($receivable[0]['id'])->toBe($goods->id);
+
+    /* La factura cobra las dos. */
+    $invoiceable = $ask('purchase-orders.invoiceable-lines');
+    expect(array_column($invoiceable, 'id'))
+        ->toEqualCanonicalizing([$goods->id, $installation->id]);
+});
+
+test('a non stocked line asked for by id comes back owing nothing on the goods side', function () {
+    [$user, $company, $supplier, $warehouse, , $unit] = purchaseOrderScenario();
+
+    $service = Item::factory()->create([
+        'company_id' => $company->id,
+        'type' => 'non_inventoried',
+        'is_purchasable' => 'yes',
+    ]);
+
+    $order = PurchaseOrder::factory()->confirmed()->create([
+        'company_id' => $company->id,
+        'supplier_id' => $supplier->id,
+        'warehouse_id' => $warehouse->id,
+    ]);
+
+    $line = PurchaseOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'purchase_order_id' => $order->id,
+        'line_number' => 1,
+        'item_id' => $service->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 3,
+    ]);
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->getJson(route('purchase-orders.receivable-lines', [
+            'company' => $company->id,
+            'id' => $order->id,
+        ]).'?ids='.$line->id);
+
+    $response->assertOk();
+    expect($response->json('data'))->toHaveCount(1);
+    /* Vuelve para que la pantalla la reconozca, pero sin saldo que recibir. */
     expect((float) $response->json('data.0.pending_quantity'))->toBe(0.0);
 });

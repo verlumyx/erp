@@ -28,6 +28,14 @@ class Item extends Model
 
     public const TYPES = ['inventoried', 'non_inventoried', 'service', 'kit', 'serialized'];
 
+    /**
+     * Tipos que no llevan existencia: ningún documento de mercancía los mueve,
+     * ni el kardex los registra. Se facturan y se cobran como cualquier otro.
+     *
+     * @var array<int, string>
+     */
+    public const NON_STOCKED_TYPES = ['service', 'non_inventoried'];
+
     public const COST_METHODS = ['average', 'fifo', 'standard'];
 
     protected $fillable = [
@@ -76,6 +84,16 @@ class Item extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Si el artículo lleva existencia. Es la única respuesta a esa pregunta:
+     * la tenían copiada media docena de servicios y una pantalla se quedó sin
+     * ella, que es como los servicios acabaron pidiéndose en una entrada.
+     */
+    public function movesStock(): bool
+    {
+        return ! in_array($this->type, self::NON_STOCKED_TYPES, true);
     }
 
     public function company(): BelongsTo

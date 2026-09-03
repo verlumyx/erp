@@ -36,12 +36,6 @@ use Illuminate\Validation\ValidationException;
  */
 class TransferMirrorDispatchService
 {
-    /**
-     * Tipos de artículo que no llevan existencia y por tanto no se trasladan.
-     *
-     * @var array<int, string>
-     */
-    private const NON_STOCKED_TYPES = ['service', 'non_inventoried'];
 
     public function __construct(
         private readonly TransferRepositoryInterface $transfers,
@@ -194,7 +188,7 @@ class TransferMirrorDispatchService
     {
         $item = $line->item;
 
-        if ($item instanceof Item && in_array($item->type, self::NON_STOCKED_TYPES, true)) {
+        if ($item instanceof Item && ! $item->movesStock()) {
             return false;
         }
 

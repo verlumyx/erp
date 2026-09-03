@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\SalesOrder\Services;
 
+use App\Modules\Item\Models\Item;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 
 /**
@@ -29,6 +30,7 @@ class SalesOrderPendingLinesService
 
     /** Lo que queda por despachar: lo pide el despacho. */
     public const AGAINST_DISPATCHED = 'dispatched_quantity';
+
 
     public function __construct(
         private readonly SalesOrderFindService $findService,
@@ -58,9 +60,26 @@ class SalesOrderPendingLinesService
             ->all();
     }
 
-    /** Lo pedido menos lo que ese avance ya cubrió. */
+    /**
+     * Lo pedido menos lo que ese avance ya cubrió.
+     *
+     * Un artículo sin existencia sale nunca: por el lado de la mercancía su línea
+     * no debe nada, aunque por el de la factura siga debiendo.
+     */
     private function pendingQuantity(SalesOrderLine $line, string $against): float
     {
+        if ($against === self::AGAINST_DISPATCHED && ! $this->movesStock($line)) {
+            return 0.0;
+        }
+
         return round((float) $line->quantity - (float) $line->{$against}, 4);
+    }
+
+    /** Si el artículo de la línea lleva existencia. */
+    private function movesStock(SalesOrderLine $line): bool
+    {
+        $item = $line->item;
+
+        return ! ($item instanceof Item) || $item->movesStock();
     }
 }

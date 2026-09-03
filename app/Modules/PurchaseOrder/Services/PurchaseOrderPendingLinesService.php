@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseOrder\Services;
 
+use App\Modules\Item\Models\Item;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 
 /**
@@ -29,6 +30,7 @@ class PurchaseOrderPendingLinesService
 
     /** Lo que queda por recibir: lo pide la entrada de mercancía. */
     public const AGAINST_RECEIVED = 'received_quantity';
+
 
     public function __construct(
         private readonly PurchaseOrderFindService $findService,
@@ -58,9 +60,26 @@ class PurchaseOrderPendingLinesService
             ->all();
     }
 
-    /** Lo pedido menos lo que ese avance ya cubrió. */
+    /**
+     * Lo pedido menos lo que ese avance ya cubrió.
+     *
+     * Un artículo sin existencia llega nunca: por el lado de la mercancía su línea
+     * no debe nada, aunque por el de la factura siga debiendo.
+     */
     private function pendingQuantity(PurchaseOrderLine $line, string $against): float
     {
+        if ($against === self::AGAINST_RECEIVED && ! $this->movesStock($line)) {
+            return 0.0;
+        }
+
         return round((float) $line->quantity - (float) $line->{$against}, 4);
+    }
+
+    /** Si el artículo de la línea lleva existencia. */
+    private function movesStock(PurchaseOrderLine $line): bool
+    {
+        $item = $line->item;
+
+        return ! ($item instanceof Item) || $item->movesStock();
     }
 }

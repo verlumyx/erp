@@ -46,6 +46,10 @@ Tan importante como lo anterior, porque arrastrar de más también es un error:
 - **La cantidad original.** Lo que se copia es el **saldo**, no lo pedido. Una línea de 10 con 6 ya cubiertas
   entra con 4.
 - **Lo que ya no queda.** Una línea del origen sin saldo no se ofrece: no hay nada que cubrir ahí.
+- **Lo que ese documento no puede mover.** Un documento de mercancía —entrada, despacho— no recibe ni saca un
+  artículo `service` ni uno `non_inventoried`: no llevan existencia, y su línea no le debe nada por ese lado.
+  Por el de la factura sí, que un servicio se cobra igual. La respuesta la da `Item::movesStock()`, que es el
+  único sitio donde vive esa regla.
 
 ### La cantidad queda editable
 
@@ -72,6 +76,9 @@ origen elegido y le quita el vínculo a las líneas que venían de él.
 **Un documento no tiene un saldo, tiene uno por cada camino que lo cumple.** Una orden de compra se cumple por
 dos: la mercancía llega con las Entradas (`received_quantity`) y la deuda se reconoce con las Facturas de compra
 (`invoiced_quantity`). Un pedido de venta igual, con `dispatched_quantity` e `invoiced_quantity`.
+
+Y una línea puede deber por un camino y no por el otro: la de un servicio no le debe nada a la entrada —no hay
+nada que recibir— y sí a la factura.
 
 Ninguna de esas cuentas se materializa en una columna. **Ojo con `pending_quantity`**: existe en las líneas de
 orden y de pedido, pero es solo el pendiente por *recibir* / por *despachar*, y no sirve para facturar. El saldo

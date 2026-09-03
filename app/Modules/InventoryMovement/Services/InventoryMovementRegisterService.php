@@ -31,13 +31,6 @@ use Illuminate\Support\Facades\DB;
  */
 class InventoryMovementRegisterService
 {
-    /**
-     * Tipos de artículo que no llegan al kardex: no llevan existencia, así que
-     * tampoco tienen saldo que mover.
-     *
-     * @var array<int, string>
-     */
-    private const NON_STOCKED_ITEM_TYPES = ['service', 'non_inventoried'];
 
     public function __construct(
         private readonly InventoryMovementRepositoryInterface $repository,
@@ -128,7 +121,7 @@ class InventoryMovementRegisterService
 
         $item = $this->itemRepository->findById($command->itemId, $command->companyId);
 
-        if ($item !== null && in_array($item->type, self::NON_STOCKED_ITEM_TYPES, true)) {
+        if ($item !== null && ! $item->movesStock()) {
             throw new NonInventoriedItemException;
         }
     }
