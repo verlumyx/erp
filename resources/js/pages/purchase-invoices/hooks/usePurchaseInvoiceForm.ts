@@ -3,9 +3,9 @@ import { useState } from 'react';
 import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
 import {
-    useInvoiceableOrderLines,
-    type InvoiceableOrderLine,
-} from '@/hooks/use-invoiceable-order-lines';
+    usePendingOrderLines,
+    type PendingOrderLine,
+} from '@/hooks/use-pending-order-lines';
 import {
     useItemCatalog,
     type ItemCatalogEntry,
@@ -195,7 +195,7 @@ function emptyLine(): PurchaseInvoiceLineRow {
  * costo, el descuento y el impuesto son los que se pactaron, no los que el
  * catálogo tenga hoy.
  */
-function lineFromOrder(line: InvoiceableOrderLine): PurchaseInvoiceLineRow {
+function lineFromOrder(line: PendingOrderLine): PurchaseInvoiceLineRow {
     return {
         id: generateUUID(),
         item_id: line.item_id,
@@ -322,11 +322,13 @@ export function usePurchaseInvoiceForm({
     });
 
     /** Lo que a la orden elegida le queda por facturar, en su propia petición. */
-    const invoiceableLines = useInvoiceableOrderLines(
-        (orderId) =>
-            purchaseOrders.invoiceableLines({ company: companyId, id: orderId })
-                .url,
-    );
+    const invoiceableLines = usePendingOrderLines({
+        urlFor: (orderId, ids) =>
+            purchaseOrders.invoiceableLines(
+                { company: companyId, id: orderId },
+                { query: { ids } },
+            ).url,
+    });
 
     const initialCurrency =
         initialData?.currency ?? configuration?.base_currency ?? '';

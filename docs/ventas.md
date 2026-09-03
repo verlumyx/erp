@@ -173,10 +173,13 @@ Además de las columnas comunes de línea:
 **Reglas**
 
 - Al confirmar: valida disponibilidad (`available_quantity`) y crédito; incrementa `reserved_quantity`.
-- El **pendiente por facturar** de una línea se deriva: `quantity - invoiced_quantity`. No tiene columna propia —
-  `pending_quantity` es el pendiente por *despachar*— y lo expone
-  `GET /{company}/sales-orders/{id}/invoiceable-lines`, que la pantalla de la factura de venta pide en cuanto se
-  elige el pedido para armar sus líneas.
+- El saldo de una línea son **dos cuentas distintas**, una por cada camino que cumple el pedido:
+  `quantity - dispatched_quantity` es lo que falta por salir y `quantity - invoiced_quantity` lo que falta por
+  facturar. Ninguna tiene columna propia: la columna `pending_quantity` es solo la primera, y no sirve para la
+  segunda. Cada una tiene su ruta —`GET /{company}/sales-orders/{id}/dispatchable-lines` para el Despacho y
+  `.../invoiceable-lines` para la Factura de venta—, y la pantalla la pide en cuanto se elige el pedido para
+  armar sus líneas. Ambas admiten `?ids=` para que vuelvan también las líneas que el documento ya tenía atadas
+  aunque su saldo esté en cero.
 - La reserva se libera al despachar (pasa a salida real) o al anular la orden.
 - El precio se congela en la línea: cambios posteriores en la lista no afectan el pedido.
 - No se permite `unit_price < item.min_price` sin el permiso correspondiente.

@@ -1,4 +1,4 @@
-import { ChevronDown, ClipboardCopy, Layers, Plus, X } from 'lucide-react';
+import { ChevronDown, Layers, Loader2, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { LineNotePopover } from '@/components/line-note-popover';
 import { Select2Ajax } from '@/components/select2-ajax';
@@ -36,8 +36,9 @@ export function EntryLinesSection() {
         setLineOrderLine,
         orderLines,
         pendingOf,
+        loadingOrderLines,
+        orderLinesFailed,
         orderedQuantityOf,
-        copyOrderLines,
         locations,
     } = useEntryFormContext();
 
@@ -63,10 +64,6 @@ export function EntryLinesSection() {
         })),
     ];
 
-    const pendingOrderLines = orderLines.filter(
-        (line) => pendingOf(line.id) > 0,
-    );
-
     const [openDetail, setOpenDetail] = useState<Record<string, boolean>>({});
 
     const toggleDetail = (lineId: string) =>
@@ -89,24 +86,18 @@ export function EntryLinesSection() {
         <div className="flex flex-col gap-4 p-5">
             {errors.lines && <p className="text-sm text-bad">{errors.lines}</p>}
 
-            {pendingOrderLines.length > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-dashed p-4">
-                    <span className="text-[13px] text-muted-foreground">
-                        La orden elegida tiene {pendingOrderLines.length} línea
-                        {pendingOrderLines.length !== 1 ? 's' : ''} pendiente
-                        {pendingOrderLines.length !== 1 ? 's' : ''} de llegar.
-                        Tráelas y ajusta lo que realmente entró.
-                    </span>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 rounded-[10px] bg-card font-semibold"
-                        onClick={copyOrderLines}
-                    >
-                        <ClipboardCopy />
-                        Copiar las líneas de la orden
-                    </Button>
-                </div>
+            {loadingOrderLines && (
+                <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Trayendo lo que la orden tiene por llegar…
+                </p>
+            )}
+
+            {orderLinesFailed && (
+                <p className="text-[13px] text-warn">
+                    No se pudieron traer las líneas de la orden. Vuelve a
+                    elegirla o captúralas a mano.
+                </p>
             )}
 
             {data.lines.map((line, index) => {

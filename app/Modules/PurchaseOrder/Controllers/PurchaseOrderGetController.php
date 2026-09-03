@@ -8,12 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Modules\PurchaseOrder\Commands\SearchPurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
-use App\Modules\PurchaseOrder\Resources\PurchaseOrderInvoiceableLineResource;
+use App\Modules\PurchaseOrder\Resources\PurchaseOrderPendingLineResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderOptionResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderResource;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFindService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFormOptionsService;
-use App\Modules\PurchaseOrder\Services\PurchaseOrderInvoiceableLinesService;
+use App\Modules\PurchaseOrder\Services\PurchaseOrderPendingLinesService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderOptionSearchService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderSearchService;
 use Illuminate\Http\JsonResponse;
@@ -44,7 +44,7 @@ class PurchaseOrderGetController extends Controller
         private readonly PurchaseOrderFindService $findService,
         private readonly PurchaseOrderFormOptionsService $formOptionsService,
         private readonly PurchaseOrderOptionSearchService $optionSearchService,
-        private readonly PurchaseOrderInvoiceableLinesService $invoiceableLinesService,
+        private readonly PurchaseOrderPendingLinesService $pendingLinesService,
     ) {}
 
     public function index(Request $request): Response
@@ -138,19 +138,51 @@ class PurchaseOrderGetController extends Controller
      * Las líneas de una orden que todavía admiten factura.
      *
      * Devuelve JSON, no Inertia: la pide la pantalla de la factura de compra en
-     * cuanto se elige la orden, y con ella arma sus líneas. Va aparte del
-     * `lookup` a propósito: el saldo por facturar solo interesa de la orden
-     * elegida, y meterlo en cada opción del select engordaría el menú entero.
+     * cuanto se elige la orden, y con ella arma sus líneas.
      */
     public function invoiceableLines(Request $request, string $company, string $id): JsonResponse
     {
+        return $this->pendingLines($request, $company, $id, PurchaseOrderPendingLinesService::AGAINST_INVOICED);
+    }
+
+    /**
+     * Las líneas de una orden que todavía esperan mercancía.
+     *
+     * La gemela de la anterior, para la entrada: mismo saldo, otro avance. La
+     * entrada nace con lo que falta por llegar y quien recibe corrige lo que
+     * realmente entró.
+     */
+    public function receivableLines(Request $request, string $company, string $id): JsonResponse
+    {
+        return $this->pendingLines($request, $company, $id, PurchaseOrderPendingLinesService::AGAINST_RECEIVED);
+    }
+
+    /**
+     * El saldo de una orden medido contra uno de sus avances.
+     *
+     * Va aparte del `lookup` a propósito: solo interesa de la orden elegida, y
+     * meterlo en cada opción del select engordaría el menú entero.
+     *
+     * @param  PurchaseOrderPendingLinesService::AGAINST_*  $against
+     */
+    private function pendingLines(Request $request, string $company, string $id, string $against): JsonResponse
+    {
         abort_unless($request->user()?->hasPermission('purchase-orders.list') ?? false, 403);
 
-        $lines = $this->invoiceableLinesService->execute($id, $company);
+        /*
+         * Las líneas que el documento ya tenía atadas vuelven aunque su saldo
+         * esté en cero: si no, su pantalla no sabría a qué apuntan.
+         */
+        $lines = $this->pendingLinesService->execute(
+            $id,
+            $company,
+            $against,
+            $request->string('ids')->toString(),
+        );
 
         return response()->json([
             'data' => array_map(
-                fn (PurchaseOrderLine $line): array => (new PurchaseOrderInvoiceableLineResource($line))->resolve(),
+                fn (PurchaseOrderLine $line): array => (new PurchaseOrderPendingLineResource($line, $against))->resolve(),
                 $lines,
             ),
         ]);

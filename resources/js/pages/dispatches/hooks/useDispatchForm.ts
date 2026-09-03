@@ -7,6 +7,10 @@ import {
     type ItemCatalogEntry,
     type ItemCatalogSeed,
 } from '@/hooks/use-item-catalog';
+import {
+    usePendingOrderLines,
+    type PendingOrderLine,
+} from '@/hooks/use-pending-order-lines';
 import { useRemoteOption } from '@/hooks/use-remote-option';
 import {
     useRemoteOptionSet,
@@ -26,7 +30,6 @@ import type {
     DispatchLine,
     DispatchOptions,
     RouteOptionMeta,
-    SalesOrderOptionLine,
     SalesOrderOptionMeta,
 } from '../types/Dispatch';
 
@@ -294,15 +297,28 @@ export function useDispatchForm({
         hydrate: true,
     });
 
-    /**
-     * Y los pedidos contra el suyo, acotados al cliente elegido. Se hidrata
-     * porque de su `meta` salen las líneas que el despacho copia, y eso tiene
-     * que estar también al abrir un despacho ya guardado.
-     */
+    /** Y los pedidos contra el suyo, acotados al cliente elegido. */
     const source = useRemoteOption({
         url: salesOrders.lookup(companyId).url,
         seed: sourceSeed(initialData),
         hydrate: true,
+    });
+
+    /**
+     * Lo que al pedido elegido le queda por despachar, en su propia petición.
+     * Al abrir un despacho guardado se pide solo, conservando las líneas que
+     * ese despacho ya tenía atadas aunque su saldo esté en cero.
+     */
+    const pendingLines = usePendingOrderLines({
+        urlFor: (orderId, ids) =>
+            salesOrders.dispatchableLines(
+                { company: companyId, id: orderId },
+                { query: { ids } },
+            ).url,
+        initialOrderId: initialData?.sourceable_id ?? '',
+        initialLineIds: (initialData?.lines ?? [])
+            .filter((line) => line.status === 'active')
+            .map((line) => line.sourceable_id ?? ''),
     });
 
     /**
@@ -451,14 +467,23 @@ export function useDispatchForm({
     };
 
     /**
-     * Elegir el pedido copia su cabecera —cliente, bodega y dirección—, pero no
-     * sus líneas: casi nunca se despacha el pedido entero de una vez. Para
-     * traerlas está `copyOrderLines`.
+     * Elegir el pedido arma el despacho con lo que le queda por sacar: su
+     * cabecera —cliente, bodega y dirección— y sus líneas pendientes, cada una
+     * apuntando a la suya. Sustituye lo capturado: es el punto de partida del
+     * despacho, no un añadido.
+     *
+     * Lo ya despachado por completo no vuelve, y la cantidad queda editable:
+     * casi nunca sale el pedido entero de una vez.
+     *
+     * Las líneas se piden aparte y no viajan en el `meta` del select: el saldo
+     * solo interesa del pedido elegido.
      */
-    const selectSource = (option: AjaxOption | null) => {
+    const selectSource = async (option: AjaxOption | null) => {
         source.select(option);
 
         if (!option) {
+            pendingLines.clear();
+
             setData((current) => ({
                 ...current,
                 sourceable_type: '',
@@ -490,40 +515,10 @@ export function useDispatchForm({
             warehouse_id: meta.warehouse_id,
             lines: current.lines.map((line) => ({ ...line, location_id: '' })),
         }));
-    };
 
-    /** Las líneas del pedido elegido, tal como llegan en el `meta`. */
-    const orderLines: SalesOrderOptionLine[] =
-        (
-            (source.optionOf(data.sourceable_id)?.meta ??
-                {}) as Partial<SalesOrderOptionMeta>
-        ).lines ?? [];
+        const pending = await pendingLines.fetchLines(option.value);
 
-    const orderLineOf = (id: string): SalesOrderOptionLine | undefined =>
-        id ? orderLines.find((line) => line.id === id) : undefined;
-
-    /** Cuánto queda por despachar de una línea del pedido. */
-    const remainingOf = (orderLineId: string): number => {
-        const line = orderLineOf(orderLineId);
-
-        if (!line) {
-            return 0;
-        }
-
-        return round2(Number(line.quantity) - Number(line.dispatched_quantity));
-    };
-
-    /**
-     * Trae las líneas del pedido al formulario, cada una ya apuntando a la suya
-     * y con lo que aún queda por sacar. Sustituye lo capturado: es el punto de
-     * partida del despacho, no un añadido.
-     */
-    const copyOrderLines = () => {
-        const pending = orderLines.filter(
-            (line) =>
-                Number(line.quantity) - Number(line.dispatched_quantity) > 0,
-        );
-
+        /** Un pedido sin saldo deja intacto lo que ya se había capturado. */
         if (pending.length === 0) {
             return;
         }
@@ -534,9 +529,7 @@ export function useDispatchForm({
                 id: generateUUID(),
                 item_id: line.item_id,
                 measurement_unit_id: line.measurement_unit_id,
-                quantity: round2(
-                    Number(line.quantity) - Number(line.dispatched_quantity),
-                ),
+                quantity: round2(Number(line.pending_quantity)),
                 sourceable_id: line.id,
                 location_id: '',
                 lots: [],
@@ -545,6 +538,16 @@ export function useDispatchForm({
             })),
         );
     };
+
+    /** Las líneas del pedido elegido con su saldo, tal como las trajo el servidor. */
+    const orderLines = pendingLines.lines;
+
+    const orderLineOf = (id: string): PendingOrderLine | undefined =>
+        id ? orderLines.find((line) => line.id === id) : undefined;
+
+    /** Cuánto queda por despachar de una línea del pedido. */
+    const remainingOf = (orderLineId: string): number =>
+        round2(Number(orderLineOf(orderLineId)?.pending_quantity ?? 0));
 
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);
 
@@ -889,7 +892,8 @@ export function useDispatchForm({
         selectSource,
         orderLines,
         remainingOf,
-        copyOrderLines,
+        loadingOrderLines: pendingLines.loading,
+        orderLinesFailed: pendingLines.failed,
         selectWarehouse,
         routeLookupUrl: deliveryRoute.url,
         routeOption: deliveryRoute.optionOf(data.route_id),

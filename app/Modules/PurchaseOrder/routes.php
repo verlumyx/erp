@@ -22,6 +22,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/{id}', [PurchaseOrderGetController::class, 'show'])->where('id', $uuid)->name('purchase-orders.show');
             Route::get('/{id}/edit', [PurchaseOrderGetController::class, 'edit'])->where('id', $uuid)->name('purchase-orders.edit');
             Route::get('/{id}/invoiceable-lines', [PurchaseOrderGetController::class, 'invoiceableLines'])->where('id', $uuid)->name('purchase-orders.invoiceable-lines');
+            Route::get('/{id}/receivable-lines', [PurchaseOrderGetController::class, 'receivableLines'])->where('id', $uuid)->name('purchase-orders.receivable-lines');
             Route::put('/{id}', PurchaseOrderPutController::class)->where('id', $uuid)->name('purchase-orders.update');
             Route::put('/{id}/status', PurchaseOrderUpdateStatusController::class)->where('id', $uuid)->name('purchase-orders.update-status');
         });

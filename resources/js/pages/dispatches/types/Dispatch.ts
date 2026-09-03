@@ -196,30 +196,12 @@ export interface ClientOptionMeta {
     addresses?: ClientAddressOption[];
 }
 
-/** Una línea del pedido de origen, tal como llega en el `meta` de su opción. */
-export interface SalesOrderOptionLine {
-    id: string;
-    item_id: string;
-    item_name: string | null;
-    item_sku: string | null;
-    measurement_unit_id: string;
-    measurement_unit_name: string | null;
-    quantity: string;
-    /** Lo ya despachado: de ahí sale cuánto queda por sacar. */
-    dispatched_quantity: string;
-    reserved_quantity: string;
-    invoiced_quantity: string;
-    unit_price: string;
-    discount_percent: string;
-    tax_id: string | null;
-    tax_percent: string;
-    withholding_percent: string;
-    notes: string | null;
-}
-
 /**
  * Lo que el despacho copia del pedido que lo origina: viaja en el `meta` de la
  * opción que devuelve `sales-orders.lookup`.
+ *
+ * Las líneas no están aquí aunque el endpoint las mande: el saldo por despachar
+ * se pide aparte contra `sales-orders.dispatchable-lines`, ya calculado.
  */
 export interface SalesOrderOptionMeta {
     code: string;
@@ -230,7 +212,6 @@ export interface SalesOrderOptionMeta {
     salesperson_id: string | null;
     currency: string;
     status: string;
-    lines?: SalesOrderOptionLine[];
 }
 
 /** Una ubicación de bodega, tal como llega en las props del formulario. */

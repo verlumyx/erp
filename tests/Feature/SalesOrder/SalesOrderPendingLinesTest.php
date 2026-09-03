@@ -9,10 +9,11 @@ use App\Modules\SalesOrder\Models\SalesOrderLine;
 use function Pest\Laravel\actingAs;
 
 /**
- * Lo que a un pedido le queda por facturar.
+ * Lo que a un pedido le queda por cubrir.
  *
- * Lo pide la pantalla de la factura de venta en cuanto se elige el pedido, y de
- * ahí salen sus líneas.
+ * Son dos preguntas distintas sobre el mismo pedido: la factura de venta pide
+ * lo que falta por facturar y el despacho lo que falta por salir. Cada una
+ * tiene su ruta y las dos miden contra su propio avance.
  */
 test('it returns the lines with something left to invoice', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
@@ -145,4 +146,81 @@ test('a user without permission cannot ask what is left to invoice', function ()
             'id' => $order->id,
         ]))
         ->assertForbidden();
+});
+
+test('the dispatchable lines measure the saldo against what was dispatched', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $order = SalesOrder::factory()->confirmed()->create([
+        'company_id' => $company->id,
+        'client_id' => $client->id,
+        'warehouse_id' => $warehouse->id,
+    ]);
+
+    /* La misma línea debe 6 por facturar y solo 3 por salir. */
+    $line = SalesOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'sales_order_id' => $order->id,
+        'line_number' => 1,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 10,
+        'invoiced_quantity' => 4,
+        'dispatched_quantity' => 7,
+    ]);
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->getJson(route('sales-orders.dispatchable-lines', [
+            'company' => $company->id,
+            'id' => $order->id,
+        ]));
+
+    $response->assertOk();
+    expect($response->json('data.0.id'))->toBe($line->id);
+    expect((float) $response->json('data.0.dispatched_quantity'))->toBe(7.0);
+    expect((float) $response->json('data.0.invoiced_quantity'))->toBe(4.0);
+    /* Contra lo despachado, no contra lo facturado. */
+    expect((float) $response->json('data.0.pending_quantity'))->toBe(3.0);
+});
+
+test('a line already dispatched in full is left out unless the document already had it', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $order = SalesOrder::factory()->confirmed()->create([
+        'company_id' => $company->id,
+        'client_id' => $client->id,
+        'warehouse_id' => $warehouse->id,
+    ]);
+
+    $settled = SalesOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'sales_order_id' => $order->id,
+        'line_number' => 1,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 4,
+        'dispatched_quantity' => 4,
+    ]);
+
+    $url = route('sales-orders.dispatchable-lines', [
+        'company' => $company->id,
+        'id' => $order->id,
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->getJson($url)
+        ->assertOk()
+        ->assertJsonCount(0, 'data');
+
+    /*
+     * El despacho que ya la traía atada sí la recibe de vuelta: sin ella su
+     * pantalla no sabría a qué apunta esa línea.
+     */
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->getJson($url.'?ids='.$settled->id);
+
+    $response->assertOk();
+    expect($response->json('data'))->toHaveCount(1);
+    expect($response->json('data.0.id'))->toBe($settled->id);
+    expect((float) $response->json('data.0.pending_quantity'))->toBe(0.0);
 });

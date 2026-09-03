@@ -168,29 +168,12 @@ export interface EntryFilters {
     offset?: number;
 }
 
-/** Una línea de la orden de origen, tal como llega en el `meta` de su opción. */
-export interface PurchaseOrderOptionLine {
-    id: string;
-    line_number: number;
-    item_id: string;
-    item_code: string | null;
-    item_name: string | null;
-    measurement_unit_id: string;
-    measurement_unit_name: string | null;
-    quantity: string;
-    /** Lo ya recibido: de ahí sale cuánto queda por llegar. */
-    received_quantity: string;
-    unit_price: string;
-    discount_percent: string;
-    tax_id: string | null;
-    tax_percent: string;
-    withholding_percent: string;
-    notes: string | null;
-}
-
 /**
  * Lo que la entrada copia de la orden que la origina: viaja en el `meta` de la
  * opción que devuelve `purchase-orders.lookup`.
+ *
+ * Las líneas no están aquí aunque el endpoint las mande: el saldo por recibir
+ * se pide aparte contra `purchase-orders.receivable-lines`, ya calculado.
  */
 export interface PurchaseOrderOptionMeta {
     code: string;
@@ -201,7 +184,6 @@ export interface PurchaseOrderOptionMeta {
     payment_term_days: number;
     order_date: string | null;
     status: string;
-    lines?: PurchaseOrderOptionLine[];
 }
 
 /** Lo que la entrada sabe de un proveedor con solo haberlo elegido. */

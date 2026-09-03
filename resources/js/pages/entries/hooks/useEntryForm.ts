@@ -7,6 +7,10 @@ import {
     type ItemCatalogEntry,
 } from '@/hooks/use-item-catalog';
 import type { ItemCatalogSeed } from '@/hooks/use-item-catalog';
+import {
+    usePendingOrderLines,
+    type PendingOrderLine,
+} from '@/hooks/use-pending-order-lines';
 import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { generateUUID } from '@/lib/utils';
@@ -23,7 +27,6 @@ import {
     type EntryLine,
     type EntryOptions,
     type EntryType,
-    type PurchaseOrderOptionLine,
     type PurchaseOrderOptionMeta,
     type SupplierOptionMeta,
 } from '../types/Entry';
@@ -297,15 +300,27 @@ export function useEntryForm({
         seed: supplierSeed(initialData),
     });
 
-    /**
-     * Y las órdenes contra el suyo, acotadas al proveedor elegido. Se hidrata
-     * porque de su `meta` salen las líneas que la entrada copia, y eso tiene
-     * que estar también al abrir una entrada ya guardada.
-     */
+    /** Y las órdenes contra el suyo, acotadas al proveedor elegido. */
     const order = useRemoteOption({
         url: purchaseOrders.lookup(companyId).url,
         seed: orderSeed(initialData),
-        hydrate: true,
+    });
+
+    /**
+     * Lo que a la orden elegida le queda por recibir, en su propia petición.
+     * Al abrir una entrada guardada se pide sola, conservando las líneas que
+     * esa entrada ya tenía atadas aunque su saldo esté en cero.
+     */
+    const pendingLines = usePendingOrderLines({
+        urlFor: (orderId, ids) =>
+            purchaseOrders.receivableLines(
+                { company: companyId, id: orderId },
+                { query: { ids } },
+            ).url,
+        initialOrderId: initialData?.sourceable_id ?? '',
+        initialLineIds: (initialData?.lines ?? [])
+            .filter((line) => line.status === 'active')
+            .map((line) => line.sourceable_id ?? ''),
     });
 
     const initialCurrency =
@@ -429,69 +444,55 @@ export function useEntryForm({
     };
 
     /**
-     * Elegir la orden origen copia lo que la entrada hereda de ella —bodega y
-     * moneda—, pero no sus líneas: casi nunca llega la orden entera de una vez.
-     * Para traerlas está `copyOrderLines`.
+     * Elegir la orden origen arma la entrada con lo que le queda por llegar: su
+     * cabecera —bodega y moneda— y sus líneas pendientes, cada una apuntando a
+     * la suya. Sustituye lo capturado: es el punto de partida de la entrada, no
+     * un añadido.
+     *
+     * Lo ya recibido por completo no vuelve: no hay nada que esperar de ahí. Y
+     * la cantidad queda editable, porque lo que manda es lo que de verdad entró
+     * al muelle, no lo que se pidió.
+     *
+     * Las líneas se piden aparte y no viajan en el `meta` del select: el saldo
+     * solo interesa de la orden elegida.
      */
-    const selectOrder = (option: AjaxOption | null) => {
+    const selectOrder = async (option: AjaxOption | null) => {
         order.select(option);
 
-        const meta = (option?.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
+        if (!option) {
+            pendingLines.clear();
+
+            setData((current) => ({
+                ...current,
+                sourceable_type: '',
+                sourceable_id: '',
+                /** Sin orden no hay contra qué trazar las líneas. */
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_type: '',
+                    sourceable_id: '',
+                })),
+            }));
+
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
 
         setData((current) => ({
             ...current,
-            sourceable_type: option ? PURCHASE_ORDER : '',
-            sourceable_id: option?.value ?? '',
+            sourceable_type: PURCHASE_ORDER,
+            sourceable_id: option.value,
             warehouse_id: meta.warehouse_id ?? current.warehouse_id,
-            /** Sin orden no hay contra qué trazar las líneas. */
-            lines: current.lines.map((line) => ({
-                ...line,
-                sourceable_type: option ? line.sourceable_type : '',
-                sourceable_id: option ? line.sourceable_id : '',
-            })),
         }));
 
         if (meta.currency) {
             selectCurrency(meta.currency);
         }
-    };
 
-    /** Las líneas de la orden elegida, tal como llegan en el `meta`. */
-    const orderLines: PurchaseOrderOptionLine[] =
-        (
-            (order.optionOf(data.sourceable_id)?.meta ??
-                {}) as Partial<PurchaseOrderOptionMeta>
-        ).lines ?? [];
+        const pending = await pendingLines.fetchLines(option.value);
 
-    const orderLineOf = (id: string): PurchaseOrderOptionLine | undefined =>
-        id ? orderLines.find((line) => line.id === id) : undefined;
-
-    /** Cuánto queda por recibir de una línea de la orden. */
-    const pendingOf = (orderLineId: string): number => {
-        const source = orderLineOf(orderLineId);
-
-        if (!source) {
-            return 0;
-        }
-
-        return round2(
-            Number(source.quantity) - Number(source.received_quantity),
-        );
-    };
-
-    /**
-     * Trae las líneas de la orden al formulario, cada una ya apuntando a la
-     * suya y con lo que aún queda por llegar. Sustituye lo capturado: es el
-     * punto de partida de la entrada, no un añadido.
-     *
-     * Lo ya recibido por completo no vuelve: no hay nada que esperar de ahí.
-     */
-    const copyOrderLines = () => {
-        const pending = orderLines.filter(
-            (line) =>
-                Number(line.quantity) - Number(line.received_quantity) > 0,
-        );
-
+        /** Una orden sin saldo deja intacto lo que ya se había capturado. */
         if (pending.length === 0) {
             return;
         }
@@ -502,9 +503,7 @@ export function useEntryForm({
                 id: generateUUID(),
                 item_id: line.item_id,
                 measurement_unit_id: line.measurement_unit_id,
-                quantity: round2(
-                    Number(line.quantity) - Number(line.received_quantity),
-                ),
+                quantity: round2(Number(line.pending_quantity)),
                 rejected_quantity: 0,
                 rejection_reason: '',
                 sourceable_type: PURCHASE_ORDER_LINE,
@@ -516,6 +515,16 @@ export function useEntryForm({
             })),
         );
     };
+
+    /** Las líneas de la orden elegida con su saldo, tal como las trajo el servidor. */
+    const orderLines = pendingLines.lines;
+
+    const orderLineOf = (id: string): PendingOrderLine | undefined =>
+        id ? orderLines.find((line) => line.id === id) : undefined;
+
+    /** Cuánto queda por recibir de una línea de la orden. */
+    const pendingOf = (orderLineId: string): number =>
+        round2(Number(orderLineOf(orderLineId)?.pending_quantity ?? 0));
 
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);
 
@@ -839,7 +848,8 @@ export function useEntryForm({
         selectOrder,
         orderLines,
         pendingOf,
-        copyOrderLines,
+        loadingOrderLines: pendingLines.loading,
+        orderLinesFailed: pendingLines.failed,
         selectCurrency,
         selectWarehouse,
         selectEntryType,

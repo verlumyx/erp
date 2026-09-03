@@ -146,10 +146,13 @@ Además de las columnas comunes de línea:
 **Reglas**
 
 - Al confirmar, se incrementa `incoming_quantity` en `app_item_stocks`.
-- El **pendiente por facturar** de una línea se deriva: `quantity - invoiced_quantity`. No tiene columna propia —
-  `pending_quantity` es el pendiente por *recibir*— y lo expone
-  `GET /{company}/purchase-orders/{id}/invoiceable-lines`, que la pantalla de la factura de compra pide en cuanto
-  se elige la orden para armar sus líneas.
+- El saldo de una línea son **dos cuentas distintas**, una por cada camino que cumple la orden:
+  `quantity - received_quantity` es lo que falta por llegar y `quantity - invoiced_quantity` lo que falta por
+  facturar. Ninguna tiene columna propia: la columna `pending_quantity` es solo la primera, y no sirve para la
+  segunda. Cada una tiene su ruta —`GET /{company}/purchase-orders/{id}/receivable-lines` para la Entrada y
+  `.../invoiceable-lines` para la Factura de compra—, y la pantalla la pide en cuanto se elige la orden para
+  armar sus líneas. Ambas admiten `?ids=` para que vuelvan también las líneas que el documento ya tenía atadas
+  aunque su saldo esté en cero.
 - Solo se edita en `draft`. Confirmada, se modifica creando una nueva versión o anulando.
 - Se cierra automáticamente (`completed`) cuando todas las líneas tienen `pending_quantity = 0`.
 - Anular una orden con recepciones parciales exige anular primero las entradas asociadas.

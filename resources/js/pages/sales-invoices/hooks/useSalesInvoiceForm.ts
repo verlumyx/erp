@@ -3,9 +3,9 @@ import { useState } from 'react';
 import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
 import {
-    useInvoiceableOrderLines,
-    type InvoiceableOrderLine,
-} from '@/hooks/use-invoiceable-order-lines';
+    usePendingOrderLines,
+    type PendingOrderLine,
+} from '@/hooks/use-pending-order-lines';
 import {
     useItemCatalog,
     type ItemCatalogEntry,
@@ -287,7 +287,7 @@ function itemLabel(entry: ItemCatalogEntry): string {
  * lista del cliente diga hoy. Por eso `list_price` sale igual que `unit_price`:
  * así una revaluación posterior lo respeta como precio pactado.
  */
-function lineFromOrder(line: InvoiceableOrderLine): SalesInvoiceLineRow {
+function lineFromOrder(line: PendingOrderLine): SalesInvoiceLineRow {
     return {
         id: generateUUID(),
         sourceable_id: line.id,
@@ -361,11 +361,13 @@ export function useSalesInvoiceForm({
     });
 
     /** Lo que al pedido elegido le queda por facturar, en su propia petición. */
-    const invoiceableLines = useInvoiceableOrderLines(
-        (orderId) =>
-            salesOrders.invoiceableLines({ company: companyId, id: orderId })
-                .url,
-    );
+    const invoiceableLines = usePendingOrderLines({
+        urlFor: (orderId, ids) =>
+            salesOrders.invoiceableLines(
+                { company: companyId, id: orderId },
+                { query: { ids } },
+            ).url,
+    });
 
     const initialCurrency =
         initialData?.currency ?? configuration?.base_currency ?? '';
