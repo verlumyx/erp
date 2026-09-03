@@ -9,6 +9,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -74,7 +76,28 @@ return Application::configure(basePath: dirname(__DIR__))
                     return back()->with('error', 'El recurso solicitado no existe.');
                 }
 
-                return response('Not Found', 404);
+                /*
+                 * Una dirección abierta a mano o pegada de un chat no tiene a
+                 * dónde volver: en vez de un «Not Found» pelado se dibuja la
+                 * pantalla con las salidas, y la más útil es el listado del
+                 * módulo del que venía la dirección.
+                 *
+                 * Se deduce de la propia ruta, que en esta aplicación siempre
+                 * es `/{company}/{módulo}/...` con el listado nombrado
+                 * `{módulo}.index`. Si no cuadra —una ruta con otra forma— la
+                 * pantalla se queda sin ese botón y con los otros dos.
+                 */
+                $company = $request->segment(1) ?? '';
+                $module = $request->segment(2) ?? '';
+
+                $listUrl = Str::isUuid($company) && $module !== '' && Route::has("{$module}.index")
+                    ? route("{$module}.index", ['company' => $company])
+                    : null;
+
+                return Inertia::render('errors/404', [
+                    'message' => 'El registro que buscas no existe o fue movido.',
+                    'listUrl' => $listUrl,
+                ])->toResponse($request)->setStatusCode(404);
             }
 
             return $response;
