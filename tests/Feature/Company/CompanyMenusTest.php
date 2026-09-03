@@ -59,9 +59,9 @@ test('the owner sees the full tree without the system owner menu and the current
 
     $props = $response->baseResponse->original->getData()['page']['props'];
 
-    $mainTitles = collect($props['menus']['mainNavItems'])->pluck('title')->all();
-    $footerTitles = collect($props['menus']['footerNavItems'])->pluck('title')->all();
-    $store = collect($props['menus']['mainNavItems'])->firstWhere('title', 'Tienda');
+    $mainTitles = collect($props['menuTree']['mainNavItems'])->pluck('title')->all();
+    $footerTitles = collect($props['menuTree']['footerNavItems'])->pluck('title')->all();
+    $store = collect($props['menuTree']['mainNavItems'])->firstWhere('title', 'Tienda');
 
     expect($mainTitles)->toContain('Tienda')
         ->and(collect($store['children'])->pluck('title')->all())->toContain('Publicaciones')
@@ -130,4 +130,45 @@ test('an unknown menu id is rejected', function () {
             'disabled_menus' => ['0199a000-0000-7000-8000-000000000000'],
         ])
         ->assertSessionHasErrors('disabled_menus.0');
+});
+
+/**
+ * La prop del árbol no puede llamarse `menus`: ese nombre lo ocupa la prop que
+ * `HandleInertiaRequests` comparte con todas las páginas para dibujar el
+ * sidebar, y una prop de página la tapa.
+ *
+ * Las dos tienen la misma forma, así que el sidebar usaba este árbol sin
+ * enterarse y sus enlaces salían sin el prefijo de la empresa: desde esta
+ * pantalla, entrar a cualquier módulo daba 404.
+ */
+test('the page does not shadow the shared sidebar menus', function () {
+    [$user, $company] = createUserWithCompany();
+    $user->update(['is_system_owner' => true]);
+    $this->seed(MenuSeeder::class);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('companies.menus.edit', ['company' => $company->id, 'id' => $company->id]));
+
+    $response->assertOk();
+
+    $props = $response->baseResponse->original->getData()['page']['props'];
+
+    /** El árbol que se edita viaja con su propio nombre. */
+    expect($props)->toHaveKeys(['menuTree', 'menus']);
+
+    /** Y el del sidebar sigue llegando con las URLs de la empresa. */
+    $urls = collect($props['menus']['mainNavItems'])
+        ->flatMap(fn (array $item): array => [
+            $item['url'],
+            ...collect($item['children'] ?? [])->pluck('url')->all(),
+        ])
+        ->filter()
+        ->all();
+
+    expect($urls)->not->toBeEmpty();
+
+    foreach ($urls as $url) {
+        expect($url)->toStartWith('/'.$company->id.'/');
+    }
 });

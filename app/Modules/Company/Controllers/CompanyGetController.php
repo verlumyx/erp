@@ -85,7 +85,14 @@ class CompanyGetController extends Controller
 
         return Inertia::render('companies/menus', [
             'company' => $model,
-            'menus' => $this->menusTreeService->execute(),
+            /*
+             * `menuTree` y no `menus`: ese nombre ya lo ocupa la prop
+             * compartida con la que se dibuja el sidebar, y una prop de página
+             * la tapa. Como las dos tienen la misma forma, el sidebar usaba
+             * este árbol sin enterarse y sus enlaces salían sin el prefijo de
+             * la empresa: navegar a otro módulo desde aquí daba 404.
+             */
+            'menuTree' => $this->menusTreeService->execute(),
             'disabled_menus' => $this->disabledMenus->disabledMenuIds($model->id),
         ]);
     }
