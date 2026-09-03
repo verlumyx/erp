@@ -25,11 +25,17 @@ interface PermissionRepositoryInterface
     /** @return array{ data: Permission[], total: int } */
     public function search(SearchPermissionCommand $command): array;
 
-    /** @return array<string> */
-    public function getAllPermissionsFlat(): array;
+    /**
+     * Con empresa, deja fuera los módulos cuyos menús esa empresa no ve.
+     *
+     * @return array<string>
+     */
+    public function getAllPermissionsFlat(?string $companyId = null): array;
 
     /**
+     * Con empresa, deja fuera los módulos cuyos menús esa empresa no ve.
+     *
      * @return array<array{id: string, name: string, label: string, icon: string|null, group: array{title: string, icon: string|null}|null, permissions: array<array{id: string, action: string, label: string}>}>
      */
-    public function getAllGroupedByModule(): array;
+    public function getAllGroupedByModule(?string $companyId = null): array;
 }

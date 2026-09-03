@@ -95,11 +95,18 @@ class RoleGetController extends Controller
     }
 
     /** @return array<string, mixed> */
+    /**
+     * Los permisos de los menús que la empresa no ve no se ofrecen: un rol no
+     * puede dar acceso a algo que la empresa no tiene.
+     */
     private function buildPermissionsPayload(): array
     {
+        $companyId = session('current_company_id');
+        $companyId = is_string($companyId) ? $companyId : null;
+
         return [
-            'modules' => $this->permissionRepository->getAllGroupedByModule(),
-            'all' => $this->permissionRepository->getAllPermissionsFlat(),
+            'modules' => $this->permissionRepository->getAllGroupedByModule($companyId),
+            'all' => $this->permissionRepository->getAllPermissionsFlat($companyId),
         ];
     }
 }

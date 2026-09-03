@@ -93,13 +93,26 @@ class User extends Authenticatable
             return [];
         }
 
+        $companyId = session('current_company_id');
+
         if ($role->permission_type === 'all') {
             $permissionRepository = app(\App\Modules\Permission\Repositories\Contracts\PermissionRepositoryInterface::class);
 
-            return $permissionRepository->getAllPermissionsFlat();
+            return $permissionRepository->getAllPermissionsFlat($companyId);
         }
 
-        return $role->permissions()->pluck('permission')->toArray();
+        /**
+         * Un rol pudo recibir el permiso antes de que la empresa perdiera el
+         * menú; mientras el menú siga escondido, el permiso tampoco se anuncia.
+         */
+        $disabledModules = app(\App\Modules\Shared\Repositories\Contracts\CompanyDisabledMenuRepositoryInterface::class)
+            ->disabledModuleNames($companyId);
+
+        return $role->permissions()
+            ->pluck('permission')
+            ->reject(fn (string $permission): bool => in_array(\Illuminate\Support\Str::before($permission, '.'), $disabledModules, true))
+            ->values()
+            ->toArray();
     }
 
     private function getCurrentCompanyRole(): ?Role

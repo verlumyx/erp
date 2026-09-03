@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Menu\Models;
 
+use Database\Factories\MenuFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -46,5 +47,10 @@ class Menu extends Model
         return $this->hasMany(Menu::class, 'parent_id', 'id')
             ->where('is_active', true)
             ->orderBy('order');
+    }
+
+    protected static function newFactory(): MenuFactory
+    {
+        return MenuFactory::new();
     }
 }

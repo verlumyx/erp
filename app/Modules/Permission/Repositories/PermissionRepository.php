@@ -10,9 +10,14 @@ use App\Modules\Permission\Commands\UpdatePermissionCommand;
 use App\Modules\Permission\Commands\UpdateStatusPermissionCommand;
 use App\Modules\Permission\Models\Permission;
 use App\Modules\Permission\Repositories\Contracts\PermissionRepositoryInterface;
+use App\Modules\Shared\Repositories\Contracts\CompanyDisabledMenuRepositoryInterface;
 
 class PermissionRepository extends PermissionFilters implements PermissionRepositoryInterface
 {
+    public function __construct(
+        private readonly CompanyDisabledMenuRepositoryInterface $disabledMenus,
+    ) {}
+
     /**
      * Módulos exclusivos del dueño del sistema: su acceso no se gestiona por roles,
      * por lo que sus permisos no se listan en el árbol ni se otorgan a roles "all".
@@ -84,11 +89,11 @@ class PermissionRepository extends PermissionFilters implements PermissionReposi
     /**
      * @return array<string>
      */
-    public function getAllPermissionsFlat(): array
+    public function getAllPermissionsFlat(?string $companyId = null): array
     {
         return Permission::query()
             ->where('is_active', true)
-            ->whereNotIn('module_id', $this->ownerOnlyModuleIds())
+            ->whereNotIn('module_id', $this->excludedModuleIds($companyId))
             ->orderBy('order')
             ->pluck('action')
             ->toArray();
@@ -101,13 +106,13 @@ class PermissionRepository extends PermissionFilters implements PermissionReposi
      *
      * @return array<array{id: string, name: string, label: string, icon: string|null, group: array{title: string, icon: string|null}|null, permissions: array<array{id: string, action: string, label: string}>}>
      */
-    public function getAllGroupedByModule(): array
+    public function getAllGroupedByModule(?string $companyId = null): array
     {
         $menuGroups = $this->menuGroupsByModule();
 
         $modules = \Illuminate\Support\Facades\DB::table('app_modules')
             ->where('is_active', true)
-            ->whereNotIn('name', self::OWNER_ONLY_MODULES)
+            ->whereNotIn('name', $this->excludedModuleNames($companyId))
             ->orderBy('order')
             ->get(['id', 'name', 'label', 'icon', 'order']);
 
@@ -196,12 +201,30 @@ class PermissionRepository extends PermissionFilters implements PermissionReposi
     }
 
     /**
+     * Los del dueño del sistema más, si hay empresa, los que esa empresa no ve
+     * en su menú: un permiso de un módulo escondido no tiene sentido en un rol.
+     *
      * @return array<int, string>
      */
-    private function ownerOnlyModuleIds(): array
+    private function excludedModuleNames(?string $companyId): array
+    {
+        if ($companyId === null) {
+            return self::OWNER_ONLY_MODULES;
+        }
+
+        return array_values(array_unique([
+            ...self::OWNER_ONLY_MODULES,
+            ...$this->disabledMenus->disabledModuleNames($companyId),
+        ]));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function excludedModuleIds(?string $companyId): array
     {
         return \Illuminate\Support\Facades\DB::table('app_modules')
-            ->whereIn('name', self::OWNER_ONLY_MODULES)
+            ->whereIn('name', $this->excludedModuleNames($companyId))
             ->pluck('id')
             ->all();
     }
