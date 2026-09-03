@@ -42,6 +42,10 @@ DECLARE
     v_mod_adjust      UUID;
     v_mod_transfers   UUID;
     v_mod_routes      UUID;
+    v_mod_store_items UUID;
+    v_mod_store_cust  UUID;
+    v_mod_store_ord   UUID;
+    v_mod_store_set   UUID;
 BEGIN
 
     -- ==========================================================
@@ -86,7 +90,11 @@ BEGIN
         (gen_random_uuid(), 'entries', 'Entradas', 'Recepción física de mercancía en bodega: ingresa inventario al costo con flete y gastos prorrateados', 'PackagePlus', true, 33, NOW(), NOW()),
         (gen_random_uuid(), 'transfers', 'Traslados', 'Movimiento de mercancía entre bodegas propias: cambia su ubicación, no el valor del inventario', 'ArrowLeftRight', true, 34, NOW(), NOW()),
         (gen_random_uuid(), 'adjustments', 'Ajustes', 'Corrección de existencias por conteo físico, merma, daño o error de captura: el único documento que mueve inventario sin una operación comercial detrás', 'ClipboardCheck', true, 35, NOW(), NOW()),
-        (gen_random_uuid(), 'routes', 'Rutas', 'Recorridos de entrega y cobro: agrupan clientes y ordenan las paradas para despachar y cobrar', 'Route', true, 36, NOW(), NOW())
+        (gen_random_uuid(), 'routes', 'Rutas', 'Recorridos de entrega y cobro: agrupan clientes y ordenan las paradas para despachar y cobrar', 'Route', true, 36, NOW(), NOW()),
+        (gen_random_uuid(), 'store-items', 'Publicaciones', 'Artículos publicados en la tienda en línea con sus fotos y textos comerciales', 'Store', true, 37, NOW(), NOW()),
+        (gen_random_uuid(), 'store-customers', 'Compradores', 'Cuentas con las que se compra en la tienda en línea y su vínculo con el cliente del ERP', 'UserRound', true, 38, NOW(), NOW()),
+        (gen_random_uuid(), 'store-orders', 'Pedidos web', 'Bandeja de pedidos que llegan desde la tienda en línea y se convierten en órdenes de venta', 'ShoppingCart', true, 39, NOW(), NOW()),
+        (gen_random_uuid(), 'store-settings', 'Ajustes de tienda', 'Nombre, logo, contacto, lista, bodega y llave de acceso de la tienda en línea', 'Settings2', true, 40, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -126,6 +134,10 @@ BEGIN
     SELECT id INTO v_mod_adjust      FROM app_modules WHERE name = 'adjustments';
     SELECT id INTO v_mod_transfers   FROM app_modules WHERE name = 'transfers';
     SELECT id INTO v_mod_routes      FROM app_modules WHERE name = 'routes';
+    SELECT id INTO v_mod_store_items FROM app_modules WHERE name = 'store-items';
+    SELECT id INTO v_mod_store_cust  FROM app_modules WHERE name = 'store-customers';
+    SELECT id INTO v_mod_store_ord   FROM app_modules WHERE name = 'store-orders';
+    SELECT id INTO v_mod_store_set   FROM app_modules WHERE name = 'store-settings';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -519,6 +531,46 @@ BEGIN
     VALUES
         (gen_random_uuid(), v_mod_inv_moves, 'inventory-movements.list', 'Listar movimientos de inventario', true, 1, NOW(), NOW()),
         (gen_random_uuid(), v_mod_inv_moves, 'inventory-movements.show', 'Ver detalle de un movimiento',     true, 2, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Tienda: Publicaciones
+    -- Maestro: se activa y se desactiva. Sin `show` propio: la pantalla de
+    -- edición muestra en modo lectura lo que viene del artículo.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_store_items, 'store-items.list',          'Listar publicaciones',                true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_items, 'store-items.create',        'Publicar artículos en la tienda',     true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_items, 'store-items.edit',          'Editar publicaciones y su galería',   true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_items, 'store-items.update-status', 'Mostrar u ocultar una publicación',   true, 4, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Tienda: Compradores
+    -- Sin permiso de creación: el comprador nace al registrarse en la tienda
+    -- o al invitarlo desde la pantalla del cliente (`link`).
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_store_cust, 'store-customers.list',          'Listar compradores',                          true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_cust, 'store-customers.show',          'Ver detalle de un comprador',                 true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_cust, 'store-customers.link',          'Vincular un comprador o invitar a un cliente', true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_cust, 'store-customers.update-status', 'Activar o bloquear un comprador',             true, 4, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Tienda: Pedidos web
+    -- Sin creación ni edición: el pedido lo arma el comprador y aquí solo se
+    -- convierte en orden de venta o se rechaza.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_store_ord, 'store-orders.list',    'Listar pedidos web',                      true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_ord, 'store-orders.show',    'Ver detalle de un pedido web',            true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_ord, 'store-orders.convert', 'Convertir un pedido web en orden de venta', true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_store_ord, 'store-orders.reject',  'Rechazar un pedido web',                  true, 4, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Tienda: Ajustes
+    -- Singleton por empresa: un solo permiso, editar (que incluye generar la llave).
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_store_set, 'store-settings.edit', 'Editar los ajustes de la tienda y su llave', true, 1, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
 END $$;

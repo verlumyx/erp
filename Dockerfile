@@ -7,6 +7,9 @@ RUN apk add --no-cache \
     git \
     curl \
     libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    freetype-dev \
     libxml2-dev \
     zip \
     unzip \
@@ -17,7 +20,9 @@ RUN apk add --no-cache \
     nodejs \
     npm
 
-RUN docker-php-ext-install \
+RUN docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install \
+    gd \
     pdo \
     pdo_pgsql \
     pgsql \
@@ -66,6 +71,9 @@ RUN apk add --no-cache \
     curl \
     unzip \
     libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    freetype-dev \
     libxml2-dev \
     postgresql-dev \
     oniguruma-dev \
@@ -75,7 +83,9 @@ RUN apk add --no-cache \
     nodejs \
     npm
 
-RUN docker-php-ext-install \
+RUN docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install \
+    gd \
     pdo \
     pdo_pgsql \
     pgsql \
@@ -113,6 +123,9 @@ FROM php:8.5-fpm-alpine AS production
 
 RUN apk add --no-cache \
     libpng-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    freetype-dev \
     libxml2-dev \
     postgresql-dev \
     oniguruma-dev \
@@ -123,7 +136,9 @@ RUN apk add --no-cache \
 # Note: Zend OPcache is already compiled into the php:8.5 base image,
 # so it must not be passed to docker-php-ext-install. It is configured
 # via docker/php/opcache.ini below.
-RUN docker-php-ext-install \
+RUN docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
+    && docker-php-ext-install \
+    gd \
     pdo \
     pdo_pgsql \
     pgsql \

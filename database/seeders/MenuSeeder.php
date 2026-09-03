@@ -400,6 +400,66 @@ class MenuSeeder extends Seeder
                 ],
             ],
 
+            /**
+             * Tienda: grupo padre sin URL ni permiso propio. Solo lo ven las
+             * empresas cuyos usuarios tienen permisos de la tienda en línea.
+             */
+            [
+                'parent_id' => null,
+                'title' => 'Tienda',
+                'icon' => 'Store',
+                'url' => null,
+                'permission' => null,
+                'order' => 8,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Publicaciones',
+                        'icon' => 'Store',
+                        'url' => '/store-items',
+                        'permission' => 'store-items.list',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Compradores',
+                        'icon' => 'UserRound',
+                        'url' => '/store-customers',
+                        'permission' => 'store-customers.list',
+                        'order' => 2,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Pedidos web',
+                        'icon' => 'ShoppingCart',
+                        'url' => '/store-orders',
+                        'permission' => 'store-orders.list',
+                        'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        /*
+                         * «Ajuste de tienda» y no «Ajustes»: el upsert de este
+                         * seeder busca por `title` + `section`, así que dos
+                         * entradas con el mismo título son la misma fila. Con
+                         * las dos llamadas «Ajustes», esta pisaba a la de
+                         * Logística y esa desaparecía del menú.
+                         */
+                        'title' => 'Ajuste de tienda',
+                        'icon' => 'Settings2',
+                        'url' => '/store-settings',
+                        'permission' => 'store-settings.edit',
+                        'order' => 4,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
+
             // Footer navigation (admin section)
             [
                 'parent_id' => null,

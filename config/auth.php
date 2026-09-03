@@ -45,6 +45,17 @@ return [
             'driver' => 'sanctum',
             'provider' => 'users',
         ],
+
+        /*
+         * Compradores de la tienda en línea: mismo driver de tokens que la
+         * API móvil, pero contra su propia tabla. Sanctum rechaza un token
+         * cuyo dueño no sea del provider del guard, así que cada modelo
+         * autenticable necesita el suyo.
+         */
+        'store' => [
+            'driver' => 'sanctum',
+            'provider' => 'store_customers',
+        ],
     ],
 
     /*
@@ -68,6 +79,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Modules\User\Models\User::class),
+        ],
+
+        'store_customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Modules\Store\Models\StoreCustomer::class,
         ],
 
         // 'users' => [

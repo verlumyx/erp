@@ -173,5 +173,5 @@ test('compras and ventas are ordered after inventario', function () {
         ->pluck('title')
         ->all();
 
-    expect($orders)->toBe(['Dashboard', 'Catálogo', 'Inventario', 'Compras', 'Ventas', 'Logística']);
+    expect($orders)->toBe(['Dashboard', 'Catálogo', 'Inventario', 'Compras', 'Ventas', 'Logística', 'Tienda']);
 });

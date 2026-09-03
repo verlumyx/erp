@@ -19,6 +19,7 @@ import { Card } from '@/components/ui/card';
 import { WhatsAppAction } from '@/components/whatsapp-button';
 import AppLayout from '@/layouts/app-layout';
 import { mesesDesde } from '@/lib/crm-demo';
+import { StoreClientCard } from '@/pages/store/components/StoreClientCard';
 import clients from '@/routes/clients';
 import type { BreadcrumbItem } from '@/types';
 import {
@@ -327,6 +328,8 @@ export default function ClientsShow({ client }: Props) {
                         )}
                     </div>
                 </Card>
+
+                <StoreClientCard clientId={client.id} />
 
                 {client.notes && (
                     <Card className="gap-2 rounded-2xl px-[18px] py-4">

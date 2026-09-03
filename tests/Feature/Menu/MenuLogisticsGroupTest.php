@@ -73,5 +73,5 @@ test('logistica is ordered after ventas', function () {
         ->pluck('title')
         ->all();
 
-    expect($orders)->toBe(['Dashboard', 'Catálogo', 'Inventario', 'Compras', 'Ventas', 'Logística']);
+    expect($orders)->toBe(['Dashboard', 'Catálogo', 'Inventario', 'Compras', 'Ventas', 'Logística', 'Tienda']);
 });

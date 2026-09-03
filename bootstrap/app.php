@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'company.access' => \App\Http\Middleware\EnsureUserBelongsToCompany::class,
             'company.access.api' => \App\Http\Middleware\EnsureUserBelongsToCompanyApi::class,
+            'store.key' => \App\Http\Middleware\AuthenticateStoreKey::class,
+            'store.customer' => \App\Http\Middleware\AuthenticateStoreCustomer::class,
         ]);
 
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);

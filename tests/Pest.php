@@ -2426,3 +2426,167 @@ function stockSalesOrderWarehouse(
 
     return $location->refresh();
 }
+
+/**
+ * Tienda en línea: usuario + empresa (USD/VES) con los ajustes de tienda
+ * encendidos y una llave conocida (`stk_test-key`), más la lista de precio,
+ * la bodega y la unidad con las que se publica un artículo.
+ *
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Store\Models\StoreSetting,
+ *     3: \App\Modules\PriceList\Models\PriceList,
+ *     4: \App\Modules\Warehouse\Models\Warehouse,
+ *     5: \App\Modules\MeasurementUnit\Models\MeasurementUnit
+ * }
+ */
+function storeScenario(): array
+{
+    [$user, $company] = createUserWithCompany();
+
+    $priceList = \App\Modules\PriceList\Models\PriceList::factory()
+        ->create(['company_id' => $company->id]);
+
+    $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()
+        ->create(['company_id' => $company->id]);
+
+    $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()
+        ->create(['company_id' => $company->id]);
+
+    $settings = \App\Modules\Store\Models\StoreSetting::factory()
+        ->enabledWithKey()
+        ->create([
+            'company_id' => $company->id,
+            'price_list_id' => $priceList->id,
+            'warehouse_id' => null,
+            'created_by' => $user->id,
+        ]);
+
+    return [$user, $company, $settings, $priceList, $warehouse, $unit];
+}
+
+/**
+ * Artículo vendible de la empresa con su unidad base, ya publicado en la
+ * tienda. Devuelve el artículo y su publicación.
+ *
+ * @param  array<string, mixed>  $itemOverrides
+ * @param  array<string, mixed>  $storeItemOverrides
+ * @return array{0: \App\Modules\Item\Models\Item, 1: \App\Modules\Store\Models\StoreItem}
+ */
+function publishedItem(
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $itemOverrides = [],
+    array $storeItemOverrides = [],
+): array {
+    $item = \App\Modules\Item\Models\Item::factory()
+        ->create(['company_id' => $company->id, ...$itemOverrides]);
+
+    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    $storeItem = \App\Modules\Store\Models\StoreItem::factory()
+        ->create(['company_id' => $company->id, 'item_id' => $item->id, ...$storeItemOverrides]);
+
+    return [$item, $storeItem];
+}
+
+/** Cabecera con la llave de `storeScenario()`. */
+function storeKeyHeaders(string $key = 'stk_test-key'): array
+{
+    return ['X-Store-Key' => $key, 'Accept' => 'application/json'];
+}
+
+/**
+ * Tienda encendida con llave conocida (`stk_test-key`), lista de precio,
+ * bodega y un producto visible con precio y unidad base. Es lo mínimo para
+ * que un comprador pueda pedir algo.
+ *
+ * @return array{
+ *     user: \App\Modules\User\Models\User,
+ *     company: \App\Modules\Company\Models\Company,
+ *     settings: \App\Modules\Store\Models\StoreSetting,
+ *     price_list: \App\Modules\PriceList\Models\PriceList,
+ *     warehouse: \App\Modules\Warehouse\Models\Warehouse,
+ *     unit: \App\Modules\MeasurementUnit\Models\MeasurementUnit,
+ *     item: \App\Modules\Item\Models\Item,
+ *     store_item: \App\Modules\Store\Models\StoreItem,
+ * }
+ */
+function storeOrderScenario(array $settingsOverrides = []): array
+{
+    [$user, $company] = createUserWithCompany();
+
+    $priceList = \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $company->id]);
+    $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()->create(['company_id' => $company->id]);
+    $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()->create(['company_id' => $company->id]);
+
+    $item = \App\Modules\Item\Models\Item::factory()->create(['company_id' => $company->id]);
+
+    \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    \App\Modules\Item\Models\ItemPrice::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'price_list_id' => $priceList->id,
+        'price' => 45,
+        'currency' => 'USD',
+    ]);
+
+    $storeItem = \App\Modules\Store\Models\StoreItem::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'created_by' => $user->id,
+    ]);
+
+    $settings = \App\Modules\Store\Models\StoreSetting::factory()
+        ->enabledWithKey()
+        ->allowingOrders()
+        ->create([
+            'company_id' => $company->id,
+            'price_list_id' => $priceList->id,
+            'warehouse_id' => $warehouse->id,
+            'store_url' => 'https://tienda.test',
+            'created_by' => $user->id,
+            ...$settingsOverrides,
+        ]);
+
+    todayExchangeRate($company, $user);
+
+    return [
+        'user' => $user,
+        'company' => $company,
+        'settings' => $settings,
+        'price_list' => $priceList,
+        'warehouse' => $warehouse,
+        'unit' => $unit,
+        'item' => $item,
+        'store_item' => $storeItem,
+    ];
+}
+
+/** Token Sanctum de un comprador con la habilidad de la tienda. */
+function storeCustomerToken(\App\Modules\Store\Models\StoreCustomer $customer): string
+{
+    return $customer->createToken('test', [\App\Modules\Store\Models\StoreCustomer::TOKEN_ABILITY])->plainTextToken;
+}
+
+/** Cabeceras con las que la tienda habla con la API pública. */
+function storeApiHeaders(?\App\Modules\Store\Models\StoreCustomer $customer = null, string $key = 'stk_test-key'): array
+{
+    $headers = ['X-Store-Key' => $key, 'Accept' => 'application/json'];
+
+    if ($customer !== null) {
+        $headers['Authorization'] = 'Bearer '.storeCustomerToken($customer);
+    }
+
+    return $headers;
+}

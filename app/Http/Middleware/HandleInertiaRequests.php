@@ -126,6 +126,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'store_api_key' => $request->session()->get('store_api_key'),
             ],
             'menus' => $menus,
             'currentCompany' => $currentCompany,

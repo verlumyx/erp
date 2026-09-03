@@ -36,7 +36,7 @@ Hay tres tipos de tabla, y de ahí depende qué columnas base lleva:
 | **Tabla de módulo**  | Entidad con pantalla y CRUD propio: se lista, se crea y se edita por sí sola.                                                                                                      | `id`, `company_id`, `code`, `status`, `created_by`, timestamps |
 | **Tabla de detalle** | Filas que solo existen dentro de un padre: líneas de documento, contactos, direcciones, precios de una lista, aplicaciones de pago, saldos. Se editan desde la pantalla del padre. | `id`, `company_id`, `status`, timestamps (**sin `code`**)      |
 | **Catálogo global**  | Lista fija del sistema, igual para todas las empresas y sin pantalla de captura. Hoy solo `app_currencies`.                                                                        | `id`, `status`, timestamps (**sin `company_id` ni `code`**)    |
-| **Singleton por empresa** | Una sola fila por empresa: no se lista, no se crea a mano y no se elimina ni se desactiva. Hoy solo `app_configurations`. Ver [monedas.md](monedas.md).                        | `id`, `company_id` (`unique`), `created_by`, timestamps (**sin `code` ni `status`**) |
+| **Singleton por empresa** | Una sola fila por empresa: no se lista, no se crea a mano y no se elimina ni se desactiva. Hoy `app_configurations` (ver [monedas.md](monedas.md)) y `app_store_settings` (ver [tienda.md](tienda.md)). | `id`, `company_id` (`unique`), `created_by`, timestamps (**sin `code` ni `status`**) |
 
 Las de detalle **no** llevan `code` porque no se numeran de forma independiente: se identifican por su padre más su
 `line_number` o su combinación única. Sí llevan `company_id` (para filtrar y reportar sin join contra el padre) y
@@ -54,6 +54,7 @@ no aplica se desactiva, no se elimina.
 | Logística  | `app_dispatches`, `app_transfers`, `app_entries`, `app_routes`, `app_adjustments`                                                                                      |
 | Compras    | `app_suppliers`, `app_purchase_orders`, `app_purchase_invoices`, `app_purchase_credit_notes`, `app_supplier_advances`, `app_supplier_payments`, `app_purchase_returns` |
 | Ventas     | `app_clients`, `app_sales_orders`, `app_sales_invoices`, `app_sales_credit_notes`, `app_client_advances`, `app_client_collections`, `app_sales_returns`                |
+| Tienda     | `app_store_items`, `app_store_customers`, `app_store_orders`                                                                                                           |
 
 **Tablas de detalle** (sin `code`, con `company_id` + `status`):
 
@@ -61,7 +62,7 @@ no aplica se desactiva, no se elimina.
 `app_supplier_contacts`, `app_supplier_addresses`, `app_client_contacts`, `app_client_addresses`,
 `app_route_stops`, `app_route_clients`, `app_supplier_payment_applications`,
 `app_client_collection_applications`, `app_entry_line_lots`, `app_entry_line_serials`,
-`app_dispatch_line_lots`, `app_dispatch_line_serials` y todas las tablas `*_lines`.
+`app_dispatch_line_lots`, `app_dispatch_line_serials`, `app_store_item_images` y todas las tablas `*_lines`.
 
 `app_item_stocks` es un caso especial: es una tabla **derivada** (el saldo calculado del kardex). No se captura ni se
 edita a mano, pero lleva `company_id` y `status` como el resto.
@@ -260,6 +261,8 @@ empresas pueden tener cada una su `FVE000001`.
 | `UBI`   | Ubicación de bodega         | `COB`   | Cobro a cliente           |
 | `LOT`   | Lote                        | `DVV`   | Devolución de venta       |
 | `SER`   | Número de serie             | `TAS`   | Tasa de cambio            |
+| `PUB`   | Publicaciones de tienda     | `CWE`   | Compradores de tienda     |
+| `PWE`   | Pedidos web                 |         |                           |
 
 ### Arquitectura
 

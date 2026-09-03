@@ -47,4 +47,5 @@ return [
     App\Modules\Route\Providers\RouteServiceProvider::class,
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,
+    App\Modules\Store\Providers\StoreServiceProvider::class,
 ];
