@@ -216,13 +216,16 @@ export const SALE_TYPE_LABELS: Record<SaleType, string> = {
  * El ciclo de la factura es dirigido y debe reflejar
  * `SalesInvoice::STATUS_TRANSITIONS` del backend: si divergen, la pantalla
  * ofrece acciones que el request rechaza.
+ *
+ * `completed` no se ofrece: la factura se cierra sola cuando se cobra, y la
+ * cobran los cobros, los anticipos y las notas de crédito.
  */
 export const STATUS_TRANSITIONS: Record<
     SalesInvoiceStatus,
     SalesInvoiceStatus[]
 > = {
     draft: ['confirmed', 'cancelled'],
-    confirmed: ['completed', 'cancelled'],
+    confirmed: ['cancelled'],
     completed: [],
     cancelled: [],
 };

@@ -580,8 +580,10 @@ Sin cantidad: una serie **es** una unidad. La fila solo nombra qué unidad entra
 
 ## 6. Importaciones
 
-> **Diseño en revisión.** El módulo todavía no existe: esta ficha es la especificación que hay que aprobar
-> antes de construirlo, y lo que propone cambia además dos módulos ya hechos. Ese cambio está en §6.7.
+> **Construido.** El módulo existe: `app/Modules/Import`, tablas `app_imports`, `app_import_costs`,
+> `app_import_entries`, `app_import_lines` y `app_import_line_lots`. Lo que §6.7 daba por hecho está hecho;
+> lo que daba por pendiente —el vínculo entre la entrada y la factura— sigue pendiente, y por eso las
+> recepciones de un expediente se eligen a mano en vez de proponerse desde la factura.
 
 Expediente de costos de una importación. Junta **lo que costó traer** la mercancía —flete, seguro, aduana,
 almacenaje— con **lo que llegó** de ella, reparte lo primero entre lo segundo y deja el inventario valorado al
@@ -864,10 +866,16 @@ algo estructurado que tomar en vez de un campo suelto de cabecera.
 **Lo que sigue pendiente es el vínculo entre la entrada y la factura**, que hoy no existe: `app_purchase_invoices.entry_id`
 está declarado pero no se valida contra la tabla ni contra la empresa, ninguna pantalla lo llena y nadie lo lee;
 y `app_entries.is_invoiced` solo se escribe como `no` al crearse, así que su filtro no filtra nada. Sin ese
-vínculo la sección de costos no puede ofrecer las recepciones que le corresponden a una factura, y hay que
-elegirlas a mano. Es el prerrequisito del módulo, y va con la convención de
-[documentos-origen.md](documentos-origen.md): la entrada como documento origen de la factura, con su endpoint
-`invoiceable-lines` y el avance en la línea.
+vínculo la sección de costos no puede ofrecer las recepciones que le corresponden a una factura, y **hay que
+elegirlas a mano**: es lo que hoy hace el expediente, contra su propio endpoint `imports.entries`, que ofrece
+las entradas confirmadas de su bodega y esconde las que ya tomó otro expediente vivo. Cerrarlo va con la
+convención de [documentos-origen.md](documentos-origen.md): la entrada como documento origen de la factura, con
+su endpoint `invoiceable-lines` y el avance en la línea.
+
+**Lo que el expediente le pidió al ajuste.** La fila de lote de un ajuste de revaluación admite ahora un
+`unit_cost` propio; sin él sigue mandando el de la línea, como antes. Hacía falta porque el reparto es por lote:
+dos cajas de la misma línea tienen distinto saldo vivo y por tanto distinto costo nuevo, y una sola columna en la
+línea no podía expresarlo.
 
 ---
 

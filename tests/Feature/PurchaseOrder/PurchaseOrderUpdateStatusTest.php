@@ -102,7 +102,7 @@ test('a cancelled order is a terminal state', function () {
     expect($order->refresh()->status)->toBe('cancelled');
 });
 
-test('a confirmed order can advance to partial and then to completed', function () {
+test('a confirmed order cannot be declared partial or completed by hand', function () {
     [$user, $company, $supplier, $warehouse] = purchaseOrderScenario();
 
     $order = PurchaseOrder::factory()->confirmed()->create([
@@ -112,21 +112,20 @@ test('a confirmed order can advance to partial and then to completed', function 
         'created_by' => $user->id,
     ]);
 
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->put(route('purchase-orders.update-status', ['company' => $company->id, 'id' => $order->id]), [
-            'status' => 'partial',
-        ])
-        ->assertSessionHasNoErrors();
+    /**
+     * El avance lo escriben la Entrada y la Factura de compra al confirmarse;
+     * por esta ruta solo pasan las decisiones del usuario.
+     * Ver `PurchaseOrderFulfillmentStatusTest`.
+     */
+    foreach (['partial', 'completed'] as $status) {
+        actingAs($user)->withSession(['current_company_id' => $company->id])
+            ->put(route('purchase-orders.update-status', ['company' => $company->id, 'id' => $order->id]), [
+                'status' => $status,
+            ])
+            ->assertSessionHasErrors('status');
 
-    expect($order->refresh()->status)->toBe('partial');
-
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->put(route('purchase-orders.update-status', ['company' => $company->id, 'id' => $order->id]), [
-            'status' => 'completed',
-        ])
-        ->assertSessionHasNoErrors();
-
-    expect($order->refresh()->status)->toBe('completed');
+        expect($order->refresh()->status)->toBe('confirmed');
+    }
 });
 
 test('a user without permission cannot change the status', function () {

@@ -295,7 +295,8 @@ class AdjustmentRepository extends AdjustmentFilters implements AdjustmentReposi
 
             $rows[$lot->lotId] = [
                 'counted' => $lot->countedQuantity,
-                ...$this->balanceRow($type, $lot->countedQuantity, $line->unitCost, [
+                /** El costo del lote manda sobre el de la línea cuando viene. */
+                ...$this->balanceRow($type, $lot->countedQuantity, $lot->unitCost ?? $line->unitCost, [
                     'factor' => $resolved['factor'],
                     ...$balance,
                 ]),

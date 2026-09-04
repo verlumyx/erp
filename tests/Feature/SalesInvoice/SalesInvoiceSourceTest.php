@@ -8,34 +8,6 @@ use App\Modules\SalesOrder\Models\SalesOrder;
 
 use function Pest\Laravel\actingAs;
 
-/**
- * Un pedido confirmado, listo para facturarse. Confirmarlo reserva existencia,
- * así que la bodega tiene que tener con qué.
- */
-function confirmedSalesOrder(
-    \App\Modules\User\Models\User $user,
-    \App\Modules\Company\Models\Company $company,
-    \App\Modules\Client\Models\Client $client,
-    \App\Modules\Warehouse\Models\Warehouse $warehouse,
-    \App\Modules\Item\Models\Item $item,
-    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
-    array $overrides = [],
-): SalesOrder {
-    stockSalesOrderWarehouse($user, $company, $warehouse, $item);
-
-    $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit, $overrides);
-
-    actingAs($user)
-        ->withSession(['current_company_id' => $company->id])
-        ->put(
-            route('sales-orders.update-status', ['company' => $company->id, 'id' => $order->id]),
-            ['status' => 'confirmed'],
-        )
-        ->assertSessionHasNoErrors();
-
-    return $order->refresh()->load('lines');
-}
-
 test('an invoice remembers the sales order that originated it through the morph map', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 

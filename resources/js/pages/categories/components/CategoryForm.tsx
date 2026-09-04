@@ -1,181 +1,123 @@
-import { Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { FormLayout } from '@/components/form-layout';
+import { FormSection } from '@/components/form-section';
+import {
+    FormActionBar,
+    FormSummary,
+    SummaryRow,
+} from '@/components/form-summary';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCategoryFormContext } from '../contexts/CategoryFormContext';
-
-interface FormSectionHeadProps {
-    step: number;
-    title: string;
-    sub: string;
-    children?: React.ReactNode;
-}
-
-function FormSectionHead({ step, title, sub, children }: FormSectionHeadProps) {
-    return (
-        <div className="flex items-center gap-3 border-b p-5">
-            <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary-soft text-sm font-extrabold text-primary">
-                {step}
-            </span>
-            <div className="mr-auto">
-                <div className="text-base font-bold tracking-tight">
-                    {title}
-                </div>
-                <div className="mt-0.5 text-[13px] text-muted-foreground">
-                    {sub}
-                </div>
-            </div>
-            {children}
-        </div>
-    );
-}
 
 export function CategoryForm() {
     const { data, setData, processing, errors, handleSubmit, mode } =
         useCategoryFormContext();
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1fr_320px]"
-        >
-            <div className="flex min-w-0 flex-col gap-5">
-                <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                    <FormSectionHead
-                        step={1}
-                        title="Datos de la categoría"
-                        sub="Clasificación de los artículos"
-                    />
-                    <div className="flex flex-col gap-4 p-5">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="flex flex-col gap-1.5">
-                                <Label
-                                    htmlFor="name"
-                                    className="text-[13px] font-semibold"
-                                >
-                                    Nombre *
-                                </Label>
-                                <Input
-                                    id="name"
-                                    type="text"
-                                    value={data.name}
-                                    onChange={(e) =>
-                                        setData('name', e.target.value)
-                                    }
-                                    placeholder="Ej. Bebidas"
-                                    className={`h-[42px] rounded-[10px] ${errors.name ? 'border-bad' : ''}`}
-                                    maxLength={150}
-                                    required
-                                />
-                                {errors.name && (
-                                    <p className="text-sm text-bad">
-                                        {errors.name}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label
-                                    htmlFor="order"
-                                    className="text-[13px] font-semibold"
-                                >
-                                    Orden
-                                </Label>
-                                <Input
-                                    id="order"
-                                    type="number"
-                                    min={0}
-                                    value={data.order}
-                                    onChange={(e) =>
-                                        setData(
-                                            'order',
-                                            Number(e.target.value) || 0,
-                                        )
-                                    }
-                                    placeholder="0"
-                                    className={`h-[42px] rounded-[10px] ${errors.order ? 'border-bad' : ''}`}
-                                />
-                                <p className="text-[12px] text-muted-foreground">
-                                    Orden de presentación en listados y
-                                    selectores.
+        <FormLayout onSubmit={handleSubmit}>
+            <FormSection
+                step={1}
+                title="Datos de la categoría"
+                sub="Clasificación de los artículos"
+            >
+                <div className="flex flex-col gap-4 p-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="name"
+                                className="text-[13px] font-semibold"
+                            >
+                                Nombre *
+                            </Label>
+                            <Input
+                                id="name"
+                                type="text"
+                                value={data.name}
+                                onChange={(e) =>
+                                    setData('name', e.target.value)
+                                }
+                                placeholder="Ej. Bebidas"
+                                className={`h-[42px] rounded-[10px] ${errors.name ? 'border-bad' : ''}`}
+                                maxLength={150}
+                                required
+                            />
+                            {errors.name && (
+                                <p className="text-sm text-bad">
+                                    {errors.name}
                                 </p>
-                                {errors.order && (
-                                    <p className="text-sm text-bad">
-                                        {errors.order}
-                                    </p>
-                                )}
-                            </div>
+                            )}
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <Label
-                                htmlFor="description"
+                                htmlFor="order"
                                 className="text-[13px] font-semibold"
                             >
-                                Descripción (opcional)
+                                Orden
                             </Label>
-                            <Textarea
-                                id="description"
-                                value={data.description}
+                            <Input
+                                id="order"
+                                type="number"
+                                min={0}
+                                value={data.order}
                                 onChange={(e) =>
-                                    setData('description', e.target.value)
+                                    setData(
+                                        'order',
+                                        Number(e.target.value) || 0,
+                                    )
                                 }
-                                placeholder="Qué artículos agrupa esta categoría…"
-                                className={`rounded-[10px] ${errors.description ? 'border-bad' : ''}`}
-                                rows={3}
+                                placeholder="0"
+                                className={`h-[42px] rounded-[10px] ${errors.order ? 'border-bad' : ''}`}
                             />
-                            {errors.description && (
+                            <p className="text-[12px] text-muted-foreground">
+                                Orden de presentación en listados y selectores.
+                            </p>
+                            {errors.order && (
                                 <p className="text-sm text-bad">
-                                    {errors.description}
+                                    {errors.order}
                                 </p>
                             )}
                         </div>
                     </div>
-                </Card>
-            </div>
+                    <div className="flex flex-col gap-1.5">
+                        <Label
+                            htmlFor="description"
+                            className="text-[13px] font-semibold"
+                        >
+                            Descripción (opcional)
+                        </Label>
+                        <Textarea
+                            id="description"
+                            value={data.description}
+                            onChange={(e) =>
+                                setData('description', e.target.value)
+                            }
+                            placeholder="Qué artículos agrupa esta categoría…"
+                            className={`rounded-[10px] ${errors.description ? 'border-bad' : ''}`}
+                            rows={3}
+                        />
+                        {errors.description && (
+                            <p className="text-sm text-bad">
+                                {errors.description}
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </FormSection>
 
-            <Card className="gap-3.5 rounded-2xl p-5 xl:sticky xl:top-[86px]">
-                <div className="text-base font-bold tracking-tight">
-                    Resumen
-                </div>
-                <div className="flex flex-col gap-2.5">
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Categoría
-                        </span>
-                        <b className="font-bold">
-                            {data.name || (mode === 'create' ? 'Nueva' : '—')}
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Orden
-                        </span>
-                        <b className="font-bold tabular-nums">{data.order}</b>
-                    </div>
-                </div>
-                <Button
-                    type="submit"
-                    disabled={processing}
-                    className="h-10 w-full justify-center rounded-[11px] font-semibold shadow-[0_4px_12px_color-mix(in_srgb,var(--primary)_28%,transparent)]"
-                >
-                    <Check />
-                    {processing
-                        ? 'Guardando…'
-                        : mode === 'create'
-                          ? 'Crear categoría'
-                          : 'Guardar cambios'}
-                </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 w-full justify-center rounded-[11px] bg-card font-semibold"
-                    onClick={() => window.history.back()}
-                    disabled={processing}
-                >
-                    Cancelar
-                </Button>
-            </Card>
-        </form>
+            <FormSummary>
+                <SummaryRow label="Categoría">
+                    {data.name || (mode === 'create' ? 'Nueva' : '—')}
+                </SummaryRow>
+                <SummaryRow label="Orden">{data.order}</SummaryRow>
+            </FormSummary>
+
+            <FormActionBar
+                processing={processing}
+                submitLabel={
+                    mode === 'create' ? 'Crear categoría' : 'Guardar cambios'
+                }
+            />
+        </FormLayout>
     );
 }

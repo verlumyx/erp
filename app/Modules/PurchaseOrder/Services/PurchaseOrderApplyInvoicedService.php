@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\DB;
  * **sí** puede pasarse de lo pedido, igual que lo recibido: un proveedor factura
  * a veces de más y el ERP tiene que poder reflejarlo.
  *
+ * Y como lo facturado es la otra cuenta que cierra la orden, cada movimiento
+ * vuelve a resolver su estado: `PurchaseOrderSettleStatusService`.
+ *
  * La transacción es anidable: llamado desde la factura se suma a la suya como
  * savepoint.
  */
@@ -27,6 +30,7 @@ class PurchaseOrderApplyInvoicedService
 {
     public function __construct(
         private readonly PurchaseOrderRepositoryInterface $repository,
+        private readonly PurchaseOrderSettleStatusService $settle,
     ) {}
 
     public function execute(ApplyPurchaseOrderInvoicedCommand $command): PurchaseOrderLine
@@ -45,6 +49,7 @@ class PurchaseOrderApplyInvoicedService
             ));
 
             $this->repository->refreshInvoicedPercent($line->purchase_order_id);
+            $this->settle->execute($line->purchase_order_id);
 
             return $line;
         });

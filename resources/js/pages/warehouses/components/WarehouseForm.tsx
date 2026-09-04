@@ -1,6 +1,10 @@
-import { Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { FormFieldGrid, FormLayout } from '@/components/form-layout';
+import { FormSection } from '@/components/form-section';
+import {
+    FormActionBar,
+    FormSummary,
+    SummaryRow,
+} from '@/components/form-summary';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,32 +16,6 @@ import {
     type WarehouseType,
     type YesNo,
 } from '../types/Warehouse';
-
-interface FormSectionHeadProps {
-    step: number;
-    title: string;
-    sub: string;
-    children?: React.ReactNode;
-}
-
-function FormSectionHead({ step, title, sub, children }: FormSectionHeadProps) {
-    return (
-        <div className="flex items-center gap-3 border-b p-5">
-            <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-primary-soft text-sm font-extrabold text-primary">
-                {step}
-            </span>
-            <div className="mr-auto">
-                <div className="text-base font-bold tracking-tight">
-                    {title}
-                </div>
-                <div className="mt-0.5 text-[13px] text-muted-foreground">
-                    {sub}
-                </div>
-            </div>
-            {children}
-        </div>
-    );
-}
 
 interface FlagFieldProps {
     id: string;
@@ -82,310 +60,260 @@ export function WarehouseForm() {
     ];
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1fr_320px]"
-        >
-            <div className="flex min-w-0 flex-col gap-5">
-                <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                    <FormSectionHead
-                        step={1}
-                        title="Datos de la bodega"
-                        sub="Dónde se almacena el inventario"
-                    />
-                    <div className="flex flex-col gap-4 p-5">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="flex flex-col gap-1.5">
-                                <Label
-                                    htmlFor="name"
-                                    className="text-[13px] font-semibold"
-                                >
-                                    Nombre *
-                                </Label>
-                                <Input
-                                    id="name"
-                                    type="text"
-                                    value={data.name}
-                                    onChange={(e) =>
-                                        setData('name', e.target.value)
-                                    }
-                                    placeholder="Ej. Bodega Central"
-                                    className={`h-[42px] rounded-[10px] ${errors.name ? 'border-bad' : ''}`}
-                                    maxLength={150}
-                                    required
-                                />
-                                {errors.name && (
-                                    <p className="text-sm text-bad">
-                                        {errors.name}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label
-                                    htmlFor="type"
-                                    className="text-[13px] font-semibold"
-                                >
-                                    Tipo *
-                                </Label>
-                                <Select2
-                                    inputId="type"
-                                    options={TYPE_OPTIONS}
-                                    value={
-                                        TYPE_OPTIONS.find(
-                                            (option) =>
-                                                option.value === data.type,
-                                        ) ?? null
-                                    }
-                                    onChange={(option) =>
-                                        setData(
-                                            'type',
-                                            (option?.value ??
-                                                '') as WarehouseType,
-                                        )
-                                    }
-                                    error={!!errors.type}
-                                    size="md"
-                                    placeholder="Tipo de bodega"
-                                />
-                                {errors.type && (
-                                    <p className="text-sm text-bad">
-                                        {errors.type}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="flex flex-col gap-1.5">
-                                <Label
-                                    htmlFor="city"
-                                    className="text-[13px] font-semibold"
-                                >
-                                    Ciudad
-                                </Label>
-                                <Input
-                                    id="city"
-                                    type="text"
-                                    value={data.city}
-                                    onChange={(e) =>
-                                        setData('city', e.target.value)
-                                    }
-                                    placeholder="Ej. Caracas"
-                                    className={`h-[42px] rounded-[10px] ${errors.city ? 'border-bad' : ''}`}
-                                    maxLength={100}
-                                />
-                                {errors.city && (
-                                    <p className="text-sm text-bad">
-                                        {errors.city}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label
-                                    htmlFor="phone"
-                                    className="text-[13px] font-semibold"
-                                >
-                                    Teléfono
-                                </Label>
-                                <Input
-                                    id="phone"
-                                    type="text"
-                                    value={data.phone}
-                                    onChange={(e) =>
-                                        setData('phone', e.target.value)
-                                    }
-                                    placeholder="Ej. 04141234567"
-                                    className={`h-[42px] rounded-[10px] ${errors.phone ? 'border-bad' : ''}`}
-                                    maxLength={30}
-                                />
-                                {errors.phone && (
-                                    <p className="text-sm text-bad">
-                                        {errors.phone}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
+        <FormLayout onSubmit={handleSubmit}>
+            <FormSection
+                step={1}
+                title="Datos de la bodega"
+                sub="Dónde se almacena el inventario"
+            >
+                <div className="flex flex-col gap-4 p-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className="flex flex-col gap-1.5">
                             <Label
-                                htmlFor="address"
+                                htmlFor="name"
                                 className="text-[13px] font-semibold"
                             >
-                                Dirección
+                                Nombre *
                             </Label>
                             <Input
-                                id="address"
+                                id="name"
                                 type="text"
-                                value={data.address}
+                                value={data.name}
                                 onChange={(e) =>
-                                    setData('address', e.target.value)
+                                    setData('name', e.target.value)
                                 }
-                                placeholder="Calle, avenida, referencia…"
-                                className={`h-[42px] rounded-[10px] ${errors.address ? 'border-bad' : ''}`}
-                                maxLength={500}
+                                placeholder="Ej. Bodega Central"
+                                className={`h-[42px] rounded-[10px] ${errors.name ? 'border-bad' : ''}`}
+                                maxLength={150}
+                                required
                             />
-                            {errors.address && (
+                            {errors.name && (
                                 <p className="text-sm text-bad">
-                                    {errors.address}
+                                    {errors.name}
                                 </p>
                             )}
                         </div>
-
                         <div className="flex flex-col gap-1.5">
                             <Label
-                                htmlFor="responsible_user_id"
+                                htmlFor="type"
                                 className="text-[13px] font-semibold"
                             >
-                                Encargado
+                                Tipo *
                             </Label>
                             <Select2
-                                inputId="responsible_user_id"
-                                options={userOptions}
+                                inputId="type"
+                                options={TYPE_OPTIONS}
                                 value={
-                                    userOptions.find(
-                                        (option) =>
-                                            option.value ===
-                                            (data.responsible_user_id ||
-                                                'ninguno'),
+                                    TYPE_OPTIONS.find(
+                                        (option) => option.value === data.type,
                                     ) ?? null
                                 }
                                 onChange={(option) =>
                                     setData(
-                                        'responsible_user_id',
-                                        !option || option.value === 'ninguno'
-                                            ? ''
-                                            : option.value,
+                                        'type',
+                                        (option?.value ?? '') as WarehouseType,
                                     )
                                 }
-                                error={!!errors.responsible_user_id}
+                                error={!!errors.type}
                                 size="md"
-                                placeholder="Sin encargado"
+                                placeholder="Tipo de bodega"
                             />
-                            {errors.responsible_user_id && (
+                            {errors.type && (
                                 <p className="text-sm text-bad">
-                                    {errors.responsible_user_id}
+                                    {errors.type}
                                 </p>
                             )}
                         </div>
                     </div>
-                </Card>
 
-                <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                    <FormSectionHead
-                        step={2}
-                        title="Comportamiento"
-                        sub="Cómo se usa la bodega en los documentos"
-                    />
-                    <div className="grid grid-cols-1 gap-3 p-5 md:grid-cols-2">
-                        <FlagField
-                            id="is_default"
-                            label="Bodega por defecto"
-                            hint="Se sugiere en los documentos. Solo una por empresa."
-                            value={data.is_default}
-                            onChange={(value) => setData('is_default', value)}
-                        />
-                        <FlagField
-                            id="is_sales_available"
-                            label="Disponible para venta"
-                            hint="Su existencia cuenta como disponible para vender."
-                            value={data.is_sales_available}
-                            onChange={(value) =>
-                                setData('is_sales_available', value)
-                            }
-                        />
-                        <FlagField
-                            id="allows_negative_stock"
-                            label="Permite existencia negativa"
-                            hint="Admite salidas sin existencia suficiente."
-                            value={data.allows_negative_stock}
-                            onChange={(value) =>
-                                setData('allows_negative_stock', value)
-                            }
-                        />
-                        <FlagField
-                            id="uses_locations"
-                            label="Usa ubicaciones"
-                            hint="Habilita el árbol de ubicaciones (pasillo/estante)."
-                            value={data.uses_locations}
-                            onChange={(value) =>
-                                setData('uses_locations', value)
-                            }
-                        />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="city"
+                                className="text-[13px] font-semibold"
+                            >
+                                Ciudad
+                            </Label>
+                            <Input
+                                id="city"
+                                type="text"
+                                value={data.city}
+                                onChange={(e) =>
+                                    setData('city', e.target.value)
+                                }
+                                placeholder="Ej. Caracas"
+                                className={`h-[42px] rounded-[10px] ${errors.city ? 'border-bad' : ''}`}
+                                maxLength={100}
+                            />
+                            {errors.city && (
+                                <p className="text-sm text-bad">
+                                    {errors.city}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="phone"
+                                className="text-[13px] font-semibold"
+                            >
+                                Teléfono
+                            </Label>
+                            <Input
+                                id="phone"
+                                type="text"
+                                value={data.phone}
+                                onChange={(e) =>
+                                    setData('phone', e.target.value)
+                                }
+                                placeholder="Ej. 04141234567"
+                                className={`h-[42px] rounded-[10px] ${errors.phone ? 'border-bad' : ''}`}
+                                maxLength={30}
+                            />
+                            {errors.phone && (
+                                <p className="text-sm text-bad">
+                                    {errors.phone}
+                                </p>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex flex-col gap-1.5 px-5 pb-5">
+
+                    <div className="flex flex-col gap-1.5">
                         <Label
-                            htmlFor="notes"
+                            htmlFor="address"
                             className="text-[13px] font-semibold"
                         >
-                            Notas (opcional)
+                            Dirección
                         </Label>
-                        <Textarea
-                            id="notes"
-                            value={data.notes}
-                            onChange={(e) => setData('notes', e.target.value)}
-                            placeholder="Observaciones sobre la bodega…"
-                            className={`rounded-[10px] ${errors.notes ? 'border-bad' : ''}`}
-                            rows={3}
+                        <Input
+                            id="address"
+                            type="text"
+                            value={data.address}
+                            onChange={(e) => setData('address', e.target.value)}
+                            placeholder="Calle, avenida, referencia…"
+                            className={`h-[42px] rounded-[10px] ${errors.address ? 'border-bad' : ''}`}
+                            maxLength={500}
                         />
-                        {errors.notes && (
-                            <p className="text-sm text-bad">{errors.notes}</p>
+                        {errors.address && (
+                            <p className="text-sm text-bad">{errors.address}</p>
                         )}
                     </div>
-                </Card>
-            </div>
 
-            <Card className="gap-3.5 rounded-2xl p-5 xl:sticky xl:top-[86px]">
-                <div className="text-base font-bold tracking-tight">
-                    Resumen
+                    <div className="flex flex-col gap-1.5">
+                        <Label
+                            htmlFor="responsible_user_id"
+                            className="text-[13px] font-semibold"
+                        >
+                            Encargado
+                        </Label>
+                        <Select2
+                            inputId="responsible_user_id"
+                            options={userOptions}
+                            value={
+                                userOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (data.responsible_user_id || 'ninguno'),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
+                                setData(
+                                    'responsible_user_id',
+                                    !option || option.value === 'ninguno'
+                                        ? ''
+                                        : option.value,
+                                )
+                            }
+                            error={!!errors.responsible_user_id}
+                            size="md"
+                            placeholder="Sin encargado"
+                        />
+                        {errors.responsible_user_id && (
+                            <p className="text-sm text-bad">
+                                {errors.responsible_user_id}
+                            </p>
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col gap-2.5">
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Bodega
-                        </span>
-                        <b className="font-bold">
-                            {data.name || (mode === 'create' ? 'Nueva' : '—')}
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Tipo
-                        </span>
-                        <b className="font-bold">
-                            {WAREHOUSE_TYPE_LABELS[data.type]}
-                        </b>
-                    </div>
-                    <div className="flex items-center justify-between text-[13.5px]">
-                        <span className="font-medium text-muted-foreground">
-                            Ubicaciones
-                        </span>
-                        <b className="font-bold">
-                            {data.uses_locations === 'yes' ? 'Sí' : 'No'}
-                        </b>
-                    </div>
+            </FormSection>
+
+            <FormSection
+                step={2}
+                title="Comportamiento"
+                sub="Cómo se usa la bodega en los documentos"
+            >
+                <FormFieldGrid>
+                    <FlagField
+                        id="is_default"
+                        label="Bodega por defecto"
+                        hint="Se sugiere en los documentos. Solo una por empresa."
+                        value={data.is_default}
+                        onChange={(value) => setData('is_default', value)}
+                    />
+                    <FlagField
+                        id="is_sales_available"
+                        label="Disponible para venta"
+                        hint="Su existencia cuenta como disponible para vender."
+                        value={data.is_sales_available}
+                        onChange={(value) =>
+                            setData('is_sales_available', value)
+                        }
+                    />
+                    <FlagField
+                        id="allows_negative_stock"
+                        label="Permite existencia negativa"
+                        hint="Admite salidas sin existencia suficiente."
+                        value={data.allows_negative_stock}
+                        onChange={(value) =>
+                            setData('allows_negative_stock', value)
+                        }
+                    />
+                    <FlagField
+                        id="uses_locations"
+                        label="Usa ubicaciones"
+                        hint="Habilita el árbol de ubicaciones (pasillo/estante)."
+                        value={data.uses_locations}
+                        onChange={(value) => setData('uses_locations', value)}
+                    />
+                </FormFieldGrid>
+                <div className="flex flex-col gap-1.5 px-5 pb-5">
+                    <Label
+                        htmlFor="notes"
+                        className="text-[13px] font-semibold"
+                    >
+                        Notas (opcional)
+                    </Label>
+                    <Textarea
+                        id="notes"
+                        value={data.notes}
+                        onChange={(e) => setData('notes', e.target.value)}
+                        placeholder="Observaciones sobre la bodega…"
+                        className={`rounded-[10px] ${errors.notes ? 'border-bad' : ''}`}
+                        rows={3}
+                    />
+                    {errors.notes && (
+                        <p className="text-sm text-bad">{errors.notes}</p>
+                    )}
                 </div>
-                <Button
-                    type="submit"
-                    disabled={processing}
-                    className="h-10 w-full justify-center rounded-[11px] font-semibold shadow-[0_4px_12px_color-mix(in_srgb,var(--primary)_28%,transparent)]"
-                >
-                    <Check />
-                    {processing
-                        ? 'Guardando…'
-                        : mode === 'create'
-                          ? 'Crear bodega'
-                          : 'Guardar cambios'}
-                </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 w-full justify-center rounded-[11px] bg-card font-semibold"
-                    onClick={() => window.history.back()}
-                    disabled={processing}
-                >
-                    Cancelar
-                </Button>
-            </Card>
-        </form>
+            </FormSection>
+
+            <FormSummary>
+                <SummaryRow label="Bodega">
+                    {data.name || (mode === 'create' ? 'Nueva' : '—')}
+                </SummaryRow>
+                <SummaryRow label="Tipo">
+                    {WAREHOUSE_TYPE_LABELS[data.type]}
+                </SummaryRow>
+                <SummaryRow label="Ubicaciones">
+                    {data.uses_locations === 'yes' ? 'Sí' : 'No'}
+                </SummaryRow>
+            </FormSummary>
+
+            <FormActionBar
+                processing={processing}
+                submitLabel={
+                    mode === 'create' ? 'Crear bodega' : 'Guardar cambios'
+                }
+            />
+        </FormLayout>
     );
 }

@@ -40,8 +40,10 @@ class UpdateStatusPurchaseOrderRequest extends FormRequest
     }
 
     /**
-     * El documento avanza por un camino fijo (`draft` → `confirmed` → `partial`
-     * → `completed`, o `cancelled`) y anular exige siempre un motivo.
+     * Por aquí solo pasan las dos decisiones del usuario —confirmar y anular— y
+     * anular exige siempre un motivo. `partial` y `completed` los escribe el
+     * avance de los documentos que cumplen la orden, nunca la pantalla, y por
+     * eso no están en `STATUS_TRANSITIONS`.
      */
     public function withValidator(Validator $validator): void
     {

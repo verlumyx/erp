@@ -54,14 +54,22 @@ class SalesOrder extends Model
     public const EDITABLE_STATUSES = ['draft'];
 
     /**
-     * Transiciones permitidas del pedido. Un pedido anulado o cumplido es final.
+     * Transiciones que alguien puede **pedir**. Son dos decisiones y nada más:
+     * confirmar el pedido y anularlo.
+     *
+     * `partial` y `completed` no están aquí a propósito: el avance no se
+     * declara, se calcula desde lo despachado y lo facturado, y lo escribe
+     * `SalesOrderSettleStatusService` cuando el Despacho o la Factura de venta
+     * mueven esas cuentas.
+     *
+     * Un pedido anulado o cumplido es final.
      *
      * @var array<string, array<int, string>>
      */
     public const STATUS_TRANSITIONS = [
         'draft' => ['confirmed', 'cancelled'],
-        'confirmed' => ['partial', 'completed', 'cancelled'],
-        'partial' => ['completed', 'cancelled'],
+        'confirmed' => ['cancelled'],
+        'partial' => ['cancelled'],
         'completed' => [],
         'cancelled' => [],
     ];

@@ -49,15 +49,23 @@ class PurchaseOrder extends Model
     public const OPEN_STATUSES = ['draft', 'confirmed', 'partial'];
 
     /**
-     * Transiciones permitidas del documento. `completed` y `cancelled` son
-     * terminales: una orden cerrada o anulada ya no cambia de estado.
+     * Transiciones que alguien puede **pedir**. Son dos decisiones y nada más:
+     * confirmar la orden y anularla.
+     *
+     * `partial` y `completed` no están aquí a propósito: el avance no se
+     * declara, se calcula desde lo recibido y lo facturado, y lo escribe
+     * `PurchaseOrderSettleStatusService` cuando la Entrada o la Factura de
+     * compra mueven esas cuentas.
+     *
+     * `completed` y `cancelled` son terminales: una orden cerrada o anulada ya
+     * no admite decisiones.
      *
      * @var array<string, array<int, string>>
      */
     public const STATUS_TRANSITIONS = [
         'draft' => ['confirmed', 'cancelled'],
-        'confirmed' => ['partial', 'completed', 'cancelled'],
-        'partial' => ['completed', 'cancelled'],
+        'confirmed' => ['cancelled'],
+        'partial' => ['cancelled'],
         'completed' => [],
         'cancelled' => [],
     ];

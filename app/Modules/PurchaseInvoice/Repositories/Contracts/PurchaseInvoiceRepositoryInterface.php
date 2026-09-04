@@ -62,6 +62,13 @@ interface PurchaseInvoiceRepositoryInterface
      * La línea con su fila bloqueada, para que dos devoluciones que la agotan a
      * la vez no lean el mismo cupo.
      */
+    /**
+     * Escribe el estado que le toca a la factura por lo que ya se le pagó.
+     * Solo lo llama `PurchaseInvoiceSettleStatusService`: el resto del estado
+     * pasa por `updateStatus`.
+     */
+    public function writeSettledStatus(PurchaseInvoice $model, string $status): void;
+
     public function lockLineById(string $id, ?string $companyId = null): ?PurchaseInvoiceLine;
 
     /** Escribe lo devuelto. Solo lo llama `PurchaseInvoiceApplyReturnService`. */

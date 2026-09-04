@@ -66,6 +66,13 @@ interface SalesInvoiceRepositoryInterface
      * La línea con su fila bloqueada, para que dos devoluciones que devuelven
      * lo mismo a la vez no lean el mismo cupo.
      */
+    /**
+     * Escribe el estado que le toca a la factura por lo que ya se le cobró.
+     * Solo lo llama `SalesInvoiceSettleStatusService`: el resto del estado pasa
+     * por `updateStatus`.
+     */
+    public function writeSettledStatus(SalesInvoice $model, string $status): void;
+
     public function lockLineById(string $id, ?string $companyId = null): ?SalesInvoiceLine;
 
     /**

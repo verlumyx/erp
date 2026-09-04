@@ -58,13 +58,19 @@ class SalesInvoice extends Model
     public const SOURCE_LINE_TYPES = [SalesOrderLine::MORPH_ALIAS];
 
     /**
-     * Transiciones permitidas. Una factura anulada o cobrada es final.
+     * Transiciones que alguien puede **pedir**: emitir la factura y anularla.
+     *
+     * `completed` no está aquí a propósito: cerrar la factura es haberla
+     * cobrado, no declararlo. Lo escribe `SalesInvoiceSettleStatusService`
+     * cuando un cobro, un anticipo o una nota de crédito la deja sin saldo.
+     *
+     * Una factura anulada o cobrada es final.
      *
      * @var array<string, array<int, string>>
      */
     public const STATUS_TRANSITIONS = [
         'draft' => ['confirmed', 'cancelled'],
-        'confirmed' => ['completed', 'cancelled'],
+        'confirmed' => ['cancelled'],
         'completed' => [],
         'cancelled' => [],
     ];

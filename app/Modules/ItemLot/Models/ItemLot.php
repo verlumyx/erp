@@ -31,9 +31,6 @@ class ItemLot extends Model
     /** Estados propios del lote: no son los `active` / `inactive` de un maestro. */
     public const STATUSES = ['active', 'blocked', 'expired'];
 
-    /** Tipos de artículo que admiten control por lote. */
-    public const TRACKABLE_ITEM_TYPES = ['inventoried', 'serialized'];
-
     protected $fillable = [
         'id',
         'company_id',

@@ -176,7 +176,7 @@ class AdjustmentLimitsService
             $lots = $line->activeLots();
             $serials = $line->activeSerials();
 
-            if ($lots !== [] && ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
+            if ($lots !== [] && ! $item->movesStock()) {
                 $errors["lines.{$index}.lots"] = 'Ese artículo no se controla por lote.';
             }
 

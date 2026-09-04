@@ -21,6 +21,15 @@ class AdjustmentLineLotData
         public readonly ?string $id,
         public readonly string $lotId,
         public readonly float $countedQuantity,
+        /**
+         * Costo nuevo por unidad base de **este** lote. Solo lo lee una
+         * revaluación, y solo cuando viene: sin él manda el de la línea.
+         *
+         * Existe porque el saldo vivo de dos cajas de la misma línea puede ser
+         * distinto, y quien reparte un gasto entre ellas —el expediente de
+         * importación— le toca a cada una un incremento distinto.
+         */
+        public readonly ?float $unitCost = null,
         public readonly ?string $notes = null,
         public readonly string $status = 'active',
     ) {}
@@ -34,6 +43,9 @@ class AdjustmentLineLotData
             id: isset($row['id']) ? (string) $row['id'] : null,
             lotId: (string) ($row['lot_id'] ?? ''),
             countedQuantity: round((float) ($row['counted_quantity'] ?? 0), 4),
+            unitCost: isset($row['unit_cost']) && $row['unit_cost'] !== ''
+                ? round((float) $row['unit_cost'], 6)
+                : null,
             notes: $row['notes'] ?? null,
             status: (string) ($row['status'] ?? 'active'),
         );

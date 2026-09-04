@@ -146,14 +146,17 @@ export const STATUS_PILL_KIND: Record<PurchaseOrderStatus, StatusKind> = {
 /**
  * Transiciones permitidas. Espejo de `PurchaseOrder::STATUS_TRANSITIONS`:
  * la pantalla solo ofrece lo que el backend acepta.
+ *
+ * `partial` y `completed` no se ofrecen: el avance de la orden lo escriben la
+ * Entrada y la Factura de compra al confirmarse o anularse, no el usuario.
  */
 export const STATUS_TRANSITIONS: Record<
     PurchaseOrderStatus,
     PurchaseOrderStatus[]
 > = {
     draft: ['confirmed', 'cancelled'],
-    confirmed: ['partial', 'completed', 'cancelled'],
-    partial: ['completed', 'cancelled'],
+    confirmed: ['cancelled'],
+    partial: ['cancelled'],
     completed: [],
     cancelled: [],
 };

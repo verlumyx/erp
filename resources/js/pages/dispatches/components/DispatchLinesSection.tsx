@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NumberInput } from '@/components/ui/number-input';
 import { Select2, type OptionType } from '@/components/ui/select2';
+import { useLineDetailPanels } from '@/hooks/use-line-detail-panels';
 import { cn } from '@/lib/utils';
 import { useDispatchFormContext } from '../contexts/DispatchFormContext';
 import { DispatchLineTraceabilityDialog } from './DispatchLineTraceabilityDialog';
@@ -63,13 +64,10 @@ export function DispatchLinesSection() {
         })),
     ];
 
-    const [openDetail, setOpenDetail] = useState<Record<string, boolean>>({});
-
-    const toggleDetail = (lineId: string) =>
-        setOpenDetail((current) => ({
-            ...current,
-            [lineId]: !current[lineId],
-        }));
+    const detail = useLineDetailPanels(
+        data.lines,
+        errors as Record<string, string | undefined>,
+    );
 
     /** La línea cuyo detalle de lotes y series está abierto en el modal. */
     const [traceabilityOf, setTraceabilityOf] = useState<number | null>(null);
@@ -111,7 +109,7 @@ export function DispatchLinesSection() {
                     (serial) => serial.status === 'active',
                 );
 
-                const detailOpen = openDetail[line.id] === true;
+                const detailOpen = detail.isOpen(line.id);
                 const hasDetail =
                     line.location_id !== '' ||
                     line.sourceable_id !== '' ||
@@ -140,7 +138,7 @@ export function DispatchLinesSection() {
                                             'relative size-[42px] shrink-0 rounded-[10px] bg-card',
                                             hasDetail && 'text-primary',
                                         )}
-                                        onClick={() => toggleDetail(line.id)}
+                                        onClick={() => detail.toggle(line.id)}
                                         aria-expanded={detailOpen}
                                         aria-label={`${
                                             detailOpen ? 'Ocultar' : 'Mostrar'

@@ -35,6 +35,19 @@ interface PurchaseOrderRepositoryInterface
     public function activeLines(PurchaseOrder $model): array;
 
     /**
+     * La cabecera con su fila bloqueada, para que dos documentos que la cumplen
+     * a la vez no lean el mismo avance al resolver su estado.
+     */
+    public function lockById(string $id, ?string $companyId = null): ?PurchaseOrder;
+
+    /**
+     * Escribe el estado que le toca a la orden por lo recibido y lo facturado.
+     * Solo lo llama `PurchaseOrderSettleStatusService`: el resto del estado
+     * pasa por `updateStatus`.
+     */
+    public function writeFulfillmentStatus(PurchaseOrder $model, string $status): void;
+
+    /**
      * La línea con su fila bloqueada, para que dos entradas que reciben lo
      * mismo a la vez no lean el mismo pendiente.
      */

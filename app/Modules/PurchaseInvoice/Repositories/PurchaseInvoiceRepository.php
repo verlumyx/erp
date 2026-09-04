@@ -162,6 +162,11 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
         return $model;
     }
 
+    public function writeSettledStatus(PurchaseInvoice $model, string $status): void
+    {
+        $model->update(['status' => $status]);
+    }
+
     public function lockLineById(string $id, ?string $companyId = null): ?PurchaseInvoiceLine
     {
         return PurchaseInvoiceLine::query()

@@ -418,6 +418,29 @@ function moveSalesOrderTo(
 }
 
 /**
+ * Un pedido confirmado, listo para despacharse y facturarse. Confirmarlo
+ * reserva existencia, así que la bodega tiene que tener con qué, y genera el
+ * despacho espejo que sacará la mercancía.
+ */
+function confirmedSalesOrder(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Client\Models\Client $client,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): \App\Modules\SalesOrder\Models\SalesOrder {
+    stockSalesOrderWarehouse($user, $company, $warehouse, $item);
+
+    $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit, $overrides);
+
+    moveSalesOrderTo($user, $company, $order, 'confirmed')->assertSessionHasNoErrors();
+
+    return $order->refresh()->load('lines');
+}
+
+/**
  * User + company + the minimum masters a sales invoice needs. It is the same
  * scenario as a sales order: a client, a warehouse and one sellable item with
  * its base unit.
@@ -2584,4 +2607,144 @@ function storeApiHeaders(?\App\Modules\Store\Models\StoreCustomer $customer = nu
     }
 
     return $headers;
+}
+
+/**
+ * User + company + the masters an import file needs: a warehouse that uses
+ * locations with a default one, a supplier and an item with its base unit.
+ *
+ * The warehouse uses locations because the file ends in a revaluation
+ * adjustment, and the kardex does not move value without a place to move it in.
+ *
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Supplier\Models\Supplier,
+ *     3: \App\Modules\Warehouse\Models\Warehouse,
+ *     4: \App\Modules\Item\Models\Item,
+ *     5: \App\Modules\MeasurementUnit\Models\MeasurementUnit,
+ *     6: \App\Modules\WarehouseLocation\Models\WarehouseLocation
+ * }
+ */
+function importScenario(): array
+{
+    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
+
+    /** Sin promedio previo la entrada no tiene con qué valorar lo que recibe. */
+    $item->update(['average_cost' => 25]);
+
+    setAdjustmentThreshold($company, 1000000);
+
+    return [$user, $company, $supplier, $warehouse, $item, $unit, $location->refresh()];
+}
+
+/**
+ * A confirmed entry: the only kind an import file can cost, because a draft has
+ * not valued anything yet.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function costableEntry(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Supplier\Models\Supplier $supplier,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Item\Models\Item $item,
+    \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
+    array $overrides = [],
+): \App\Modules\Entry\Models\Entry {
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, $overrides);
+
+    moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();
+
+    return $entry->refresh();
+}
+
+/**
+ * A valid `imports.store` / `imports.update` payload.
+ *
+ * Neither the items nor what each one absorbs travel in it: they are derived
+ * from the receipts, so a payload that tried to send them would be sending
+ * noise.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function importPayload(
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Entry\Models\Entry $entry,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'warehouse_id' => $warehouse->id,
+        'import_date' => now()->toDateString(),
+        'allocation_method' => 'value',
+        'currency' => 'USD',
+        'reference' => 'BL-0001',
+        'costs' => [
+            [
+                'concept' => 'freight',
+                'currency' => 'USD',
+                'amount' => 100,
+            ],
+        ],
+        'entries' => [
+            ['entry_id' => $entry->id],
+        ],
+        ...$overrides,
+    ];
+}
+
+/**
+ * Creates an import file over HTTP and returns the freshly saved model.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function createImport(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Entry\Models\Entry $entry,
+    array $overrides = [],
+): \App\Modules\Import\Models\Import {
+    $payload = importPayload($warehouse, $entry, $overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('imports.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\Import\Models\Import::with(['costs', 'entries', 'lines.lots'])
+        ->findOrFail($payload['id']);
+}
+
+/**
+ * Moves an import file to the given status over HTTP, which is what actually
+ * generates —or retires— the revaluation adjustment.
+ */
+function moveImportTo(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Import\Models\Import $import,
+    string $status,
+    ?string $cancellationReason = null,
+): \Illuminate\Testing\TestResponse {
+    return \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(
+            route('imports.update-status', ['company' => $company->id, 'id' => $import->id]),
+            array_filter([
+                'status' => $status,
+                'cancellation_reason' => $cancellationReason,
+            ], fn ($value): bool => $value !== null),
+        );
+}
+
+/** El ajuste de revaluación que el expediente generó al confirmarse. */
+function importAdjustment(
+    \App\Modules\Import\Models\Import $import,
+): ?\App\Modules\Adjustment\Models\Adjustment {
+    return \App\Modules\Adjustment\Models\Adjustment::with('lines.lots')
+        ->find($import->refresh()->adjustment_id);
 }

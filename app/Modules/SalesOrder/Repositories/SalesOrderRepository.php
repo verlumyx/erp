@@ -64,6 +64,13 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
 
             $this->syncLines($order, $command->lines, $rates);
             $this->refreshTotals($order);
+
+            /**
+             * El avance de despacho depende de la mezcla de líneas, no solo de
+             * lo que salga: un pedido que solo vende servicios nace sin nada que
+             * sacar, y ningún despacho vendría después a decirlo.
+             */
+            $this->refreshDispatchedPercent($order->id);
         });
     }
 
@@ -103,6 +110,9 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
 
             $this->syncLines($model, $command->lines, $rates);
             $this->refreshTotals($model);
+
+            /** Cambiar las líneas cambia el denominador del avance. */
+            $this->refreshDispatchedPercent($model->id);
         });
     }
 
@@ -365,6 +375,19 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
         return $line;
     }
 
+    public function lockById(string $id, ?string $companyId = null): ?SalesOrder
+    {
+        return SalesOrder::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeFulfillmentStatus(SalesOrder $model, string $status): void
+    {
+        $model->update(['status' => $status]);
+    }
+
     public function lockLineById(string $id, ?string $companyId = null): ?SalesOrderLine
     {
         return SalesOrderLine::query()
@@ -387,25 +410,38 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
     }
 
     /**
-     * Avance de despacho de la cabecera: cuánto de lo pedido ya salió, medido
-     * sobre las líneas activas. Un pedido sin líneas no ha despachado nada.
+     * Avance de despacho de la cabecera: cuánto de la mercancía pedida ya
+     * salió. Un pedido sin líneas no ha despachado nada.
+     *
+     * Se mide **solo sobre las líneas que llevan existencia**. Un servicio o un
+     * artículo no inventariado no sale nunca en un despacho —el despacho espejo
+     * ni siquiera los incluye—, así que contarlos aquí dejaría el avance por
+     * debajo del 100 % con toda la mercancía ya entregada. Por eso un pedido
+     * que solo vende servicios está al 100 %: no hay nada que sacar.
      */
     public function refreshDispatchedPercent(string $orderId): void
     {
         $lines = SalesOrderLine::query()
+            ->with('item')
             ->where('sales_order_id', $orderId)
             ->where('status', 'active')
             ->get();
 
-        $ordered = round((float) $lines->sum('quantity'), 4);
-        $dispatched = round((float) $lines->sum('dispatched_quantity'), 4);
+        $stocked = $lines->filter(
+            static fn (SalesOrderLine $line): bool => $line->item?->movesStock() ?? true,
+        );
+
+        $ordered = round((float) $stocked->sum('quantity'), 4);
+        $dispatched = round((float) $stocked->sum('dispatched_quantity'), 4);
 
         SalesOrder::query()
             ->whereKey($orderId)
             ->update([
-                'dispatched_percent' => $ordered > 0
-                    ? round($dispatched * 100 / $ordered, 4)
-                    : 0,
+                'dispatched_percent' => match (true) {
+                    $ordered > 0 => min(round($dispatched * 100 / $ordered, 4), 100),
+                    $lines->isEmpty() => 0,
+                    default => 100,
+                },
             ]);
     }
 

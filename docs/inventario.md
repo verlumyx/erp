@@ -32,7 +32,7 @@ Maestro de productos y servicios. Es el registro más referenciado del sistema.
 | `barcode`          | `string(60)`    | Sí   |                 | Código de barras principal (EAN/UPC).                                                                                                                                                                                                                                                                |
 | `name`             | `string(200)`   | No   |                 | Nombre comercial.                                                                                                                                                                                                                                                                                    |
 | `description`      | `text`          | Sí   |                 | Descripción larga.                                                                                                                                                                                                                                                                                   |
-| `type`             | `enum`          | No   | `'inventoried'` | `inventoried` (inventariado: afecta stock y kardex), `non_inventoried` (no inventariado: se compra/vende pero no lleva existencia), `service` (servicio: no afecta stock), `kit` (lote/kit: compuesto por otros artículos), `serialized` (serializado: cada unidad se controla por número de serie). |
+| `type`             | `enum`          | No   | `'inventoried'` | `inventoried` (inventariado: afecta stock y kardex), `non_inventoried` (no inventariado: se compra/vende pero no lleva existencia), `service` (servicio: no afecta stock), `serialized` (serializado: cada unidad se controla por número de serie). |
 | `category_id`      | `uuid`          | Sí   |                 | FK → `app_categories.id` (`nullOnDelete`).                                                                                                                                                                                                                                                           |
 | `sale_tax_id`      | `uuid`          | Sí   |                 | FK → `app_taxes.id`. Impuesto por defecto en venta.                                                                                                                                                                                                                                                  |
 | `purchase_tax_id`  | `uuid`          | Sí   |                 | FK → `app_taxes.id`. Impuesto por defecto en compra.                                                                                                                                                                                                                                                 |
@@ -230,7 +230,14 @@ Tabla de módulo: lleva las columnas base (`company_id`, `code`, `status`, `crea
 
 **Índices:** `unique(company_id, item_id, lot_number)`, `index(expires_at)`, `index(status)`.
 
-**Reglas:** la salida por defecto usa FEFO (vence primero, sale primero) para artículos con `tracks_expiration`.
+**Reglas**
+
+- El lote **no es un tipo de artículo**: es una capacidad de cualquiera que mueva existencia. Todo lo que no
+  sea `service` ni `non_inventoried` puede llevarlo, y nada que no la mueva puede — lo decide `movesStock()`,
+  que es la misma respuesta que usa el kardex para saber si hay saldo que guardar.
+- Llevarlo es **opcional**: un artículo con existencia entra con lote o sin él. Sin lote, el kardex escribe un
+  solo movimiento por la línea; con lote, uno por cada uno.
+- La salida por defecto usa FEFO (vence primero, sale primero) para artículos con `tracks_expiration`.
 
 ### 3.2 Series — `app_item_serials` — Prefijo `SER`
 

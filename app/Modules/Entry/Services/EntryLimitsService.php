@@ -10,7 +10,6 @@ use App\Modules\Entry\Repositories\Contracts\EntryRepositoryInterface;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
-use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
@@ -305,7 +304,7 @@ class EntryLimitsService
             $lots = $line->activeLots();
             $serials = $line->activeSerials();
 
-            $tracksLots = in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true);
+            $tracksLots = $item->movesStock();
 
             if (! $tracksLots && $lots !== []) {
                 $errors["lines.{$index}.lots"] = 'Ese artículo no se controla por lote.';

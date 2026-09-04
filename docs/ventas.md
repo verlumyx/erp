@@ -155,6 +155,13 @@ Pedido del cliente. **No descarga inventario**: lo reserva (`reserved_quantity`)
 
 **Estados (`status`):** `draft` → `confirmed` → `partial` → `completed`, o `cancelled`.
 
+El usuario solo decide dos de esos estados: **confirmar** y **anular**. `partial` y `completed` no se declaran
+desde la pantalla —no hay botón para ellos—: son la lectura de lo que las líneas ya dicen, y los escribe
+`SalesOrderSettleStatusService` cada vez que un Despacho o una Factura de venta se confirma o se anula. Por eso
+el estado también **retrocede**: anular el despacho que lo había cerrado devuelve el pedido a `partial`, y
+anular el último documento que lo tocaba, a `confirmed`. Es el mismo mecanismo que en la orden de compra
+([compras.md § 2.1](compras.md)).
+
 **Índices:** `index(client_id)`, `index(order_date)`, `index(expected_date)`, `index(salesperson_id)`,
 `index(route_id)`, `index(warehouse_id)`.
 
@@ -182,6 +189,17 @@ Además de las columnas comunes de línea:
   `.../invoiceable-lines` para la Factura de venta—, y la pantalla la pide en cuanto se elige el pedido para
   armar sus líneas. Ambas admiten `?ids=` para que vuelvan también las líneas que el documento ya tenía atadas
   aunque su saldo esté en cero.
+- **Las dos cuentas no miden sobre lo mismo.** Lo facturado se mide contra todas las líneas —un servicio se
+  factura igual que un tornillo—, pero lo despachado **solo contra las líneas que llevan existencia**
+  (`Item::movesStock()`). Un servicio o un artículo no inventariado no sale nunca en un Despacho: el despacho
+  espejo ni siquiera los incluye, y `dispatchable-lines` los da por saldados. Contarlos en
+  `dispatched_percent` dejaría el avance por debajo del 100 % con toda la mercancía ya entregada, y el pedido
+  no cerraría jamás. Un pedido que solo vende servicios nace con `dispatched_percent = 100`: no hay nada que
+  sacar.
+- Se cierra automáticamente (`completed`) cuando **las dos** cuentas de todas las líneas llegaron a lo pedido:
+  lo despachado y lo facturado. Un pedido entregado pero sin facturar sigue abierto, porque sigue teniendo algo
+  pendiente con el cliente. Con avance en cualquiera de las dos pero sin cerrar las dos, queda en `partial`.
+  Cada cuenta se topa **por línea**: un exceso en una no tapa lo que falta en otra.
 - La reserva se libera al despachar (pasa a salida real) o al anular la orden.
 - El precio se congela en la línea: cambios posteriores en la lista no afectan el pedido.
 - No se permite `unit_price < item.min_price` sin el permiso correspondiente.
@@ -228,6 +246,11 @@ ese movimiento la factura lee el costo que congela. Ver [inventario.md § 4.1](i
 | `notes`               | `text`          | Sí   |             |                                                                          |
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
+
+`completed` significa **cobrada**, y no se declara desde la pantalla: lo escribe
+`SalesInvoiceSettleStatusService` en cuanto `payment_status` llega a `paid`, es decir cuando un cobro, un
+anticipo o una nota de crédito deja el `balance` en cero. Revertir esa aplicación devuelve la factura a
+`confirmed`, porque vuelve a ser una cuenta por cobrar. Al usuario le quedan **emitir** y **anular**.
 
 **Índices:** `unique(company_id, invoice_series, invoice_number)`, `index(client_id)`,
 `index(invoice_date)`, `index(due_date)`, `index(payment_status)`, `index(salesperson_id)`,

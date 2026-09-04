@@ -32,6 +32,7 @@ class SalesOrderApplyDispatchService
     public function __construct(
         private readonly SalesOrderRepositoryInterface $repository,
         private readonly SalesOrderReservationService $reservations,
+        private readonly SalesOrderSettleStatusService $settle,
     ) {}
 
     public function execute(ApplySalesOrderDispatchCommand $command): SalesOrderLine
@@ -71,6 +72,7 @@ class SalesOrderApplyDispatchService
             $this->releaseStock($written, $released);
 
             $this->repository->refreshDispatchedPercent($written->sales_order_id);
+            $this->settle->execute($written->sales_order_id);
 
             return $written;
         });

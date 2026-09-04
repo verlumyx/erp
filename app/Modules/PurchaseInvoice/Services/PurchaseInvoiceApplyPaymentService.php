@@ -21,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  * La factura no se recalcula: lo aplicado no puede pasarse de su total ni
  * bajar de cero.
  *
+ * Y como no deber nada es lo que cierra la factura, cada movimiento vuelve a
+ * resolver su estado: `PurchaseInvoiceSettleStatusService`.
+ *
  * La transacción es anidable: llamado desde el documento que aplica se suma a
  * la transacción abierta como savepoint.
  */
@@ -28,6 +31,7 @@ class PurchaseInvoiceApplyPaymentService
 {
     public function __construct(
         private readonly PurchaseInvoiceRepositoryInterface $repository,
+        private readonly PurchaseInvoiceSettleStatusService $settle,
     ) {}
 
     public function execute(ApplyPurchaseInvoicePaymentCommand $command): PurchaseInvoice
@@ -46,11 +50,16 @@ class PurchaseInvoiceApplyPaymentService
                 throw new PurchaseInvoiceOverpaidException;
             }
 
-            return $this->repository->writePayment($invoice, new WritePurchaseInvoicePaymentCommand(
+            $written = $this->repository->writePayment($invoice, new WritePurchaseInvoicePaymentCommand(
                 paidAmount: $paid,
                 balance: round($total - $paid, 2),
                 paymentStatus: $this->paymentStatus($invoice, $paid, $total),
             ));
+
+            /** Saldarla la cierra; revertir el pago que la saldó la reabre. */
+            $this->settle->execute($written->id, $command->companyId);
+
+            return $written->refresh();
         });
     }
 

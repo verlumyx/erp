@@ -295,12 +295,15 @@ test('an order whose entry is already confirmed cannot be cancelled', function (
         'cancellation_reason' => 'El proveedor no pudo servirla.',
     ])->assertSessionHasErrors('status');
 
-    expect($order->refresh()->status)->toBe('confirmed');
+    /** Recibida y sin facturar, la orden quedó a medias: sigue viva, no anulada. */
+    expect($order->refresh()->status)->toBe('partial');
     /** Y la existencia no se tocó al intentarlo. */
     expect((float) stockAt($item, $location)->quantity)->toBe(10.0);
 
-    /** Anulada la entrada, la orden sí se anula. */
+    /** Anulada la entrada, la orden vuelve a estar sin recibir nada y sí se anula. */
     moveEntryTo($user, $company, $entry, 'cancelled')->assertSessionHasNoErrors();
+
+    expect($order->refresh()->status)->toBe('confirmed');
 
     movePurchaseOrderTo($user, $company, $order, 'cancelled', [
         'cancellation_reason' => 'El proveedor no pudo servirla.',

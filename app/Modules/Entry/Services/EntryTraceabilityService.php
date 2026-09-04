@@ -102,7 +102,7 @@ class EntryTraceabilityService
      */
     private function resolveLots(Entry $entry, EntryLine $line, ?Item $item): array
     {
-        if (! $item instanceof Item || ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
+        if (! $item instanceof Item || ! $item->movesStock()) {
             return [];
         }
 

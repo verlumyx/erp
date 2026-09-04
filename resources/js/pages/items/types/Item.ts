@@ -2,7 +2,6 @@ export type ItemType =
     | 'inventoried'
     | 'non_inventoried'
     | 'service'
-    | 'kit'
     | 'serialized';
 
 export type CostMethod = 'average' | 'fifo' | 'standard';
@@ -103,7 +102,6 @@ export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
     inventoried: 'Inventariado',
     non_inventoried: 'No inventariado',
     service: 'Servicio',
-    kit: 'Lotes',
     serialized: 'Serializado',
 };
 

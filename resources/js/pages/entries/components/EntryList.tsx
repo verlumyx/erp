@@ -20,6 +20,7 @@ import suppliers from '@/routes/suppliers';
 import {
     INSPECTION_LABELS,
     isEditable,
+    SELECTABLE_TYPES,
     STATUS_LABELS,
     STATUS_PILL_KIND,
     TYPE_LABELS,
@@ -52,7 +53,10 @@ const STATUS_OPTIONS: OptionType[] = [
 
 const TYPE_OPTIONS: OptionType[] = [
     { value: ALL, label: 'Todos' },
-    ...Object.entries(TYPE_LABELS).map(([value, label]) => ({ value, label })),
+    ...SELECTABLE_TYPES.map((type) => ({
+        value: type,
+        label: TYPE_LABELS[type],
+    })),
 ];
 
 const INSPECTION_OPTIONS: OptionType[] = [

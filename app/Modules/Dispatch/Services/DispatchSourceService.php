@@ -350,7 +350,7 @@ class DispatchSourceService
             $lots = $line->activeLots();
             $serials = $line->activeSerials();
 
-            if (! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true) && $lots !== []) {
+            if (! $item->movesStock() && $lots !== []) {
                 $errors["lines.{$index}.lots"] = 'Ese artículo no se controla por lote.';
             }
 

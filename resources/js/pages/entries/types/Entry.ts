@@ -11,6 +11,7 @@ export type EntryType =
     | 'return'
     | 'donation'
     | 'initial'
+    | 'transfer'
     | 'other';
 
 /** Cómo terminó el control de calidad de lo recibido. */
@@ -224,14 +225,28 @@ export const STATUS_LABELS: Record<EntryStatus, string> = {
     cancelled: 'Anulada',
 };
 
+/**
+ * Un rótulo por cada tipo que el catálogo admite, incluidos los que ya no se
+ * eligen a mano: una entrada vieja —o la que nace de un traslado— tiene que
+ * poder decir lo que es en la lista y en la ficha.
+ */
 export const TYPE_LABELS: Record<EntryType, string> = {
     purchase: 'Compra',
     production: 'Producción',
     return: 'Devolución',
     donation: 'Donación',
     initial: 'Inventario inicial',
+    transfer: 'Traslado',
     other: 'Otra',
 };
+
+/**
+ * Los tipos que la pantalla ofrece, que son menos que los que el catálogo
+ * admite. `production`, `donation`, `initial` y `other` siguen siendo válidos
+ * para el backend —`initial` carga saldos iniciales y tiene regla propia—,
+ * pero no se capturan a mano.
+ */
+export const SELECTABLE_TYPES: EntryType[] = ['purchase', 'return', 'transfer'];
 
 export const INSPECTION_LABELS: Record<EntryInspectionStatus, string> = {
     pending: 'Sin inspeccionar',

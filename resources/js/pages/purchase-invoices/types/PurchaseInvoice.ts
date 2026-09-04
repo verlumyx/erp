@@ -192,13 +192,16 @@ export const PAYMENT_STATUS_PILL_KIND: Record<
 /**
  * Transiciones permitidas. Espejo de `PurchaseInvoice::STATUS_TRANSITIONS`:
  * la pantalla solo ofrece lo que el backend acepta.
+ *
+ * `completed` no se ofrece: la factura se cierra sola cuando se salda, y la
+ * saldan los pagos, los anticipos y las notas de crédito.
  */
 export const STATUS_TRANSITIONS: Record<
     PurchaseInvoiceStatus,
     PurchaseInvoiceStatus[]
 > = {
     draft: ['confirmed', 'cancelled'],
-    confirmed: ['completed', 'cancelled'],
+    confirmed: ['cancelled'],
     completed: [],
     cancelled: [],
 };

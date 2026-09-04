@@ -130,6 +130,12 @@ Solicitud formal de mercancía al proveedor. **No afecta inventario**; solo rese
 
 **Estados (`status`):** `draft` → `confirmed` → `partial` → `completed`, o `cancelled`.
 
+El usuario solo decide dos de esos estados: **confirmar** y **anular**. `partial` y `completed` no se declaran
+desde la pantalla —no hay botón para ellos—: son la lectura de lo que las líneas ya dicen, y los escribe
+`PurchaseOrderSettleStatusService` cada vez que una Entrada o una Factura de compra se confirma o se anula.
+Por eso el estado también **retrocede**: anular la entrada que la había cerrado devuelve la orden a `partial`,
+y anular el último documento que la tocaba, a `confirmed`.
+
 **Índices:** `index(supplier_id)`, `index(order_date)`, `index(expected_date)`, `index(warehouse_id)`.
 
 ### 2.2 Líneas — `app_purchase_order_lines`
@@ -156,7 +162,17 @@ Además de las columnas comunes de línea:
   armar sus líneas. Ambas admiten `?ids=` para que vuelvan también las líneas que el documento ya tenía atadas
   aunque su saldo esté en cero.
 - Solo se edita en `draft`. Confirmada, se modifica creando una nueva versión o anulando.
-- Se cierra automáticamente (`completed`) cuando todas las líneas tienen `pending_quantity = 0`.
+- **Las dos cuentas no miden sobre lo mismo.** Lo facturado se mide contra todas las líneas —un servicio se
+  factura igual que un tornillo—, pero lo recibido **solo contra las líneas que llevan existencia**
+  (`Item::movesStock()`). Un servicio o un artículo no inventariado no entra nunca por una Entrada: la entrada
+  espejo ni siquiera los incluye, y `receivable-lines` los da por saldados. Contarlos en `received_percent`
+  dejaría el avance por debajo del 100 % con toda la mercancía ya en la bodega, y la orden no cerraría jamás.
+  Una orden que solo pide servicios nace con `received_percent = 100`: no hay nada que esperar.
+- Se cierra automáticamente (`completed`) cuando **las dos** cuentas de todas las líneas llegaron a lo pedido:
+  lo recibido y lo facturado. Una orden con la mercancía en la bodega pero sin factura sigue abierta, porque
+  sigue teniendo algo pendiente con el proveedor. Con avance en cualquiera de las dos pero sin cerrar las dos,
+  queda en `partial`. Cada cuenta se topa **por línea**: al proveedor se le admite despachar o facturar de más,
+  pero ese exceso no tapa lo que falta en otra línea.
 - Anular una orden con recepciones parciales exige anular primero las entradas asociadas.
 
 ---
@@ -196,6 +212,11 @@ originó. **No mueve inventario**: la mercancía entra con su Entrada, antes o d
 | `notes`                   | `text`          | Sí   |             |                                                              |
 
 **Estados (`status`):** `draft` → `confirmed` → `completed`, o `cancelled`.
+
+`completed` significa **saldada**, y no se declara desde la pantalla: lo escribe
+`PurchaseInvoiceSettleStatusService` en cuanto `payment_status` llega a `paid`, es decir cuando un pago, un
+anticipo o una nota de crédito deja el `balance` en cero. Revertir esa aplicación devuelve la factura a
+`confirmed`, porque vuelve a deber. Al usuario le quedan **confirmar** y **anular**.
 
 **Índices:** `unique(company_id, supplier_id, supplier_invoice_number)`, `index(supplier_id)`,
 `index(invoice_date)`, `index(due_date)`, `index(payment_status)`,

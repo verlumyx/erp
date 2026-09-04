@@ -397,6 +397,15 @@ class MenuSeeder extends Seeder
                         'is_active' => true,
                         'section' => 'main',
                     ],
+                    [
+                        'title' => 'Importaciones',
+                        'icon' => 'Ship',
+                        'url' => '/imports',
+                        'permission' => 'imports.list',
+                        'order' => 6,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
                 ],
             ],
 

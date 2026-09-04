@@ -22,6 +22,9 @@ use Illuminate\Support\Facades\DB;
  * tiene que poder reflejarlo. Quién puede permitirlo lo decide el documento que
  * recibe —el permiso `entries.allow-over-receipt`—, no esta puerta.
  *
+ * Y como lo recibido es una de las dos cuentas que cierran la orden, cada
+ * movimiento vuelve a resolver su estado: `PurchaseOrderSettleStatusService`.
+ *
  * Recibir **consume lo anunciado**: la mercancía que entró a la bodega dejó de
  * estar en camino. Anular la entrada la vuelve a poner en camino, porque la
  * orden sigue esperándola.
@@ -34,6 +37,7 @@ class PurchaseOrderApplyReceiptService
     public function __construct(
         private readonly PurchaseOrderRepositoryInterface $repository,
         private readonly PurchaseOrderIncomingService $incoming,
+        private readonly PurchaseOrderSettleStatusService $settle,
     ) {}
 
     public function execute(ApplyPurchaseOrderReceiptCommand $command): PurchaseOrderLine
@@ -63,6 +67,7 @@ class PurchaseOrderApplyReceiptService
             $this->consumeIncoming($line, $command->receivedDelta);
 
             $this->repository->refreshReceivedPercent($line->purchase_order_id);
+            $this->settle->execute($line->purchase_order_id);
 
             return $line;
         });

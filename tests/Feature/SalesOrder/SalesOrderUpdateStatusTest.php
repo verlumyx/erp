@@ -159,7 +159,7 @@ test('a cancelled order is final', function () {
     expect(SalesOrder::find($order->id)->status)->toBe('cancelled');
 });
 
-test('a confirmed order advances to partial and then to completed', function () {
+test('a confirmed order cannot be declared partial or completed by hand', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
 
     stockSalesOrderWarehouse($user, $company, $warehouse, $item);
@@ -167,10 +167,17 @@ test('a confirmed order advances to partial and then to completed', function () 
     $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 
     putStatus($user, $company, $order, ['status' => 'confirmed'])->assertSessionHasNoErrors();
-    putStatus($user, $company, $order, ['status' => 'partial'])->assertSessionHasNoErrors();
-    putStatus($user, $company, $order, ['status' => 'completed'])->assertSessionHasNoErrors();
 
-    expect(SalesOrder::find($order->id)->status)->toBe('completed');
+    /**
+     * El avance lo escriben el Despacho y la Factura de venta al confirmarse;
+     * por esta ruta solo pasan las decisiones del usuario.
+     * Ver `SalesOrderFulfillmentStatusTest`.
+     */
+    foreach (['partial', 'completed'] as $status) {
+        putStatus($user, $company, $order, ['status' => $status])->assertSessionHasErrors('status');
+
+        expect(SalesOrder::find($order->id)->status)->toBe('confirmed');
+    }
 });
 
 test('an order without active lines cannot be confirmed', function () {

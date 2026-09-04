@@ -196,6 +196,11 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
         return $model;
     }
 
+    public function writeSettledStatus(SalesInvoice $model, string $status): void
+    {
+        $model->update(['status' => $status]);
+    }
+
     public function lockLineById(string $id, ?string $companyId = null): ?SalesInvoiceLine
     {
         return SalesInvoiceLine::query()

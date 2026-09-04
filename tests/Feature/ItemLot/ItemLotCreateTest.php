@@ -106,6 +106,31 @@ test('the service rejects an item that does not affect stock', function () {
     createLot($company->id, $service->id, ['createdBy' => $user->id]);
 })->throws(ItemLotNotTrackableException::class);
 
+/**
+ * El lote no es un tipo de artículo: lo admite cualquiera que mueva mercancía y
+ * ninguno que no la mueva. Los casos salen del catálogo y no de una lista
+ * escrita a mano, para que un tipo nuevo no estrene la regla a medias —que fue
+ * exactamente lo que pasó con `kit`, que la pantalla rotulaba «Lotes» y era el
+ * único con existencia al que el lote le estaba prohibido—.
+ */
+test('any item that moves stock can carry a lot', function (string $type) {
+    [$user, $company] = createUserWithCompany();
+
+    $item = Item::factory()->create(['company_id' => $company->id, 'type' => $type]);
+
+    $lot = createLot($company->id, $item->id, ['createdBy' => $user->id]);
+
+    expect($lot->item_id)->toBe($item->id);
+})->with(array_values(array_diff(Item::TYPES, Item::NON_STOCKED_TYPES)));
+
+test('an item without stock never carries a lot', function (string $type) {
+    [$user, $company] = createUserWithCompany();
+
+    $item = Item::factory()->create(['company_id' => $company->id, 'type' => $type]);
+
+    createLot($company->id, $item->id, ['createdBy' => $user->id]);
+})->with(Item::NON_STOCKED_TYPES)->throws(ItemLotNotTrackableException::class);
+
 test('the service rejects an item from another company', function () {
     [$user, $company] = createUserWithCompany();
     [, $otherCompany] = createUserWithCompany();

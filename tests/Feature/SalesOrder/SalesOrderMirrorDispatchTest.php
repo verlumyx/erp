@@ -302,12 +302,15 @@ test('an order whose dispatch is already confirmed cannot be cancelled', functio
         'cancellation_reason' => 'El cliente desistió del pedido.',
     ])->assertSessionHasErrors('status');
 
-    expect($order->refresh()->status)->toBe('confirmed');
+    /** Despachado y sin facturar, el pedido quedó a medias: sigue vivo, no anulado. */
+    expect($order->refresh()->status)->toBe('partial');
     /** Y la existencia no se tocó al intentarlo. */
     expect((float) stockAt($item, $location)->quantity)->toBe(98.0);
 
-    /** Anulado el despacho, el pedido sí se anula. */
+    /** Anulado el despacho, el pedido vuelve a estar sin despachar nada y sí se anula. */
     moveDispatchTo($user, $company, $dispatch, 'cancelled')->assertSessionHasNoErrors();
+
+    expect($order->refresh()->status)->toBe('confirmed');
 
     moveSalesOrderTo($user, $company, $order, 'cancelled', [
         'cancellation_reason' => 'El cliente desistió del pedido.',

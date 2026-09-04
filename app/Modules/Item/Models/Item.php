@@ -26,7 +26,7 @@ class Item extends Model
 
     public const CODE_PREFIX = 'ART';
 
-    public const TYPES = ['inventoried', 'non_inventoried', 'service', 'kit', 'serialized'];
+    public const TYPES = ['inventoried', 'non_inventoried', 'service', 'serialized'];
 
     /**
      * Tipos que no llevan existencia: ningún documento de mercancía los mueve,
@@ -90,6 +90,11 @@ class Item extends Model
      * Si el artículo lleva existencia. Es la única respuesta a esa pregunta:
      * la tenían copiada media docena de servicios y una pantalla se quedó sin
      * ella, que es como los servicios acabaron pidiéndose en una entrada.
+     *
+     * También decide quién admite lote, que era la misma pregunta con otro
+     * nombre: el lote no es un tipo de artículo sino una capacidad de todo lo
+     * que mueve mercancía —el kardex guarda el saldo por lote—, así que
+     * cualquiera con existencia puede llevarlo y nada que no la tenga puede.
      */
     public function movesStock(): bool
     {

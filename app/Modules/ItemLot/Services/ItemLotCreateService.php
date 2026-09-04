@@ -46,7 +46,7 @@ class ItemLotCreateService
     {
         $item = $this->itemRepository->findById($command->itemId, $command->companyId);
 
-        if ($item === null || ! in_array($item->type, ItemLot::TRACKABLE_ITEM_TYPES, true)) {
+        if ($item === null || ! $item->movesStock()) {
             throw new ItemLotNotTrackableException;
         }
     }

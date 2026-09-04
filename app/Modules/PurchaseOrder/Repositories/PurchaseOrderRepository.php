@@ -50,6 +50,13 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
             ]);
 
             $this->syncLines($order, $command->lines);
+
+            /**
+             * El avance de recepción depende de la mezcla de líneas, no solo de
+             * lo que llegue: una orden que solo pide servicios nace sin nada que
+             * esperar, y ninguna entrada vendría después a decirlo.
+             */
+            $this->refreshReceivedPercent($order->id);
         });
     }
 
@@ -86,6 +93,9 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
             ]);
 
             $this->syncLines($model, $command->lines);
+
+            /** Cambiar las líneas cambia el denominador del avance. */
+            $this->refreshReceivedPercent($model->id);
         });
     }
 
@@ -118,6 +128,19 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
             ->orderBy('line_number')
             ->get()
             ->all();
+    }
+
+    public function lockById(string $id, ?string $companyId = null): ?PurchaseOrder
+    {
+        return PurchaseOrder::query()
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->lockForUpdate()
+            ->find($id);
+    }
+
+    public function writeFulfillmentStatus(PurchaseOrder $model, string $status): void
+    {
+        $model->update(['status' => $status]);
     }
 
     public function lockLineById(string $id, ?string $companyId = null): ?PurchaseOrderLine
@@ -177,9 +200,14 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
     }
 
     /**
-     * Avance de recepción de la orden: cuánto de lo pedido ya está en la
-     * bodega. Suma solo las líneas activas y no pasa del 100 % aunque el
-     * proveedor haya despachado de más.
+     * Avance de recepción de la orden: cuánto de la mercancía pedida ya está en
+     * la bodega. No pasa del 100 % aunque el proveedor haya despachado de más.
+     *
+     * Se mide **solo sobre las líneas que llevan existencia**. Un servicio o un
+     * artículo no inventariado no pasa nunca por una entrada —la entrada espejo
+     * ni siquiera los incluye—, así que contarlos aquí dejaría el avance por
+     * debajo del 100 % con toda la mercancía ya recibida. Por eso una orden que
+     * solo pide servicios está al 100 %: no hay nada que esperar.
      */
     public function refreshReceivedPercent(string $orderId): void
     {
@@ -190,16 +218,23 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
         }
 
         $lines = PurchaseOrderLine::query()
+            ->with('item')
             ->where('purchase_order_id', $order->id)
             ->where('status', 'active')
             ->get();
 
-        $ordered = (float) $lines->sum('quantity');
+        $stocked = $lines->filter(
+            static fn (PurchaseOrderLine $line): bool => $line->item?->movesStock() ?? true,
+        );
+
+        $ordered = round((float) $stocked->sum('quantity'), 4);
 
         $order->update([
-            'received_percent' => $ordered > 0
-                ? min(round((float) $lines->sum('received_quantity') * 100 / $ordered, 4), 100)
-                : 0,
+            'received_percent' => match (true) {
+                $ordered > 0 => min(round((float) $stocked->sum('received_quantity') * 100 / $ordered, 4), 100),
+                $lines->isEmpty() => 0,
+                default => 100,
+            },
         ]);
     }
 

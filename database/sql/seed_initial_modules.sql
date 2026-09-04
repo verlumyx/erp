@@ -46,6 +46,7 @@ DECLARE
     v_mod_store_cust  UUID;
     v_mod_store_ord   UUID;
     v_mod_store_set   UUID;
+    v_mod_imports     UUID;
 BEGIN
 
     -- ==========================================================
@@ -94,7 +95,8 @@ BEGIN
         (gen_random_uuid(), 'store-items', 'Publicaciones', 'Artículos publicados en la tienda en línea con sus fotos y textos comerciales', 'Store', true, 37, NOW(), NOW()),
         (gen_random_uuid(), 'store-customers', 'Compradores', 'Cuentas con las que se compra en la tienda en línea y su vínculo con el cliente del ERP', 'UserRound', true, 38, NOW(), NOW()),
         (gen_random_uuid(), 'store-orders', 'Pedidos web', 'Bandeja de pedidos que llegan desde la tienda en línea y se convierten en órdenes de venta', 'ShoppingCart', true, 39, NOW(), NOW()),
-        (gen_random_uuid(), 'store-settings', 'Ajustes de tienda', 'Nombre, logo, contacto, lista, bodega y llave de acceso de la tienda en línea', 'Settings2', true, 40, NOW(), NOW())
+        (gen_random_uuid(), 'store-settings', 'Ajustes de tienda', 'Nombre, logo, contacto, lista, bodega y llave de acceso de la tienda en línea', 'Settings2', true, 40, NOW(), NOW()),
+        (gen_random_uuid(), 'imports', 'Importaciones', 'Expediente de costos de una importación: reparte flete, seguro, aduana y almacenaje entre lo que llegó y manda revalorizar el inventario', 'Ship', true, 41, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 
     -- Obtener los IDs generados para usarlos en los permisos
@@ -138,6 +140,7 @@ BEGIN
     SELECT id INTO v_mod_store_cust  FROM app_modules WHERE name = 'store-customers';
     SELECT id INTO v_mod_store_ord   FROM app_modules WHERE name = 'store-orders';
     SELECT id INTO v_mod_store_set   FROM app_modules WHERE name = 'store-settings';
+    SELECT id INTO v_mod_imports     FROM app_modules WHERE name = 'imports';
 
     -- ==========================================================
     -- 2. PERMISOS POR MÓDULO
@@ -431,6 +434,20 @@ BEGIN
         (gen_random_uuid(), v_mod_adjust, 'adjustments.update',        'Editar ajustes de inventario',        true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_adjust, 'adjustments.update-status', 'Enviar a aprobación o anular',        true, 5, NOW(), NOW()),
         (gen_random_uuid(), v_mod_adjust, 'adjustments.approve',       'Aprobar y aplicar un ajuste',         true, 6, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Importaciones
+    -- Los cinco de siempre: el expediente no toca el kardex, así que no lleva
+    -- permiso de aprobación propio. Quien firma el cambio de valor del
+    -- inventario es el ajuste de revaluación que genera, con el umbral que la
+    -- empresa ya tiene configurado para los ajustes.
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_imports, 'imports.list',          'Listar expedientes de importación',   true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_imports, 'imports.create',        'Crear expedientes de importación',    true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_imports, 'imports.show',          'Ver detalle de un expediente',        true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_imports, 'imports.update',        'Editar expedientes de importación',   true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_imports, 'imports.update-status', 'Confirmar o anular un expediente',    true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Traslados

@@ -46,6 +46,19 @@ interface SalesOrderRepositoryInterface
      */
     public function writeLineReservation(SalesOrderLine $line, float $reservedQuantity): SalesOrderLine;
 
+    /**
+     * La cabecera con su fila bloqueada, para que dos documentos que la cumplen
+     * a la vez no lean el mismo avance al resolver su estado.
+     */
+    public function lockById(string $id, ?string $companyId = null): ?SalesOrder;
+
+    /**
+     * Escribe el estado que le toca al pedido por lo despachado y lo facturado.
+     * Solo lo llama `SalesOrderSettleStatusService`: el resto del estado pasa
+     * por `updateStatus`.
+     */
+    public function writeFulfillmentStatus(SalesOrder $model, string $status): void;
+
     public function lockLineById(string $id, ?string $companyId = null): ?SalesOrderLine;
 
     /**

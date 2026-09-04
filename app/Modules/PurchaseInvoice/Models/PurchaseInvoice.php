@@ -34,6 +34,14 @@ class PurchaseInvoice extends Model
     public const PAYMENT_STATUSES = ['pending', 'partial', 'paid', 'overdue'];
 
     /**
+     * Alias con el que la factura viaja en las columnas `sourceable_type` de
+     * los documentos que la referencian. Hoy la usa el expediente de
+     * importación: el flete y la aduana llegan facturados, y el costo que
+     * reparte apunta al papel que lo respalda.
+     */
+    public const MORPH_ALIAS = 'purchase_invoice';
+
+    /**
      * Estados en los que la factura ya generó su deuda y admite que se le
      * aplique un pago. En borrador todavía no debe nada.
      *
@@ -51,13 +59,19 @@ class PurchaseInvoice extends Model
     public const SOURCE_TYPES = [PurchaseOrder::MORPH_ALIAS];
 
     /**
-     * Transiciones permitidas. `completed` y `cancelled` son terminales.
+     * Transiciones que alguien puede **pedir**: emitir la factura y anularla.
+     *
+     * `completed` no está aquí a propósito: cerrar la factura es haberla
+     * pagado, no declararlo. Lo escribe `PurchaseInvoiceSettleStatusService`
+     * cuando un pago, un anticipo o una nota de crédito la deja sin saldo.
+     *
+     * `completed` y `cancelled` son terminales.
      *
      * @var array<string, array<int, string>>
      */
     public const STATUS_TRANSITIONS = [
         'draft' => ['confirmed', 'cancelled'],
-        'confirmed' => ['completed', 'cancelled'],
+        'confirmed' => ['cancelled'],
         'completed' => [],
         'cancelled' => [],
     ];

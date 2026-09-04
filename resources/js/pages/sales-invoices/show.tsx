@@ -4,7 +4,6 @@ import {
     Ban,
     CalendarClock,
     Check,
-    CircleDollarSign,
     Edit,
     FileText,
     Hash,
@@ -104,7 +103,6 @@ export default function SalesInvoicesShow({ salesInvoice: invoice }: Props) {
 
     const allowed = STATUS_TRANSITIONS[invoice.status];
     const canConfirm = allowed.includes('confirmed');
-    const canComplete = allowed.includes('completed');
     const canCancel = allowed.includes('cancelled');
 
     /** El número fiscal completo, con su serie cuando la lleva. */
@@ -183,17 +181,6 @@ export default function SalesInvoicesShow({ salesInvoice: invoice }: Props) {
                             >
                                 <Check />
                                 Emitir
-                            </Button>
-                        )}
-                        {canComplete && (
-                            <Button
-                                variant="outline"
-                                className="h-10 rounded-[11px] bg-card px-4 font-semibold"
-                                onClick={() => submitStatus('completed')}
-                                disabled={processing}
-                            >
-                                <CircleDollarSign />
-                                Completar
                             </Button>
                         )}
                         {canCancel && (

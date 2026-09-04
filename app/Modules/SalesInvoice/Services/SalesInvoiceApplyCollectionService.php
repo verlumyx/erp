@@ -21,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  * La factura no se recalcula: lo cobrado no puede pasarse de su total ni bajar
  * de cero.
  *
+ * Y como no quedar nada por cobrar es lo que cierra la factura, cada movimiento
+ * vuelve a resolver su estado: `SalesInvoiceSettleStatusService`.
+ *
  * La transacción es anidable: llamado desde el documento que aplica se suma a
  * la transacción abierta como savepoint.
  */
@@ -28,6 +31,7 @@ class SalesInvoiceApplyCollectionService
 {
     public function __construct(
         private readonly SalesInvoiceRepositoryInterface $repository,
+        private readonly SalesInvoiceSettleStatusService $settle,
     ) {}
 
     public function execute(ApplySalesInvoiceCollectionCommand $command): SalesInvoice
@@ -46,11 +50,16 @@ class SalesInvoiceApplyCollectionService
                 throw new SalesInvoiceOvercollectedException;
             }
 
-            return $this->repository->writeCollection($invoice, new WriteSalesInvoiceCollectionCommand(
+            $written = $this->repository->writeCollection($invoice, new WriteSalesInvoiceCollectionCommand(
                 paidAmount: $paid,
                 balance: round($total - $paid, 2),
                 paymentStatus: $this->paymentStatus($invoice, $paid, $total),
             ));
+
+            /** Cobrarla del todo la cierra; revertir ese cobro la reabre. */
+            $this->settle->execute($written->id, $command->companyId);
+
+            return $written->refresh();
         });
     }
 

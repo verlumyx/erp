@@ -8,6 +8,7 @@ use App\Modules\Adjustment\Commands\UpdateStatusAdjustmentCommand;
 use App\Modules\Adjustment\Exceptions\AdjustmentNotFoundException;
 use App\Modules\Adjustment\Models\Adjustment;
 use App\Modules\Adjustment\Repositories\Contracts\AdjustmentRepositoryInterface;
+use App\Modules\Import\Services\ImportApplyAdjustmentService;
 use Illuminate\Support\Facades\DB;
 
 class AdjustmentUpdateStatusService
@@ -16,6 +17,7 @@ class AdjustmentUpdateStatusService
         private readonly AdjustmentRepositoryInterface $repository,
         private readonly AdjustmentPostingService $posting,
         private readonly AdjustmentApprovalService $approval,
+        private readonly ImportApplyAdjustmentService $imports,
     ) {}
 
     /**
@@ -45,6 +47,19 @@ class AdjustmentUpdateStatusService
             /** Un ajuste anulado antes de aplicarse no revierte nada: nunca movió existencia. */
             if ($command->status === 'cancelled' && $wasPosted) {
                 $this->posting->reverse($model);
+            }
+
+            /**
+             * El expediente de importación que lo generó, si lo hay, se cierra
+             * con él: el costo lo estimó el expediente, pero quien lo escribe
+             * contra la existencia del momento es este ajuste.
+             */
+            if ($command->status === 'confirmed') {
+                $this->imports->markSettled($model);
+            }
+
+            if ($command->status === 'cancelled' && $wasPosted) {
+                $this->imports->markSettled($model, false);
             }
 
             $this->repository->updateStatus($model, $command);

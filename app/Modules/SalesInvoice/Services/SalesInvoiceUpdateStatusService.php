@@ -8,6 +8,8 @@ use App\Modules\SalesInvoice\Commands\UpdateStatusSalesInvoiceCommand;
 use App\Modules\SalesInvoice\Exceptions\SalesInvoiceNotFoundException;
 use App\Modules\SalesInvoice\Models\SalesInvoice;
 use App\Modules\SalesInvoice\Repositories\Contracts\SalesInvoiceRepositoryInterface;
+use App\Modules\SalesOrder\Models\SalesOrder;
+use App\Modules\SalesOrder\Services\SalesOrderSettleStatusService;
 use Illuminate\Support\Facades\DB;
 
 class SalesInvoiceUpdateStatusService
@@ -15,6 +17,7 @@ class SalesInvoiceUpdateStatusService
     public function __construct(
         private readonly SalesInvoiceRepositoryInterface $repository,
         private readonly SalesInvoicePostingService $posting,
+        private readonly SalesOrderSettleStatusService $settleOrder,
     ) {}
 
     /**
@@ -44,8 +47,24 @@ class SalesInvoiceUpdateStatusService
             if ($command->status === 'confirmed') {
                 $this->posting->post($model);
             }
+
+            $this->settleSourceOrder($model);
         });
 
         return $this->repository->findOrFail($id, $companyId);
+    }
+
+    /**
+     * Emitir o anular la factura mueve lo facturado del pedido que la originó,
+     * así que ese pedido tiene que volver a resolver su estado. Una factura
+     * directa no origina nada y no despierta a nadie.
+     */
+    private function settleSourceOrder(SalesInvoice $invoice): void
+    {
+        if ($invoice->sourceable_type !== SalesOrder::MORPH_ALIAS || $invoice->sourceable_id === null) {
+            return;
+        }
+
+        $this->settleOrder->execute($invoice->sourceable_id);
     }
 }

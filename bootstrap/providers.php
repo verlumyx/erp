@@ -44,6 +44,7 @@ return [
     App\Modules\Dispatch\Providers\DispatchServiceProvider::class,
     App\Modules\Adjustment\Providers\AdjustmentServiceProvider::class,
     App\Modules\Transfer\Providers\TransferServiceProvider::class,
+    App\Modules\Import\Providers\ImportServiceProvider::class,
     App\Modules\Route\Providers\RouteServiceProvider::class,
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,

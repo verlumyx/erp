@@ -170,12 +170,15 @@ export const STATUS_LABELS: Record<SalesOrderStatus, string> = {
  * El ciclo del pedido es dirigido y debe reflejar
  * `SalesOrder::STATUS_TRANSITIONS` del backend: si divergen, el formulario
  * ofrece acciones que el request rechaza.
+ *
+ * `partial` y `completed` no se ofrecen: el avance del pedido lo escriben el
+ * Despacho y la Factura de venta al confirmarse o anularse, no el usuario.
  */
 export const STATUS_TRANSITIONS: Record<SalesOrderStatus, SalesOrderStatus[]> =
     {
         draft: ['confirmed', 'cancelled'],
-        confirmed: ['partial', 'completed', 'cancelled'],
-        partial: ['completed', 'cancelled'],
+        confirmed: ['cancelled'],
+        partial: ['cancelled'],
         completed: [],
         cancelled: [],
     };
