@@ -321,12 +321,13 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
                     <div className="border-b p-5 text-[13px] font-bold text-muted-foreground">
                         Líneas
                     </div>
-                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2.4fr_1fr_1fr_1fr_1fr]">
+                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2.2fr_0.9fr_1fr_1fr_0.9fr_1fr]">
                         {[
                             '#',
                             'Artículo',
                             'Cantidad',
-                            'Pendiente',
+                            'Por recibir',
+                            'Por facturar',
                             'Costo',
                             'Total',
                         ].map((header) => (
@@ -342,7 +343,7 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
                         {activeLines.map((line) => (
                             <div
                                 key={line.id}
-                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2.4fr_1fr_1fr_1fr_1fr] lg:items-center"
+                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2.2fr_0.9fr_1fr_1fr_0.9fr_1fr] lg:items-center"
                             >
                                 <div className="text-[13.5px] font-semibold text-muted-foreground tabular-nums">
                                     {line.line_number}
@@ -363,6 +364,9 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
                                 </div>
                                 <div className="text-[13.5px] tabular-nums">
                                     {line.pending_quantity}
+                                </div>
+                                <div className="text-[13.5px] tabular-nums">
+                                    {line.pending_invoiced_quantity}
                                 </div>
                                 <div className="text-[13.5px] tabular-nums">
                                     {line.unit_price}

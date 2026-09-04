@@ -38,8 +38,20 @@ class PurchaseOrderLineResource extends JsonResource
             'received_quantity' => $this->received_quantity,
             'invoiced_quantity' => $this->invoiced_quantity,
             'pending_quantity' => $this->pending_quantity,
+            'pending_invoiced_quantity' => number_format($this->pendingInvoicedQuantity(), 4, '.', ''),
             'status' => $this->status,
             'notes' => $this->notes,
         ];
+    }
+
+    /**
+     * Lo que a la línea le queda por facturar, nunca negativo.
+     *
+     * La columna `pending_quantity` solo mide el otro camino —lo que falta por
+     * recibir—, así que este saldo se resta aquí en vez de leerse.
+     */
+    private function pendingInvoicedQuantity(): float
+    {
+        return max(round((float) $this->quantity - (float) $this->invoiced_quantity, 4), 0);
     }
 }

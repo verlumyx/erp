@@ -39,6 +39,65 @@ test('the detail shows the order with its lines', function () {
         );
 });
 
+test('each line carries what it owes on both roads', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $order = PurchaseOrder::factory()->create([
+        'company_id' => $company->id,
+        'supplier_id' => $supplier->id,
+        'warehouse_id' => $warehouse->id,
+        'created_by' => $user->id,
+    ]);
+
+    PurchaseOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'purchase_order_id' => $order->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 10,
+        'received_quantity' => 4,
+        'pending_quantity' => 6,
+        'invoiced_quantity' => 7,
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('purchase-orders.show', ['company' => $company->id, 'id' => $order->id]))
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->where('purchaseOrder.lines.0.pending_quantity', '6.0000')
+                ->where('purchaseOrder.lines.0.pending_invoiced_quantity', '3.0000')
+        );
+});
+
+test('a line already over-invoiced owes nothing', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $order = PurchaseOrder::factory()->create([
+        'company_id' => $company->id,
+        'supplier_id' => $supplier->id,
+        'warehouse_id' => $warehouse->id,
+        'created_by' => $user->id,
+    ]);
+
+    PurchaseOrderLine::factory()->create([
+        'company_id' => $company->id,
+        'purchase_order_id' => $order->id,
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => 5,
+        'invoiced_quantity' => 8,
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('purchase-orders.show', ['company' => $company->id, 'id' => $order->id]))
+        ->assertOk()
+        ->assertInertia(
+            fn (AssertableInertia $page) => $page
+                ->where('purchaseOrder.lines.0.pending_invoiced_quantity', '0.0000')
+        );
+});
+
 test('an order from another company is not found', function () {
     [$user, $company] = purchaseOrderScenario();
 
