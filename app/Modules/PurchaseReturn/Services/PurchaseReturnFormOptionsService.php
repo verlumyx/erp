@@ -4,15 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseReturn\Services;
 
-use App\Modules\Tax\Commands\SearchTaxCommand;
-use App\Modules\Tax\Models\Tax;
-use App\Modules\Tax\Repositories\Contracts\TaxRepositoryInterface;
 use App\Modules\Warehouse\Commands\SearchWarehouseCommand;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\Warehouse\Repositories\Contracts\WarehouseRepositoryInterface;
-use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
-use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 
 /**
  * Catálogos que alimentan los selects de la devolución.
@@ -20,12 +14,14 @@ use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationReposi
  * Se resuelven a través de los repositorios de sus módulos: el módulo de
  * devoluciones nunca consulta sus tablas directamente.
  *
- * Los artículos, los proveedores, las facturas, los lotes y las series NO
- * viajan aquí: son padrones demasiado grandes para las props de cada pantalla.
- * La línea busca el artículo contra `items.lookup`, el lote contra
- * `item-lots.lookup` y la serie contra `item-serials.lookup`; la cabecera busca
- * el proveedor contra `suppliers.lookup` y la factura de origen contra
- * `purchase-invoices.lookup`.
+ * Solo viajan las bodegas: son pocas por empresa y las eligen tanto la cabecera
+ * como cada línea. Los artículos, los proveedores y las facturas NO viajan
+ * aquí —son padrones demasiado grandes para las props— y la pantalla los busca
+ * contra `items.lookup`, `suppliers.lookup` y `purchase-invoices.lookup`.
+ *
+ * Los impuestos y las ubicaciones ya no hacen falta: la línea no captura ni el
+ * cargo —lo copia `PurchaseReturnPricingService` de la factura— ni el sitio del
+ * que sale la mercancía —lo pide el despacho que la devolución genera—.
  */
 class PurchaseReturnFormOptionsService
 {
@@ -33,28 +29,21 @@ class PurchaseReturnFormOptionsService
 
     public function __construct(
         private readonly WarehouseRepositoryInterface $warehouses,
-        private readonly WarehouseLocationRepositoryInterface $locations,
-        private readonly TaxRepositoryInterface $taxes,
     ) {}
 
     /**
-     * @return array{
-     *     warehouses: array<int, array{id: string, name: string}>,
-     *     locations: array<int, array{id: string, warehouse_id: string, name: string, is_default: string}>,
-     *     taxes: array<int, array<string, string>>
-     * }
+     * @return array{ warehouses: array<int, array{id: string, name: string}> }
      */
     public function execute(?string $companyId): array
     {
         return [
             'warehouses' => $this->warehouseOptions($companyId),
-            'locations' => $this->locationOptions($companyId),
-            'taxes' => $this->taxOptions($companyId),
         ];
     }
 
     /**
-     * La bodega es de la cabecera: toda la devolución sale del mismo sitio.
+     * La cabecera dice de qué bodega sale la devolución y cada línea puede
+     * apartarse de ella.
      *
      * @return array<int, array{id: string, name: string}>
      */
@@ -70,60 +59,6 @@ class PurchaseReturnFormOptionsService
             fn (Warehouse $warehouse): array => [
                 'id' => $warehouse->id,
                 'name' => $warehouse->name,
-            ],
-            $result['data'],
-        );
-    }
-
-    /**
-     * Las ubicaciones viajan enteras y con su bodega: la pantalla filtra por la
-     * bodega elegida sin volver al servidor. Son pocas por empresa, a diferencia
-     * de artículos o lotes.
-     *
-     * @return array<int, array{id: string, warehouse_id: string, name: string, is_default: string}>
-     */
-    private function locationOptions(?string $companyId): array
-    {
-        $result = $this->locations->search(new SearchWarehouseLocationCommand(
-            filters: ['status' => 'active'],
-            limit: self::MAX_OPTIONS,
-            companyId: $companyId,
-        ));
-
-        return array_map(
-            fn (WarehouseLocation $location): array => [
-                'id' => $location->id,
-                'warehouse_id' => $location->warehouse_id,
-                'name' => $location->name,
-                'is_default' => $location->is_default,
-            ],
-            $result['data'],
-        );
-    }
-
-    /**
-     * El impuesto de la línea sale de aquí: la pantalla ya no captura el
-     * porcentaje a mano. La retención viaja con él porque se practica sobre el
-     * impuesto y el usuario no la elige por separado.
-     *
-     * @return array<int, array{id: string, code: string, name: string, percentage: string, has_withholding: string, withholding_percentage: string}>
-     */
-    private function taxOptions(?string $companyId): array
-    {
-        $result = $this->taxes->search(new SearchTaxCommand(
-            filters: ['status' => 'active'],
-            limit: self::MAX_OPTIONS,
-            companyId: $companyId,
-        ));
-
-        return array_map(
-            fn (Tax $tax): array => [
-                'id' => $tax->id,
-                'code' => $tax->code,
-                'name' => $tax->name,
-                'percentage' => (string) $tax->percentage,
-                'has_withholding' => $tax->has_withholding,
-                'withholding_percentage' => (string) $tax->withholding_percentage,
             ],
             $result['data'],
         );

@@ -8,7 +8,6 @@ use App\Modules\Currency\Rules\ActiveCurrency;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\SalesReturn\Models\SalesReturn;
 use App\Modules\Warehouse\Models\Warehouse;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -16,14 +15,17 @@ use Illuminate\Validation\Validator;
  * Reglas compartidas por Create/Update: la cabecera de la devolución más sus
  * líneas.
  *
- * Los importes (`subtotal`, `tax_amount`, `total`) no se validan porque no se
- * capturan: los calcula el backend a partir de cantidad, precio y porcentajes.
- * El costo de reingreso tampoco: lo resuelve `SalesReturnCostService` con el
- * costo congelado en la venta original.
+ * La línea captura qué vuelve, cuánto y a qué bodega. Ni el precio ni sus
+ * cargos se validan porque no se capturan: los copia `SalesReturnPricingService`
+ * de la línea facturada, y el costo de reingreso lo resuelve
+ * `SalesReturnCostService` con el congelado en la venta original. Tampoco el
+ * lote, la serie ni la ubicación: eso lo pide la entrada que la devolución
+ * genera. La condición es de la cabecera, que es la que decide a qué bodega
+ * puede reingresar lo devuelto.
  *
  * Lo que no cabe aquí porque exige leer la factura —que las líneas devueltas
- * sean suyas, que no se devuelva más de lo facturado y que el lote sea el
- * despachado— lo comprueba `SalesReturnLimitsService` antes de guardar.
+ * sean suyas y que no se devuelva más de lo facturado— lo comprueba
+ * `SalesReturnLimitsService` antes de guardar.
  */
 trait ValidatesSalesReturnPayload
 {
@@ -54,7 +56,7 @@ trait ValidatesSalesReturnPayload
                 'uuid',
                 Rule::exists('app_dispatches', 'id')->where('company_id', $companyId),
             ],
-            /** La bodega es de la cabecera: toda la devolución reingresa al mismo sitio. */
+            /** La bodega de la cabecera es la de la entrada que la devolución genera. */
             'warehouse_id' => [
                 'required',
                 'uuid',
@@ -97,37 +99,17 @@ trait ValidatesSalesReturnPayload
                 'uuid',
                 Rule::exists('app_measurement_units', 'id')->where('company_id', $companyId),
             ],
-            'lines.*.sales_invoice_line_id' => ['nullable', 'uuid'],
-            'lines.*.lot_id' => [
-                'nullable',
+            /** A qué bodega reingresa esta línea; nace con la de la cabecera. */
+            'lines.*.warehouse_id' => [
+                'required',
                 'uuid',
-                Rule::exists('app_item_lots', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.serial_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_item_serials', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.location_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
-            ],
-            'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'lines.*.unit_price' => ['required', 'numeric', 'min:0'],
-            'lines.*.discount_percent' => ['nullable', 'numeric', 'between:0,100'],
-            'lines.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'lines.*.tax_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('app_taxes', 'id')
+                Rule::exists('app_warehouses', 'id')
                     ->where('company_id', $companyId)
                     ->where('status', 'active'),
             ],
-            'lines.*.tax_percent' => ['nullable', 'numeric', 'between:0,100'],
-            'lines.*.withholding_percent' => ['nullable', 'numeric', 'between:0,100'],
+            'lines.*.sales_invoice_line_id' => ['nullable', 'uuid'],
+            'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
             'lines.*.reason' => ['nullable', 'string', Rule::in(SalesReturn::REASONS)],
-            'lines.*.condition' => ['nullable', 'string', Rule::in(SalesReturn::CONDITIONS)],
             'lines.*.notes' => ['nullable', 'string', 'max:500'],
             'lines.*.status' => ['nullable', 'string', 'in:active,inactive'],
         ];
@@ -159,12 +141,8 @@ trait ValidatesSalesReturnPayload
             'lines.*.item_id.exists' => 'El artículo seleccionado no está disponible.',
             'lines.*.measurement_unit_id.required' => 'Selecciona la unidad de la línea.',
             'lines.*.quantity.gt' => 'La cantidad debe ser mayor que cero.',
-            'lines.*.unit_price.min' => 'El precio unitario no puede ser negativo.',
-            'lines.*.tax_id.exists' => 'El impuesto de la línea no existe o está inactivo.',
-            'lines.*.lot_id.exists' => 'El lote de la línea no existe en esta empresa.',
-            'lines.*.serial_id.exists' => 'La serie de la línea no existe en esta empresa.',
-            'lines.*.location_id.exists' => 'La ubicación de la línea no existe en esta empresa.',
-            'lines.*.condition.in' => 'La condición de la línea no existe.',
+            'lines.*.warehouse_id.required' => 'Indica la bodega a la que reingresa la línea.',
+            'lines.*.warehouse_id.exists' => 'La bodega de la línea no está disponible.',
         ];
     }
 
@@ -189,9 +167,7 @@ trait ValidatesSalesReturnPayload
 
         $this->validateLineUnits($validator, $lines);
         $this->validateReturnedLines($validator, $lines);
-        $this->validateLineLocations($validator, $lines);
-        $this->validateDestinationWarehouse($validator);
-        $this->validateLineConditions($validator, $lines);
+        $this->validateDestinationWarehouse($validator, $lines);
     }
 
     /**
@@ -255,48 +231,16 @@ trait ValidatesSalesReturnPayload
     }
 
     /**
-     * La ubicación de la línea, si se indica, tiene que ser de la bodega de la
-     * cabecera: la mercancía entra a un sitio concreto de esa bodega.
-     *
-     * @param  array<int, array<string, mixed>>  $lines
-     */
-    private function validateLineLocations(Validator $validator, array $lines): void
-    {
-        $locationIds = array_values(array_filter(array_column($lines, 'location_id')));
-
-        if ($locationIds === []) {
-            return;
-        }
-
-        $warehouseOf = WarehouseLocation::query()
-            ->whereIn('id', $locationIds)
-            ->pluck('warehouse_id', 'id')
-            ->all();
-
-        $warehouseId = (string) $this->input('warehouse_id');
-
-        foreach ($lines as $index => $line) {
-            $locationId = $line['location_id'] ?? null;
-
-            if (blank($locationId)) {
-                continue;
-            }
-
-            if (($warehouseOf[$locationId] ?? null) !== $warehouseId) {
-                $validator->errors()->add(
-                    "lines.{$index}.location_id",
-                    'La ubicación no pertenece a la bodega de la devolución.',
-                );
-            }
-        }
-    }
-
-    /**
      * La condición decide a qué bodega vuelve la mercancía: lo dañado va a
      * cuarentena y lo revendible no, para que no se mezcle con lo que sí se
      * puede vender. Con `scrap` nada reingresa, así que la bodega da igual.
+     *
+     * La comprobación cubre la bodega de la cabecera y la de cada línea: la
+     * línea puede apartarse de la cabecera, pero no de la condición.
+     *
+     * @param  array<int, array<string, mixed>>  $lines
      */
-    private function validateDestinationWarehouse(Validator $validator): void
+    private function validateDestinationWarehouse(Validator $validator, array $lines): void
     {
         $condition = (string) $this->input('condition');
 
@@ -304,56 +248,43 @@ trait ValidatesSalesReturnPayload
             return;
         }
 
-        $type = Warehouse::query()
-            ->whereKey((string) $this->input('warehouse_id'))
-            ->value('type');
-
-        if ($type === null) {
-            return;
-        }
-
-        $isQuarantine = $type === SalesReturn::QUARANTINE_WAREHOUSE_TYPE;
-
-        if ($condition === SalesReturn::QUARANTINE_CONDITION && ! $isQuarantine) {
-            $validator->errors()->add(
-                'warehouse_id',
-                'La mercancía dañada reingresa a una bodega de cuarentena.',
-            );
-
-            return;
-        }
-
-        if ($condition !== SalesReturn::QUARANTINE_CONDITION && $isQuarantine) {
-            $validator->errors()->add(
-                'warehouse_id',
-                'Una bodega de cuarentena solo recibe mercancía dañada.',
-            );
-        }
-    }
-
-    /**
-     * La bodega de la devolución es una sola, así que una línea solo puede
-     * apartarse de la condición de la cabecera para destruirse (`scrap`): esa
-     * no reingresa a ninguna parte. Cualquier otra condición distinta exigiría
-     * una segunda bodega y va en otra devolución.
-     *
-     * @param  array<int, array<string, mixed>>  $lines
-     */
-    private function validateLineConditions(Validator $validator, array $lines): void
-    {
-        $header = (string) $this->input('condition');
+        $fields = ['warehouse_id' => (string) $this->input('warehouse_id')];
 
         foreach ($lines as $index => $line) {
-            $condition = $line['condition'] ?? null;
+            if (filled($line['warehouse_id'] ?? null)) {
+                $fields["lines.{$index}.warehouse_id"] = (string) $line['warehouse_id'];
+            }
+        }
 
-            if (blank($condition) || $condition === $header || $condition === SalesReturn::SCRAP_CONDITION) {
+        $types = Warehouse::query()
+            ->whereIn('id', array_values(array_unique(array_filter($fields))))
+            ->pluck('type', 'id')
+            ->all();
+
+        foreach ($fields as $field => $warehouseId) {
+            $type = $types[$warehouseId] ?? null;
+
+            if ($type === null) {
                 continue;
             }
 
-            $validator->errors()->add(
-                "lines.{$index}.condition",
-                'La línea solo puede tener la condición de la devolución o «Se destruye».',
-            );
+            $isQuarantine = $type === SalesReturn::QUARANTINE_WAREHOUSE_TYPE;
+
+            if ($condition === SalesReturn::QUARANTINE_CONDITION && ! $isQuarantine) {
+                $validator->errors()->add(
+                    $field,
+                    'La mercancía dañada reingresa a una bodega de cuarentena.',
+                );
+
+                continue;
+            }
+
+            if ($condition !== SalesReturn::QUARANTINE_CONDITION && $isQuarantine) {
+                $validator->errors()->add(
+                    $field,
+                    'Una bodega de cuarentena solo recibe mercancía dañada.',
+                );
+            }
         }
     }
 }

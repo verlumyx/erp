@@ -6,6 +6,7 @@ namespace App\Modules\SalesReturn\Repositories\Contracts;
 
 use App\Modules\ExchangeRate\Commands\DocumentRatesData;
 use App\Modules\SalesReturn\Commands\CreateSalesReturnCommand;
+use App\Modules\SalesReturn\Commands\SalesReturnLineData;
 use App\Modules\SalesReturn\Commands\SearchSalesReturnCommand;
 use App\Modules\SalesReturn\Commands\UpdateSalesReturnCommand;
 use App\Modules\SalesReturn\Commands\UpdateStatusSalesReturnCommand;
@@ -16,23 +17,32 @@ use App\Modules\SalesReturn\Models\SalesReturnLine;
 interface SalesReturnRepositoryInterface
 {
     /**
-     * @param  array<int, float>  $unitCosts  Costo de reingreso por línea, en el
-     *                                        mismo orden en que llegan. Lo
-     *                                        resuelve `SalesReturnCostService`.
+     * @param  array<int, SalesReturnLineData>  $lines  Las líneas ya valoradas
+     *                                                  por `SalesReturnPricingService`.
+     * @param  array<int, float>  $unitCosts  Costo de reingreso por línea, con la
+     *                                        misma clave. Lo resuelve
+     *                                        `SalesReturnCostService`.
      */
-    public function create(CreateSalesReturnCommand $command, DocumentRatesData $rates, array $unitCosts): void;
+    public function create(
+        CreateSalesReturnCommand $command,
+        DocumentRatesData $rates,
+        array $lines,
+        array $unitCosts,
+    ): void;
 
     public function findById(string $id, ?string $companyId = null): ?SalesReturn;
 
     public function findOrFail(string $id, ?string $companyId = null): SalesReturn;
 
     /**
+     * @param  array<int, SalesReturnLineData>  $lines  Ya valoradas.
      * @param  array<int, float>  $unitCosts
      */
     public function update(
         SalesReturn $model,
         UpdateSalesReturnCommand $command,
         DocumentRatesData $rates,
+        array $lines,
         array $unitCosts,
     ): void;
 

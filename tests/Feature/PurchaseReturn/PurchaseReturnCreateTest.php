@@ -13,7 +13,6 @@ use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Tax\Models\Tax;
 use App\Modules\Warehouse\Models\Warehouse;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Inertia\Testing\AssertableInertia;
 
 use function Pest\Laravel\actingAs;
@@ -55,15 +54,24 @@ test('a purchase return can be created', function () {
     expect($line->company_id)->toBe($company->id);
     expect((float) $line->quantity)->toBe(2.0);
     expect((float) $line->base_quantity)->toBe(2.0);
-    expect((float) $line->subtotal)->toBe(50.0);
+    expect($line->warehouse_id)->toBe($warehouse->id);
+    /**
+     * Sin línea de factura detrás el costo cae al promedio del artículo, que
+     * en un artículo estrenado es cero: la pantalla no lo captura.
+     */
+    expect((float) $line->subtotal)->toBe(0.0);
 });
 
-test('the totals are calculated on the backend and ignore what the client sends', function () {
+test('the amounts come from the invoiced line and ignore what the client sends', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
-    $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
-        'subtotal' => 999999,
-        'total' => 999999,
+    $tax = Tax::factory()->withWithholding(75)->create([
+        'company_id' => $company->id,
+        'percentage' => 16,
+    ]);
+
+    /** Una factura de 10 a 100, con 10 % de descuento y su impuesto. */
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, [
         'lines' => [
             [
                 'item_id' => $item->id,
@@ -71,8 +79,28 @@ test('the totals are calculated on the backend and ignore what the client sends'
                 'quantity' => 10,
                 'unit_price' => 100,
                 'discount_percent' => 10,
+                'tax_id' => $tax->id,
                 'tax_percent' => 16,
                 'withholding_percent' => 75,
+            ],
+        ],
+    ]);
+
+    $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
+        'purchase_invoice_id' => $invoice->id,
+        'subtotal' => 999999,
+        'total' => 999999,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'warehouse_id' => $warehouse->id,
+                'quantity' => 10,
+                'purchase_invoice_line_id' => $invoice->lines->first()->id,
+                /** Lo que mande la pantalla no cuenta: el precio sale de la factura. */
+                'unit_price' => 1,
+                'discount_percent' => 90,
+                'tax_percent' => 99,
                 'subtotal' => 1,
                 'total' => 1,
             ],
@@ -87,8 +115,10 @@ test('the totals are calculated on the backend and ignore what the client sends'
     $line = $return->lines->first();
 
     // 10 × 100 = 1000, −10 % = 900 de base; 16 % de impuesto = 144.
+    expect((float) $line->unit_price)->toBe(100.0);
     expect((float) $line->discount_amount)->toBe(100.0);
     expect((float) $line->subtotal)->toBe(900.0);
+    expect($line->tax_id)->toBe($tax->id);
     expect((float) $line->tax_amount)->toBe(144.0);
     expect((float) $line->total)->toBe(1044.0);
     /** La retención se practica sobre el impuesto, no sobre la base. */
@@ -113,7 +143,7 @@ test('base_quantity converts the line to the base unit of the item', function ()
 
     $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
         'lines' => [
-            ['item_id' => $item->id, 'measurement_unit_id' => $box->id, 'quantity' => 5, 'unit_price' => 10],
+            ['item_id' => $item->id, 'measurement_unit_id' => $box->id, 'quantity' => 5, 'warehouse_id' => $warehouse->id],
         ],
     ]);
 
@@ -217,7 +247,7 @@ test('a line can carry its own reason', function () {
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 1,
-                'unit_price' => 10,
+                'warehouse_id' => $warehouse->id,
                 'reason' => 'expired',
             ],
         ],
@@ -227,31 +257,44 @@ test('a line can carry its own reason', function () {
     expect($return->lines->first()->reason)->toBe('expired');
 });
 
-test('the line location must belong to the warehouse of the return', function () {
-    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = purchaseReturnScenario();
+test('the line warehouse is required and must be of the company', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
-    $stray = WarehouseLocation::factory()->create(['company_id' => $company->id]);
+    $stray = Warehouse::factory()->create();
 
-    $line = fn (string $locationId): array => [
+    $line = fn (array $extra): array => [
         'item_id' => $item->id,
         'measurement_unit_id' => $unit->id,
         'quantity' => 1,
-        'unit_price' => 10,
-        'location_id' => $locationId,
+        ...$extra,
     ];
 
+    /** Sin bodega no se sabe de dónde sale la mercancía. */
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->post(
             route('purchase-returns.store', ['company' => $company->id]),
-            purchaseReturnPayload($supplier, $warehouse, $item, $unit, ['lines' => [$line($stray->id)]]),
+            purchaseReturnPayload($supplier, $warehouse, $item, $unit, ['lines' => [$line([])]]),
         )
-        ->assertSessionHasErrors('lines.0.location_id');
+        ->assertSessionHasErrors('lines.0.warehouse_id');
+
+    /** Y una de otra empresa tampoco vale. */
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('purchase-returns.store', ['company' => $company->id]),
+            purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
+                'lines' => [$line(['warehouse_id' => $stray->id])],
+            ]),
+        )
+        ->assertSessionHasErrors('lines.0.warehouse_id');
+
+    /** Una línea puede salir de otra bodega de la empresa, no solo de la cabecera. */
+    $second = Warehouse::factory()->create(['company_id' => $company->id]);
 
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit, [
-        'lines' => [$line($location->id)],
+        'lines' => [$line(['warehouse_id' => $second->id])],
     ]);
 
-    expect($return->lines->first()->location_id)->toBe($location->id);
+    expect($return->lines->first()->warehouse_id)->toBe($second->id);
 });
 
 test('the line unit must belong to the item', function () {
@@ -264,14 +307,14 @@ test('the line unit must belong to the item', function () {
             route('purchase-returns.store', ['company' => $company->id]),
             purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
                 'lines' => [
-                    ['item_id' => $item->id, 'measurement_unit_id' => $stray->id, 'quantity' => 1, 'unit_price' => 10],
+                    ['item_id' => $item->id, 'measurement_unit_id' => $stray->id, 'quantity' => 1, 'warehouse_id' => $warehouse->id],
                 ],
             ]),
         )
         ->assertSessionHasErrors('lines.0.measurement_unit_id');
 });
 
-test('the tax chosen for a line is kept with its percentages', function () {
+test('the tax of a line comes from the invoiced line, not from the screen', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $tax = Tax::factory()->withWithholding(75)->create([
@@ -279,16 +322,29 @@ test('the tax chosen for a line is kept with its percentages', function () {
         'percentage' => 16,
     ]);
 
-    $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit, [
         'lines' => [
             [
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
-                'quantity' => 1,
+                'quantity' => 10,
                 'unit_price' => 100,
                 'tax_id' => $tax->id,
                 'tax_percent' => 16,
                 'withholding_percent' => 75,
+            ],
+        ],
+    ]);
+
+    $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
+        'purchase_invoice_id' => $invoice->id,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'warehouse_id' => $warehouse->id,
+                'quantity' => 1,
+                'purchase_invoice_line_id' => $invoice->lines->first()->id,
             ],
         ],
     ]);
@@ -318,7 +374,7 @@ test('a return can come from an invoice and trace its lines', function () {
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 3,
-                'unit_price' => 25,
+                'warehouse_id' => $warehouse->id,
                 'purchase_invoice_line_id' => $invoiceLine->id,
             ],
         ],
@@ -348,7 +404,7 @@ test('a return without an invoice cannot return an invoice line', function () {
                         'item_id' => $item->id,
                         'measurement_unit_id' => $unit->id,
                         'quantity' => 1,
-                        'unit_price' => 25,
+                        'warehouse_id' => $warehouse->id,
                         'purchase_invoice_line_id' => $invoice->lines->first()->id,
                     ],
                 ],
@@ -422,7 +478,7 @@ test('a line of another invoice cannot be returned', function () {
                         'item_id' => $item->id,
                         'measurement_unit_id' => $unit->id,
                         'quantity' => 1,
-                        'unit_price' => 25,
+                        'warehouse_id' => $warehouse->id,
                         'purchase_invoice_line_id' => $other->lines->first()->id,
                     ],
                 ],
@@ -442,7 +498,7 @@ test('the returned quantity cannot exceed the invoiced one', function () {
         'item_id' => $item->id,
         'measurement_unit_id' => $unit->id,
         'quantity' => $quantity,
-        'unit_price' => 25,
+        'warehouse_id' => $warehouse->id,
         'purchase_invoice_line_id' => $invoiceLine->id,
     ];
 
@@ -469,7 +525,7 @@ test('what another return already took lowers the remaining quantity', function 
         'item_id' => $item->id,
         'measurement_unit_id' => $unit->id,
         'quantity' => $quantity,
-        'unit_price' => 25,
+        'warehouse_id' => $warehouse->id,
         'purchase_invoice_line_id' => $invoiceLine->id,
     ];
 
@@ -507,7 +563,7 @@ test('a cancelled return gives its quantity back', function () {
         'item_id' => $item->id,
         'measurement_unit_id' => $unit->id,
         'quantity' => $quantity,
-        'unit_price' => 25,
+        'warehouse_id' => $warehouse->id,
         'purchase_invoice_line_id' => $invoiceLine->id,
     ];
 
@@ -530,56 +586,36 @@ test('a cancelled return gives its quantity back', function () {
     expect((float) $second->lines->first()->quantity)->toBe(10.0);
 });
 
-test('only the lot that was received can be returned', function () {
+test('the lot is no longer captured in the return: the dispatch asks for it', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $lot = ItemLot::factory()->create(['company_id' => $company->id, 'item_id' => $item->id]);
-    $other = ItemLot::factory()->create(['company_id' => $company->id, 'item_id' => $item->id]);
 
     $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
     $invoiceLine = $invoice->lines->first();
     PurchaseInvoiceLine::where('id', $invoiceLine->id)->update(['lot_id' => $lot->id]);
 
-    $returnLine = fn (?string $lotId): array => array_filter([
-        'item_id' => $item->id,
-        'measurement_unit_id' => $unit->id,
-        'quantity' => 1,
-        'unit_price' => 25,
-        'purchase_invoice_line_id' => $invoiceLine->id,
-        'lot_id' => $lotId,
-    ], fn ($value): bool => $value !== null);
-
-    /** Sin lote no se sabe qué mercancía vuelve. */
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('purchase-returns.store', ['company' => $company->id]),
-            purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
-                'purchase_invoice_id' => $invoice->id,
-                'lines' => [$returnLine(null)],
-            ]),
-        )
-        ->assertSessionHasErrors('lines.0.lot_id');
-
-    /** Con otro lote tampoco: sería otra mercancía. */
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('purchase-returns.store', ['company' => $company->id]),
-            purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
-                'purchase_invoice_id' => $invoice->id,
-                'lines' => [$returnLine($other->id)],
-            ]),
-        )
-        ->assertSessionHasErrors('lines.0.lot_id');
-
+    /**
+     * La devolución de una línea con lote ya no exige el lote: quien prepara el
+     * retiro lo elige en el despacho que la devolución genera.
+     */
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit, [
         'purchase_invoice_id' => $invoice->id,
-        'lines' => [$returnLine($lot->id)],
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'warehouse_id' => $warehouse->id,
+            'quantity' => 1,
+            'purchase_invoice_line_id' => $invoiceLine->id,
+            /** Y un lote que mande el cliente se ignora: no es un dato suyo. */
+            'lot_id' => $lot->id,
+        ]],
     ]);
 
-    expect($return->lines->first()->lot_id)->toBe($lot->id);
+    expect($return->lines->first()->lot_id)->toBeNull();
 });
 
-test('a serialized item is returned one serial at a time', function () {
+test('a serialized item is returned without naming its serial', function () {
     [$user, $company, $supplier, $warehouse, , $unit] = purchaseReturnScenario();
 
     $serialized = Item::factory()->create([
@@ -594,65 +630,40 @@ test('a serialized item is returned one serial at a time', function () {
         'measurement_unit_id' => $unit->id,
     ]);
 
-    $serial = ItemSerial::factory()->create([
-        'company_id' => $company->id,
-        'item_id' => $serialized->id,
-    ]);
-
-    $line = fn (array $extra): array => [
-        'item_id' => $serialized->id,
-        'measurement_unit_id' => $unit->id,
-        'quantity' => 1,
-        'unit_price' => 500,
-        ...$extra,
-    ];
-
-    /** Sin serie no se sabe qué unidad vuelve. */
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('purchase-returns.store', ['company' => $company->id]),
-            purchaseReturnPayload($supplier, $warehouse, $serialized, $unit, ['lines' => [$line([])]]),
-        )
-        ->assertSessionHasErrors('lines.0.serial_id');
-
-    /** Una serie es una unidad: dos no caben en la misma línea. */
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('purchase-returns.store', ['company' => $company->id]),
-            purchaseReturnPayload($supplier, $warehouse, $serialized, $unit, [
-                'lines' => [$line(['serial_id' => $serial->id, 'quantity' => 2])],
-            ]),
-        )
-        ->assertSessionHasErrors('lines.0.quantity');
-
+    /**
+     * La serie la exige el despacho al confirmarse, no la devolución: aquí solo
+     * se acuerda qué vuelve y cuánto.
+     */
     $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $serialized, $unit, [
-        'lines' => [$line(['serial_id' => $serial->id])],
+        'lines' => [[
+            'item_id' => $serialized->id,
+            'measurement_unit_id' => $unit->id,
+            'warehouse_id' => $warehouse->id,
+            'quantity' => 1,
+        ]],
     ]);
 
-    expect($return->lines->first()->serial_id)->toBe($serial->id);
+    expect($return->lines->first()->serial_id)->toBeNull();
 });
 
-test('a serial of another item is rejected', function () {
+test('a serial sent from the client is ignored', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
     $stray = ItemSerial::factory()->create(['company_id' => $company->id]);
 
-    actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->post(
-            route('purchase-returns.store', ['company' => $company->id]),
-            purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
-                'lines' => [
-                    [
-                        'item_id' => $item->id,
-                        'measurement_unit_id' => $unit->id,
-                        'quantity' => 1,
-                        'unit_price' => 25,
-                        'serial_id' => $stray->id,
-                    ],
-                ],
-            ]),
-        )
-        ->assertSessionHasErrors('lines.0.serial_id');
+    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'warehouse_id' => $warehouse->id,
+                'quantity' => 1,
+                'serial_id' => $stray->id,
+            ],
+        ],
+    ]);
+
+    expect($return->lines->first()->serial_id)->toBeNull();
 });
 
 test('a user without permission cannot create a purchase return', function () {
@@ -668,11 +679,10 @@ test('a user without permission cannot create a purchase return', function () {
 });
 
 test('the form only offers the active catalogs of the active company', function () {
-    [$user, $company, , $warehouse] = purchaseReturnScenario();
+    [$user, $company] = purchaseReturnScenario();
 
-    Tax::factory()->create(['company_id' => $company->id]);
-    Tax::factory()->inactive()->create(['company_id' => $company->id]);
-    Tax::factory()->create();
+    Warehouse::factory()->inactive()->create(['company_id' => $company->id]);
+    Warehouse::factory()->create();
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->get(route('purchase-returns.create', ['company' => $company->id]))
@@ -680,13 +690,14 @@ test('the form only offers the active catalogs of the active company', function 
         ->assertInertia(
             fn (AssertableInertia $page) => $page
                 ->component('purchase-returns/create')
-                ->has('options.taxes', 1)
                 ->has('options.warehouses', 1)
-                ->has('options.locations', 1)
                 /* Ni los artículos, ni los proveedores, ni las facturas viajan. */
                 ->missing('options.items')
                 ->missing('options.suppliers')
                 ->missing('options.purchaseInvoices')
+                /* Ni los impuestos ni las ubicaciones: la línea ya no los captura. */
+                ->missing('options.taxes')
+                ->missing('options.locations')
                 ->missing('options.lots')
                 ->missing('options.serials'),
         );
@@ -705,7 +716,7 @@ test('an inactive item cannot be returned', function () {
             route('purchase-returns.store', ['company' => $company->id]),
             purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
                 'lines' => [
-                    ['item_id' => $inactive->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'unit_price' => 10],
+                    ['item_id' => $inactive->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'warehouse_id' => $warehouse->id],
                 ],
             ]),
         )

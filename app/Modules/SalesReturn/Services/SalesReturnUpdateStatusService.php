@@ -15,12 +15,17 @@ class SalesReturnUpdateStatusService
     public function __construct(
         private readonly SalesReturnRepositoryInterface $repository,
         private readonly SalesReturnPostingService $posting,
+        private readonly SalesReturnMirrorEntryService $mirror,
     ) {}
 
     /**
      * Cambiar el estado no toca las tasas ni los importes de la devolución: lo
-     * que mueve es el inventario y el cupo devuelto de la factura, y solo en
-     * los dos momentos que importan —confirmarla y anularla ya confirmada—.
+     * que mueve es el cupo devuelto de la factura, y solo en los dos momentos
+     * que importan —confirmarla y anularla ya confirmada—.
+     *
+     * Confirmarla además deja escrita la entrada que reingresará la mercancía.
+     * La devolución nunca toca el kardex: eso lo hace esa entrada al
+     * confirmarse.
      */
     public function execute(
         string $id,
@@ -33,16 +38,26 @@ class SalesReturnUpdateStatusService
             throw new SalesReturnNotFoundException;
         }
 
+        /** Con la mercancía ya reingresada, primero se anula la entrada. */
+        if ($command->status === 'cancelled') {
+            $this->mirror->guardCancellable($model);
+        }
+
         DB::transaction(function () use ($model, $command): void {
             $wasPosted = in_array($model->status, SalesReturn::POSTED_STATUSES, true);
 
             if ($command->status === 'confirmed') {
                 $this->posting->post($model);
+                $this->mirror->create($model);
             }
 
-            /** Un borrador anulado no revierte nada: nunca llegó a meter mercancía. */
-            if ($command->status === 'cancelled' && $wasPosted) {
-                $this->posting->reverse($model);
+            /** Un borrador anulado no revierte nada: nunca llegó a consumir cupo. */
+            if ($command->status === 'cancelled') {
+                if ($wasPosted) {
+                    $this->posting->reverse($model);
+                }
+
+                $this->mirror->cancel($model);
             }
 
             $this->repository->updateStatus($model, $command);

@@ -16,6 +16,7 @@ class SalesReturnCreateService
         private readonly DocumentRatesResolverInterface $rates,
         private readonly SalesReturnLimitsService $limits,
         private readonly SalesReturnCostService $costs,
+        private readonly SalesReturnPricingService $pricing,
     ) {}
 
     /**
@@ -43,13 +44,16 @@ class SalesReturnCreateService
             $command->exchangeRateOverride,
         );
 
+        /** El precio no lo decide la pantalla: sale de la línea facturada. */
+        $priced = $this->pricing->apply($command->companyId, $command->salesInvoiceId, $command->lines);
+
         $unitCosts = $this->costs->resolve(
             $command->salesInvoiceId,
             $command->companyId,
-            $command->lines,
+            $priced,
         );
 
-        $this->repository->create($command, $rates, $unitCosts);
+        $this->repository->create($command, $rates, $priced, $unitCosts);
 
         return $this->repository->findOrFail($command->id);
     }

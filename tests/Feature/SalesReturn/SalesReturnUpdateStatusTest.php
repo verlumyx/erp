@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Modules\Entry\Models\Entry;
 use App\Modules\InventoryMovement\Models\InventoryMovement;
 use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\SalesCreditNote\Models\SalesCreditNote;
 use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
 use App\Modules\SalesReturn\Models\SalesReturn;
+use App\Modules\SalesReturn\Models\SalesReturnLine;
 
 use function Pest\Laravel\actingAs;
 
@@ -36,7 +38,7 @@ test('confirming marks on the invoice line what the client gave back', function 
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 2,
-            'unit_price' => 100,
+            'warehouse_id' => $warehouse->id,
             'sales_invoice_line_id' => $invoiceLine->id,
             'location_id' => $location->id,
         ]],
@@ -68,14 +70,14 @@ test('confirming a return writes nothing into the kardex', function () {
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 2,
-                'unit_price' => 100,
+                'warehouse_id' => $warehouse->id,
             ],
             /** Lo que vuelve para destruirse: antes era el caso especial, hoy no se distingue. */
             [
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 1,
-                'unit_price' => 100,
+                'warehouse_id' => $warehouse->id,
                 'condition' => 'scrap',
             ],
         ],
@@ -112,7 +114,7 @@ test('cancelling a confirmed return gives the invoice back the returned quota', 
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 2,
-            'unit_price' => 100,
+            'warehouse_id' => $warehouse->id,
             'sales_invoice_line_id' => $invoiceLine->id,
         ]],
     ]);
@@ -377,4 +379,110 @@ test('a return of another company cannot be credited', function () {
             ]),
         )
         ->assertSessionHasErrors('sales_return_id');
+});
+
+test('confirming generates the entry that will take the goods back in', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesReturnScenario();
+
+    $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit);
+    $invoiceLine = $invoice->lines->first();
+    SalesInvoiceLine::where('id', $invoiceLine->id)->update(['unit_cost' => 33]);
+
+    $return = createSalesReturn($user, $company, $client, $warehouse, $item, $unit, [
+        'sales_invoice_id' => $invoice->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'warehouse_id' => $warehouse->id,
+            'sales_invoice_line_id' => $invoiceLine->id,
+        ]],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('sales-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $entry = Entry::with('lines')->where('sourceable_id', $return->id)->firstOrFail();
+
+    expect($entry->status)->toBe('draft');
+    expect($entry->sourceable_type)->toBe(SalesReturn::MORPH_ALIAS);
+    expect($entry->entry_type)->toBe(Entry::RETURN_TYPE);
+    /** Lo que vuelve de un cliente no se le compra a nadie. */
+    expect($entry->supplier_id)->toBeNull();
+    expect($entry->warehouse_id)->toBe($warehouse->id);
+
+    expect($entry->lines)->toHaveCount(1);
+    $line = $entry->lines->first();
+    expect($line->item_id)->toBe($item->id);
+    expect((float) $line->quantity)->toBe(2.0);
+    /** Reingresa al costo congelado en la venta, no al promedio vigente. */
+    expect((float) $line->unit_cost)->toBe(33.0);
+    expect($line->sourceable_type)->toBe(SalesReturnLine::MORPH_ALIAS);
+    expect($line->sourceable_id)->toBe($return->lines->first()->id);
+});
+
+test('what comes back to be destroyed generates no entry', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesReturnScenario();
+
+    $return = createSalesReturn($user, $company, $client, $warehouse, $item, $unit, [
+        'condition' => 'scrap',
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('sales-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    /** El `scrap` no reingresa a ninguna bodega: su pérdida se registra por Ajuste. */
+    expect(Entry::where('sourceable_id', $return->id)->count())->toBe(0);
+});
+
+test('cancelling the return cancels its draft entry', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesReturnScenario();
+
+    $return = createSalesReturn($user, $company, $client, $warehouse, $item, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('sales-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $entry = Entry::where('sourceable_id', $return->id)->firstOrFail();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('sales-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'cancelled',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($entry->refresh()->status)->toBe('cancelled');
+});
+
+test('a return whose entry already came in cannot be cancelled', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesReturnScenario();
+
+    $return = createSalesReturn($user, $company, $client, $warehouse, $item, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('sales-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $entry = Entry::where('sourceable_id', $return->id)->firstOrFail();
+    Entry::where('id', $entry->id)->update(['status' => 'confirmed']);
+
+    /** Primero se anula la entrada, que es la que sabe deshacer su asiento. */
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('sales-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'cancelled',
+        ])
+        ->assertSessionHasErrors('status');
+
+    expect($return->refresh()->status)->toBe('confirmed');
 });

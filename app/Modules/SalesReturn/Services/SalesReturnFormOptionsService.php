@@ -4,18 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\SalesReturn\Services;
 
-use App\Modules\Tax\Commands\SearchTaxCommand;
-use App\Modules\Tax\Models\Tax;
-use App\Modules\Tax\Repositories\Contracts\TaxRepositoryInterface;
 use App\Modules\User\Commands\SearchUserCommand;
 use App\Modules\User\Models\User;
 use App\Modules\User\Repositories\Contracts\UserRepositoryInterface;
 use App\Modules\Warehouse\Commands\SearchWarehouseCommand;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\Warehouse\Repositories\Contracts\WarehouseRepositoryInterface;
-use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
-use App\Modules\WarehouseLocation\Models\WarehouseLocation;
-use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 
 /**
  * Catálogos que alimentan los selects de la devolución.
@@ -23,12 +17,15 @@ use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationReposi
  * Se resuelven a través de los repositorios de sus módulos: el módulo de
  * devoluciones nunca consulta sus tablas directamente.
  *
- * Los artículos, los clientes, las facturas, los lotes y las series NO
- * viajan aquí: son padrones demasiado grandes para las props de cada pantalla.
- * La línea busca el artículo contra `items.lookup`, el lote contra
- * `item-lots.lookup` y la serie contra `item-serials.lookup`; la cabecera busca
- * el cliente contra `clients.lookup` y la factura de origen contra
+ * Viajan las bodegas —son pocas por empresa y las eligen tanto la cabecera como
+ * cada línea— y quién puede firmar la recepción. Los artículos, los clientes y
+ * las facturas NO viajan aquí: son padrones demasiado grandes para las props, y
+ * la pantalla los busca contra `items.lookup`, `clients.lookup` y
  * `sales-invoices.lookup`.
+ *
+ * Los impuestos y las ubicaciones ya no hacen falta: la línea no captura ni el
+ * cargo —lo copia `SalesReturnPricingService` de la factura— ni el sitio al que
+ * entra la mercancía —lo pide la entrada que la devolución genera—.
  */
 class SalesReturnFormOptionsService
 {
@@ -36,16 +33,12 @@ class SalesReturnFormOptionsService
 
     public function __construct(
         private readonly WarehouseRepositoryInterface $warehouses,
-        private readonly WarehouseLocationRepositoryInterface $locations,
-        private readonly TaxRepositoryInterface $taxes,
         private readonly UserRepositoryInterface $users,
     ) {}
 
     /**
      * @return array{
      *     warehouses: array<int, array{id: string, name: string, type: string}>,
-     *     locations: array<int, array{id: string, warehouse_id: string, name: string, is_default: string}>,
-     *     taxes: array<int, array<string, string>>,
      *     receivers: array<int, array{id: string, name: string}>
      * }
      */
@@ -53,8 +46,6 @@ class SalesReturnFormOptionsService
     {
         return [
             'warehouses' => $this->warehouseOptions($companyId),
-            'locations' => $this->locationOptions($companyId),
-            'taxes' => $this->taxOptions($companyId),
             'receivers' => $this->receiverOptions($companyId),
         ];
     }
@@ -82,9 +73,9 @@ class SalesReturnFormOptionsService
     }
 
     /**
-     * La bodega es de la cabecera: toda la devolución entra al mismo sitio. El
-     * tipo viaja con ella porque la condición decide a dónde puede entrar: lo
-     * dañado solo a una bodega de cuarentena.
+     * La cabecera dice a qué bodega reingresa la devolución y cada línea puede
+     * apartarse de ella. El tipo viaja con la bodega porque la condición decide
+     * a dónde puede entrar: lo dañado, solo a una de cuarentena.
      *
      * @return array<int, array{id: string, name: string, type: string}>
      */
@@ -101,60 +92,6 @@ class SalesReturnFormOptionsService
                 'id' => $warehouse->id,
                 'name' => $warehouse->name,
                 'type' => $warehouse->type,
-            ],
-            $result['data'],
-        );
-    }
-
-    /**
-     * Las ubicaciones viajan enteras y con su bodega: la pantalla filtra por la
-     * bodega elegida sin volver al servidor. Son pocas por empresa, a diferencia
-     * de artículos o lotes.
-     *
-     * @return array<int, array{id: string, warehouse_id: string, name: string, is_default: string}>
-     */
-    private function locationOptions(?string $companyId): array
-    {
-        $result = $this->locations->search(new SearchWarehouseLocationCommand(
-            filters: ['status' => 'active'],
-            limit: self::MAX_OPTIONS,
-            companyId: $companyId,
-        ));
-
-        return array_map(
-            fn (WarehouseLocation $location): array => [
-                'id' => $location->id,
-                'warehouse_id' => $location->warehouse_id,
-                'name' => $location->name,
-                'is_default' => $location->is_default,
-            ],
-            $result['data'],
-        );
-    }
-
-    /**
-     * El impuesto de la línea sale de aquí: la pantalla ya no captura el
-     * porcentaje a mano. La retención viaja con él porque se practica sobre el
-     * impuesto y el usuario no la elige por separado.
-     *
-     * @return array<int, array{id: string, code: string, name: string, percentage: string, has_withholding: string, withholding_percentage: string}>
-     */
-    private function taxOptions(?string $companyId): array
-    {
-        $result = $this->taxes->search(new SearchTaxCommand(
-            filters: ['status' => 'active'],
-            limit: self::MAX_OPTIONS,
-            companyId: $companyId,
-        ));
-
-        return array_map(
-            fn (Tax $tax): array => [
-                'id' => $tax->id,
-                'code' => $tax->code,
-                'name' => $tax->name,
-                'percentage' => (string) $tax->percentage,
-                'has_withholding' => $tax->has_withholding,
-                'withholding_percentage' => (string) $tax->withholding_percentage,
             ],
             $result['data'],
         );

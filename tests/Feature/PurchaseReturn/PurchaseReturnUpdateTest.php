@@ -10,7 +10,20 @@ use function Pest\Laravel\actingAs;
 test('a draft purchase return can be updated', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
-    $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit);
+    /** La factura del escenario trae una línea de 10 unidades a 25. */
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
+    $invoiceLine = $invoice->lines->first();
+
+    $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
+        'purchase_invoice_id' => $invoice->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'warehouse_id' => $warehouse->id,
+            'purchase_invoice_line_id' => $invoiceLine->id,
+        ]],
+    ]);
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->post(route('purchase-returns.store', ['company' => $company->id]), $payload)
@@ -28,7 +41,8 @@ test('a draft purchase return can be updated', function () {
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 4,
-                'unit_price' => 25,
+                'warehouse_id' => $warehouse->id,
+                'purchase_invoice_line_id' => $invoiceLine->id,
             ]],
         ]);
 
@@ -39,6 +53,7 @@ test('a draft purchase return can be updated', function () {
     expect($return->tracking_number)->toBe('ZM-000999');
     expect($return->lines)->toHaveCount(1);
     expect((float) $return->lines->first()->quantity)->toBe(4.0);
+    /** El costo lo pone la factura: 4 × 25. */
     expect((float) $return->subtotal)->toBe(100.0);
     expect((float) $return->total)->toBe(100.0);
 });
@@ -46,11 +61,21 @@ test('a draft purchase return can be updated', function () {
 test('a line that stops being sent is deactivated, never deleted', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
 
+    /** La factura del escenario trae una línea de 10 unidades a 25. */
+    $invoice = createPurchaseInvoice($user, $company, $supplier, $warehouse, $item, $unit);
+    $invoiceLine = $invoice->lines->first();
+
+    $line = fn (float $quantity): array => [
+        'item_id' => $item->id,
+        'measurement_unit_id' => $unit->id,
+        'quantity' => $quantity,
+        'warehouse_id' => $warehouse->id,
+        'purchase_invoice_line_id' => $invoiceLine->id,
+    ];
+
     $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
-        'lines' => [
-            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'unit_price' => 10],
-            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 2, 'unit_price' => 20],
-        ],
+        'purchase_invoice_id' => $invoice->id,
+        'lines' => [$line(1), $line(2)],
     ]);
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
@@ -64,21 +89,15 @@ test('a line that stops being sent is deactivated, never deleted', function () {
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->put(route('purchase-returns.update', ['company' => $company->id, 'id' => $return->id]), [
             ...$payload,
-            'lines' => [[
-                'id' => $kept->id,
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 1,
-                'unit_price' => 10,
-            ]],
+            'lines' => [[...$line(1), 'id' => $kept->id]],
         ])
         ->assertSessionHasNoErrors();
 
     expect(PurchaseReturnLine::find($dropped->id)->status)->toBe('inactive');
     expect(PurchaseReturnLine::find($kept->id)->status)->toBe('active');
 
-    /** Los totales suman solo las activas. */
-    expect((float) $return->refresh()->total)->toBe(10.0);
+    /** Los totales suman solo las activas: 1 × 25. */
+    expect((float) $return->refresh()->total)->toBe(25.0);
 });
 
 test('a new line takes the next free number and does not reuse the inactive one', function () {
@@ -86,7 +105,7 @@ test('a new line takes the next free number and does not reuse the inactive one'
 
     $payload = purchaseReturnPayload($supplier, $warehouse, $item, $unit, [
         'lines' => [
-            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'unit_price' => 10],
+            ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 1, 'warehouse_id' => $warehouse->id],
         ],
     ]);
 
@@ -98,7 +117,7 @@ test('a new line takes the next free number and does not reuse the inactive one'
         ->put(route('purchase-returns.update', ['company' => $company->id, 'id' => $payload['id']]), [
             ...$payload,
             'lines' => [
-                ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 3, 'unit_price' => 10],
+                ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 3, 'warehouse_id' => $warehouse->id],
             ],
         ])
         ->assertSessionHasNoErrors();
@@ -126,7 +145,7 @@ test('the return does not compete with itself for the returned quantity', functi
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 10,
-            'unit_price' => 25,
+            'warehouse_id' => $warehouse->id,
             'purchase_invoice_line_id' => $invoiceLine->id,
         ]],
     ]);
@@ -146,7 +165,7 @@ test('the return does not compete with itself for the returned quantity', functi
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
                 'quantity' => 10,
-                'unit_price' => 25,
+                'warehouse_id' => $warehouse->id,
                 'purchase_invoice_line_id' => $invoiceLine->id,
             ]],
         ])

@@ -29,6 +29,12 @@ class SalesReturn extends Model
 
     public const CODE_PREFIX = 'DVV';
 
+    /**
+     * Alias con el que la devolución viaja en `sourceable_type`: la entrada que
+     * reingresa la mercancía del cliente cuelga de ella.
+     */
+    public const MORPH_ALIAS = 'sales_return';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     public const REASONS = [

@@ -7,9 +7,12 @@ namespace App\Modules\Dispatch\Models;
 use App\Modules\Client\Models\Client;
 use App\Modules\Client\Models\ClientAddress;
 use App\Modules\Company\Models\Company;
+use App\Modules\PurchaseReturn\Models\PurchaseReturn;
+use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\Route\Models\Route;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
+use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Transfer\Models\Transfer;
 use App\Modules\Transfer\Models\TransferLine;
 use App\Modules\User\Models\User;
@@ -47,25 +50,39 @@ class Dispatch extends Model
     public const EDITABLE_STATUSES = ['draft'];
 
     /**
-     * Alias del morph map admitidos como documento origen. Hoy solo el pedido
-     * de venta; mañana un contrato de suministro o un traspaso a consignación
-     * entran aquí sin tocar la tabla.
+     * Alias del morph map admitidos como documento origen: el pedido de venta,
+     * el traslado y la devolución de compra —la mercancía que vuelve al
+     * proveedor sale por un despacho como cualquier otra—. Mañana un contrato
+     * de suministro o un traspaso a consignación entran aquí sin tocar la tabla.
      *
      * @var array<int, string>
      */
-    public const SOURCE_TYPES = [SalesOrder::MORPH_ALIAS, Transfer::MORPH_ALIAS];
+    public const SOURCE_TYPES = [
+        SalesOrder::MORPH_ALIAS,
+        Transfer::MORPH_ALIAS,
+        PurchaseReturn::MORPH_ALIAS,
+    ];
 
     /** Alias admitidos como línea origen, en el mismo orden que arriba. */
-    public const SOURCE_LINE_TYPES = [SalesOrderLine::MORPH_ALIAS, TransferLine::MORPH_ALIAS];
+    public const SOURCE_LINE_TYPES = [
+        SalesOrderLine::MORPH_ALIAS,
+        TransferLine::MORPH_ALIAS,
+        PurchaseReturnLine::MORPH_ALIAS,
+    ];
 
     /**
      * A quién va dirigida la mercancía. Un despacho de venta la lleva a un
-     * cliente; uno de traslado, a otra bodega de la propia empresa. Por eso el
-     * destinatario es polimórfico y no un cliente a secas.
+     * cliente; uno de traslado, a otra bodega de la propia empresa; el de una
+     * devolución de compra, de vuelta al proveedor. Por eso el destinatario es
+     * polimórfico y no un cliente a secas.
      *
      * @var array<int, string>
      */
-    public const RECIPIENT_TYPES = [Client::MORPH_ALIAS, Warehouse::MORPH_ALIAS];
+    public const RECIPIENT_TYPES = [
+        Client::MORPH_ALIAS,
+        Warehouse::MORPH_ALIAS,
+        Supplier::MORPH_ALIAS,
+    ];
 
     /** Alias con el que el kardex reconoce al despacho como origen. */
     public const MOVEMENT_ORIGIN_TYPE = 'dispatch';

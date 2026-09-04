@@ -29,6 +29,12 @@ class PurchaseReturn extends Model
 
     public const CODE_PREFIX = 'DVC';
 
+    /**
+     * Alias con el que la devolución viaja en `sourceable_type`: el despacho
+     * que saca la mercancía de vuelta al proveedor cuelga de ella.
+     */
+    public const MORPH_ALIAS = 'purchase_return';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     public const REASONS = ['damaged', 'wrong_item', 'expired', 'excess', 'quality', 'other'];

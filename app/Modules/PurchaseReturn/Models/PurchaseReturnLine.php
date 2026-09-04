@@ -10,6 +10,7 @@ use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoiceLine;
+use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Database\Factories\PurchaseReturnLineFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -23,6 +24,9 @@ class PurchaseReturnLine extends Model
 
     protected $table = 'app_purchase_return_lines';
 
+    /** Alias con el que la línea viaja en la línea del despacho que la saca. */
+    public const MORPH_ALIAS = 'purchase_return_line';
+
     public $incrementing = false;
 
     protected $keyType = 'string';
@@ -31,6 +35,7 @@ class PurchaseReturnLine extends Model
         'id',
         'company_id',
         'purchase_return_id',
+        'warehouse_id',
         'line_number',
         'item_id',
         'measurement_unit_id',
@@ -117,6 +122,12 @@ class PurchaseReturnLine extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(WarehouseLocation::class, 'location_id', 'id');
+    }
+
+    /** Bodega de la que sale la mercancía de esta línea. */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
     }
 
     protected static function newFactory(): PurchaseReturnLineFactory

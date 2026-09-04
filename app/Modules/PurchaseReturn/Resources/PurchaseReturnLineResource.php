@@ -23,6 +23,8 @@ class PurchaseReturnLineResource extends JsonResource
             'item_code' => $this->whenLoaded('item', fn () => $this->item?->code),
             'measurement_unit_id' => $this->measurement_unit_id,
             'measurement_unit_name' => $this->whenLoaded('measurementUnit', fn () => $this->measurementUnit?->name),
+            'warehouse_id' => $this->warehouse_id,
+            'warehouse_name' => $this->whenLoaded('warehouse', fn () => $this->warehouse?->name),
             'purchase_invoice_line_id' => $this->purchase_invoice_line_id,
             'lot_id' => $this->lot_id,
             'lot_number' => $this->whenLoaded('lot', fn () => $this->lot?->lot_number),

@@ -787,8 +787,8 @@ function purchaseReturnPayload(
             [
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'warehouse_id' => $warehouse->id,
                 'quantity' => 2,
-                'unit_price' => 25,
             ],
         ],
         ...$overrides,
@@ -1498,8 +1498,8 @@ function salesReturnPayload(
             [
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'warehouse_id' => $warehouse->id,
                 'quantity' => 2,
-                'unit_price' => 100,
             ],
         ],
         ...$overrides,

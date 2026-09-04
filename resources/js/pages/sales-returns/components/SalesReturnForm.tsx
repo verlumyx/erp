@@ -1,4 +1,3 @@
-import { AmountDual } from '@/components/amount-dual';
 import { CurrencySelect } from '@/components/currency-select';
 import { ExchangeRateField } from '@/components/exchange-rate-field';
 import { Select2Ajax } from '@/components/select2-ajax';
@@ -271,7 +270,7 @@ export function SalesReturnForm() {
             <FormSection
                 step={2}
                 title="Líneas"
-                sub="Qué vuelve, a qué ubicación entra y a qué precio se vendió"
+                sub="Qué vuelve, cuánto y a qué bodega reingresa"
             >
                 <SalesReturnLinesSection />
             </FormSection>
@@ -360,72 +359,17 @@ export function SalesReturnForm() {
 
             <FormSummary>
                 <SummaryRow label="Líneas">{data.lines.length}</SummaryRow>
-                <SummaryRow label="Bruto">
-                    <AmountDual
-                        amount={totals.gross}
-                        currency={data.currency}
-                        rate={data.exchange_rate || undefined}
-                        className="items-end"
-                    />
-                </SummaryRow>
-                <SummaryRow label="Descuento de líneas">
-                    <AmountDual
-                        amount={totals.discountAmount}
-                        currency={data.currency}
-                        rate={data.exchange_rate || undefined}
-                        className="items-end"
-                    />
-                </SummaryRow>
-                <SummaryRow label="Subtotal">
-                    <AmountDual
-                        amount={totals.subtotal}
-                        currency={data.currency}
-                        rate={data.exchange_rate || undefined}
-                        className="items-end"
-                    />
-                </SummaryRow>
-                <SummaryRow label="Impuesto">
-                    <AmountDual
-                        amount={totals.taxAmount}
-                        currency={data.currency}
-                        rate={data.exchange_rate || undefined}
-                        className="items-end"
-                    />
-                </SummaryRow>
-                <SummaryRow label="Total devuelto" divider emphasis>
-                    <AmountDual
-                        amount={totals.total}
-                        currency={data.currency}
-                        rate={data.exchange_rate || undefined}
-                        className="items-end"
-                    />
-                </SummaryRow>
-                {totals.withholdingAmount > 0 && (
-                    <SummaryRow label="Retención">
-                        <AmountDual
-                            amount={totals.withholdingAmount}
-                            currency={data.currency}
-                            rate={data.exchange_rate || undefined}
-                            className="items-end"
-                        />
-                    </SummaryRow>
-                )}
+                <SummaryRow label="Unidades">{totals.quantity}</SummaryRow>
                 <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    Al confirmarla, la mercancía reingresa al inventario al
-                    costo de la venta original.
+                    La devolución solo decide qué vuelve y cuánto: el precio con
+                    el que se acredita y el costo con el que reingresa los trae
+                    la venta original. Al confirmarla se genera la entrada que
+                    recibe la mercancía, y es esa entrada la que toca el
+                    inventario.
                 </p>
             </FormSummary>
 
             <FormActionBar
-                headlineLabel="Total devuelto"
-                headline={
-                    <AmountDual
-                        amount={totals.total}
-                        currency={data.currency}
-                        rate={data.exchange_rate || undefined}
-                        className="items-start"
-                    />
-                }
                 processing={processing}
                 submitLabel={
                     mode === 'create' ? 'Crear devolución' : 'Guardar cambios'

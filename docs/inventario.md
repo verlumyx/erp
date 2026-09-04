@@ -317,7 +317,8 @@ lo levanta siempre un documento logístico, y ese es el que asienta.
 - **Notas de crédito** (a proveedor y a cliente): mueven el saldo del tercero. La mercancía que las motiva
   vuelve —o se va— por su documento logístico.
 - **Devoluciones** (de compra y de venta): apuntan lo devuelto en la factura de origen y habilitan la nota de
-  crédito. El movimiento físico lo hace el Despacho (compra) o la Entrada (venta).
+  crédito. El movimiento físico lo hace el Despacho (compra) o la Entrada (venta), que la propia devolución
+  genera en borrador al confirmarse.
 - **Traslado**: genera su Despacho en el origen y su Entrada en el destino. Ver
   [logistica.md](logistica.md).
 

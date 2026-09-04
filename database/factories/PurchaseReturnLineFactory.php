@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Modules\Item\Models\Item;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
+use App\Modules\Warehouse\Models\Warehouse;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -27,6 +28,7 @@ class PurchaseReturnLineFactory extends Factory
         return [
             'company_id' => null,
             'purchase_return_id' => PurchaseReturn::factory(),
+            'warehouse_id' => Warehouse::factory(),
             'line_number' => 1,
             'item_id' => Item::factory(),
             'measurement_unit_id' => MeasurementUnit::factory(),

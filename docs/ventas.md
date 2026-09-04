@@ -523,7 +523,8 @@ detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la fac
 ## 7. Devoluciones de ventas
 
 Acuerdo de reingreso de mercancía desde el cliente. Deriva normalmente en una nota de crédito. **No mueve
-inventario**: el reingreso físico lo asienta la Entrada. Ver [inventario.md § 4.1](inventario.md).
+inventario**: el reingreso físico lo asienta la Entrada que la devolución genera al confirmarse. Ver
+[inventario.md § 4.1](inventario.md).
 
 ### 7.1 Cabecera — `app_sales_returns` — Prefijo `DVV`
 
@@ -558,19 +559,28 @@ Además de las columnas comunes de línea:
 | Columna                 | Tipo            | Nulo | Descripción                                      |
 |-------------------------|-----------------|------|--------------------------------------------------|
 | `sales_invoice_line_id` | `uuid`          | Sí   | FK → línea facturada.                            |
-| `lot_id`                | `uuid`          | Sí   | FK → `app_item_lots.id`.                         |
-| `serial_id`             | `uuid`          | Sí   | FK → `app_item_serials.id`.                      |
-| `location_id`           | `uuid`          | Sí   | Ubicación de reingreso.                          |
+| `warehouse_id`          | `uuid`          | Sí   | FK → `app_warehouses.id`. Bodega de reingreso.   |
 | `unit_cost`             | `decimal(18,6)` | No   | Costo al que reingresa: el de la venta original. |
-| `condition`             | `enum`          | Sí   | Condición específica de la línea.                |
+
+**Qué captura la línea:** artículo, cantidad, unidad y bodega. Nada más.
+
+- El **precio y sus cargos** (`unit_price`, `discount_percent`, `tax_id`, `tax_percent`, `withholding_percent`) siguen
+  en la tabla pero **no se capturan**: los copia `SalesReturnPricingService` de la línea de factura que la línea
+  devuelve; sin factura detrás, del costo promedio del artículo. `unit_cost` lo resuelve `SalesReturnCostService`.
+- `lot_id`, `serial_id`, `location_id` y `condition` quedan sin uso en la línea: lo físico lo pide la Entrada que la
+  devolución genera, y la condición es de la cabecera —es la que decide a qué bodega puede volver la mercancía—.
 
 **Reglas**
 
 - Al confirmar apunta lo devuelto en la línea de la factura de origen y habilita la nota de crédito. No toca el kardex:
   el reingreso físico lo asienta la Entrada, al costo original de la venta.
 - `condition = damaged` reingresa a una bodega `quarantine`; `condition = scrap` no reingresa stock y se registra como
-  pérdida vía Ajuste.
+  pérdida vía Ajuste. La condición se comprueba contra la bodega de la cabecera **y** contra la de cada línea.
 - La cantidad devuelta no puede superar `quantity - returned_quantity` de la línea de factura.
+- **Confirmar genera la Entrada** (`ENT`) en borrador, del tipo `return`, sin proveedor, colgada de la devolución y en
+  la bodega de la cabecera. Esa entrada es la que mete la mercancía —al `unit_cost` congelado— y la que exige el lote y
+  la serie al confirmarse. Lo que vuelve como `scrap` no viaja a ella. Anular la devolución anula ese borrador; si la
+  entrada ya está confirmada, la anulación de la devolución se rechaza. Ver [logistica.md](logistica.md).
 
 ---
 
@@ -594,5 +604,6 @@ app_price_lists ───┘                  ├──> app_client_addresses
      │            │                                        ├── app_client_advances
      │            │                                        └── app_sales_credit_notes
      │            │
-     └──> app_sales_returns ──> app_sales_credit_notes ──> kardex (in)
+     └──> app_sales_returns ──┬──> app_sales_credit_notes
+                              └──> app_entries (Logística) ──> kardex (in)
 ```

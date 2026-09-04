@@ -1,6 +1,4 @@
 import type { StatusKind } from '@/components/status-pill';
-import { formatMoney } from '@/lib/money';
-import type { TaxOption } from '@/types/tax';
 
 export type PurchaseReturnStatus =
     | 'draft'
@@ -26,6 +24,9 @@ export interface PurchaseReturnLine {
     item_code?: string;
     measurement_unit_id: string;
     measurement_unit_name?: string;
+    /** Bodega desde la que sale la mercancía de esta línea. */
+    warehouse_id: string;
+    warehouse_name?: string | null;
     /** Línea de la factura que esta línea devuelve. */
     purchase_invoice_line_id: string | null;
     lot_id: string | null;
@@ -164,25 +165,15 @@ export interface PurchaseInvoiceOptionMeta {
     lines?: PurchaseInvoiceOptionLine[];
 }
 
-/** Una ubicación de bodega, tal como llega en las props del formulario. */
-export interface WarehouseLocationOption {
-    id: string;
-    warehouse_id: string;
-    name: string;
-    is_default: 'yes' | 'no';
-}
-
 /**
  * Catálogos que alimentan los selects del formulario.
  *
- * Ni los proveedores, ni los artículos, ni las facturas, ni los lotes, ni las
- * series están aquí: son padrones demasiado grandes para las props y la
- * pantalla los busca contra sus endpoints de lookup con `Select2Ajax`.
+ * Ni los proveedores, ni los artículos, ni las facturas están aquí: son
+ * padrones demasiado grandes para las props y la pantalla los busca contra sus
+ * endpoints de lookup con `Select2Ajax`.
  */
 export interface PurchaseReturnOptions {
     warehouses: Array<{ id: string; name: string }>;
-    locations: WarehouseLocationOption[];
-    taxes: TaxOption[];
 }
 
 export const STATUS_LABELS: Record<PurchaseReturnStatus, string> = {
@@ -227,6 +218,3 @@ export function isEditable(status: PurchaseReturnStatus): boolean {
     return status === 'draft';
 }
 
-export function formatAmount(value: number, currency: string): string {
-    return formatMoney(value, currency);
-}

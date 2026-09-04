@@ -473,8 +473,8 @@ detalle: lleva `company_id` y `status`, pero no `code` (se identifica por la fac
 ## 7. Devoluciones de compras
 
 Acuerdo de devolución de mercancía al proveedor por defectos, exceso o error de despacho. Normalmente deriva en una
-nota de crédito. **No mueve inventario**: la salida física la asienta el Despacho. Ver
-[inventario.md § 4.1](inventario.md).
+nota de crédito. **No mueve inventario**: la salida física la asienta el Despacho que la devolución genera al
+confirmarse. Ver [inventario.md § 4.1](inventario.md).
 
 ### 7.1 Cabecera — `app_purchase_returns` — Prefijo `DVC`
 
@@ -508,17 +508,25 @@ Además de las columnas comunes de línea:
 
 | Columna                    | Tipo   | Nulo | Descripción                             |
 |----------------------------|--------|------|-----------------------------------------|
-| `purchase_invoice_line_id` | `uuid` | Sí   | FK → línea facturada.                   |
-| `lot_id`                   | `uuid` | Sí   | FK → `app_item_lots.id`. Lote devuelto. |
-| `serial_id`                | `uuid` | Sí   | FK → `app_item_serials.id`.             |
-| `location_id`              | `uuid` | Sí   | Ubicación desde la que se toma.         |
-| `reason`                   | `enum` | Sí   | Motivo específico de la línea.          |
+| `purchase_invoice_line_id` | `uuid` | Sí   | FK → línea facturada.                     |
+| `warehouse_id`             | `uuid` | Sí   | FK → `app_warehouses.id`. Bodega de la que sale la línea. |
+| `reason`                   | `enum` | Sí   | Motivo específico de la línea.            |
+
+**Qué captura la línea:** artículo, cantidad, unidad y bodega. Nada más.
+
+- El **costo y sus cargos** (`unit_price`, `discount_percent`, `tax_id`, `tax_percent`, `withholding_percent`) siguen
+  en la tabla pero **no se capturan**: los copia `PurchaseReturnPricingService` de la línea de factura que la línea
+  devuelve; sin factura detrás, del costo promedio del artículo.
+- `lot_id`, `serial_id` y `location_id` quedan sin uso: lo físico lo pide el Despacho que la devolución genera.
 
 **Reglas**
 
 - Al confirmar apunta lo devuelto en la línea de la factura de origen y habilita la nota de crédito. No toca el kardex.
 - La cantidad devuelta no puede superar `quantity - returned_quantity` de la línea de factura.
-- Si el artículo maneja lote o serie, se devuelve exactamente el lote/serie recibido.
+- **Confirmar genera el Despacho** (`DES`) en borrador, dirigido al proveedor (`recipient_type = supplier`), colgado de
+  la devolución y desde la bodega de la cabecera. Ese despacho es el que saca la mercancía, y el que exige el lote y la
+  serie al confirmarse. Anular la devolución anula ese borrador; si el despacho ya está confirmado, la anulación de la
+  devolución se rechaza. Ver [logistica.md](logistica.md).
 
 ---
 
@@ -539,5 +547,6 @@ app_suppliers
      │            │                                       ├── app_supplier_advances
      │            │                                       └── app_purchase_credit_notes
      │            │
-     └──> app_purchase_returns ──> app_purchase_credit_notes ──> kardex (out)
+     └──> app_purchase_returns ──┬──> app_purchase_credit_notes
+                                 └──> app_dispatches (Logística) ──> kardex (out)
 ```

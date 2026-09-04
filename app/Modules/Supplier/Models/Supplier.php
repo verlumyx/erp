@@ -26,6 +26,12 @@ class Supplier extends Model
 
     public const CODE_PREFIX = 'PRO';
 
+    /**
+     * Alias con el que el proveedor viaja como destinatario de un despacho: la
+     * devolución de compra le manda la mercancía de vuelta.
+     */
+    public const MORPH_ALIAS = 'supplier';
+
     /** Letra del RIF. `V`, `E` y `P` son naturales; `J`, `G` y `C` jurídicas. */
     public const DOCUMENT_TYPES = ['V', 'E', 'J', 'P', 'G', 'C'];
 

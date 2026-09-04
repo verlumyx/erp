@@ -15,6 +15,7 @@ class PurchaseReturnCreateService
         private readonly PurchaseReturnRepositoryInterface $repository,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly PurchaseReturnLimitsService $limits,
+        private readonly PurchaseReturnPricingService $pricing,
     ) {}
 
     /**
@@ -39,7 +40,12 @@ class PurchaseReturnCreateService
             $command->exchangeRateOverride,
         );
 
-        $this->repository->create($command, $rates);
+        $this->repository->create(
+            $command,
+            $rates,
+            /** El precio no lo decide la pantalla: sale de la línea facturada. */
+            $this->pricing->apply($command->companyId, $command->purchaseInvoiceId, $command->lines),
+        );
 
         return $this->repository->findOrFail($command->id);
     }

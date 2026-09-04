@@ -26,11 +26,19 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
     ) {}
 
     /**
+     * Las líneas llegan ya valoradas por `SalesReturnPricingService`: el
+     * repositorio escribe importes, nunca los decide.
+     *
+     * @param  array<int, SalesReturnLineData>  $lines
      * @param  array<int, float>  $unitCosts
      */
-    public function create(CreateSalesReturnCommand $command, DocumentRatesData $rates, array $unitCosts): void
-    {
-        DB::transaction(function () use ($command, $rates, $unitCosts): void {
+    public function create(
+        CreateSalesReturnCommand $command,
+        DocumentRatesData $rates,
+        array $lines,
+        array $unitCosts,
+    ): void {
+        DB::transaction(function () use ($command, $rates, $lines, $unitCosts): void {
             $return = SalesReturn::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
@@ -44,14 +52,14 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
                 'reason_detail' => $command->reasonDetail,
                 'condition' => $command->condition,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->lines),
+                ...$this->totals($lines),
                 'received_by' => $command->receivedBy,
                 'notes' => $command->notes,
                 'status' => 'draft',
                 'created_by' => $command->createdBy,
             ]);
 
-            $this->syncLines($return, $command->lines, $unitCosts);
+            $this->syncLines($return, $lines, $unitCosts);
         });
     }
 
@@ -72,15 +80,17 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
     }
 
     /**
+     * @param  array<int, SalesReturnLineData>  $lines  Ya valoradas.
      * @param  array<int, float>  $unitCosts
      */
     public function update(
         SalesReturn $model,
         UpdateSalesReturnCommand $command,
         DocumentRatesData $rates,
+        array $lines,
         array $unitCosts,
     ): void {
-        DB::transaction(function () use ($model, $command, $rates, $unitCosts): void {
+        DB::transaction(function () use ($model, $command, $rates, $lines, $unitCosts): void {
             /** La nota de crédito generada y la marca de anulación no se editan aquí. */
             $model->update([
                 'client_id' => $command->clientId,
@@ -92,12 +102,12 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
                 'reason_detail' => $command->reasonDetail,
                 'condition' => $command->condition,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->lines),
+                ...$this->totals($lines),
                 'received_by' => $command->receivedBy,
                 'notes' => $command->notes,
             ]);
 
-            $this->syncLines($model, $command->lines, $unitCosts);
+            $this->syncLines($model, $lines, $unitCosts);
         });
     }
 
@@ -209,9 +219,7 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
             'receiver',
             'lines.item',
             'lines.measurementUnit',
-            'lines.lot',
-            'lines.serial',
-            'lines.location',
+            'lines.warehouse',
         ];
     }
 
@@ -248,10 +256,8 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
                 'company_id' => $return->company_id,
                 'item_id' => $line->itemId,
                 'measurement_unit_id' => $line->measurementUnitId,
+                'warehouse_id' => $line->warehouseId,
                 'sales_invoice_line_id' => $line->salesInvoiceLineId,
-                'lot_id' => $line->lotId,
-                'serial_id' => $line->serialId,
-                'location_id' => $line->locationId,
                 'quantity' => $line->quantity,
                 'base_quantity' => round($line->quantity * $factor, 4),
                 'unit_price' => $line->unitPrice,
@@ -266,7 +272,6 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
                 'subtotal' => $line->subtotal,
                 'total' => $line->total,
                 'reason' => $line->reason,
-                'condition' => $line->condition,
                 'status' => $line->status,
                 'notes' => $line->notes,
             ];

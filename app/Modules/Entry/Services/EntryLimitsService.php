@@ -14,6 +14,7 @@ use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseOrder\Repositories\Contracts\PurchaseOrderRepositoryInterface;
+use App\Modules\SalesReturn\Models\SalesReturn;
 use App\Modules\Transfer\Models\Transfer;
 use Illuminate\Validation\ValidationException;
 
@@ -73,6 +74,15 @@ class EntryLimitsService
          * puede llegar ya lo comprobó el despacho al sacarlo.
          */
         if ($sourceableType === Transfer::MORPH_ALIAS) {
+            return;
+        }
+
+        /**
+         * Ni una que reingresa una devolución de venta: la mercancía vuelve de
+         * un cliente, no de un proveedor, y cuánto puede volver ya lo comprobó
+         * la devolución contra la factura.
+         */
+        if ($sourceableType === SalesReturn::MORPH_ALIAS) {
             return;
         }
 

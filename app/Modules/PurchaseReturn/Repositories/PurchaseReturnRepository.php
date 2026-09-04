@@ -25,9 +25,15 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
         private readonly ItemRepositoryInterface $items,
     ) {}
 
-    public function create(CreatePurchaseReturnCommand $command, DocumentRatesData $rates): void
+    /**
+     * Las líneas llegan ya valoradas por `PurchaseReturnPricingService`: el
+     * repositorio escribe importes, nunca los decide.
+     *
+     * @param  array<int, PurchaseReturnLineData>  $lines
+     */
+    public function create(CreatePurchaseReturnCommand $command, DocumentRatesData $rates, array $lines): void
     {
-        DB::transaction(function () use ($command, $rates): void {
+        DB::transaction(function () use ($command, $rates, $lines): void {
             $return = PurchaseReturn::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
@@ -40,7 +46,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->lines),
+                ...$this->totals($lines),
                 'carrier' => $command->carrier,
                 'tracking_number' => $command->trackingNumber,
                 'notes' => $command->notes,
@@ -48,7 +54,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
                 'created_by' => $command->createdBy,
             ]);
 
-            $this->syncLines($return, $command->lines);
+            $this->syncLines($return, $lines);
         });
     }
 
@@ -68,12 +74,16 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
             ->findOrFail($id);
     }
 
+    /**
+     * @param  array<int, PurchaseReturnLineData>  $lines  Ya valoradas.
+     */
     public function update(
         PurchaseReturn $model,
         UpdatePurchaseReturnCommand $command,
         DocumentRatesData $rates,
+        array $lines,
     ): void {
-        DB::transaction(function () use ($model, $command, $rates): void {
+        DB::transaction(function () use ($model, $command, $rates, $lines): void {
             /** La nota de crédito generada y la marca de anulación no se editan aquí. */
             $model->update([
                 'supplier_id' => $command->supplierId,
@@ -84,13 +94,13 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->lines),
+                ...$this->totals($lines),
                 'carrier' => $command->carrier,
                 'tracking_number' => $command->trackingNumber,
                 'notes' => $command->notes,
             ]);
 
-            $this->syncLines($model, $command->lines);
+            $this->syncLines($model, $lines);
         });
     }
 
@@ -201,9 +211,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
             'creditNote',
             'lines.item',
             'lines.measurementUnit',
-            'lines.lot',
-            'lines.serial',
-            'lines.location',
+            'lines.warehouse',
         ];
     }
 
@@ -238,10 +246,8 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
                 'company_id' => $return->company_id,
                 'item_id' => $line->itemId,
                 'measurement_unit_id' => $line->measurementUnitId,
+                'warehouse_id' => $line->warehouseId,
                 'purchase_invoice_line_id' => $line->purchaseInvoiceLineId,
-                'lot_id' => $line->lotId,
-                'serial_id' => $line->serialId,
-                'location_id' => $line->locationId,
                 'quantity' => $line->quantity,
                 'base_quantity' => round($line->quantity * $factor, 4),
                 'unit_price' => $line->unitPrice,

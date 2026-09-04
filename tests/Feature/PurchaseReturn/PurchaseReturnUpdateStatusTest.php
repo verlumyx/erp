@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\InventoryMovement\Models\InventoryMovement;
+use App\Modules\Item\Models\Item;
+use App\Modules\Item\Models\ItemUnit;
 use App\Modules\PurchaseCreditNote\Models\PurchaseCreditNote;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoiceLine;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
+use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
+use App\Modules\Supplier\Models\Supplier;
 
 use function Pest\Laravel\actingAs;
 
@@ -21,7 +26,7 @@ test('confirming marks what was returned on the invoice line', function () {
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 4,
-            'unit_price' => 25,
+            'warehouse_id' => $warehouse->id,
             'purchase_invoice_line_id' => $invoiceLine->id,
             'location_id' => $location->id,
         ]],
@@ -74,7 +79,7 @@ test('cancelling a confirmed return gives the quota back to the invoice line', f
             'item_id' => $item->id,
             'measurement_unit_id' => $unit->id,
             'quantity' => 4,
-            'unit_price' => 25,
+            'warehouse_id' => $warehouse->id,
             'purchase_invoice_line_id' => $invoiceLine->id,
         ]],
     ]);
@@ -333,4 +338,110 @@ test('a return of another company cannot be credited', function () {
             ]),
         )
         ->assertSessionHasErrors('purchase_return_id');
+});
+
+test('confirming generates the dispatch that will take the goods back to the supplier', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
+
+    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit, [
+        'carrier' => 'Transporte Zoom',
+        'tracking_number' => 'ZM-88771',
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $dispatch = Dispatch::with('lines')->where('sourceable_id', $return->id)->firstOrFail();
+
+    expect($dispatch->status)->toBe('draft');
+    expect($dispatch->sourceable_type)->toBe(PurchaseReturn::MORPH_ALIAS);
+    /** Va al proveedor, no a un cliente: por eso el destinatario es polimórfico. */
+    expect($dispatch->recipient_type)->toBe(Supplier::MORPH_ALIAS);
+    expect($dispatch->recipient_id)->toBe($supplier->id);
+    expect($dispatch->warehouse_id)->toBe($warehouse->id);
+    expect($dispatch->carrier)->toBe('Transporte Zoom');
+    expect($dispatch->tracking_number)->toBe('ZM-88771');
+
+    expect($dispatch->lines)->toHaveCount(1);
+    $line = $dispatch->lines->first();
+    expect($line->item_id)->toBe($item->id);
+    expect((float) $line->quantity)->toBe(2.0);
+    expect($line->sourceable_type)->toBe(PurchaseReturnLine::MORPH_ALIAS);
+    expect($line->sourceable_id)->toBe($return->lines->first()->id);
+});
+
+test('a return of services alone generates no dispatch', function () {
+    [$user, $company, $supplier, $warehouse, , $unit] = purchaseReturnScenario();
+
+    $service = Item::factory()->create([
+        'company_id' => $company->id,
+        'type' => 'service',
+        'is_purchasable' => 'yes',
+    ]);
+
+    ItemUnit::factory()->base()->create([
+        'company_id' => $company->id,
+        'item_id' => $service->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $service, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    /** Un servicio no se carga en un camión: no hay nada que sacar. */
+    expect(Dispatch::where('sourceable_id', $return->id)->count())->toBe(0);
+});
+
+test('cancelling the return cancels its draft dispatch', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
+
+    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $dispatch = Dispatch::where('sourceable_id', $return->id)->firstOrFail();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'cancelled',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($dispatch->refresh()->status)->toBe('cancelled');
+});
+
+test('a return whose dispatch already went out cannot be cancelled', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseReturnScenario();
+
+    $return = createPurchaseReturn($user, $company, $supplier, $warehouse, $item, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'confirmed',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $dispatch = Dispatch::where('sourceable_id', $return->id)->firstOrFail();
+    Dispatch::where('id', $dispatch->id)->update(['status' => 'confirmed']);
+
+    /** Primero se anula el despacho, que es el que sabe deshacer su asiento. */
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-returns.update-status', ['company' => $company->id, 'id' => $return->id]), [
+            'status' => 'cancelled',
+        ])
+        ->assertSessionHasErrors('status');
+
+    expect($return->refresh()->status)->toBe('confirmed');
 });

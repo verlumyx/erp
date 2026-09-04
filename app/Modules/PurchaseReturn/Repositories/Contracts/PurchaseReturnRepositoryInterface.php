@@ -6,6 +6,7 @@ namespace App\Modules\PurchaseReturn\Repositories\Contracts;
 
 use App\Modules\ExchangeRate\Commands\DocumentRatesData;
 use App\Modules\PurchaseReturn\Commands\CreatePurchaseReturnCommand;
+use App\Modules\PurchaseReturn\Commands\PurchaseReturnLineData;
 use App\Modules\PurchaseReturn\Commands\SearchPurchaseReturnCommand;
 use App\Modules\PurchaseReturn\Commands\UpdatePurchaseReturnCommand;
 use App\Modules\PurchaseReturn\Commands\UpdateStatusPurchaseReturnCommand;
@@ -15,16 +16,25 @@ use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 
 interface PurchaseReturnRepositoryInterface
 {
-    public function create(CreatePurchaseReturnCommand $command, DocumentRatesData $rates): void;
+    /**
+     * @param  array<int, PurchaseReturnLineData>  $lines  Las líneas ya valoradas
+     *                                                     por `PurchaseReturnPricingService`.
+     */
+    public function create(CreatePurchaseReturnCommand $command, DocumentRatesData $rates, array $lines): void;
 
     public function findById(string $id, ?string $companyId = null): ?PurchaseReturn;
 
     public function findOrFail(string $id, ?string $companyId = null): PurchaseReturn;
 
+    /**
+     * @param  array<int, PurchaseReturnLineData>  $lines  Las líneas ya valoradas
+     *                                                     por `PurchaseReturnPricingService`.
+     */
     public function update(
         PurchaseReturn $model,
         UpdatePurchaseReturnCommand $command,
         DocumentRatesData $rates,
+        array $lines,
     ): void;
 
     public function updateStatus(PurchaseReturn $model, UpdateStatusPurchaseReturnCommand $command): void;

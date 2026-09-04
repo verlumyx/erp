@@ -16,6 +16,7 @@ class PurchaseReturnUpdateService
         private readonly PurchaseReturnRepositoryInterface $repository,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly PurchaseReturnLimitsService $limits,
+        private readonly PurchaseReturnPricingService $pricing,
     ) {}
 
     /**
@@ -48,7 +49,13 @@ class PurchaseReturnUpdateService
             $command->exchangeRateOverride,
         );
 
-        $this->repository->update($model, $command, $rates);
+        $this->repository->update(
+            $model,
+            $command,
+            $rates,
+            /** El precio no lo decide la pantalla: sale de la línea facturada. */
+            $this->pricing->apply($company, $command->purchaseInvoiceId, $command->lines),
+        );
 
         return $this->repository->findOrFail($id, $companyId);
     }

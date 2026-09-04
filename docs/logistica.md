@@ -31,9 +31,9 @@ Salida física de mercancía hacia el cliente. Descarga inventario y libera la r
 
 | Columna                  | Tipo            | Nulo | Default     | Descripción                                                                        |
 |--------------------------|-----------------|------|-------------|------------------------------------------------------------------------------------|
-| `recipient_type`         | `string(255)`   | Sí   |             | Alias del destinatario en el morph map: `client` o `warehouse`.                    |
+| `recipient_type`         | `string(255)`   | Sí   |             | Alias del destinatario en el morph map: `client`, `warehouse` o `supplier`.        |
 | `recipient_id`           | `uuid`          | Sí   |             | Id del destinatario. Con `recipient_type` forma la relación `recipient`.           |
-| `sourceable_type`        | `string(255)`   | Sí   |             | Alias del documento origen en el morph map: `sales_order` o `transfer`.            |
+| `sourceable_type`        | `string(255)`   | Sí   |             | Alias del documento origen: `sales_order`, `transfer` o `purchase_return`.         |
 | `sourceable_id`          | `uuid`          | Sí   |             | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`.     |
 | `client_address_id`      | `uuid`          | Sí   |             | FK → `app_client_addresses.id`. Dirección de entrega.                              |
 | `warehouse_id`           | `uuid`          | No   |             | FK → `app_warehouses.id` (`restrictOnDelete`). Bodega de origen.                   |
@@ -75,25 +75,27 @@ Es el mismo mecanismo que usan las facturas de venta ([Ventas](ventas.md)) y las
 - `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
   `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
   datos ya guardados.
-- Tipos admitidos hoy: `sales_order` → `app_sales_orders` y `transfer` → `app_transfers`. Cualquier otro valor es
-  inválido y se rechaza en el Request.
+- Tipos admitidos hoy: `sales_order` → `app_sales_orders`, `transfer` → `app_transfers` y `purchase_return` →
+  `app_purchase_returns`. Cualquier otro valor es inválido y se rechaza en el Request.
 - Ambas columnas son nulas: un despacho directo (sin pedido previo) las deja vacías. Si una viene informada, la
   otra es obligatoria.
 - El documento origen debe pertenecer a la misma empresa y al mismo destinatario que el despacho: al mismo cliente si
-  viene de un pedido, o a la bodega de destino si viene de un traslado.
+  viene de un pedido, a la bodega de destino si viene de un traslado, o al mismo proveedor si viene de una devolución
+  de compra.
 
 **Destinatario (`recipient`)**
 
 El despacho no siempre va a un cliente: uno que sirve un traslado lleva la mercancía a otra bodega de la propia
-empresa. Por eso el destinatario es polimórfico —`client` o `warehouse`— en lugar de un `client_id` obligatorio. Un
-despacho dirigido a una bodega no se factura y no genera parada de ruta.
+empresa, y el de una devolución de compra la devuelve al proveedor. Por eso el destinatario es polimórfico
+—`client`, `warehouse` o `supplier`— en lugar de un `client_id` obligatorio. Un despacho que no va a un cliente no se
+factura y no genera parada de ruta.
 - Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
   origen se protege por la política de no borrado.
 - `route_id` y `route_stop_id` **no** entran en el morph: siguen siendo FK directos, porque la ruta es la
   planificación del viaje, no el documento que origina el despacho.
 - Las líneas repiten el par (`sourceable_type`, `sourceable_id`) apuntando a la línea del origen
-  (`sales_order_line`). El origen de la línea debe pertenecer al mismo documento que el `sourceable` de la
-  cabecera.
+  (`sales_order_line`, `transfer_line` o `purchase_return_line`). El origen de la línea debe pertenecer al mismo
+  documento que el `sourceable` de la cabecera.
 
 ### 1.2 Líneas — `app_dispatch_lines`
 
@@ -101,7 +103,7 @@ Además de las columnas comunes de línea (los importes son informativos: el des
 
 | Columna               | Tipo            | Nulo | Default | Descripción                                                      |
 |-----------------------|-----------------|------|---------|------------------------------------------------------------------|
-| `sourceable_type`     | `string(255)`   | Sí   |         | Alias de la línea origen (`sales_order_line`).                   |
+| `sourceable_type`     | `string(255)`   | Sí   |         | Alias de la línea origen (`sales_order_line`, `transfer_line` o `purchase_return_line`). |
 | `sourceable_id`       | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad al pedido.                   |
 | `location_id`         | `uuid`          | Sí   |         | Ubicación desde la que se toma.                                  |
 | `delivered_quantity`  | `decimal(18,4)` | No   | `0`     | Cantidad efectivamente recibida por el cliente.                  |
@@ -242,7 +244,7 @@ documento previo (producción, donación, hallazgo).
 | Columna             | Tipo            | Nulo | Default      | Descripción                                                                              |
 |---------------------|-----------------|------|--------------|------------------------------------------------------------------------------------------|
 | `supplier_id`       | `uuid`          | Sí   |              | FK → `app_suppliers.id` (`restrictOnDelete`). Nulo si no viene de un proveedor.          |
-| `sourceable_type`   | `string(255)`   | Sí   |              | Alias del documento origen en el morph map: `purchase_order` o `transfer`.               |
+| `sourceable_type`   | `string(255)`   | Sí   |              | Alias del documento origen: `purchase_order`, `transfer` o `sales_return`.               |
 | `sourceable_id`     | `uuid`          | Sí   |              | ID del documento origen. Con `sourceable_type` forma la relación `sourceable`.           |
 | `warehouse_id`      | `uuid`          | No   |              | FK → `app_warehouses.id` (`restrictOnDelete`). Bodega de recepción.                      |
 | `entry_date`        | `date`          | No   |              | Fecha de recepción.                                                                      |
@@ -276,8 +278,8 @@ columna por cada uno. Es el mismo mecanismo que usan las facturas de compra ([Co
 - `sourceable_type` guarda el **alias del morph map**, no el FQCN de la clase. El mapa se registra con
   `Relation::enforceMorphMap()` en un service provider, de modo que renombrar o mover la clase no rompe los
   datos ya guardados.
-- Tipos admitidos hoy: `purchase_order` → `app_purchase_orders` y `transfer` → `app_transfers`. Cualquier otro valor
-  es inválido y se rechaza en el Request.
+- Tipos admitidos hoy: `purchase_order` → `app_purchase_orders`, `transfer` → `app_transfers` y `sales_return` →
+  `app_sales_returns`. Cualquier otro valor es inválido y se rechaza en el Request.
 - La entrada que recibe un traslado cuelga del **traslado**, no del despacho que la generó: lo que hay que poder
   reconocer al mirarla es qué originó el movimiento, y eso es el traslado. El despacho y el traslado son hermanos:
   los dos apuntan al mismo `sourceable`. El despacho queda trazado línea a línea (ver abajo), que es donde hace
@@ -287,11 +289,14 @@ columna por cada uno. Es el mismo mecanismo que usan las facturas de compra ([Co
 - Una entrada que sale de una **orden de compra** debe apuntar a una de la misma empresa y del mismo proveedor. Sin
   `supplier_id` no puede salir de una orden. La que recibe un **traslado** no tiene proveedor —la mercancía ya era
   de la empresa— y no se comprueba contra ninguna orden: lo que puede llegar ya lo comprobó el despacho al sacarlo.
+  La que reingresa una **devolución de venta** tampoco lleva proveedor —vuelve de un cliente— y su tipo es `return`:
+  cuánto puede volver ya lo comprobó la devolución contra la factura.
 - Al no ser un FK, la integridad no la garantiza la base de datos: la valida el Service antes de guardar, y el
   origen se protege por la política de no borrado.
 - Las líneas repiten el par (`sourceable_type`, `sourceable_id`) apuntando a la línea del origen:
-  `purchase_order_line` en una entrada de compra, `dispatch_line` en la que recibe un traslado. En una entrada de
-  compra el origen de la línea debe pertenecer al mismo documento que el `sourceable` de la cabecera.
+  `purchase_order_line` en una entrada de compra, `dispatch_line` en la que recibe un traslado y
+  `sales_return_line` en la que reingresa una devolución. En una entrada de compra el origen de la línea debe
+  pertenecer al mismo documento que el `sourceable` de la cabecera.
 
 ### 3.2 Líneas — `app_entry_lines`
 
@@ -299,7 +304,7 @@ Además de las columnas comunes de línea:
 
 | Columna                  | Tipo            | Nulo | Default | Descripción                                            |
 |--------------------------|-----------------|------|---------|--------------------------------------------------------|
-| `sourceable_type`        | `string(255)`   | Sí   |         | Alias de la línea origen (`purchase_order_line` o `dispatch_line`). |
+| `sourceable_type`        | `string(255)`   | Sí   |         | Alias de la línea origen (`purchase_order_line`, `dispatch_line` o `sales_return_line`). |
 | `sourceable_id`          | `uuid`          | Sí   |         | ID de la línea origen. Trazabilidad a la orden.        |
 | `location_id`            | `uuid`          | Sí   |         | Ubicación donde se almacena.                           |
 | `received_quantity`      | `decimal(18,4)` | No   | `0`     | Cantidad aceptada.                                     |
@@ -885,12 +890,12 @@ línea no podía expresarlo.
 Compras                      Logística                     Inventario
 ─────────                    ─────────                     ──────────
 app_purchase_orders ──> app_entries ──────────────┐
-                             ^                    │
-Ventas                       │                    ├──> app_inventory_movements
+app_sales_returns ───────────┘  ^                 │
+Ventas                          │                 ├──> app_inventory_movements
 app_sales_orders ─────> app_dispatches ───────────┤         (kardex)
-                             ^                    │              │
-Traslados                    │                    │              v
-app_transfers ───────────────┘                    │      app_item_stocks
+app_purchase_returns ────────┘  ^                 │              │
+Traslados                       │                 │              v
+app_transfers ──────────────────┘                 │      app_item_stocks
                                                   │
 app_routes ──> app_route_stops                    │
        └────> app_route_clients                   │
@@ -901,6 +906,7 @@ app_purchase_invoices ──> app_imports
    (costos)                (reparte y manda revalorizar)
 ```
 
-Las flechas que llegan al kardex son tres: entradas, despachos y ajustes. El traslado no tiene ninguna: confirmarlo
+Las flechas que llegan al kardex son tres: entradas, despachos y ajustes. Ni el traslado ni las devoluciones tienen
+ninguna: cada uno genera su documento logístico y es ese el que asienta. Confirmar el traslado
 genera el despacho que escribe `transfer_out` en el origen, y confirmar ese despacho genera la entrada que escribe
 `transfer_in` en el destino. La importación tampoco: llega por el ajuste de revaluación que genera.

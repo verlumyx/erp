@@ -323,7 +323,7 @@ export default function SalesReturnsShow({ salesReturn }: Props) {
                         {[
                             '#',
                             'Artículo',
-                            'Lote / serie',
+                            'Bodega',
                             'Cantidad',
                             'Costo',
                             'Total',
@@ -354,22 +354,13 @@ export default function SalesReturnsShow({ salesReturn }: Props) {
                                         {line.measurement_unit_name
                                             ? ` · ${line.measurement_unit_name}`
                                             : ''}
-                                        {line.location_name
-                                            ? ` · ${line.location_name}`
-                                            : ''}
                                         {line.reason
                                             ? ` · ${REASON_LABELS[line.reason]}`
-                                            : ''}
-                                        {line.condition
-                                            ? ` · ${CONDITION_LABELS[line.condition]}`
                                             : ''}
                                     </span>
                                 </div>
                                 <div className="truncate text-[13px] text-muted-foreground">
-                                    {line.lot_number ?? '—'}
-                                    {line.serial_number
-                                        ? ` / ${line.serial_number}`
-                                        : ''}
+                                    {line.warehouse_name ?? '—'}
                                 </div>
                                 <div className="text-[13.5px] tabular-nums">
                                     {line.quantity}

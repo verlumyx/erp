@@ -12,19 +12,24 @@ use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
+use App\Modules\PurchaseReturn\Models\PurchaseReturn;
+use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
+use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
 use App\Modules\Transfer\Models\Transfer;
 use App\Modules\Transfer\Models\TransferLine;
+use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Transfer\Repositories\Contracts\TransferRepositoryInterface;
 use App\Modules\Warehouse\Models\Warehouse;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Lo que el despacho no puede comprobar sin leer el documento origen: que el
- * pedido sea del mismo cliente, que las líneas despachadas sean suyas y que no
- * se saque más de lo que se pidió.
+ * pedido sea del mismo cliente —el traslado, de la misma bodega de destino; la
+ * devolución de compra, del mismo proveedor—, que las líneas despachadas sean
+ * suyas y que no se saque más de lo que se pidió.
  *
  * El origen no es un foreign key —es una relación polimórfica—, así que su
  * integridad no la garantiza la base de datos: la garantiza este servicio antes
@@ -39,6 +44,7 @@ class DispatchSourceService
     public function __construct(
         private readonly SalesOrderRepositoryInterface $orders,
         private readonly TransferRepositoryInterface $transfers,
+        private readonly PurchaseReturnRepositoryInterface $purchaseReturns,
         private readonly DispatchRepositoryInterface $dispatches,
     ) {}
 
@@ -69,6 +75,19 @@ class DispatchSourceService
 
         if ($sourceableType === Transfer::MORPH_ALIAS) {
             $this->guardTransfer((string) $sourceableId, $recipientType, $recipientId, $companyId, $lines, $dispatchId);
+
+            return;
+        }
+
+        if ($sourceableType === PurchaseReturn::MORPH_ALIAS) {
+            $this->guardPurchaseReturn(
+                (string) $sourceableId,
+                $recipientType,
+                $recipientId,
+                $companyId,
+                $lines,
+                $dispatchId,
+            );
 
             return;
         }
@@ -136,6 +155,116 @@ class DispatchSourceService
         }
 
         $this->guardTransferLines($transfer, $lines, $dispatchId);
+    }
+
+    /**
+     * Lo que el despacho no puede comprobar sin leer la devolución de compra:
+     * que exista, que siga viva y que la mercancía vuelva de verdad al
+     * proveedor al que la devolución se la devuelve.
+     *
+     * @param  array<int, DispatchLineData>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardPurchaseReturn(
+        string $sourceableId,
+        string $recipientType,
+        string $recipientId,
+        ?string $companyId,
+        array $lines,
+        ?string $dispatchId,
+    ): void {
+        $return = $this->purchaseReturns->findById($sourceableId, $companyId);
+
+        if (! $return instanceof PurchaseReturn) {
+            throw ValidationException::withMessages([
+                'sourceable_id' => 'La devolución de origen no existe en esta empresa.',
+            ]);
+        }
+
+        if ($return->status === 'cancelled') {
+            throw ValidationException::withMessages([
+                'sourceable_id' => 'No se puede despachar una devolución anulada.',
+            ]);
+        }
+
+        if ($recipientType !== Supplier::MORPH_ALIAS || $recipientId !== $return->supplier_id) {
+            throw ValidationException::withMessages([
+                'recipient_id' => 'El despacho de una devolución va al proveedor de la devolución.',
+            ]);
+        }
+
+        $this->guardPurchaseReturnLines($return, $lines, $dispatchId);
+    }
+
+    /**
+     * La cantidad despachada no puede superar la devuelta menos la ya
+     * despachada por otros despachos, y la línea origen tiene que ser de la
+     * devolución elegida.
+     *
+     * @param  array<int, DispatchLineData>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardPurchaseReturnLines(PurchaseReturn $return, array $lines, ?string $dispatchId): void
+    {
+        $returnLines = PurchaseReturnLine::query()
+            ->where('purchase_return_id', $return->id)
+            ->get()
+            ->keyBy('id');
+
+        $errors = [];
+        $requested = [];
+
+        foreach ($lines as $index => $line) {
+            if ($line->status !== 'active' || blank($line->sourceableId)) {
+                continue;
+            }
+
+            $returnLine = $returnLines->get($line->sourceableId);
+
+            if (! $returnLine instanceof PurchaseReturnLine) {
+                $errors["lines.{$index}.sourceable_id"] = 'Esa línea no pertenece a la devolución de origen.';
+
+                continue;
+            }
+
+            if ($returnLine->measurement_unit_id !== $line->measurementUnitId) {
+                $errors["lines.{$index}.measurement_unit_id"] = 'La unidad debe ser la misma que la de la línea de la devolución.';
+            }
+
+            if ($returnLine->item_id !== $line->itemId) {
+                $errors["lines.{$index}.item_id"] = 'El artículo debe ser el mismo que el de la línea de la devolución.';
+            }
+
+            $requested[$line->sourceableId] ??= ['quantity' => 0.0, 'index' => $index];
+            $requested[$line->sourceableId]['quantity'] += $line->quantity;
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        if ($requested === []) {
+            return;
+        }
+
+        $dispatched = $this->dispatches->dispatchedQuantities(array_keys($requested), $dispatchId);
+
+        foreach ($requested as $returnLineId => $entry) {
+            $returned = (float) $returnLines->get($returnLineId)->quantity;
+            $available = round($returned - ($dispatched[$returnLineId] ?? 0.0), 4);
+
+            if (round($entry['quantity'], 4) > $available) {
+                $errors["lines.{$entry['index']}.quantity"] = $available > 0
+                    ? "De esa línea solo quedan {$available} por despachar."
+                    : 'Esa línea de la devolución ya se despachó por completo.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**

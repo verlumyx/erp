@@ -1,6 +1,4 @@
 import type { StatusKind } from '@/components/status-pill';
-import { formatMoney } from '@/lib/money';
-import type { TaxOption } from '@/types/tax';
 
 export type SalesReturnStatus =
     | 'draft'
@@ -34,6 +32,9 @@ export interface SalesReturnLine {
     item_code?: string;
     measurement_unit_id: string;
     measurement_unit_name?: string;
+    /** Bodega a la que reingresa la mercancía de esta línea. */
+    warehouse_id: string;
+    warehouse_name?: string | null;
     /** Línea de la factura que esta línea devuelve. */
     sales_invoice_line_id: string | null;
     lot_id: string | null;
@@ -183,25 +184,15 @@ export interface SalesInvoiceOptionMeta {
     lines?: SalesInvoiceOptionLine[];
 }
 
-/** Una ubicación de bodega, tal como llega en las props del formulario. */
-export interface WarehouseLocationOption {
-    id: string;
-    warehouse_id: string;
-    name: string;
-    is_default: 'yes' | 'no';
-}
-
 /**
  * Catálogos que alimentan los selects del formulario.
  *
- * Ni los clientes, ni los artículos, ni las facturas, ni los lotes, ni las
- * series están aquí: son padrones demasiado grandes para las props y la
- * pantalla los busca contra sus endpoints de lookup con `Select2Ajax`.
+ * Ni los clientes, ni los artículos, ni las facturas están aquí: son padrones
+ * demasiado grandes para las props y la pantalla los busca contra sus
+ * endpoints de lookup con `Select2Ajax`.
  */
 export interface SalesReturnOptions {
     warehouses: Array<{ id: string; name: string; type?: string }>;
-    locations: WarehouseLocationOption[];
-    taxes: TaxOption[];
     receivers: Array<{ id: string; name: string }>;
 }
 
@@ -254,6 +245,3 @@ export function isEditable(status: SalesReturnStatus): boolean {
     return status === 'draft';
 }
 
-export function formatAmount(value: number, currency: string): string {
-    return formatMoney(value, currency);
-}

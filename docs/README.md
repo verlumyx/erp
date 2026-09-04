@@ -224,9 +224,14 @@ en una columna. En las entradas la fila nace con el número que trae el papel de
 `lot_id` / `serial_id` se resuelve al confirmar; en los despachos siempre apunta a un registro que ya
 existe. Ver [logistica.md](logistica.md) §1.3, §1.4, §3.3 y §3.4.
 
-Los demás documentos con trazabilidad (`app_transfer_lines`, devoluciones, facturas de compra y sus
-notas de crédito) siguen con `lot_id` y `serial_id` en la propia línea: solo mueven un lote por
-línea, y alinearlos es un cambio pendiente, no un descuido.
+En las **devoluciones** (de compra y de venta) el lote y la serie ya no se capturan en ninguna forma:
+los pide el documento logístico que la devolución genera al confirmarse —el despacho que saca la
+mercancía o la entrada que la reingresa—. Sus columnas `lot_id`, `serial_id` y `location_id` siguen
+en la tabla, sin uso.
+
+Los demás documentos con trazabilidad (`app_transfer_lines`, facturas de compra y sus notas de
+crédito) siguen con `lot_id` y `serial_id` en la propia línea: solo mueven un lote por línea, y
+alinearlos es un cambio pendiente, no un descuido.
 
 #### Los importes de la logística no se capturan
 
@@ -235,6 +240,10 @@ En Entradas y Despachos las columnas de dinero (`unit_price`, `discount_*`, `tax
 copian del documento origen —la orden de compra o el pedido de venta— o, sin origen, salen del costo
 promedio del artículo. Son documentos de logística: lo que deciden es qué mercancía se mueve y
 cuánta.
+
+Las **devoluciones** siguen la misma regla por el mismo motivo: su línea captura artículo, cantidad,
+unidad y bodega, y el precio con el que se acredita lo copia el backend de la línea de factura que
+se devuelve.
 
 ### Multiempresa
 

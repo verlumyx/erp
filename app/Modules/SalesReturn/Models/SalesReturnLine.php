@@ -10,6 +10,7 @@ use App\Modules\ItemLot\Models\ItemLot;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
+use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Database\Factories\SalesReturnLineFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -23,6 +24,9 @@ class SalesReturnLine extends Model
 
     protected $table = 'app_sales_return_lines';
 
+    /** Alias con el que la línea viaja en la línea de la entrada que la reingresa. */
+    public const MORPH_ALIAS = 'sales_return_line';
+
     public $incrementing = false;
 
     protected $keyType = 'string';
@@ -31,6 +35,7 @@ class SalesReturnLine extends Model
         'id',
         'company_id',
         'sales_return_id',
+        'warehouse_id',
         'line_number',
         'item_id',
         'measurement_unit_id',
@@ -120,6 +125,12 @@ class SalesReturnLine extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(WarehouseLocation::class, 'location_id', 'id');
+    }
+
+    /** Bodega a la que reingresa la mercancía de esta línea. */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
     }
 
     protected static function newFactory(): SalesReturnLineFactory

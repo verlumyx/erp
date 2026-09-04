@@ -9,6 +9,7 @@ use App\Modules\Item\Models\Item;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
 use App\Modules\Dispatch\Models\DispatchLine;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
+use App\Modules\SalesReturn\Models\SalesReturnLine;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Database\Factories\EntryLineFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -29,7 +30,11 @@ class EntryLine extends Model
     protected $keyType = 'string';
 
     /** Líneas de documento que hoy pueden originar una línea de entrada. */
-    public const SOURCE_TYPES = [PurchaseOrderLine::MORPH_ALIAS, DispatchLine::MORPH_ALIAS];
+    public const SOURCE_TYPES = [
+        PurchaseOrderLine::MORPH_ALIAS,
+        DispatchLine::MORPH_ALIAS,
+        SalesReturnLine::MORPH_ALIAS,
+    ];
 
     protected $fillable = [
         'id',

@@ -6,6 +6,7 @@ namespace App\Modules\Entry\Models;
 
 use App\Modules\Company\Models\Company;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
+use App\Modules\SalesReturn\Models\SalesReturn;
 use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Transfer\Models\Transfer;
 use App\Modules\User\Models\User;
@@ -40,6 +41,9 @@ class Entry extends Model
     /** Tipo que exige proveedor: lo que se compra viene de alguien. */
     public const SUPPLIER_TYPE = 'purchase';
 
+    /** Mercancía que vuelve de un cliente: la trae una devolución de venta. */
+    public const RETURN_TYPE = 'return';
+
     /**
      * Carga del inventario inicial. No tiene proveedor ni documento origen, y
      * solo se admite una vez por artículo y bodega.
@@ -55,8 +59,15 @@ class Entry extends Model
      * La entrada de un traslado cuelga del traslado y no del despacho que la
      * generó: lo que hay que poder reconocer de un vistazo es qué originó el
      * movimiento. El despacho sigue trazado línea a línea.
+     *
+     * Y la de una devolución de venta cuelga de la devolución: es la que
+     * reingresa lo que el cliente trajo de vuelta.
      */
-    public const SOURCE_TYPES = [PurchaseOrder::MORPH_ALIAS, Transfer::MORPH_ALIAS];
+    public const SOURCE_TYPES = [
+        PurchaseOrder::MORPH_ALIAS,
+        Transfer::MORPH_ALIAS,
+        SalesReturn::MORPH_ALIAS,
+    ];
 
     /** Alias con el que el kardex reconoce a la entrada como origen. */
     public const MOVEMENT_ORIGIN_TYPE = 'entry';
