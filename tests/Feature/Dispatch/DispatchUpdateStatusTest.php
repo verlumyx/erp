@@ -30,8 +30,6 @@ test('confirming takes the goods out of the warehouse at the current average cos
 
     $dispatch->refresh();
     expect($dispatch->status)->toBe('confirmed');
-    /** Confirmar pone la mercancía en la calle. */
-    expect($dispatch->delivery_status)->toBe('in_transit');
 
     $movements = dispatchMovements($dispatch);
     expect($movements)->toHaveCount(1);
@@ -274,7 +272,7 @@ test('cancelling a draft reverses nothing', function () {
     expect(dispatchMovements($dispatch))->toHaveCount(0);
 });
 
-test('a dispatch cannot be completed before its delivery is registered', function () {
+test('a confirmed dispatch can be marked as delivered without moving the kardex', function () {
     [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
 
     registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
@@ -282,17 +280,42 @@ test('a dispatch cannot be completed before its delivery is registered', functio
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
     moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
-    moveDispatchTo($user, $company, $dispatch, 'completed')->assertSessionHasErrors('status');
 
-    expect($dispatch->refresh()->status)->toBe('confirmed');
+    /** La salida ya está escrita: entregar no toca el inventario. */
+    expect(dispatchMovements($dispatch))->toHaveCount(1);
+
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'delivered')->assertSessionHasNoErrors();
+
+    $dispatch->refresh();
+    expect($dispatch->status)->toBe('delivered');
+    /** Entregar sella la fecha en que la mercancía llegó al cliente. */
+    expect($dispatch->delivery_date)->not->toBeNull();
+    /** Y no escribe ningún movimiento nuevo. */
+    expect(dispatchMovements($dispatch))->toHaveCount(1);
 });
 
-test('a dispatch cannot jump from draft to completed', function () {
+test('a delivered dispatch is final', function () {
+    [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
+
+    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'delivered')->assertSessionHasNoErrors();
+
+    /** Ya no se anula: lo que el cliente rechace se resuelve con una devolución de venta. */
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'cancelled')->assertSessionHasErrors('status');
+
+    expect($dispatch->refresh()->status)->toBe('delivered');
+});
+
+test('a dispatch cannot jump from draft to delivered', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, $dispatch, 'completed')->assertSessionHasErrors('status');
+    moveDispatchTo($user, $company, $dispatch, 'delivered')->assertSessionHasErrors('status');
 
     expect($dispatch->refresh()->status)->toBe('draft');
 });

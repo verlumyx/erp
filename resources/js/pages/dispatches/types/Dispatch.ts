@@ -2,22 +2,17 @@ import type { StatusKind } from '@/components/status-pill';
 import { formatMoney } from '@/lib/money';
 import type { TaxOption } from '@/types/tax';
 
-export type DispatchStatus = 'draft' | 'confirmed' | 'completed' | 'cancelled';
-
-/**
- * Cómo terminó el viaje. Es un eje distinto del estado del documento: el
- * despacho se confirma y se cumple, la mercancía se entrega o se rechaza.
- */
-export type DeliveryStatus =
-    | 'pending'
-    | 'in_transit'
-    | 'delivered'
-    | 'partial_delivered'
-    | 'rejected'
-    | 'returned';
+export type DispatchStatus = 'draft' | 'confirmed' | 'delivered' | 'cancelled';
 
 /** Alias del morph map admitidos como documento origen. */
-export type DispatchSourceType = 'sales_order';
+export type DispatchSourceType = 'sales_order' | 'transfer' | 'purchase_return';
+
+/**
+ * A quién va la mercancía. Un despacho de venta la lleva a un cliente; el
+ * espejo de un traslado, a otra bodega propia; el de una devolución de compra,
+ * al proveedor al que se le regresa.
+ */
+export type DispatchRecipientType = 'client' | 'warehouse' | 'supplier';
 
 /** Uno de los lotes de los que sale una línea; siempre del maestro. */
 export interface DispatchLineLot {
@@ -74,9 +69,6 @@ export interface DispatchLine {
     withholding_amount: string;
     subtotal: string;
     total: string;
-    /** Lo que el cliente recibió y lo que devolvió en el mismo viaje. */
-    delivered_quantity: string;
-    returned_quantity: string;
     /** Costo con el que salió: en borrador el promedio, confirmado el real. */
     unit_cost: string;
     status: 'active' | 'inactive';
@@ -89,9 +81,10 @@ export interface Dispatch {
     code: string;
     /**
      * A quién va la mercancía: un cliente en un despacho de venta, una bodega
-     * propia en uno que sirve un traslado.
+     * propia en uno que sirve un traslado, un proveedor en el que saca lo que
+     * una devolución de compra le regresa.
      */
-    recipient_type: 'client' | 'warehouse' | null;
+    recipient_type: DispatchRecipientType | null;
     recipient_id: string | null;
     recipient_name?: string;
     recipient_code?: string;
@@ -119,14 +112,6 @@ export interface Dispatch {
     total_weight: string;
     total_volume: string;
     total_cost: string;
-    delivery_status: DeliveryStatus;
-    received_by_name: string | null;
-    received_by_document: string | null;
-    signature_path: string | null;
-    evidence_path: string | null;
-    latitude: string | null;
-    longitude: string | null;
-    rejection_reason: string | null;
     cancelled_at: string | null;
     notes: string | null;
     status: DispatchStatus;
@@ -150,7 +135,6 @@ export interface DispatchFilters {
     driver_id?: string;
     route_id?: string;
     tracking_number?: string;
-    delivery_status?: string;
     status?: string;
     date_from?: string;
     date_to?: string;
@@ -238,34 +222,16 @@ export interface DispatchOptions {
 export const STATUS_LABELS: Record<DispatchStatus, string> = {
     draft: 'Borrador',
     confirmed: 'Confirmado',
-    completed: 'Cumplido',
-    cancelled: 'Anulado',
-};
-
-export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
-    pending: 'En bodega',
-    in_transit: 'En camino',
     delivered: 'Entregado',
-    partial_delivered: 'Entregado a medias',
-    rejected: 'Rechazado',
-    returned: 'Devuelto',
+    cancelled: 'Anulado',
 };
 
 /** Color de la pastilla de estado, uno por estado del documento. */
 export const STATUS_PILL_KIND: Record<DispatchStatus, StatusKind> = {
     draft: 'inactivo',
     confirmed: 'libre',
-    completed: 'pagado',
-    cancelled: 'vencido',
-};
-
-export const DELIVERY_PILL_KIND: Record<DeliveryStatus, StatusKind> = {
-    pending: 'inactivo',
-    in_transit: 'libre',
     delivered: 'pagado',
-    partial_delivered: 'libre',
-    rejected: 'vencido',
-    returned: 'vencido',
+    cancelled: 'vencido',
 };
 
 /**
@@ -274,34 +240,13 @@ export const DELIVERY_PILL_KIND: Record<DeliveryStatus, StatusKind> = {
  */
 export const STATUS_TRANSITIONS: Record<DispatchStatus, DispatchStatus[]> = {
     draft: ['confirmed', 'cancelled'],
-    confirmed: ['completed', 'cancelled'],
-    completed: [],
+    confirmed: ['delivered', 'cancelled'],
+    delivered: [],
     cancelled: [],
 };
 
-/** Resultados con los que se cierra un viaje. */
-export const SETTLED_DELIVERY_STATUSES: DeliveryStatus[] = [
-    'delivered',
-    'partial_delivered',
-    'rejected',
-    'returned',
-];
-
 export function isEditable(status: DispatchStatus): boolean {
     return status === 'draft';
-}
-
-/** La entrega ya está registrada: el viaje terminó de una forma o de otra. */
-export function isDeliverySettled(status: DeliveryStatus): boolean {
-    return SETTLED_DELIVERY_STATUSES.includes(status);
-}
-
-/** Se registra la entrega de lo que está en la calle, y una sola vez. */
-export function canRegisterDelivery(model: Dispatch): boolean {
-    return (
-        model.status === 'confirmed' &&
-        !isDeliverySettled(model.delivery_status)
-    );
 }
 
 export function formatAmount(value: number | string, currency: string): string {

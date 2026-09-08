@@ -7,7 +7,6 @@ import {
     ClipboardList,
     Contact,
     Edit,
-    MapPin,
     StickyNote,
     Truck,
     Warehouse,
@@ -21,11 +20,7 @@ import AppLayout from '@/layouts/app-layout';
 import dispatchRoutes from '@/routes/dispatches';
 import salesOrders from '@/routes/sales-orders';
 import type { BreadcrumbItem } from '@/types';
-import { DispatchDeliveryCard } from './components/DispatchDeliveryCard';
 import {
-    canRegisterDelivery,
-    DELIVERY_PILL_KIND,
-    DELIVERY_STATUS_LABELS,
     formatAmount,
     isEditable,
     STATUS_LABELS,
@@ -137,17 +132,6 @@ export default function DispatchesShow({ dispatch }: Props) {
                                 kind={STATUS_PILL_KIND[dispatch.status]}
                             >
                                 {STATUS_LABELS[dispatch.status]}
-                            </StatusPill>
-                            <StatusPill
-                                kind={
-                                    DELIVERY_PILL_KIND[dispatch.delivery_status]
-                                }
-                            >
-                                {
-                                    DELIVERY_STATUS_LABELS[
-                                        dispatch.delivery_status
-                                    ]
-                                }
                             </StatusPill>
                         </div>
                         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
@@ -310,55 +294,20 @@ export default function DispatchesShow({ dispatch }: Props) {
                             label="Fecha de entrega"
                             value={dispatch.delivery_date ?? '—'}
                         />
-                        <DataRow
-                            label="Recibido por"
-                            value={
-                                dispatch.received_by_name
-                                    ? `${dispatch.received_by_name}${
-                                          dispatch.received_by_document
-                                              ? ` · ${dispatch.received_by_document}`
-                                              : ''
-                                      }`
-                                    : '—'
-                            }
-                        />
-                        {dispatch.rejection_reason && (
-                            <DataRow
-                                label="Motivo del rechazo"
-                                value={dispatch.rejection_reason}
-                            />
-                        )}
-                        {dispatch.latitude && dispatch.longitude && (
-                            <DataRow
-                                label="Georreferencia"
-                                value={
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <MapPin className="size-3.5 opacity-80" />
-                                        {dispatch.latitude},{' '}
-                                        {dispatch.longitude}
-                                    </span>
-                                }
-                            />
-                        )}
                     </Card>
                 </div>
-
-                {canRegisterDelivery(dispatch) && (
-                    <DispatchDeliveryCard dispatch={dispatch} />
-                )}
 
                 <Card className="gap-0 overflow-hidden rounded-2xl py-0">
                     <div className="border-b p-5 text-[13px] font-bold text-muted-foreground">
                         Líneas
                     </div>
-                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2fr_1.3fr_0.9fr_0.9fr_1fr_1fr]">
+                    <div className="hidden h-11 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.4fr_2fr_1.3fr_0.9fr_0.9fr_1fr]">
                         {[
                             '#',
                             'Artículo',
                             'Lotes / series',
                             'Pedido',
                             'Salió',
-                            'Entregado',
                             'Costo',
                         ].map((header) => (
                             <div
@@ -373,7 +322,7 @@ export default function DispatchesShow({ dispatch }: Props) {
                         {activeLines.map((line) => (
                             <div
                                 key={line.id}
-                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2fr_1.3fr_0.9fr_0.9fr_1fr_1fr] lg:items-center"
+                                className="grid gap-3.5 border-b px-5 py-3 last:border-b-0 lg:grid-cols-[0.4fr_2fr_1.3fr_0.9fr_0.9fr_1fr] lg:items-center"
                             >
                                 <div className="text-[13.5px] font-semibold text-muted-foreground tabular-nums">
                                     {line.line_number}
@@ -409,12 +358,6 @@ export default function DispatchesShow({ dispatch }: Props) {
                                 </div>
                                 <div className="text-[13.5px] tabular-nums">
                                     {line.quantity}
-                                </div>
-                                <div className="text-[13.5px] tabular-nums">
-                                    {line.delivered_quantity}
-                                    {Number(line.returned_quantity) > 0
-                                        ? ` (devolvió ${line.returned_quantity})`
-                                        : ''}
                                 </div>
                                 <div className="text-[13.5px] font-semibold tabular-nums">
                                     {line.unit_cost}

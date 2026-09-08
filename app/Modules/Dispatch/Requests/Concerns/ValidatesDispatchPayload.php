@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Modules\Dispatch\Requests\Concerns;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Item\Models\ItemUnit;
+use App\Modules\Supplier\Models\Supplier;
+use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -33,13 +36,22 @@ trait ValidatesDispatchPayload
         $companyId = session('current_company_id');
 
         return [
+            /**
+             * A quién va la mercancía. Un despacho de venta la lleva a un
+             * cliente y se captura en `client_id`; el despacho espejo de un
+             * traslado o de una devolución de compra la lleva a una bodega o a
+             * un proveedor, y esos llegan en `recipient_type`/`recipient_id`.
+             * Uno de los dos caminos tiene que venir.
+             */
             'client_id' => [
-                'required',
+                'required_without:recipient_id',
                 'uuid',
                 Rule::exists('app_clients', 'id')
                     ->where('company_id', $companyId)
                     ->where('status', 'active'),
             ],
+            'recipient_type' => ['nullable', 'string', Rule::in(Dispatch::RECIPIENT_TYPES)],
+            'recipient_id' => ['nullable', 'uuid'],
             /** Vacío en un despacho directo, sin pedido previo. */
             'sourceable_type' => [
                 'nullable',
@@ -149,8 +161,9 @@ trait ValidatesDispatchPayload
     protected function dispatchMessages(): array
     {
         return [
-            'client_id.required' => 'El cliente es obligatorio.',
+            'client_id.required_without' => 'El cliente es obligatorio.',
             'client_id.exists' => 'El cliente seleccionado no está disponible.',
+            'recipient_type.in' => 'Ese tipo de destinatario no es válido para un despacho.',
             'sourceable_type.in' => 'Ese tipo de documento origen no es válido para un despacho.',
             'sourceable_type.required_with' => 'Indica el tipo del documento origen.',
             'sourceable_id.required_with' => 'Indica el documento origen.',
@@ -194,9 +207,56 @@ trait ValidatesDispatchPayload
             return;
         }
 
+        $this->validateRecipient($validator);
         $this->validateLineUnits($validator, $lines);
         $this->validateTraceabilityShape($validator, $lines);
         $this->validateLineLocations($validator, $lines);
+    }
+
+    /**
+     * El destinatario del flujo que no es de venta: una bodega propia cuando el
+     * despacho sirve un traslado, un proveedor cuando saca lo que una devolución
+     * de compra le regresa. El cliente lo comprueba su propia regla en
+     * `dispatchRules()`; aquí solo caen los otros dos porque su tabla depende
+     * del tipo y no cabe en una regla estática.
+     */
+    private function validateRecipient(Validator $validator): void
+    {
+        $type = $this->string('recipient_type')->toString();
+        $id = $this->string('recipient_id')->toString();
+
+        if ($type === '' || $type === Client::MORPH_ALIAS) {
+            return;
+        }
+
+        if ($id === '') {
+            $validator->errors()->add('recipient_id', 'Indica a quién va dirigido el despacho.');
+
+            return;
+        }
+
+        $companyId = session('current_company_id');
+
+        $recipient = match ($type) {
+            Supplier::MORPH_ALIAS => Supplier::query()
+                ->where('id', $id)
+                ->where('company_id', $companyId)
+                ->where('status', 'active')
+                ->exists(),
+            Warehouse::MORPH_ALIAS => Warehouse::query()
+                ->where('id', $id)
+                ->where('company_id', $companyId)
+                ->where('status', 'active')
+                ->exists(),
+            default => false,
+        };
+
+        if (! $recipient) {
+            $validator->errors()->add(
+                'recipient_id',
+                'El destinatario del despacho no está disponible.',
+            );
+        }
     }
 
     /**

@@ -83,9 +83,6 @@ class DispatchPostingService
     /**
      * Deshace la salida: cada movimiento del kardex recibe su contrapartida y
      * el pedido recupera lo despachado. Ninguna fila se borra.
-     *
-     * Se revierte lo que quedó aplicado, no lo que salió: si el viaje ya se
-     * registró, parte de la mercancía volvió sola y el pedido ya lo sabe.
      */
     public function reverse(Dispatch $dispatch): void
     {
@@ -99,11 +96,7 @@ class DispatchPostingService
             }
 
             foreach ($this->repository->activeLines($dispatch) as $line) {
-                $applied = $dispatch->isDeliverySettled()
-                    ? round((float) $line->delivered_quantity, 4)
-                    : round((float) $line->quantity, 4);
-
-                $this->moveOrderLine($dispatch, $line, -$applied);
+                $this->moveOrderLine($dispatch, $line, -round((float) $line->quantity, 4));
             }
 
             $this->markTransferShipped($dispatch, false);

@@ -9,7 +9,6 @@ use App\Modules\Dispatch\Commands\DispatchLineData;
 use App\Modules\Dispatch\Commands\SearchDispatchCommand;
 use App\Modules\Dispatch\Commands\UpdateDispatchCommand;
 use App\Modules\Dispatch\Commands\UpdateStatusDispatchCommand;
-use App\Modules\Dispatch\Commands\WriteDispatchDeliveryCommand;
 use App\Modules\Dispatch\Commands\WriteDispatchLineCostCommand;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Models\DispatchLine;
@@ -51,7 +50,6 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 'vehicle_plate' => $command->vehiclePlate,
                 'carrier' => $command->carrier,
                 'tracking_number' => $command->trackingNumber,
-                'delivery_status' => 'pending',
                 'notes' => $command->notes,
                 'status' => 'draft',
                 'created_by' => $command->createdBy,
@@ -112,9 +110,9 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     {
         $attributes = ['status' => $command->status];
 
-        /** Confirmar es lo que pone la mercancía en la calle. */
-        if ($command->status === 'confirmed' && $model->delivery_status === 'pending') {
-            $attributes['delivery_status'] = 'in_transit';
+        /** Marcar entregado cierra el viaje: se sella la fecha en que llegó. */
+        if ($command->status === 'delivered') {
+            $attributes['delivery_date'] = now()->toDateString();
         }
 
         if ($command->status === 'cancelled') {
@@ -122,35 +120,6 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
         }
 
         $model->update($attributes);
-    }
-
-    public function writeDelivery(Dispatch $model, WriteDispatchDeliveryCommand $command): Dispatch
-    {
-        return DB::transaction(function () use ($model, $command): Dispatch {
-            foreach ($command->lines as $lineId => $quantities) {
-                DispatchLine::query()
-                    ->where('dispatch_id', $model->id)
-                    ->whereKey($lineId)
-                    ->update([
-                        'delivered_quantity' => $quantities['delivered'],
-                        'returned_quantity' => $quantities['returned'],
-                    ]);
-            }
-
-            $model->update([
-                'delivery_status' => $command->deliveryStatus,
-                'delivery_date' => $command->deliveryDate,
-                'received_by_name' => $command->receivedByName,
-                'received_by_document' => $command->receivedByDocument,
-                'signature_path' => $command->signaturePath,
-                'evidence_path' => $command->evidencePath,
-                'latitude' => $command->latitude,
-                'longitude' => $command->longitude,
-                'rejection_reason' => $command->rejectionReason,
-            ]);
-
-            return $model;
-        });
     }
 
     public function writeLineCost(DispatchLine $line, WriteDispatchLineCostCommand $command): DispatchLine

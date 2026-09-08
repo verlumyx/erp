@@ -47,7 +47,12 @@ class DispatchUpdateService
          * El precio no lo decide la pantalla: sale del pedido que se despacha
          * o, sin pedido, del promedio del artículo.
          */
-        $lines = $this->pricing->apply($company, $command->sourceableId, $command->lines);
+        $lines = $this->pricing->apply(
+            $company,
+            $command->sourceableType,
+            $command->sourceableId,
+            $command->lines,
+        );
 
         $this->repository->update(
             $model,

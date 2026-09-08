@@ -9,7 +9,6 @@ use App\Modules\Dispatch\Commands\DispatchLineData;
 use App\Modules\Dispatch\Commands\SearchDispatchCommand;
 use App\Modules\Dispatch\Commands\UpdateDispatchCommand;
 use App\Modules\Dispatch\Commands\UpdateStatusDispatchCommand;
-use App\Modules\Dispatch\Commands\WriteDispatchDeliveryCommand;
 use App\Modules\Dispatch\Commands\WriteDispatchLineCostCommand;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Models\DispatchLine;
@@ -39,12 +38,6 @@ interface DispatchRepositoryInterface
     public function update(Dispatch $model, UpdateDispatchCommand $command, array $unitCosts, array $lines): void;
 
     public function updateStatus(Dispatch $model, UpdateStatusDispatchCommand $command): void;
-
-    /**
-     * Escribe el resultado del viaje ya resuelto. Solo lo llama
-     * `DispatchDeliveryService`.
-     */
-    public function writeDelivery(Dispatch $model, WriteDispatchDeliveryCommand $command): Dispatch;
 
     /**
      * Escribe en la línea el costo con el que salió de verdad. Solo lo llama

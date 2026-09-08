@@ -51,8 +51,6 @@ class DispatchLine extends Model
         'withholding_amount',
         'subtotal',
         'total',
-        'delivered_quantity',
-        'returned_quantity',
         'unit_cost',
         'status',
         'notes',
@@ -76,8 +74,6 @@ class DispatchLine extends Model
             'withholding_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'total' => 'decimal:2',
-            'delivered_quantity' => 'decimal:4',
-            'returned_quantity' => 'decimal:4',
             'unit_cost' => 'decimal:6',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
@@ -128,15 +124,6 @@ class DispatchLine extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(WarehouseLocation::class, 'location_id', 'id');
-    }
-
-    /**
-     * Lo que no se quedó el cliente y por tanto vuelve a la bodega. Es la
-     * diferencia entre lo que salió y lo que se entregó, nunca negativa.
-     */
-    public function returnedToWarehouse(): float
-    {
-        return max(0.0, round((float) $this->quantity - (float) $this->delivered_quantity, 4));
     }
 
     protected static function newFactory(): DispatchLineFactory

@@ -29,6 +29,7 @@ export function DispatchLinesSection() {
         data,
         errors,
         catalog,
+        flow,
         addLine,
         removeLine,
         updateLine,
@@ -103,6 +104,25 @@ export function DispatchLinesSection() {
                     value: unit.measurement_unit_id,
                     label: unit.name,
                 }));
+
+                /**
+                 * Mientras el catálogo del artículo no llega —o cuando su unidad
+                 * ya no figura entre las suyas—, la unidad que trajo el
+                 * documento se muestra igual: sin esto el select quedaría vacío
+                 * aunque la línea sí tenga unidad.
+                 */
+                if (
+                    line.measurement_unit_id !== '' &&
+                    !unitOptions.some(
+                        (option) =>
+                            option.value === line.measurement_unit_id,
+                    )
+                ) {
+                    unitOptions.push({
+                        value: line.measurement_unit_id,
+                        label: line.measurement_unit_name || 'Unidad',
+                    });
+                }
 
                 const lots = line.lots.filter((lot) => lot.status === 'active');
                 const serials = line.serials.filter(
@@ -241,8 +261,12 @@ export function DispatchLinesSection() {
                                 <span className="text-[12px] text-muted-foreground">
                                     {ordered === null &&
                                     line.sourceable_id === ''
-                                        ? 'Sin pedido'
-                                        : 'Lo pedido'}
+                                        ? flow === 'supplier'
+                                            ? 'Sin devolución'
+                                            : 'Sin pedido'
+                                        : flow === 'supplier'
+                                          ? 'Lo devuelto'
+                                          : 'Lo pedido'}
                                 </span>
                             </div>
 

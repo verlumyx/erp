@@ -41,7 +41,12 @@ class DispatchCreateService
          * El precio no lo decide la pantalla: sale del pedido que se despacha
          * o, sin pedido, del promedio del artículo.
          */
-        $lines = $this->pricing->apply($command->companyId, $command->sourceableId, $command->lines);
+        $lines = $this->pricing->apply(
+            $command->companyId,
+            $command->sourceableType,
+            $command->sourceableId,
+            $command->lines,
+        );
 
         $this->repository->create(
             $command,

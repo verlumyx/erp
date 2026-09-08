@@ -35,9 +35,13 @@ class UpdateDispatchCommand
 
     public static function fromRequest(UpdateDispatchRequest $request): self
     {
+        $recipientType = $request->string('recipient_type')->toString() ?: Client::MORPH_ALIAS;
+        $recipientId = $request->string('recipient_id')->toString()
+            ?: $request->string('client_id')->toString();
+
         return new self(
-            recipientType: Client::MORPH_ALIAS,
-            recipientId: $request->string('client_id')->toString(),
+            recipientType: $recipientType,
+            recipientId: $recipientId,
             warehouseId: $request->string('warehouse_id')->toString(),
             dispatchDate: $request->string('dispatch_date')->toString(),
             lines: DispatchLineData::collection($request->input('lines', [])),

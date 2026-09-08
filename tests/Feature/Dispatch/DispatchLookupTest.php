@@ -38,19 +38,13 @@ test('the lookup only offers dispatches a sales invoice can bill', function () {
     expect($response->json('data.0.meta.lines'))->toHaveCount(1);
 });
 
-test('a rejected dispatch is not offered: the client kept nothing', function () {
+test('a cancelled dispatch is not offered: nothing left the warehouse', function () {
     [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
 
     registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 100, 'unitCost' => 10]);
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
-
-    registerDispatchDelivery($user, $company, $dispatch->refresh(), [
-        'delivery_status' => 'rejected',
-        'rejection_reason' => 'Cliente cerrado.',
-        'lines' => [['id' => $dispatch->lines()->first()->id, 'delivered_quantity' => 0]],
-    ])->assertSessionHasNoErrors();
+    moveDispatchTo($user, $company, $dispatch, 'cancelled')->assertSessionHasNoErrors();
 
     expect(lookupDispatches($user, $company)->json('data'))->toHaveCount(0);
 });

@@ -39,8 +39,6 @@ test('a dispatch can be created', function () {
     expect($dispatch)->not->toBeNull();
     expect($dispatch->code)->toBe('DES000001');
     expect($dispatch->status)->toBe('draft');
-    /** Nace en la bodega: todavía no está en la calle. */
-    expect($dispatch->delivery_status)->toBe('pending');
     expect($dispatch->company_id)->toBe($company->id);
     expect($dispatch->created_by)->toBe($user->id);
     expect($dispatch->recipient_type)->toBe('client');
@@ -57,9 +55,6 @@ test('a dispatch can be created', function () {
     expect($line->company_id)->toBe($company->id);
     expect((float) $line->quantity)->toBe(2.0);
     expect((float) $line->base_quantity)->toBe(2.0);
-    /** El viaje aún no ha terminado: nada entregado, nada devuelto. */
-    expect((float) $line->delivered_quantity)->toBe(0.0);
-    expect((float) $line->returned_quantity)->toBe(0.0);
 });
 
 test('the code is sequential per company', function () {

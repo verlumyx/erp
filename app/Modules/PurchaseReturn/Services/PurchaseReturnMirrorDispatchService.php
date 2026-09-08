@@ -11,6 +11,7 @@ use App\Modules\Dispatch\Commands\UpdateStatusDispatchCommand;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
 use App\Modules\Dispatch\Services\DispatchCostService;
+use App\Modules\Dispatch\Services\DispatchPricingService;
 use App\Modules\Item\Models\Item;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
@@ -45,6 +46,7 @@ class PurchaseReturnMirrorDispatchService
         private readonly PurchaseReturnRepositoryInterface $returns,
         private readonly DispatchRepositoryInterface $dispatches,
         private readonly DispatchCostService $costs,
+        private readonly DispatchPricingService $pricing,
     ) {}
 
     /**
@@ -69,6 +71,19 @@ class PurchaseReturnMirrorDispatchService
 
         $id = (string) Str::uuid7();
 
+        /**
+         * El precio y el impuesto no los inventa el espejo: los copia de la
+         * línea de la devolución, igual que un despacho de venta los copia del
+         * pedido. Así la guía enseña el mismo impuesto con el que la mercancía
+         * se compró, aunque sea informativo.
+         */
+        $priced = $this->pricing->apply(
+            (string) $return->company_id,
+            PurchaseReturn::MORPH_ALIAS,
+            $return->id,
+            $lines,
+        );
+
         $this->dispatches->create(
             new CreateDispatchCommand(
                 id: $id,
@@ -79,15 +94,15 @@ class PurchaseReturnMirrorDispatchService
                 warehouseId: (string) $return->warehouse_id,
                 dispatchDate: $return->return_date?->toDateString() ?? now()->toDateString(),
                 createdBy: (string) $return->created_by,
-                lines: $lines,
+                lines: $priced,
                 sourceableType: PurchaseReturn::MORPH_ALIAS,
                 sourceableId: $return->id,
                 carrier: $return->carrier,
                 trackingNumber: $return->tracking_number,
                 notes: "Generado al confirmar la devolución {$return->code}.",
             ),
-            $this->costs->resolve((string) $return->company_id, $lines),
-            $lines,
+            $this->costs->resolve((string) $return->company_id, $priced),
+            $priced,
         );
 
         return $this->dispatches->findOrFail($id, $return->company_id);

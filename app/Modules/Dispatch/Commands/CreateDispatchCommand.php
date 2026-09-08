@@ -42,11 +42,15 @@ class CreateDispatchCommand
 
     public static function fromRequest(CreateDispatchRequest $request, ?string $companyId = null): self
     {
+        $recipientType = $request->string('recipient_type')->toString() ?: Client::MORPH_ALIAS;
+        $recipientId = $request->string('recipient_id')->toString()
+            ?: $request->string('client_id')->toString();
+
         return new self(
             id: $request->string('id')->toString(),
             companyId: $companyId ?? $request->route('company'),
-            recipientType: Client::MORPH_ALIAS,
-            recipientId: $request->string('client_id')->toString(),
+            recipientType: $recipientType,
+            recipientId: $recipientId,
             warehouseId: $request->string('warehouse_id')->toString(),
             dispatchDate: $request->string('dispatch_date')->toString(),
             createdBy: $request->user()->id,

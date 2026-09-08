@@ -1645,26 +1645,6 @@ function moveDispatchTo(
 }
 
 /**
- * Registers how the trip ended over HTTP: it is what brings back whatever the
- * client did not keep.
- *
- * @param  array<string, mixed>  $payload
- */
-function registerDispatchDelivery(
-    \App\Modules\User\Models\User $user,
-    \App\Modules\Company\Models\Company $company,
-    \App\Modules\Dispatch\Models\Dispatch $dispatch,
-    array $payload = [],
-): \Illuminate\Testing\TestResponse {
-    return \Pest\Laravel\actingAs($user)
-        ->withSession(['current_company_id' => $company->id])
-        ->put(
-            route('dispatches.delivery', ['company' => $company->id, 'id' => $dispatch->id]),
-            ['delivery_status' => 'delivered', ...$payload],
-        );
-}
-
-/**
  * The live kardex movements a dispatch wrote, counter-entries included: the
  * tests that check a cancellation need to see both sides.
  */

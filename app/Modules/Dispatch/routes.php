@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Modules\Dispatch\Controllers\DispatchDeliveryController;
 use App\Modules\Dispatch\Controllers\DispatchGetController;
 use App\Modules\Dispatch\Controllers\DispatchPostController;
 use App\Modules\Dispatch\Controllers\DispatchPutController;
@@ -24,7 +23,5 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/{id}/edit', [DispatchGetController::class, 'edit'])->where('id', $uuid)->name('dispatches.edit');
             Route::put('/{id}', DispatchPutController::class)->where('id', $uuid)->name('dispatches.update');
             Route::put('/{id}/status', DispatchUpdateStatusController::class)->where('id', $uuid)->name('dispatches.update-status');
-            /** El resultado del viaje: se registra una vez, sobre un despacho confirmado. */
-            Route::put('/{id}/delivery', DispatchDeliveryController::class)->where('id', $uuid)->name('dispatches.delivery');
         });
     });

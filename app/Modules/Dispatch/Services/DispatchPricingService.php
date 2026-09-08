@@ -8,6 +8,9 @@ use App\Modules\Dispatch\Commands\DispatchLineData;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
+use App\Modules\PurchaseReturn\Models\PurchaseReturn;
+use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
+use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
@@ -16,12 +19,14 @@ use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
  * A qué precio sale cada línea del despacho.
  *
  * La pantalla del despacho no pregunta el precio, ni el impuesto, ni el
- * descuento: eso se decidió al vender. Una línea que despacha una línea del
- * pedido copia lo que el pedido pactó; una línea sin pedido se valora al costo
- * promedio del artículo, que es lo único que el sistema sabe de ella.
+ * descuento: eso se decidió en el documento origen. Una línea que despacha una
+ * línea del pedido copia lo que el pedido pactó; una que saca lo que una
+ * devolución de compra regresa copia lo que la devolución acreditó —con su
+ * impuesto—; una línea sin origen se valora al costo promedio del artículo, que
+ * es lo único que el sistema sabe de ella.
  *
  * Los importes del despacho son informativos —la guía no factura—, pero tienen
- * que enseñar lo mismo que el pedido.
+ * que enseñar lo mismo que el documento del que salen.
  *
  * El promedio está en **unidad base** y `unit_price` es por unidad de la línea,
  * así que hay que multiplicar por el factor de conversión.
@@ -34,6 +39,7 @@ class DispatchPricingService
 {
     public function __construct(
         private readonly SalesOrderRepositoryInterface $orders,
+        private readonly PurchaseReturnRepositoryInterface $returns,
         private readonly ItemRepositoryInterface $items,
     ) {}
 
@@ -43,27 +49,37 @@ class DispatchPricingService
      * @param  array<int, DispatchLineData>  $lines
      * @return array<int, DispatchLineData>
      */
-    public function apply(?string $companyId, ?string $sourceableId, array $lines): array
-    {
-        $orderLines = $this->orderLines($companyId, $sourceableId);
+    public function apply(
+        ?string $companyId,
+        ?string $sourceableType,
+        ?string $sourceableId,
+        array $lines,
+    ): array {
+        $sourceLines = $this->sourceLines($companyId, $sourceableType, $sourceableId);
         $items = $this->itemsOf($companyId, $lines);
 
         $priced = [];
 
         foreach ($lines as $index => $line) {
-            $source = $orderLines[$line->sourceableId] ?? null;
+            $source = $sourceLines[$line->sourceableId] ?? null;
 
-            $priced[$index] = $source instanceof SalesOrderLine
-                ? $this->fromOrderLine($line, $source)
+            $priced[$index] = $source !== null
+                ? $this->fromSourceLine($line, $source)
                 : $this->fromAverageCost($line, $items[$line->itemId] ?? null);
         }
 
         return $priced;
     }
 
-    /** Lo que el pedido pactó: precio, impuesto, retención y descuento. */
-    private function fromOrderLine(DispatchLineData $line, SalesOrderLine $source): DispatchLineData
-    {
+    /**
+     * Lo que el documento origen pactó: precio, impuesto, retención y descuento.
+     * El pedido de venta y la devolución de compra guardan estas cinco columnas
+     * con el mismo nombre, así que una misma copia sirve para las dos.
+     */
+    private function fromSourceLine(
+        DispatchLineData $line,
+        SalesOrderLine|PurchaseReturnLine $source,
+    ): DispatchLineData {
         return $line->withPricing(
             unitPrice: round((float) $source->unit_price, 6),
             taxId: $source->tax_id,
@@ -91,18 +107,37 @@ class DispatchPricingService
     }
 
     /**
-     * Las líneas del pedido origen, indexadas por id. Un despacho suelto no
-     * tiene ninguna.
+     * Las líneas del documento origen, indexadas por id, según su tipo. Un
+     * despacho suelto —o uno de un traslado, que se valora al costo que viaja
+     * con la mercancía— no tiene ninguna, y no se va a buscar entre los pedidos
+     * un documento que no lo es.
      *
-     * @return array<string, SalesOrderLine>
+     * @return array<string, SalesOrderLine|PurchaseReturnLine>
      */
-    private function orderLines(?string $companyId, ?string $sourceableId): array
-    {
+    private function sourceLines(
+        ?string $companyId,
+        ?string $sourceableType,
+        ?string $sourceableId,
+    ): array {
         if (blank($sourceableId)) {
             return [];
         }
 
-        $order = $this->orders->findById((string) $sourceableId, $companyId);
+        return match ($sourceableType) {
+            SalesOrder::MORPH_ALIAS => $this->salesOrderLines($companyId, (string) $sourceableId),
+            PurchaseReturn::MORPH_ALIAS => $this->purchaseReturnLines($companyId, (string) $sourceableId),
+            default => [],
+        };
+    }
+
+    /**
+     * Las líneas del pedido de venta origen, indexadas por id.
+     *
+     * @return array<string, SalesOrderLine>
+     */
+    private function salesOrderLines(?string $companyId, string $sourceableId): array
+    {
+        $order = $this->orders->findById($sourceableId, $companyId);
 
         if (! $order instanceof SalesOrder) {
             return [];
@@ -112,6 +147,30 @@ class DispatchPricingService
 
         foreach ($order->lines as $line) {
             /** @var SalesOrderLine $line */
+            $lines[$line->id] = $line;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Las líneas de la devolución de compra origen, indexadas por id. De ellas
+     * el despacho espejo copia el impuesto con el que la mercancía se compró.
+     *
+     * @return array<string, PurchaseReturnLine>
+     */
+    private function purchaseReturnLines(?string $companyId, string $sourceableId): array
+    {
+        $return = $this->returns->findById($sourceableId, $companyId);
+
+        if (! $return instanceof PurchaseReturn) {
+            return [];
+        }
+
+        $lines = [];
+
+        foreach ($this->returns->activeLines($return) as $line) {
+            /** @var PurchaseReturnLine $line */
             $lines[$line->id] = $line;
         }
 

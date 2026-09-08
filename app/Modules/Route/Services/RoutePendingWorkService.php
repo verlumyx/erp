@@ -37,8 +37,7 @@ class RoutePendingWorkService
 
     /**
      * Despachos asignados a la ruta cuya entrega sigue abierta. Un despacho
-     * anulado ya no cuenta, y uno entregado —o rechazado, o devuelto— tampoco:
-     * su viaje terminó.
+     * anulado ya no cuenta, y uno entregado tampoco: su viaje terminó.
      *
      * @return array<int, Dispatch>
      */
@@ -56,8 +55,11 @@ class RoutePendingWorkService
 
         return array_values(array_filter(
             $result['data'],
-            static fn (Dispatch $dispatch): bool => $dispatch->status !== 'cancelled'
-                && ! $dispatch->isDeliverySettled(),
+            static fn (Dispatch $dispatch): bool => ! in_array(
+                $dispatch->status,
+                ['delivered', 'cancelled'],
+                true,
+            ),
         ));
     }
 

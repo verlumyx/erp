@@ -73,11 +73,6 @@ class DispatchFilters extends EloquentQueryFilters
         return $this->builder->where('sourceable_id', $value);
     }
 
-    public function delivery_status(string $value): Builder
-    {
-        return $this->builder->where('delivery_status', $value);
-    }
-
     public function status(string $value): Builder
     {
         return $this->builder->where('status', $value);
@@ -90,7 +85,8 @@ class DispatchFilters extends EloquentQueryFilters
 
     /**
      * Despachos que una factura de venta puede facturar: la mercancía ya salió
-     * de la bodega y el cliente se quedó con algo de ella.
+     * de la bodega. Lo que el cliente no reciba se corrige con una devolución
+     * de venta, no dejando de facturar.
      */
     public function invoiceable(string $value): Builder
     {
@@ -100,7 +96,6 @@ class DispatchFilters extends EloquentQueryFilters
 
         return $this->builder
             ->whereIn('status', Dispatch::POSTED_STATUSES)
-            ->whereNotIn('delivery_status', Dispatch::REFUSED_DELIVERY_STATUSES)
             /** Un traslado no se factura: la mercancía no cambió de dueño. */
             ->where('recipient_type', Client::MORPH_ALIAS);
     }

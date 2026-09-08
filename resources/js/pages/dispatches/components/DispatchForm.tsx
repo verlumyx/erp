@@ -1,4 +1,3 @@
-import { Select2Ajax } from '@/components/select2-ajax';
 import { FormFieldGrid, FormLayout } from '@/components/form-layout';
 import { FormSection } from '@/components/form-section';
 import {
@@ -6,6 +5,7 @@ import {
     FormSummary,
     SummaryRow,
 } from '@/components/form-summary';
+import { Select2Ajax } from '@/components/select2-ajax';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
@@ -21,12 +21,14 @@ export function DispatchForm() {
         errors,
         handleSubmit,
         mode,
-        currency,
         totals,
         addresses,
+        flow,
         clientLookupUrl,
         clientOption,
         selectClient,
+        supplierLookupUrl,
+        supplierOption,
         sourceLookupUrl,
         sourceOption,
         selectSource,
@@ -58,67 +60,129 @@ export function DispatchForm() {
             <FormSection
                 step={1}
                 title="Datos del despacho"
-                sub="A quién se le lleva, de qué pedido sale y de qué bodega"
+                sub={
+                    flow === 'supplier'
+                        ? 'A qué proveedor se le regresa, de qué devolución sale y de qué bodega'
+                        : 'A quién se le lleva, de qué pedido sale y de qué bodega'
+                }
             >
                 <FormFieldGrid>
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="client_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Cliente *
-                        </Label>
-                        <Select2Ajax
-                            inputId="client_id"
-                            url={clientLookupUrl}
-                            value={clientOption}
-                            onChange={selectClient}
-                            error={!!errors.client_id}
-                            size="md"
-                            placeholder="Busca un cliente"
-                        />
-                        {errors.client_id && (
-                            <p className="text-sm text-bad">
-                                {errors.client_id}
-                            </p>
-                        )}
-                    </div>
+                    {flow === 'supplier' ? (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="recipient_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Proveedor *
+                            </Label>
+                            <Select2Ajax
+                                inputId="recipient_id"
+                                url={supplierLookupUrl}
+                                value={supplierOption}
+                                onChange={() => {}}
+                                error={!!errors.recipient_id}
+                                isDisabled
+                                size="md"
+                                placeholder="Proveedor de la devolución"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                La devolución fija a quién vuelve la mercancía
+                            </span>
+                            {errors.recipient_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.recipient_id}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="client_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Cliente *
+                            </Label>
+                            <Select2Ajax
+                                inputId="client_id"
+                                url={clientLookupUrl}
+                                value={clientOption}
+                                onChange={selectClient}
+                                error={!!errors.client_id}
+                                size="md"
+                                placeholder="Busca un cliente"
+                            />
+                            {errors.client_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.client_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="sourceable_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Pedido de origen
-                        </Label>
-                        <Select2Ajax
-                            inputId="sourceable_id"
-                            url={sourceLookupUrl}
-                            params={{
-                                client_id: data.client_id,
-                                dispatchable: 'yes',
-                            }}
-                            value={sourceOption}
-                            onChange={selectSource}
-                            error={!!errors.sourceable_id}
-                            isClearable
-                            isDisabled={data.client_id === ''}
-                            size="md"
-                            placeholder={
-                                data.client_id === ''
-                                    ? 'Elige antes el cliente'
-                                    : 'Despacho directo, sin pedido'
-                            }
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            Atarlo limita lo despachado a lo que se pidió
-                        </span>
-                        {errors.sourceable_id && (
-                            <p className="text-sm text-bad">
-                                {errors.sourceable_id}
-                            </p>
-                        )}
-                    </div>
+                    {flow === 'supplier' ? (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Devolución de origen
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={sourceLookupUrl}
+                                value={sourceOption}
+                                onChange={() => {}}
+                                error={!!errors.sourceable_id}
+                                isDisabled
+                                size="md"
+                                placeholder="Devolución de compra"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Lo que se saca sale de esta devolución
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Pedido de origen
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={sourceLookupUrl}
+                                params={{
+                                    client_id: data.client_id,
+                                    dispatchable: 'yes',
+                                }}
+                                value={sourceOption}
+                                onChange={selectSource}
+                                error={!!errors.sourceable_id}
+                                isClearable
+                                isDisabled={data.client_id === ''}
+                                size="md"
+                                placeholder={
+                                    data.client_id === ''
+                                        ? 'Elige antes el cliente'
+                                        : 'Despacho directo, sin pedido'
+                                }
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Atarlo limita lo despachado a lo que se pidió
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
@@ -170,7 +234,10 @@ export function DispatchForm() {
                         )}
                     </div>
 
-                    <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
+                    <div
+                        className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3"
+                        hidden={flow === 'supplier'}
+                    >
                         <Label className="text-[13px] font-semibold">
                             Dirección de entrega
                         </Label>

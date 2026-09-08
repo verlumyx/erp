@@ -47,18 +47,22 @@ test('the list filters by code', function () {
             ->where('dispatches.0.code', 'DES000002'));
 });
 
-test('the list filters by delivery result', function () {
-    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+test('the list filters by status', function () {
+    [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
 
-    $first = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
+
+    $confirmed = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+    moveDispatchTo($user, $company, $confirmed, 'confirmed')->assertSessionHasNoErrors();
+
     createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
-    Dispatch::where('id', $first->id)->update(['delivery_status' => 'rejected']);
-
     actingAs($user)->withSession(['current_company_id' => $company->id])
-        ->get(route('dispatches.index', ['company' => $company->id, 'delivery_status' => 'rejected']))
+        ->get(route('dispatches.index', ['company' => $company->id, 'status' => 'confirmed']))
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->has('dispatches', 1));
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('dispatches', 1)
+            ->where('dispatches.0.status', 'confirmed'));
 });
 
 test('the list filters by client', function () {

@@ -82,7 +82,7 @@ test('a route with dispatches still undelivered is not deactivated', function ()
     expect(Route::find($route->id)->status)->toBe('active');
 
     /** Entregado el despacho, la ruta ya no debe nada. */
-    Dispatch::whereKey($dispatch->id)->update(['delivery_status' => 'delivered']);
+    Dispatch::whereKey($dispatch->id)->update(['status' => 'delivered']);
 
     switchRouteTo($user, $company, $route, 'inactive')->assertSessionHasNoErrors();
 

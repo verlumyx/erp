@@ -47,14 +47,6 @@ class DispatchFactory extends Factory
             'total_weight' => 0,
             'total_volume' => 0,
             'total_cost' => 0,
-            'delivery_status' => 'pending',
-            'received_by_name' => null,
-            'received_by_document' => null,
-            'signature_path' => null,
-            'evidence_path' => null,
-            'latitude' => null,
-            'longitude' => null,
-            'rejection_reason' => null,
             'cancelled_at' => null,
             'notes' => null,
             'status' => 'draft',
@@ -70,16 +62,14 @@ class DispatchFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'status' => 'confirmed',
-            'delivery_status' => 'in_transit',
         ]);
     }
 
-    /** A dispatch the client already received in full. */
+    /** A dispatch the client already received. */
     public function delivered(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'status' => 'completed',
-            'delivery_status' => 'delivered',
+            'status' => 'delivered',
             'delivery_date' => now()->toDateString(),
         ]);
     }

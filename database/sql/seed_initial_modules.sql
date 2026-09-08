@@ -395,16 +395,13 @@ BEGIN
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Despachos
-    -- Lleva un permiso propio además de los cinco de siempre: registrar cómo
-    -- terminó la entrega no es un cambio de estado del documento.
     INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
     VALUES
         (gen_random_uuid(), v_mod_dispatches, 'dispatches.list',          'Listar despachos',                 true, 1, NOW(), NOW()),
         (gen_random_uuid(), v_mod_dispatches, 'dispatches.create',        'Crear despachos',                  true, 2, NOW(), NOW()),
         (gen_random_uuid(), v_mod_dispatches, 'dispatches.show',          'Ver detalle de un despacho',       true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_dispatches, 'dispatches.update',        'Editar despachos',                 true, 4, NOW(), NOW()),
-        (gen_random_uuid(), v_mod_dispatches, 'dispatches.update-status', 'Confirmar o anular un despacho',   true, 5, NOW(), NOW()),
-        (gen_random_uuid(), v_mod_dispatches, 'dispatches.deliver',       'Registrar la entrega al cliente',  true, 6, NOW(), NOW())
+        (gen_random_uuid(), v_mod_dispatches, 'dispatches.update-status', 'Confirmar, entregar o anular un despacho', true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Entradas

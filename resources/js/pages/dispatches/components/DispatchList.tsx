@@ -18,8 +18,6 @@ import { useRemoteOption } from '@/hooks/use-remote-option';
 import clients from '@/routes/clients';
 import dispatches from '@/routes/dispatches';
 import {
-    DELIVERY_PILL_KIND,
-    DELIVERY_STATUS_LABELS,
     isEditable,
     STATUS_LABELS,
     STATUS_PILL_KIND,
@@ -45,14 +43,6 @@ const ALL = 'todos';
 const STATUS_OPTIONS: OptionType[] = [
     { value: ALL, label: 'Todos' },
     ...Object.entries(STATUS_LABELS).map(([value, label]) => ({
-        value,
-        label,
-    })),
-];
-
-const DELIVERY_OPTIONS: OptionType[] = [
-    { value: ALL, label: 'Todas' },
-    ...Object.entries(DELIVERY_STATUS_LABELS).map(([value, label]) => ({
         value,
         label,
     })),
@@ -213,31 +203,6 @@ export function DispatchList({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="filter-delivery">Entrega</Label>
-                        <Select2
-                            inputId="filter-delivery"
-                            options={DELIVERY_OPTIONS}
-                            value={
-                                DELIVERY_OPTIONS.find(
-                                    (option) =>
-                                        option.value ===
-                                        (filters.delivery_status ?? ALL),
-                                ) ?? null
-                            }
-                            onChange={(option) =>
-                                applyFilters({
-                                    ...filters,
-                                    delivery_status:
-                                        !option || option.value === ALL
-                                            ? undefined
-                                            : option.value,
-                                })
-                            }
-                            placeholder="Entrega"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
                         <Label htmlFor="filter-status">Estado</Label>
                         <Select2
                             inputId="filter-status"
@@ -277,20 +242,19 @@ export function DispatchList({
             </div>
 
             <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_1fr_1.1fr_1fr_1fr_0.8fr]">
+                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_1fr_1.1fr_1fr_0.8fr]">
                     {[
                         'Código',
                         'Cliente',
                         'Salida',
                         'Bodega',
-                        'Entrega',
                         'Estado',
                         'Acciones',
                     ].map((header, index) => (
                         <div
                             key={header}
                             className={`text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase ${
-                                index === 6 ? 'text-right' : ''
+                                index === 5 ? 'text-right' : ''
                             }`}
                         >
                             {header}
@@ -301,7 +265,7 @@ export function DispatchList({
                     {rows.map((row) => (
                         <div
                             key={row.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1fr_1.1fr_1fr_1fr_0.8fr] lg:py-0"
+                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1fr_1.1fr_1fr_0.8fr] lg:py-0"
                             onClick={() =>
                                 router.visit(
                                     dispatches.show({
@@ -334,19 +298,6 @@ export function DispatchList({
                             </div>
                             <div className="hidden truncate text-[13.5px] lg:block">
                                 {row.warehouse_name ?? '—'}
-                            </div>
-                            <div className="hidden lg:block">
-                                <StatusPill
-                                    kind={
-                                        DELIVERY_PILL_KIND[row.delivery_status]
-                                    }
-                                >
-                                    {
-                                        DELIVERY_STATUS_LABELS[
-                                            row.delivery_status
-                                        ]
-                                    }
-                                </StatusPill>
                             </div>
                             <div className="hidden lg:block">
                                 <StatusPill kind={STATUS_PILL_KIND[row.status]}>

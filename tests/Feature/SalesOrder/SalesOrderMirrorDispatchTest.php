@@ -78,7 +78,6 @@ test('approving a sales order writes the dispatch that will take the goods out',
     expect($dispatch)->not->toBeNull();
     /** Nace en borrador: aprobar el pedido no saca nada de la bodega. */
     expect($dispatch->status)->toBe('draft');
-    expect($dispatch->delivery_status)->toBe('pending');
     expect($dispatch->recipient_type)->toBe('client');
     expect($dispatch->recipient_id)->toBe($client->id);
     expect($dispatch->warehouse_id)->toBe($warehouse->id);

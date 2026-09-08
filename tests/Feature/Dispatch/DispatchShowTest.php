@@ -20,7 +20,7 @@ test('the detail carries the dispatch with its lines', function () {
             ->where('dispatch.code', 'DES000001')
             ->where('dispatch.recipient_name', $client->name)
             ->where('dispatch.warehouse_name', $warehouse->name)
-            ->where('dispatch.delivery_status', 'pending')
+            ->where('dispatch.status', 'draft')
             ->has('dispatch.lines', 1)
             ->where('dispatch.lines.0.item_name', $item->name));
 });

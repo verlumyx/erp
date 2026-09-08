@@ -45,8 +45,6 @@ class DispatchLineFactory extends Factory
             'withholding_amount' => 0,
             'subtotal' => $quantity * $unitPrice,
             'total' => $quantity * $unitPrice,
-            'delivered_quantity' => 0,
-            'returned_quantity' => 0,
             'unit_cost' => 60,
             'status' => 'active',
             'notes' => null,

@@ -94,7 +94,7 @@ export function PurchaseInvoiceLinesSection() {
                         key={line.id}
                         className="flex flex-col gap-3 rounded-[12px] border p-4"
                     >
-                        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_1.2fr_1fr_1.2fr_auto]">
+                        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_1.2fr_1fr_1.2fr_auto]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="flex items-center gap-1.5 text-[13px] font-semibold">
                                     Artículo *
@@ -249,30 +249,38 @@ export function PurchaseInvoiceLinesSection() {
                                 )}
                             </div>
 
-                            <div className="flex items-end gap-2">
-                                <LineNotePopover
-                                    value={line.notes}
-                                    onValueChange={(value) =>
-                                        updateLine(index, 'notes', value)
-                                    }
-                                    ariaLabel={`Nota de la línea ${index + 1}`}
-                                />
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="size-[42px] rounded-[10px] bg-card"
-                                    onClick={() => removeLine(index)}
-                                    aria-label="Quitar línea"
+                            <div className="flex flex-col gap-1.5">
+                                <Label
+                                    aria-hidden
+                                    className="text-[13px] font-semibold opacity-0 select-none"
                                 >
-                                    <X className="size-4" />
-                                </Button>
+                                    Acciones
+                                </Label>
+                                <div className="flex items-center gap-2">
+                                    <LineNotePopover
+                                        value={line.notes}
+                                        onValueChange={(value) =>
+                                            updateLine(index, 'notes', value)
+                                        }
+                                        ariaLabel={`Nota de la línea ${index + 1}`}
+                                    />
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="size-[42px] rounded-[10px] bg-card"
+                                        onClick={() => removeLine(index)}
+                                        aria-label="Quitar línea"
+                                    >
+                                        <X className="size-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
 
                         {chargesOpen && (
-                            <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+                            <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
                                         Impuesto

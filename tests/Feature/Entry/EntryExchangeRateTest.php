@@ -49,7 +49,13 @@ test('an entry in a currency without a loaded rate is not registered', function 
 
     actingAs($user)->withSession(['current_company_id' => $company->id])
         ->post(route('entries.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasErrors('exchange_rate');
+        ->assertSessionHasErrors('exchange_rate')
+        /**
+         * El mismo mensaje llega como flash `error` para que el toast lo enseñe:
+         * el arreglo vive en el handler global, así que vale para todo módulo que
+         * valore con tasa, no solo para la orden de compra donde salió el fallo.
+         */
+        ->assertSessionHas('error', 'No hay tasa de cambio cargada para EUR al '.now()->toDateString().'.');
 
     expect(Entry::find($payload['id']))->toBeNull();
 });

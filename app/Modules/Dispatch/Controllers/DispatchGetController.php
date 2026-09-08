@@ -23,7 +23,7 @@ class DispatchGetController extends Controller
     /** Claves de filtro aceptadas por el listado. */
     private const FILTERS = [
         'code', 'recipient_type', 'recipient_id', 'warehouse_id', 'driver_id', 'route_id',
-        'tracking_number', 'delivery_status', 'status', 'date_from', 'date_to',
+        'tracking_number', 'status', 'date_from', 'date_to',
     ];
 
     /** Tamaño de página del select remoto. */

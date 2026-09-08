@@ -36,7 +36,6 @@ use Illuminate\Validation\ValidationException;
  */
 class SalesOrderMirrorDispatchService
 {
-
     public function __construct(
         private readonly SalesOrderRepositoryInterface $orders,
         private readonly DispatchRepositoryInterface $dispatches,
@@ -67,7 +66,12 @@ class SalesOrderMirrorDispatchService
         $id = (string) Str::uuid7();
 
         /** El precio no lo decide nadie aquí: sale de la línea del pedido. */
-        $priced = $this->pricing->apply((string) $order->company_id, $order->id, $lines);
+        $priced = $this->pricing->apply(
+            (string) $order->company_id,
+            SalesOrder::MORPH_ALIAS,
+            $order->id,
+            $lines,
+        );
 
         $this->dispatches->create(
             new CreateDispatchCommand(

@@ -67,6 +67,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 return back()
                     ->withInput()
+                    ->with('error', $exception->getMessage())
                     ->withErrors(['exchange_rate' => $exception->getMessage()]);
             }
 

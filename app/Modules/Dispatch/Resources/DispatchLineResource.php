@@ -55,8 +55,6 @@ class DispatchLineResource extends JsonResource
             'withholding_amount' => $this->withholding_amount,
             'subtotal' => $this->subtotal,
             'total' => $this->total,
-            'delivered_quantity' => $this->delivered_quantity,
-            'returned_quantity' => $this->returned_quantity,
             /** Costo con el que salió: en borrador el promedio, confirmado el real. */
             'unit_cost' => $this->unit_cost,
             'status' => $this->status,

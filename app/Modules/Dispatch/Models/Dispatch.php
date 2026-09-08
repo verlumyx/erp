@@ -44,7 +44,7 @@ class Dispatch extends Model
      */
     public const MORPH_ALIAS = 'dispatch';
 
-    public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
+    public const STATUSES = ['draft', 'confirmed', 'delivered', 'cancelled'];
 
     /** Un despacho confirmado ya sacó la mercancía: no se edita, se anula. */
     public const EDITABLE_STATUSES = ['draft'];
@@ -89,44 +89,24 @@ class Dispatch extends Model
 
     /**
      * Estados en los que la mercancía ya salió de la bodega. Confirmar es lo
-     * que la saca; anular desde aquí es lo que la devuelve.
+     * que la saca; anular desde aquí es lo que la devuelve. Entregar no la
+     * vuelve a mover: solo cierra el viaje.
      *
      * @var array<int, string>
      */
-    public const POSTED_STATUSES = ['confirmed', 'completed'];
+    public const POSTED_STATUSES = ['confirmed', 'delivered'];
 
     /**
-     * Cómo terminó el viaje. Es un eje aparte de `status`: el documento se
-     * confirma y se cumple, la mercancía se entrega, se rechaza o vuelve.
-     *
-     * @var array<int, string>
-     */
-    public const DELIVERY_STATUSES = [
-        'pending', 'in_transit', 'delivered', 'partial_delivered', 'rejected', 'returned',
-    ];
-
-    /**
-     * Resultados con los que se cierra un viaje. Son los que el registro de la
-     * entrega puede escribir: los otros dos los pone el propio documento al
-     * nacer y al confirmarse.
-     *
-     * @var array<int, string>
-     */
-    public const SETTLED_DELIVERY_STATUSES = ['delivered', 'partial_delivered', 'rejected', 'returned'];
-
-    /** Resultados en los que el cliente no se quedó con nada. */
-    public const REFUSED_DELIVERY_STATUSES = ['rejected', 'returned'];
-
-    /**
-     * Transiciones permitidas. `completed` —el viaje terminó y la entrega está
-     * registrada— y `cancelled` son terminales.
+     * Transiciones permitidas. `delivered` —el cliente ya recibió la
+     * mercancía— y `cancelled` son terminales. Lo que el cliente rechace o
+     * devuelva se resuelve con una devolución de venta, no volviendo atrás.
      *
      * @var array<string, array<int, string>>
      */
     public const STATUS_TRANSITIONS = [
         'draft' => ['confirmed', 'cancelled'],
-        'confirmed' => ['completed', 'cancelled'],
-        'completed' => [],
+        'confirmed' => ['delivered', 'cancelled'],
+        'delivered' => [],
         'cancelled' => [],
     ];
 
@@ -152,14 +132,6 @@ class Dispatch extends Model
         'total_weight',
         'total_volume',
         'total_cost',
-        'delivery_status',
-        'received_by_name',
-        'received_by_document',
-        'signature_path',
-        'evidence_path',
-        'latitude',
-        'longitude',
-        'rejection_reason',
         'cancelled_at',
         'notes',
         'status',
@@ -178,8 +150,6 @@ class Dispatch extends Model
             'total_weight' => 'decimal:4',
             'total_volume' => 'decimal:4',
             'total_cost' => 'decimal:2',
-            'latitude' => 'decimal:7',
-            'longitude' => 'decimal:7',
             'cancelled_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
@@ -261,12 +231,6 @@ class Dispatch extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(DispatchLine::class, 'dispatch_id', 'id');
-    }
-
-    /** La entrega ya está registrada: el viaje terminó de una forma o de otra. */
-    public function isDeliverySettled(): bool
-    {
-        return in_array($this->delivery_status, self::SETTLED_DELIVERY_STATUSES, true);
     }
 
     protected static function newFactory(): DispatchFactory

@@ -40,8 +40,8 @@ class UpdateStatusDispatchRequest extends FormRequest
 
     /**
      * El despacho avanza por un camino fijo (`draft` → `confirmed` →
-     * `completed`, o `cancelled`), y no se da por cumplido un viaje del que
-     * todavía no se sabe cómo terminó.
+     * `delivered`, o `cancelled`). Confirmar saca la mercancía; entregar cierra
+     * el viaje.
      */
     public function withValidator(Validator $validator): void
     {
@@ -61,15 +61,6 @@ class UpdateStatusDispatchRequest extends FormRequest
                 $validator->errors()->add(
                     'status',
                     "No se puede pasar el despacho de «{$dispatch->status}» a «{$status}».",
-                );
-
-                return;
-            }
-
-            if ($status === 'completed' && ! $dispatch->isDeliverySettled()) {
-                $validator->errors()->add(
-                    'status',
-                    'Registra primero cómo terminó la entrega.',
                 );
             }
         });

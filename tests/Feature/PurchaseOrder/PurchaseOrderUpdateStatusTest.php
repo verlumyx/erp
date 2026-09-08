@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\ExchangeRate\Models\ExchangeRate;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 
 use function Pest\Laravel\actingAs;
@@ -29,6 +30,38 @@ test('a draft order can be confirmed and records who approved it', function () {
     expect($order->status)->toBe('confirmed');
     expect($order->approved_by)->toBe($user->id);
     expect($order->approved_at)->not->toBeNull();
+});
+
+/**
+ * Confirmar valora la orden con la tasa del día, y si esa tasa no está cargada
+ * el resolver la frena. El mensaje debe llegar como flash `error` —el que
+ * alimenta el toast— además de la clave `exchange_rate`, porque la pantalla de
+ * ver no lee esa clave: sin el flash el usuario solo vería el fallo abriendo el
+ * inspector del navegador.
+ */
+test('confirming without a loaded rate flashes the error so the toast shows it', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseOrderScenario();
+
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit);
+
+    /** Se cae la tasa del día: la del catálogo deja de estar disponible. */
+    ExchangeRate::query()
+        ->where('company_id', $company->id)
+        ->where('currency', 'USD')
+        ->update(['status' => 'inactive']);
+
+    /** El resolver cachea por request; en producción cada petición estrena caché. */
+    app()->forgetScopedInstances();
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->put(route('purchase-orders.update-status', ['company' => $company->id, 'id' => $order->id]), [
+            'status' => 'confirmed',
+        ]);
+
+    $response->assertSessionHasErrors('exchange_rate');
+    $response->assertSessionHas('error', 'No hay tasa de cambio cargada para USD al '.now()->toDateString().'.');
+
+    expect($order->refresh()->status)->toBe('draft');
 });
 
 test('cancelling requires a reason and stamps the cancellation', function () {

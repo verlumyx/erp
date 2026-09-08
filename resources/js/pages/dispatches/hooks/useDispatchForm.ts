@@ -23,12 +23,14 @@ import itemLots from '@/routes/item-lots';
 import itemSerials from '@/routes/item-serials';
 import routes from '@/routes/routes';
 import salesOrders from '@/routes/sales-orders';
+import suppliers from '@/routes/suppliers';
 import type {
     ClientAddressOption,
     ClientOptionMeta,
     Dispatch,
     DispatchLine,
     DispatchOptions,
+    DispatchRecipientType,
     RouteOptionMeta,
     SalesOrderOptionMeta,
 } from '../types/Dispatch';
@@ -43,6 +45,20 @@ interface UseDispatchFormProps {
 /** Alias del morph map del pedido de venta y de su línea. */
 const SALES_ORDER = 'sales_order';
 const SALES_ORDER_LINE = 'sales_order_line';
+
+/** Alias del destinatario de un despacho espejo de devolución de compra. */
+const SUPPLIER = 'supplier';
+
+/**
+ * A qué alias de línea origen se atan las líneas del despacho según el origen
+ * de la cabecera. Un despacho de venta las cuelga de líneas del pedido; el
+ * espejo de una devolución, de líneas de la devolución.
+ */
+const LINE_SOURCE_TYPE: Record<string, string> = {
+    [SALES_ORDER]: SALES_ORDER_LINE,
+    transfer: 'transfer_line',
+    purchase_return: 'purchase_return_line',
+};
 
 /** Uno de los lotes de los que sale la línea; siempre elegido del maestro. */
 export interface DispatchLineLotRow {
@@ -72,7 +88,11 @@ export interface DispatchLineRow {
     id: string;
     item_id: string;
     measurement_unit_id: string;
+    /** Nombre de la unidad tal como lo trajo el documento: respaldo del select. */
+    measurement_unit_name: string;
     quantity: number;
+    /** Lo que pidió —o devolvió— la línea origen. Vacío en una suelta. */
+    source_quantity: number | null;
     /** Línea del pedido que esta línea despacha; vacía en una suelta. */
     sourceable_id: string;
     /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
@@ -85,6 +105,13 @@ export interface DispatchLineRow {
 interface DispatchFormData {
     id: string;
     client_id: string;
+    /**
+     * Destinatario cuando no es un cliente: la bodega de un traslado o el
+     * proveedor de una devolución de compra. En el flujo de venta va vacío y el
+     * cliente viaja en `client_id`.
+     */
+    recipient_type: DispatchRecipientType | '';
+    recipient_id: string;
     /** Pedido de origen; vacío en un despacho directo. */
     sourceable_type: string;
     sourceable_id: string;
@@ -111,7 +138,6 @@ interface PageProps {
  * así el select lo muestra desde el primer render.
  */
 function clientSeed(model?: Dispatch): AjaxOption | null {
-    /** La pantalla solo edita despachos a un cliente: uno de traslado no pasa por aquí. */
     if (model?.recipient_type !== 'client' || !model.recipient_id) {
         return null;
     }
@@ -122,6 +148,26 @@ function clientSeed(model?: Dispatch): AjaxOption | null {
         value: model.recipient_id,
         label: model.recipient_code
             ? `${model.recipient_code} — ${name}`
+            : name,
+    };
+}
+
+/**
+ * El proveedor al que va el despacho espejo de una devolución de compra. Se
+ * siembra con el nombre y el código que trae el Resource: el destinatario del
+ * espejo está fijado por la devolución y solo se muestra, no se reelige.
+ */
+function supplierSeed(model?: Dispatch): AjaxOption | null {
+    if (model?.recipient_type !== SUPPLIER || !model.recipient_id) {
+        return null;
+    }
+
+    const name = model.recipient_name ?? '';
+
+    return {
+        value: model.recipient_id,
+        label: model.recipient_code
+            ? `${model.recipient_code} · ${name}`
             : name,
     };
 }
@@ -185,7 +231,9 @@ function emptyLine(): DispatchLineRow {
         id: generateUUID(),
         item_id: '',
         measurement_unit_id: '',
+        measurement_unit_name: '',
         quantity: 1,
+        source_quantity: null,
         sourceable_id: '',
         location_id: '',
         lots: [],
@@ -206,7 +254,12 @@ function lineRows(model?: Dispatch): DispatchLineRow[] {
             id: line.id,
             item_id: line.item_id,
             measurement_unit_id: line.measurement_unit_id,
+            measurement_unit_name: line.measurement_unit_name ?? '',
             quantity: Number(line.quantity),
+            source_quantity:
+                line.source_quantity != null
+                    ? Number(line.source_quantity)
+                    : null,
             sourceable_id: line.sourceable_id ?? '',
             location_id: line.location_id ?? '',
             lots: lotRows(line),
@@ -296,6 +349,16 @@ export function useDispatchForm({
         hydrate: true,
     });
 
+    /**
+     * El proveedor del despacho espejo de una devolución de compra. Se muestra
+     * pero no se reelige: la devolución fija a quién va la mercancía.
+     */
+    const supplier = useRemoteOption({
+        url: suppliers.lookup(companyId).url,
+        seed: supplierSeed(initialData),
+        hydrate: true,
+    });
+
     /** Y los pedidos contra el suyo, acotados al cliente elegido. */
     const source = useRemoteOption({
         url: salesOrders.lookup(companyId).url,
@@ -333,7 +396,18 @@ export function useDispatchForm({
     const { data, setData, post, put, transform, processing, errors, reset } =
         useForm<DispatchFormData>({
             id: initialData?.id ?? generateUUID(),
-            client_id: initialData?.recipient_id ?? '',
+            client_id:
+                initialData?.recipient_type === 'client'
+                    ? (initialData?.recipient_id ?? '')
+                    : '',
+            recipient_type:
+                initialData && initialData.recipient_type !== 'client'
+                    ? (initialData.recipient_type ?? '')
+                    : '',
+            recipient_id:
+                initialData && initialData.recipient_type !== 'client'
+                    ? (initialData.recipient_id ?? '')
+                    : '',
             sourceable_type: initialData?.sourceable_type ?? '',
             sourceable_id: initialData?.sourceable_id ?? '',
             client_address_id: initialData?.client_address_id ?? '',
@@ -349,6 +423,14 @@ export function useDispatchForm({
             notes: initialData?.notes ?? '',
             lines: lineRows(initialData),
         });
+
+    /**
+     * El flujo del despacho. El de venta va a un cliente y se arma a mano; el
+     * espejo de una devolución de compra va a un proveedor, nace generado y su
+     * destinatario y su origen quedan fijados por la devolución.
+     */
+    const flow: 'client' | 'supplier' =
+        data.recipient_type === SUPPLIER ? 'supplier' : 'client';
 
     /**
      * El catálogo de artículos ya no viaja en las props: la pantalla solo conoce
@@ -527,7 +609,9 @@ export function useDispatchForm({
                 id: generateUUID(),
                 item_id: line.item_id,
                 measurement_unit_id: line.measurement_unit_id,
+                measurement_unit_name: line.measurement_unit_name ?? '',
                 quantity: round2(Number(line.pending_quantity)),
+                source_quantity: Number(line.quantity),
                 sourceable_id: line.id,
                 location_id: '',
                 lots: [],
@@ -830,11 +914,20 @@ export function useDispatchForm({
                   };
         });
 
-    /** Lo que pidió la línea del pedido. Vacío en una línea suelta. */
+    /**
+     * Lo que la línea origen pidió —o, en una devolución, devolvió—. Sale del
+     * saldo que se pidió aparte cuando lo hay; si no —el espejo de una
+     * devolución no consulta ese endpoint—, del dato que trajo el documento.
+     * Vacío en una línea suelta.
+     */
     const orderedQuantityOf = (line: DispatchLineRow): number | null => {
         const source = orderLineOf(line.sourceable_id);
 
-        return source ? Number(source.quantity) : null;
+        if (source) {
+            return Number(source.quantity);
+        }
+
+        return line.source_quantity;
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -842,16 +935,39 @@ export function useDispatchForm({
 
         /**
          * El alias de la línea origen no se captura: lo pone la pantalla al
-         * enviar, y solo en las líneas que de verdad vienen del pedido. El
-         * backend lo exige junto al id porque el par forma el morph.
+         * enviar, y solo en las líneas que de verdad vienen del origen. El
+         * backend lo exige junto al id porque el par forma el morph, y depende
+         * del origen de la cabecera: una devolución cuelga sus líneas de
+         * `purchase_return_line`, no de `sales_order_line`.
          */
-        transform((payload) => ({
-            ...payload,
-            lines: payload.lines.map((line) => ({
+        transform((payload) => {
+            const lineSourceType =
+                LINE_SOURCE_TYPE[payload.sourceable_type] ?? '';
+
+            const lines = payload.lines.map((line) => ({
                 ...line,
-                sourceable_type: line.sourceable_id ? SALES_ORDER_LINE : '',
-            })),
-        }));
+                sourceable_type: line.sourceable_id ? lineSourceType : '',
+            }));
+
+            /**
+             * El espejo de una devolución va a un proveedor: viaja en
+             * `recipient_type`/`recipient_id` y no lleva ni cliente ni
+             * dirección de entrega. El de venta va a un cliente por `client_id`.
+             */
+            if (flow === 'supplier') {
+                const { client_id, client_address_id, ...rest } = payload;
+                void client_id;
+                void client_address_id;
+
+                return { ...rest, lines };
+            }
+
+            const { recipient_type, recipient_id, ...rest } = payload;
+            void recipient_type;
+            void recipient_id;
+
+            return { ...rest, lines };
+        });
 
         if (mode === 'create') {
             post(dispatches.store(companyId).url, {
@@ -882,9 +998,14 @@ export function useDispatchForm({
         currency,
         totals,
         addresses,
+        /** A quién va: 'client' de venta, 'supplier' el espejo de una devolución. */
+        flow,
         clientLookupUrl: client.url,
         clientOption: client.optionOf(data.client_id),
         selectClient,
+        /** El proveedor del espejo, solo para mostrarlo: no se reelige. */
+        supplierLookupUrl: supplier.url,
+        supplierOption: supplier.optionOf(data.recipient_id),
         sourceLookupUrl: source.url,
         sourceOption: source.optionOf(data.sourceable_id),
         selectSource,

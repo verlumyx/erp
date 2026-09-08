@@ -143,7 +143,7 @@ test('a delivered dispatch no longer adds a stop', function () {
     ]);
 
     /** Su viaje terminó: no hay nada que planificar por él. */
-    Dispatch::whereKey($dispatch->id)->update(['delivery_status' => 'delivered']);
+    Dispatch::whereKey($dispatch->id)->update(['status' => 'delivered']);
 
     planRoute($user, $company, $route)->assertSessionHasNoErrors();
 
