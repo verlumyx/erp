@@ -77,6 +77,12 @@ export interface EntryLineRow {
     /** Línea de la orden que esta línea recibe; vacía en una suelta. */
     sourceable_type: string;
     sourceable_id: string;
+    /**
+     * Lo que pidió la línea de la orden, tal como vino guardado. Deja ver lo
+     * pedido al reabrir la entrada sin depender de recargar el saldo de la
+     * orden; nula en una línea suelta.
+     */
+    source_quantity: number | null;
     /** Vacía deja que el kardex tome la ubicación por defecto de la bodega. */
     location_id: string;
     lots: EntryLineLotRow[];
@@ -193,6 +199,7 @@ function emptyLine(): EntryLineRow {
         rejection_reason: '',
         sourceable_type: '',
         sourceable_id: '',
+        source_quantity: null,
         location_id: '',
         lots: [],
         serials: [],
@@ -250,6 +257,10 @@ function lineRows(model?: Entry): EntryLineRow[] {
             rejection_reason: line.rejection_reason ?? '',
             sourceable_type: line.sourceable_type ?? '',
             sourceable_id: line.sourceable_id ?? '',
+            source_quantity:
+                line.source_quantity != null
+                    ? Number(line.source_quantity)
+                    : null,
             location_id: line.location_id ?? '',
             lots: lotRows(line),
             serials: serialRows(line),
@@ -431,6 +442,7 @@ export function useEntryForm({
                 ...line,
                 sourceable_type: '',
                 sourceable_id: '',
+                source_quantity: null,
             })),
         }));
 
@@ -467,6 +479,7 @@ export function useEntryForm({
                     ...line,
                     sourceable_type: '',
                     sourceable_id: '',
+                    source_quantity: null,
                 })),
             }));
 
@@ -504,6 +517,7 @@ export function useEntryForm({
                 rejection_reason: '',
                 sourceable_type: PURCHASE_ORDER_LINE,
                 sourceable_id: line.id,
+                source_quantity: Number(line.quantity),
                 location_id: '',
                 lots: [],
                 serials: [],
@@ -559,6 +573,7 @@ export function useEntryForm({
                           measurement_unit_id: baseUnitId(item),
                           sourceable_type: '',
                           sourceable_id: '',
+                          source_quantity: null,
                           lots: [],
                           serials: [],
                       }
@@ -583,13 +598,19 @@ export function useEntryForm({
                 }
 
                 if (!source) {
-                    return { ...line, sourceable_type: '', sourceable_id: '' };
+                    return {
+                        ...line,
+                        sourceable_type: '',
+                        sourceable_id: '',
+                        source_quantity: null,
+                    };
                 }
 
                 return {
                     ...line,
                     sourceable_type: PURCHASE_ORDER_LINE,
                     sourceable_id: source.id,
+                    source_quantity: Number(source.quantity),
                     item_id: source.item_id,
                     /** La línea se recibe en la unidad en la que se pidió. */
                     measurement_unit_id: source.measurement_unit_id,
@@ -638,6 +659,7 @@ export function useEntryForm({
                 ...line,
                 sourceable_type: '',
                 sourceable_id: '',
+                source_quantity: null,
             })),
         }));
     };
@@ -789,11 +811,21 @@ export function useEntryForm({
                   };
         });
 
-    /** Lo que pidió la línea de la orden. Vacío en una línea suelta. */
+    /**
+     * Lo que pidió la línea de la orden. Vacío en una línea suelta.
+     *
+     * El saldo recargado manda cuando está —trae lo pedido al día—, pero al
+     * reabrir una entrada guardada lo pedido ya viaja en la propia línea, así
+     * que no depende de haber podido recargar la orden (que exige su permiso).
+     */
     const orderedQuantityOf = (line: EntryLineRow): number | null => {
         const source = orderLineOf(line.sourceable_id);
 
-        return source ? Number(source.quantity) : null;
+        if (source) {
+            return Number(source.quantity);
+        }
+
+        return line.source_quantity ?? null;
     };
 
     const handleSubmit = (e: React.FormEvent) => {

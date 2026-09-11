@@ -58,6 +58,16 @@ imprimió en su factura, lo que de verdad entró al muelle, lo que cabe en el bu
 tope, lo pone el **backend** en su Request —nunca el formulario— y se mide contra el avance de la línea del
 origen. Hoy lo tienen las dos facturas: no se factura más de lo que al documento origen le queda por facturar.
 
+### El restante se documenta solo
+
+Cuando un documento de mercancía cubre solo parte de lo pedido, lo que falta no se queda sin papel: al confirmarlo,
+el backend abre otro documento en **borrador** con el saldo. Vale para las dos cadenas de mercancía que llevan
+avance por línea —**orden de compra → entrada** (contra `received_quantity`) y **pedido de venta → despacho** (contra
+`dispatched_quantity`)—, con el mismo mecanismo con el que el origen genera su primer documento al aprobarse. No se
+duplica: si la orden ya tiene otro borrador abierto, no crea uno nuevo. Las facturas no lo hacen —lo pendiente de
+facturar se ve en la pantalla y se completa con otra factura cuando toque—, y traslado y devolución son atómicos. Los
+detalles, en [logistica.md](logistica.md) §1 y §3.
+
 ---
 
 ## 2. El orden de la pantalla: tercero → documento

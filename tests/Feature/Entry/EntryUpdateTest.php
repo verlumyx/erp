@@ -178,6 +178,44 @@ test('the edit screen renders the entry with its catalogs', function () {
         );
 });
 
+test('the edit screen carries the ordered quantity of each order line', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
+
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => 25,
+        ]],
+    ]);
+    $orderLine = $order->lines->first();
+
+    /** La entrada recibe solo parte de lo pedido. */
+    $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 4,
+            'location_id' => $location->id,
+            'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrderLine::MORPH_ALIAS,
+            'sourceable_id' => $orderLine->id,
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('entries.edit', ['company' => $company->id, 'id' => $entry->id]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('entries/edit')
+            /** Lo pedido viaja en la propia línea, sin recargar el saldo de la orden. */
+            ->where('entry.lines.0.source_quantity', '10.0000')
+            ->where('entry.lines.0.quantity', '4.0000')
+        );
+});
+
 test('an entry of another company is out of reach', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
     [$otherUser, $otherCompany] = createUserWithCompany();

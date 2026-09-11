@@ -21,6 +21,7 @@ import {
     INSPECTION_LABELS,
     isEditable,
     SELECTABLE_TYPES,
+    SOURCE_LABELS,
     STATUS_LABELS,
     STATUS_PILL_KIND,
     TYPE_LABELS,
@@ -309,10 +310,11 @@ export function EntryList({
             </div>
 
             <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_1fr_1.1fr_1.1fr_1fr_0.8fr]">
+                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[0.9fr_2.2fr_1.2fr_1fr_1.1fr_1.1fr_1fr_0.8fr]">
                     {[
                         'Código',
                         'Proveedor',
+                        'Documento origen',
                         'Fecha',
                         'Bodega',
                         'Valor',
@@ -322,7 +324,7 @@ export function EntryList({
                         <div
                             key={header}
                             className={`text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase ${
-                                index === 6 ? 'text-right' : ''
+                                index === 7 ? 'text-right' : ''
                             }`}
                         >
                             {header}
@@ -333,7 +335,7 @@ export function EntryList({
                     {rows.map((row) => (
                         <div
                             key={row.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1fr_1.1fr_1.1fr_1fr_0.8fr] lg:py-0"
+                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1.2fr_1fr_1.1fr_1.1fr_1fr_0.8fr] lg:py-0"
                             onClick={() =>
                                 router.visit(
                                     entries.show({
@@ -359,6 +361,26 @@ export function EntryList({
                                         ? ` · ${row.supplier_document}`
                                         : ''}
                                 </span>
+                            </div>
+                            <div className="hidden min-w-0 flex-col lg:flex">
+                                {row.sourceable_code ? (
+                                    <>
+                                        <span className="truncate font-semibold tabular-nums">
+                                            {row.sourceable_code}
+                                        </span>
+                                        {row.sourceable_type && (
+                                            <span className="truncate text-[12.5px] text-muted-foreground">
+                                                {SOURCE_LABELS[
+                                                    row.sourceable_type
+                                                ] ?? row.sourceable_type}
+                                            </span>
+                                        )}
+                                    </>
+                                ) : (
+                                    <span className="text-muted-foreground">
+                                        —
+                                    </span>
+                                )}
                             </div>
                             <div className="hidden text-[13.5px] font-medium text-muted-foreground tabular-nums lg:block">
                                 {row.entry_date}

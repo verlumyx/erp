@@ -34,6 +34,13 @@ export const TRANSFER = 'transfer';
 /** Alias del morph map con el que viaja la línea origen. */
 export const PURCHASE_ORDER_LINE = 'purchase_order_line';
 
+/** Nombre legible del documento origen, por su alias del morph map. */
+export const SOURCE_LABELS: Record<string, string> = {
+    purchase_order: 'Orden de compra',
+    transfer: 'Traslado',
+    sales_return: 'Devolución de venta',
+};
+
 export interface EntryLine {
     id: string;
     entry_id: string;

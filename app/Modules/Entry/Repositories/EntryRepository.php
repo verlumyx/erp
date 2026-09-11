@@ -122,7 +122,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     public function search(SearchEntryCommand $command): array
     {
         $query = Entry::query()
-            ->with(['supplier', 'warehouse'])
+            ->with(['supplier', 'warehouse', 'sourceable'])
             ->when($command->companyId, fn ($q) => $q->where('company_id', $command->companyId));
 
         $query = $this->apply($query, $command->filters);

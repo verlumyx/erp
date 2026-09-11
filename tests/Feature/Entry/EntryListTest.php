@@ -23,6 +23,41 @@ test('the list shows the entries of the active company', function () {
         );
 });
 
+test('the list shows the code of the source document', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit, $location] = entryScenario();
+
+    $order = sourcePurchaseOrder($user, $company, $supplier, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => 25,
+        ]],
+    ]);
+
+    createEntry($user, $company, $supplier, $warehouse, $item, $unit, [
+        'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 4,
+            'location_id' => $location->id,
+            'sourceable_type' => \App\Modules\PurchaseOrder\Models\PurchaseOrderLine::MORPH_ALIAS,
+            'sourceable_id' => $order->lines->first()->id,
+        ]],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('entries.index', ['company' => $company->id]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('entries/index')
+            ->where('entries.0.sourceable_type', 'purchase_order')
+            ->where('entries.0.sourceable_code', $order->code)
+        );
+});
+
 test('the list filters by supplier, type and status', function () {
     [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
 

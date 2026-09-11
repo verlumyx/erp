@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\Entry\Resources;
 
-use App\Modules\PurchaseOrder\Models\PurchaseOrder;
-use App\Modules\Transfer\Models\Transfer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,12 +23,11 @@ class EntryResource extends JsonResource
             'supplier_code' => $this->whenLoaded('supplier', fn () => $this->supplier?->code),
             'sourceable_type' => $this->sourceable_type,
             'sourceable_id' => $this->sourceable_id,
-            /** Etiqueta legible del origen, para no ir a buscarlo desde la pantalla. */
-            'sourceable_code' => $this->whenLoaded('sourceable', fn (): ?string => match (true) {
-                $this->sourceable instanceof PurchaseOrder,
-                $this->sourceable instanceof Transfer => $this->sourceable->code,
-                default => null,
-            }),
+            /**
+             * Código legible del origen —orden de compra, traslado o devolución
+             * de venta—, para no ir a buscarlo desde la pantalla.
+             */
+            'sourceable_code' => $this->whenLoaded('sourceable', fn (): ?string => $this->sourceable?->code),
             'warehouse_id' => $this->warehouse_id,
             'warehouse_name' => $this->whenLoaded('warehouse', fn () => $this->warehouse?->name),
             'entry_date' => $this->entry_date?->format('Y-m-d'),

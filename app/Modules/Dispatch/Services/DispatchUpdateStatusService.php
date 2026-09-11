@@ -8,6 +8,8 @@ use App\Modules\Dispatch\Commands\UpdateStatusDispatchCommand;
 use App\Modules\Dispatch\Exceptions\DispatchNotFoundException;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
+use App\Modules\SalesOrder\Models\SalesOrder;
+use App\Modules\SalesOrder\Services\SalesOrderMirrorDispatchService;
 use Illuminate\Support\Facades\DB;
 
 class DispatchUpdateStatusService
@@ -16,6 +18,7 @@ class DispatchUpdateStatusService
         private readonly DispatchRepositoryInterface $repository,
         private readonly DispatchPostingService $posting,
         private readonly DispatchMirrorEntryService $mirror,
+        private readonly SalesOrderMirrorDispatchService $orderMirror,
     ) {}
 
     /**
@@ -49,6 +52,14 @@ class DispatchUpdateStatusService
                 $this->posting->post($model);
                 /** Si sirve un traslado, deja escrita la entrada que lo recibe. */
                 $this->mirror->create($model);
+                /**
+                 * Un despacho parcial deja saldo en su pedido: lo que no salió
+                 * necesita su propio borrador para despacharse después. `post()`
+                 * ya apuntó lo despachado, así que aquí el pendiente es real.
+                 */
+                if ($model->sourceable instanceof SalesOrder) {
+                    $this->orderMirror->createRemainder($model->sourceable, $model->id);
+                }
             }
 
             if ($command->status === 'cancelled') {

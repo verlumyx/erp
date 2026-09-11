@@ -190,7 +190,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     public function search(SearchDispatchCommand $command): array
     {
         $query = Dispatch::query()
-            ->with(['recipient', 'warehouse', 'driver'])
+            ->with(['recipient', 'warehouse', 'driver', 'sourceable'])
             ->when($command->companyId, fn ($q) => $q->where('company_id', $command->companyId));
 
         $query = $this->apply($query, $command->filters);

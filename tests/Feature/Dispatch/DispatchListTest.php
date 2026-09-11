@@ -4,9 +4,45 @@ declare(strict_types=1);
 
 use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Models\Dispatch;
+use App\Modules\SalesOrder\Models\SalesOrder;
+use App\Modules\SalesOrder\Models\SalesOrderLine;
 use Inertia\Testing\AssertableInertia;
 
 use function Pest\Laravel\actingAs;
+
+test('the list shows the code of the source document', function () {
+    [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
+
+    $order = createSalesOrder($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => 100,
+        ]],
+    ]);
+
+    createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'sourceable_type' => SalesOrder::MORPH_ALIAS,
+        'sourceable_id' => $order->id,
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 4,
+            'unit_price' => 100,
+            'location_id' => $location->id,
+            'sourceable_type' => SalesOrderLine::MORPH_ALIAS,
+            'sourceable_id' => $order->lines->first()->id,
+        ]],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.index', ['company' => $company->id]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('dispatches.0.sourceable_type', 'sales_order')
+            ->where('dispatches.0.sourceable_code', $order->code)
+        );
+});
 
 test('the list shows the dispatches of the active company', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();

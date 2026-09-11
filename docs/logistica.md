@@ -83,6 +83,15 @@ Es el mismo mecanismo que usan las facturas de venta ([Ventas](ventas.md)) y las
   viene de un pedido, a la bodega de destino si viene de un traslado, o al mismo proveedor si viene de una devolución
   de compra.
 
+**Restante al despachar parcial**
+
+Al confirmar un despacho que sale de un **pedido de venta** y solo cubre parte de lo pedido, el sistema abre por su
+cuenta otro despacho `DES` en **borrador** con lo que quedó pendiente (`quantity − dispatched_quantity` de cada línea
+del pedido, ya actualizado por la confirmación), listo para el siguiente viaje. No se genera si el pedido ya tiene otro
+borrador abierto donde cargar el resto, ni si no queda nada pendiente. Lo hace `SalesOrderMirrorDispatchService::createRemainder`,
+que reutiliza el mismo mecanismo con el que el pedido genera su despacho al aprobarse. Traslado y devolución de compra
+son atómicos —un solo despacho por la cantidad completa— y no generan restante.
+
 **Destinatario (`recipient`)**
 
 El despacho no siempre va a un cliente: uno que sirve un traslado lleva la mercancía a otra bodega de la propia
@@ -297,6 +306,15 @@ columna por cada uno. Es el mismo mecanismo que usan las facturas de compra ([Co
   `purchase_order_line` en una entrada de compra, `dispatch_line` en la que recibe un traslado y
   `sales_return_line` en la que reingresa una devolución. En una entrada de compra el origen de la línea debe
   pertenecer al mismo documento que el `sourceable` de la cabecera.
+
+**Restante al recibir parcial**
+
+Al confirmar una entrada que sale de una **orden de compra** y solo recibe parte de lo pedido, el sistema abre por su
+cuenta otra entrada `ENT` en **borrador** con lo que quedó pendiente (`quantity − received_quantity` de cada línea de la
+orden, ya actualizado por la confirmación), lista para la próxima recepción. No se genera si la orden ya tiene otra
+entrada en borrador donde recibir el resto, ni si no queda nada pendiente. Lo hace `PurchaseOrderMirrorEntryService::createRemainder`,
+que reutiliza el mismo mecanismo con el que la orden genera su entrada al aprobarse. El reingreso de una devolución de
+venta no rastrea recepción parcial (hand-off completo único) y no genera restante.
 
 ### 3.2 Líneas — `app_entry_lines`
 

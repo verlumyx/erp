@@ -57,6 +57,34 @@ class SalesOrderMirrorDispatchService
             return null;
         }
 
+        return $this->draftForPending($order, "Generado al aprobar el pedido {$order->code}.");
+    }
+
+    /**
+     * El despacho que recoge lo que un despacho parcial dejó pendiente.
+     *
+     * Lo llama la confirmación de un despacho del pedido: apenas la mercancía
+     * sale, lo que faltó por salir necesita su propio documento para poder
+     * despacharse después. A diferencia de `create()`, un despacho ya confirmado
+     * no lo detiene —ese es justo el que dejó el saldo pendiente—; solo se hace
+     * a un lado si el pedido ya tiene otro borrador abierto donde cargar el
+     * resto.
+     */
+    public function createRemainder(SalesOrder $order, ?string $exceptDispatchId = null): ?Dispatch
+    {
+        if ($this->openDraft($order, $exceptDispatchId) instanceof Dispatch) {
+            return null;
+        }
+
+        return $this->draftForPending($order, "Generado por lo que quedó pendiente del pedido {$order->code}.");
+    }
+
+    /**
+     * El despacho en borrador con lo que el pedido todavía debe entregar.
+     * Devuelve `null` cuando no queda nada pendiente por despachar.
+     */
+    private function draftForPending(SalesOrder $order, string $notes): ?Dispatch
+    {
         $lines = $this->pendingLines($order);
 
         if ($lines === []) {
@@ -88,7 +116,7 @@ class SalesOrderMirrorDispatchService
                 clientAddressId: $order->client_address_id,
                 /** La ruta es planificación del pedido: el despacho la hereda. */
                 routeId: $order->route_id,
-                notes: "Generado al aprobar el pedido {$order->code}.",
+                notes: $notes,
             ),
             $this->costs->resolve((string) $order->company_id, $priced),
             $priced,
@@ -146,6 +174,32 @@ class SalesOrderMirrorDispatchService
 
         foreach ($result['data'] as $dispatch) {
             if ($dispatch->status !== 'cancelled') {
+                return $dispatch;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Un despacho del pedido todavía en borrador, si lo hay: el sitio donde ya
+     * se está cargando lo que falta. Uno confirmado —que es el que deja el
+     * saldo— o anulado no cuenta, para no dejar el resto sin su documento.
+     *
+     * El que dispara el resto queda fuera: al confirmarlo todavía figura como
+     * borrador hasta que su propio cambio de estado se escribe, y sería él mismo
+     * quien impidiera crear el saldo.
+     */
+    private function openDraft(SalesOrder $order, ?string $exceptDispatchId = null): ?Dispatch
+    {
+        $result = $this->dispatches->search(new SearchDispatchCommand(
+            filters: ['sourceable_id' => $order->id],
+            limit: 50,
+            companyId: $order->company_id,
+        ));
+
+        foreach ($result['data'] as $dispatch) {
+            if ($dispatch->status === 'draft' && $dispatch->id !== $exceptDispatchId) {
                 return $dispatch;
             }
         }

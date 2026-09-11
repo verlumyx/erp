@@ -35,7 +35,6 @@ use Illuminate\Validation\ValidationException;
  */
 class PurchaseOrderMirrorEntryService
 {
-
     public function __construct(
         private readonly PurchaseOrderRepositoryInterface $orders,
         private readonly EntryRepositoryInterface $entries,
@@ -57,6 +56,34 @@ class PurchaseOrderMirrorEntryService
             return null;
         }
 
+        return $this->draftForPending($order, "Generada al aprobar la orden {$order->code}.");
+    }
+
+    /**
+     * La entrada que recoge lo que una recepción parcial dejó pendiente.
+     *
+     * La llama la confirmación de una entrada de la orden: apenas la mercancía
+     * entra, lo que faltó por recibir necesita su propio documento para poder
+     * recibirse después. A diferencia de `create()`, una entrada ya confirmada
+     * no la detiene —esa es justo la que dejó el saldo pendiente—; solo se hace
+     * a un lado si la orden ya tiene otro borrador abierto donde recibir el
+     * resto.
+     */
+    public function createRemainder(PurchaseOrder $order, ?string $exceptEntryId = null): ?Entry
+    {
+        if ($this->openDraft($order, $exceptEntryId) instanceof Entry) {
+            return null;
+        }
+
+        return $this->draftForPending($order, "Generada por lo que quedó pendiente de la orden {$order->code}.");
+    }
+
+    /**
+     * La entrada en borrador con lo que la orden todavía espera recibir.
+     * Devuelve `null` cuando no queda nada pendiente por recibir.
+     */
+    private function draftForPending(PurchaseOrder $order, string $notes): ?Entry
+    {
         $lines = $this->pendingLines($order);
 
         if ($lines === []) {
@@ -79,7 +106,7 @@ class PurchaseOrderMirrorEntryService
                 sourceableId: $order->id,
                 entryType: Entry::SUPPLIER_TYPE,
                 currency: $order->currency,
-                notes: "Generada al aprobar la orden {$order->code}.",
+                notes: $notes,
             ),
             /**
              * La entrada se valora con la tasa de **su** fecha, no con la de la
@@ -143,6 +170,32 @@ class PurchaseOrderMirrorEntryService
 
         foreach ($result['data'] as $entry) {
             if ($entry->status !== 'cancelled') {
+                return $entry;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Una entrada de la orden todavía en borrador, si la hay: el sitio donde ya
+     * se está recibiendo lo que falta. Una confirmada —que es la que deja el
+     * saldo— o anulada no cuenta, para no dejar el resto sin su documento.
+     *
+     * La que dispara el resto queda fuera: al confirmarla todavía figura como
+     * borrador hasta que su propio cambio de estado se escribe, y sería ella
+     * misma quien impidiera crear el saldo.
+     */
+    private function openDraft(PurchaseOrder $order, ?string $exceptEntryId = null): ?Entry
+    {
+        $result = $this->entries->search(new SearchEntryCommand(
+            filters: ['sourceable_id' => $order->id],
+            limit: 50,
+            companyId: $order->company_id,
+        ));
+
+        foreach ($result['data'] as $entry) {
+            if ($entry->status === 'draft' && $entry->id !== $exceptEntryId) {
                 return $entry;
             }
         }

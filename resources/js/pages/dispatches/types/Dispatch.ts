@@ -226,6 +226,13 @@ export const STATUS_LABELS: Record<DispatchStatus, string> = {
     cancelled: 'Anulado',
 };
 
+/** Nombre legible del documento origen, por su alias del morph map. */
+export const SOURCE_LABELS: Record<string, string> = {
+    sales_order: 'Pedido de venta',
+    transfer: 'Traslado',
+    purchase_return: 'Devolución de compra',
+};
+
 /** Color de la pastilla de estado, uno por estado del documento. */
 export const STATUS_PILL_KIND: Record<DispatchStatus, StatusKind> = {
     draft: 'inactivo',
