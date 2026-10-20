@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Modules\ClientCollection\Models\ClientCollection;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\Pos\Models\PosRegister;
@@ -374,4 +375,11 @@ test('atomic checkout supports multiple split payment methods including biopago 
     expect($methods)->toContain('cash');
     expect($methods)->toContain('mobile_payment');
     expect($methods)->toContain('biopago');
+
+    $collections = ClientCollection::where('origin_id', $posSale->sales_invoice_id)->get();
+    expect($collections)->toHaveCount(3);
+    $collectionMethods = $collections->pluck('payment_method')->all();
+    expect($collectionMethods)->toContain('cash');
+    expect($collectionMethods)->toContain('mobile_payment');
+    expect($collectionMethods)->toContain('biopago');
 });

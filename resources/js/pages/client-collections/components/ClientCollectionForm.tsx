@@ -45,6 +45,10 @@ const ORIGIN_OPTIONS: OptionType[] = [
 const PAYMENT_METHOD_OPTIONS: OptionType[] = (
     [
         'cash',
+        'card_debit',
+        'card_credit',
+        'mobile_payment',
+        'biopago',
         'transfer',
         'check',
         'card',

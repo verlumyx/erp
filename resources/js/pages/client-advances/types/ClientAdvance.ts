@@ -14,6 +14,10 @@ export type ClientAdvanceStatus =
 
 export type ClientAdvancePaymentMethod =
     | 'cash'
+    | 'card_debit'
+    | 'card_credit'
+    | 'mobile_payment'
+    | 'biopago'
     | 'transfer'
     | 'check'
     | 'card'
@@ -115,6 +119,10 @@ export const STATUS_LABELS: Record<ClientAdvanceStatus, string> = {
 export const PAYMENT_METHOD_LABELS: Record<ClientAdvancePaymentMethod, string> =
     {
         cash: 'Efectivo',
+        card_debit: 'Punto Débito',
+        card_credit: 'Punto Crédito',
+        mobile_payment: 'Pago Móvil',
+        biopago: 'Biopago',
         transfer: 'Transferencia',
         check: 'Cheque',
         card: 'Tarjeta',

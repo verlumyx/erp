@@ -45,7 +45,19 @@ class ClientCollection extends Model
      */
     public const CREATABLE_ORIGIN_TYPES = ['client', 'invoice'];
 
-    public const PAYMENT_METHODS = ['cash', 'transfer', 'check', 'card', 'advance', 'credit_note', 'other'];
+    public const PAYMENT_METHODS = [
+        'cash',
+        'card_debit',
+        'card_credit',
+        'mobile_payment',
+        'biopago',
+        'transfer',
+        'check',
+        'card',
+        'advance',
+        'credit_note',
+        'other',
+    ];
 
     /**
      * Formas de cobro que no traen dinero: cancelan la factura con un saldo a

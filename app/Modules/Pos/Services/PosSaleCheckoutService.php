@@ -168,9 +168,14 @@ class PosSaleCheckoutService
 
                 $collectionPaymentMethod = match ($payment->paymentMethod) {
                     'cash' => 'cash',
-                    'card_debit', 'card_credit', 'biopago' => 'card',
-                    'transfer', 'mobile_payment' => 'transfer',
+                    'card_debit' => 'card_debit',
+                    'card_credit' => 'card_credit',
+                    'mobile_payment' => 'mobile_payment',
+                    'biopago' => 'biopago',
+                    'transfer' => 'transfer',
                     'credit_note' => 'credit_note',
+                    'check' => 'check',
+                    'card' => 'card',
                     default => 'other',
                 };
 

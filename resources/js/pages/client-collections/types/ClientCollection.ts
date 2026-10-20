@@ -11,6 +11,10 @@ export type ClientCollectionOriginType = 'client' | 'invoice' | 'advance';
 
 export type ClientCollectionMethod =
     | 'cash'
+    | 'card_debit'
+    | 'card_credit'
+    | 'mobile_payment'
+    | 'biopago'
     | 'transfer'
     | 'check'
     | 'card'
@@ -161,6 +165,10 @@ export const ORIGIN_TYPE_LABELS: Record<ClientCollectionOriginType, string> = {
 
 export const PAYMENT_METHOD_LABELS: Record<ClientCollectionMethod, string> = {
     cash: 'Efectivo',
+    card_debit: 'Punto Débito',
+    card_credit: 'Punto Crédito',
+    mobile_payment: 'Pago Móvil',
+    biopago: 'Biopago',
     transfer: 'Transferencia',
     check: 'Cheque',
     card: 'Tarjeta',

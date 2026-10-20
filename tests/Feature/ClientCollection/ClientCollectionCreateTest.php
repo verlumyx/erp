@@ -275,6 +275,25 @@ test('the code is sequential per company', function () {
     expect($second->code)->toBe('COB000002');
 });
 
+test('a client collection supports pos payment methods such as biopago and mobile payment', function (string $method) {
+    [$user, $company, $client] = clientCollectionScenario();
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('client-collections.store', ['company' => $company->id]),
+            clientCollectionPayload($client, [
+                'payment_method' => $method,
+                'reference' => 'REF-'.$method,
+            ]),
+        );
+
+    $response->assertRedirect();
+
+    $collection = ClientCollection::where('reference', 'REF-'.$method)->first();
+    expect($collection)->not->toBeNull();
+    expect($collection->payment_method)->toBe($method);
+})->with(['biopago', 'mobile_payment', 'card_debit', 'card_credit']);
+
 test('the create form is rendered', function () {
     [$user, $company] = clientCollectionScenario();
 

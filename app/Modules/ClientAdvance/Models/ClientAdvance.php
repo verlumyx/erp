@@ -40,7 +40,17 @@ class ClientAdvance extends Model
         'cancelled',
     ];
 
-    public const PAYMENT_METHODS = ['cash', 'transfer', 'check', 'card', 'other'];
+    public const PAYMENT_METHODS = [
+        'cash',
+        'card_debit',
+        'card_credit',
+        'mobile_payment',
+        'biopago',
+        'transfer',
+        'check',
+        'card',
+        'other',
+    ];
 
     /**
      * Estados en los que el anticipo todavía es un papel: se edita y no ha
