@@ -339,6 +339,48 @@ class MenuSeeder extends Seeder
                 ],
             ],
             /**
+             * Punto de Venta: grupo para mostrador y facturación rápida.
+             */
+            [
+                'parent_id' => null,
+                'title' => 'Punto de Venta',
+                'icon' => 'Store',
+                'url' => null,
+                'permission' => null,
+                'order' => 7,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Terminal POS',
+                        'icon' => 'MonitorCheck',
+                        'url' => '/pos',
+                        'permission' => 'pos.access',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Sesiones y Cortes',
+                        'icon' => 'Clock',
+                        'url' => '/pos-sessions',
+                        'permission' => 'pos-sessions.list',
+                        'order' => 2,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Cajas registradoras',
+                        'icon' => 'Calculator',
+                        'url' => '/pos-registers',
+                        'permission' => 'pos-registers.list',
+                        'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
+            /**
              * Logística: grupo padre sin URL ni permiso propio. Se muestra solo
              * si al menos uno de sus hijos es visible para el usuario.
              */

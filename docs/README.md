@@ -15,6 +15,7 @@ un conjunto de módulos relacionados.
 | [selects-remotos.md](selects-remotos.md) | Transversal | Selects que buscan contra el servidor (`Select2Ajax`) y el endpoint de lookup de cada módulo. Atraviesa todos los grupos. |
 | [documentos-origen.md](documentos-origen.md) | Transversal | Qué arrastra un documento del que lo origina: la regla de traer todo lo compatible, el saldo pendiente y su endpoint. Atraviesa todos los grupos. |
 | [tienda.md](tienda.md) | Tienda | Plan de la tienda en línea (app Next.js aparte): publicaciones con fotos, ajustes por empresa, API pública con llave, compradores vinculados a clientes y pedidos web que se convierten en órdenes de venta. |
+| [pos.md](pos.md)       | POS        | Punto de venta y facturación rápida de mostrador: interfaz optimizada para cajeros, checkout express multimoneda, arqueo ciego y corte de caja individual por usuario. |
 | [pendientes.md](pendientes.md) | Seguimiento | Flujos que estas fichas describen y que el código todavía no ejecuta. Se tacha lo que se cierra. |
 
 El orden de implementación recomendado es: **Catálogo → Inventario → Compras → Ventas → Logística → Reportes**, porque
@@ -55,6 +56,7 @@ no aplica se desactiva, no se elimina.
 | Compras    | `app_suppliers`, `app_purchase_orders`, `app_purchase_invoices`, `app_purchase_credit_notes`, `app_supplier_advances`, `app_supplier_payments`, `app_purchase_returns` |
 | Ventas     | `app_clients`, `app_sales_orders`, `app_sales_invoices`, `app_sales_credit_notes`, `app_client_advances`, `app_client_collections`, `app_sales_returns`                |
 | Tienda     | `app_store_items`, `app_store_customers`, `app_store_orders`                                                                                                           |
+| POS        | `app_pos_registers`, `app_pos_sessions`, `app_pos_sales`                                                                                                                |
 
 **Tablas de detalle** (sin `code`, con `company_id` + `status`):
 
@@ -62,7 +64,8 @@ no aplica se desactiva, no se elimina.
 `app_supplier_contacts`, `app_supplier_addresses`, `app_client_contacts`, `app_client_addresses`,
 `app_route_stops`, `app_route_clients`, `app_supplier_payment_applications`,
 `app_client_collection_applications`, `app_entry_line_lots`, `app_entry_line_serials`,
-`app_dispatch_line_lots`, `app_dispatch_line_serials`, `app_store_item_images` y todas las tablas `*_lines`.
+`app_dispatch_line_lots`, `app_dispatch_line_serials`, `app_store_item_images`,
+`app_pos_sale_lines`, `app_pos_payments`, `app_pos_cash_movements`, `app_pos_session_denominations` y todas las tablas `*_lines`.
 
 `app_item_stocks` es un caso especial: es una tabla **derivada** (el saldo calculado del kardex). No se captura ni se
 edita a mano, pero lleva `company_id` y `status` como el resto.
@@ -271,7 +274,8 @@ empresas pueden tener cada una su `FVE000001`.
 | `LOT`   | Lote                        | `DVV`   | Devolución de venta       |
 | `SER`   | Número de serie             | `TAS`   | Tasa de cambio            |
 | `PUB`   | Publicaciones de tienda     | `CWE`   | Compradores de tienda     |
-| `PWE`   | Pedidos web                 |         |                           |
+| `PWE`   | Pedidos web                 | `CAJ`   | Cajas registradoras (POS) |
+| `COR`   | Cortes de caja / Turnos     | `POS`   | Ventas rápidas POS        |
 
 ### Arquitectura
 

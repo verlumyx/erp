@@ -19,6 +19,9 @@ class SalesInvoiceLine extends Model
 {
     use HasFactory, HasUuids;
 
+    /** Alias con el que la línea viaja en las columnas `sourceable_type`. */
+    public const MORPH_ALIAS = 'sales_invoice_line';
+
     protected $table = 'app_sales_invoice_lines';
 
     public $incrementing = false;

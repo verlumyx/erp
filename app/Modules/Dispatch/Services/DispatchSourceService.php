@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Dispatch\Services;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Commands\DispatchLineData;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
-use App\Modules\Client\Models\Client;
 use App\Modules\Item\Models\Item;
 use App\Modules\Item\Models\ItemUnit;
 use App\Modules\ItemLot\Models\ItemLot;
@@ -15,12 +15,15 @@ use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
+use App\Modules\SalesInvoice\Models\SalesInvoice;
+use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
+use App\Modules\SalesInvoice\Repositories\Contracts\SalesInvoiceRepositoryInterface;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
+use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Transfer\Models\Transfer;
 use App\Modules\Transfer\Models\TransferLine;
-use App\Modules\Supplier\Models\Supplier;
 use App\Modules\Transfer\Repositories\Contracts\TransferRepositoryInterface;
 use App\Modules\Warehouse\Models\Warehouse;
 use Illuminate\Validation\ValidationException;
@@ -46,6 +49,7 @@ class DispatchSourceService
         private readonly TransferRepositoryInterface $transfers,
         private readonly PurchaseReturnRepositoryInterface $purchaseReturns,
         private readonly DispatchRepositoryInterface $dispatches,
+        private readonly SalesInvoiceRepositoryInterface $invoices,
     ) {}
 
     /**
@@ -81,6 +85,19 @@ class DispatchSourceService
 
         if ($sourceableType === PurchaseReturn::MORPH_ALIAS) {
             $this->guardPurchaseReturn(
+                (string) $sourceableId,
+                $recipientType,
+                $recipientId,
+                $companyId,
+                $lines,
+                $dispatchId,
+            );
+
+            return;
+        }
+
+        if ($sourceableType === SalesInvoice::MORPH_ALIAS) {
+            $this->guardSalesInvoice(
                 (string) $sourceableId,
                 $recipientType,
                 $recipientId,
@@ -259,6 +276,115 @@ class DispatchSourceService
                 $errors["lines.{$entry['index']}.quantity"] = $available > 0
                     ? "De esa línea solo quedan {$available} por despachar."
                     : 'Esa línea de la devolución ya se despachó por completo.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Lo que el despacho no puede comprobar sin leer la factura: que exista,
+     * que siga viva y que la mercancía vaya de verdad al cliente de la factura.
+     *
+     * @param  array<int, DispatchLineData>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardSalesInvoice(
+        string $sourceableId,
+        string $recipientType,
+        string $recipientId,
+        ?string $companyId,
+        array $lines,
+        ?string $dispatchId,
+    ): void {
+        $invoice = $this->invoices->findById($sourceableId, $companyId);
+
+        if (! $invoice instanceof SalesInvoice) {
+            throw ValidationException::withMessages([
+                'sourceable_id' => 'La factura de origen no existe en esta empresa.',
+            ]);
+        }
+
+        if ($invoice->status === 'cancelled') {
+            throw ValidationException::withMessages([
+                'sourceable_id' => 'No se puede despachar una factura anulada.',
+            ]);
+        }
+
+        if ($recipientType !== Client::MORPH_ALIAS || $recipientId !== $invoice->client_id) {
+            throw ValidationException::withMessages([
+                'recipient_id' => 'El despacho de una factura va al cliente de la factura.',
+            ]);
+        }
+
+        $this->guardInvoiceLines($invoice, $lines, $dispatchId);
+    }
+
+    /**
+     * La cantidad despachada no puede superar la facturada menos la ya
+     * despachada por otros despachos, y la línea origen tiene que ser de la
+     * factura elegida.
+     *
+     * @param  array<int, DispatchLineData>  $lines
+     *
+     * @throws ValidationException
+     */
+    private function guardInvoiceLines(SalesInvoice $invoice, array $lines, ?string $dispatchId): void
+    {
+        $invoiceLines = SalesInvoiceLine::query()
+            ->where('sales_invoice_id', $invoice->id)
+            ->get()
+            ->keyBy('id');
+
+        $errors = [];
+        $requested = [];
+
+        foreach ($lines as $index => $line) {
+            if ($line->status !== 'active' || blank($line->sourceableId)) {
+                continue;
+            }
+
+            $invoiceLine = $invoiceLines->get($line->sourceableId);
+
+            if (! $invoiceLine instanceof SalesInvoiceLine) {
+                $errors["lines.{$index}.sourceable_id"] = 'Esa línea no pertenece a la factura de origen.';
+
+                continue;
+            }
+
+            if ($invoiceLine->measurement_unit_id !== $line->measurementUnitId) {
+                $errors["lines.{$index}.measurement_unit_id"] = 'La unidad debe ser la misma que la de la línea de la factura.';
+            }
+
+            if ($invoiceLine->item_id !== $line->itemId) {
+                $errors["lines.{$index}.item_id"] = 'El artículo debe ser el mismo que el de la línea de la factura.';
+            }
+
+            $requested[$line->sourceableId] ??= ['quantity' => 0.0, 'index' => $index];
+            $requested[$line->sourceableId]['quantity'] += $line->quantity;
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        if ($requested === []) {
+            return;
+        }
+
+        $dispatched = $this->dispatches->dispatchedQuantities(array_keys($requested), $dispatchId);
+
+        foreach ($requested as $invoiceLineId => $entry) {
+            $invoiced = (float) $invoiceLines->get($invoiceLineId)->quantity;
+            $available = round($invoiced - ($dispatched[$invoiceLineId] ?? 0.0), 4);
+
+            if (round($entry['quantity'], 4) > $available) {
+                $errors["lines.{$entry['index']}.quantity"] = $available > 0
+                    ? "De esa línea solo quedan {$available} por despachar."
+                    : 'Esa línea de la factura ya se despachó por completo.';
             }
         }
 

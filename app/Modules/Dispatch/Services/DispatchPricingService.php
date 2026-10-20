@@ -11,6 +11,9 @@ use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
+use App\Modules\SalesInvoice\Models\SalesInvoice;
+use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
+use App\Modules\SalesInvoice\Repositories\Contracts\SalesInvoiceRepositoryInterface;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
@@ -41,6 +44,7 @@ class DispatchPricingService
         private readonly SalesOrderRepositoryInterface $orders,
         private readonly PurchaseReturnRepositoryInterface $returns,
         private readonly ItemRepositoryInterface $items,
+        private readonly SalesInvoiceRepositoryInterface $invoices,
     ) {}
 
     /**
@@ -78,7 +82,7 @@ class DispatchPricingService
      */
     private function fromSourceLine(
         DispatchLineData $line,
-        SalesOrderLine|PurchaseReturnLine $source,
+        SalesOrderLine|PurchaseReturnLine|SalesInvoiceLine $source,
     ): DispatchLineData {
         return $line->withPricing(
             unitPrice: round((float) $source->unit_price, 6),
@@ -126,8 +130,32 @@ class DispatchPricingService
         return match ($sourceableType) {
             SalesOrder::MORPH_ALIAS => $this->salesOrderLines($companyId, (string) $sourceableId),
             PurchaseReturn::MORPH_ALIAS => $this->purchaseReturnLines($companyId, (string) $sourceableId),
+            SalesInvoice::MORPH_ALIAS => $this->salesInvoiceLines($companyId, (string) $sourceableId),
             default => [],
         };
+    }
+
+    /**
+     * Las líneas de la factura de venta origen, indexadas por id.
+     *
+     * @return array<string, SalesInvoiceLine>
+     */
+    private function salesInvoiceLines(?string $companyId, string $sourceableId): array
+    {
+        $invoice = $this->invoices->findById($sourceableId, $companyId);
+
+        if (! $invoice instanceof SalesInvoice) {
+            return [];
+        }
+
+        $lines = [];
+
+        foreach ($this->invoices->activeLines($invoice) as $line) {
+            /** @var SalesInvoiceLine $line */
+            $lines[$line->id] = $line;
+        }
+
+        return $lines;
     }
 
     /**

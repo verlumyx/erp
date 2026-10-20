@@ -10,6 +10,8 @@ use App\Modules\Company\Models\Company;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\Route\Models\Route;
+use App\Modules\SalesInvoice\Models\SalesInvoice;
+use App\Modules\SalesInvoice\Models\SalesInvoiceLine;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\Supplier\Models\Supplier;
@@ -61,6 +63,7 @@ class Dispatch extends Model
         SalesOrder::MORPH_ALIAS,
         Transfer::MORPH_ALIAS,
         PurchaseReturn::MORPH_ALIAS,
+        SalesInvoice::MORPH_ALIAS,
     ];
 
     /** Alias admitidos como línea origen, en el mismo orden que arriba. */
@@ -68,6 +71,7 @@ class Dispatch extends Model
         SalesOrderLine::MORPH_ALIAS,
         TransferLine::MORPH_ALIAS,
         PurchaseReturnLine::MORPH_ALIAS,
+        SalesInvoiceLine::MORPH_ALIAS,
     ];
 
     /**

@@ -31,6 +31,9 @@ class SalesInvoice extends Model
 
     public const CODE_PREFIX = 'FVE';
 
+    /** Alias con el que la factura viaja en las columnas `sourceable_type`. */
+    public const MORPH_ALIAS = 'sales_invoice';
+
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
     /** Una factura confirmada no se edita: se anula y se emite otra. */

@@ -126,6 +126,11 @@ class Item extends Model
         return $this->hasMany(ItemPrice::class, 'item_id', 'id');
     }
 
+    public function saleTax(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Tax\Models\Tax::class, 'sale_tax_id', 'id');
+    }
+
     protected static function newFactory(): ItemFactory
     {
         return ItemFactory::new();

@@ -49,4 +49,5 @@ return [
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,
     App\Modules\Store\Providers\StoreServiceProvider::class,
+    App\Modules\Pos\Providers\PosServiceProvider::class,
 ];

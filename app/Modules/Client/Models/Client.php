@@ -9,6 +9,7 @@ use App\Modules\Company\Models\Company;
 use App\Modules\PriceList\Models\PriceList;
 use App\Modules\User\Models\User;
 use Database\Factories\ClientFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,13 @@ class Client extends Model
 
     /** Letra del RIF. `V`, `E` y `P` son naturales; `J`, `G` y `C` jurídicas. */
     public const DOCUMENT_TYPES = ['V', 'E', 'J', 'P', 'G', 'C'];
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'tax_number',
+    ];
 
     protected $fillable = [
         'id',
@@ -84,6 +92,24 @@ class Client extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * RIF o documento de identidad formateado para presentación (ej: V-12345678).
+     */
+    protected function taxNumber(): Attribute
+    {
+        return Attribute::make(
+            get: function (): ?string {
+                if ($this->document_number === null || $this->document_number === '') {
+                    return null;
+                }
+
+                return $this->document_type !== null && $this->document_type !== ''
+                    ? "{$this->document_type}-{$this->document_number}"
+                    : (string) $this->document_number;
+            },
+        );
     }
 
     public function company(): BelongsTo
