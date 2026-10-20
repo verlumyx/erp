@@ -17,11 +17,13 @@ class PosSessionCalculationService
      *     cashVes: float,
      *     cardVes: float,
      *     mobileVes: float,
+     *     biopagoVes: float,
      *     other: float,
      *     salesCashUsd: float,
      *     salesCashVes: float,
      *     salesCardVes: float,
      *     salesMobileVes: float,
+     *     salesBiopagoVes: float,
      *     salesOther: float,
      *     cashInUsd: float,
      *     cashOutUsd: float,
@@ -84,6 +86,9 @@ class PosSessionCalculationService
         $mobilePayments = $payments->where('payment_method', 'mobile_payment');
         $salesMobileVes = round((float) $mobilePayments->sum('amount_applied'), 2);
 
+        $biopagoPayments = $payments->where('payment_method', 'biopago');
+        $salesBiopagoVes = round((float) $biopagoPayments->sum('amount_applied'), 2);
+
         $otherPayments = $payments->whereIn('payment_method', ['transfer', 'credit_note', 'other']);
         $salesOther = round((float) $otherPayments->sum('amount_applied'), 2);
 
@@ -107,6 +112,7 @@ class PosSessionCalculationService
         $expectedCashVes = round($openingVes + $salesCashVes + $cashInVes - $cashOutVes, 2);
         $expectedCardVes = $salesCardVes;
         $expectedMobileVes = $salesMobileVes;
+        $expectedBiopagoVes = $salesBiopagoVes;
         $expectedOther = $salesOther;
 
         return [
@@ -114,11 +120,13 @@ class PosSessionCalculationService
             'cashVes' => $expectedCashVes,
             'cardVes' => $expectedCardVes,
             'mobileVes' => $expectedMobileVes,
+            'biopagoVes' => $expectedBiopagoVes,
             'other' => $expectedOther,
             'salesCashUsd' => $salesCashUsd,
             'salesCashVes' => $salesCashVes,
             'salesCardVes' => $salesCardVes,
             'salesMobileVes' => $salesMobileVes,
+            'salesBiopagoVes' => $salesBiopagoVes,
             'salesOther' => $salesOther,
             'cashInUsd' => $cashInUsd,
             'cashOutUsd' => $cashOutUsd,

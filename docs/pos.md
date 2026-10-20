@@ -465,22 +465,75 @@ Al presionar `F2` o la tecla `Espacio`, se despliega de forma instantánea el mo
 - La pantalla queda en blanco inmediatamente para atender al cliente que sigue en la fila.
 - Al volver el cliente, el cajero pulsa `F9`, selecciona el ticket en espera con las flechas del teclado y presiona `Enter` para restaurar todos los productos en el carrito.
 
-### 4.4 Tabla de atajos de teclado
+### 4.4 Tabla y Guía Completa de Atajos de Teclado (Operación 100% sin ratón)
 
-| Tecla | Acción |
-|---|---|
-| `F1` | Enfocar buscador / lector de código de barras. |
-| `F2` o `Espacio` | Abrir modal de cobro (Checkout). |
-| `F3` | Aplicar descuento a la venta o al ítem seleccionado. |
-| `F4` | Cambiar cliente o crear cliente express. |
-| `F5` | Modificar cantidad de la línea seleccionada (`+` / `-`). |
-| `F6` | Eliminar línea del carrito (con confirmación rápida). |
-| `F8` | Poner ticket actual en espera. |
-| `F9` | Ver y recuperar tickets en espera. |
-| `F10`| Registrar entrada o salida manual de efectivo (sangría / gasto). |
-| `F11`| Ver lectura X de caja (arqueo parcial). |
-| `F12`| Abrir gaveta eléctrica de dinero (sin venta). |
-| `Esc`| Cancelar modal abierto o limpiar carrito vacío. |
+El terminal POS está optimizado ergonómicamente para que un cajero experimentado pueda realizar todo el ciclo de cobro, modificación de líneas, pausas y arqueos **sin levantar las manos del teclado ni tocar el ratón**.
+
+#### 4.4.1 Atajos Globales del Terminal de Ventas
+
+Los siguientes atajos están activos permanentemente en la pantalla principal del POS:
+
+| Tecla | Ámbito / Contexto | Acción | Descripción Detallada |
+|---|---|---|---|
+| `F1` | Pantalla Principal | **Enfocar buscador / lector** | Mueve el foco al campo de búsqueda de productos y selecciona todo el texto actual para escanear un nuevo código de barras o escribir. |
+| `F2` o `Espacio` | Carrito con productos | **Abrir Modal de Cobro (Checkout)** | Abre de inmediato el modal de pago multimoneda. *Nota:* La barra espaciadora solo activa el cobro si el foco no está dentro de un campo de texto activo. |
+| `F3` | Carrito con productos | **Aplicar Descuentos** | Abre el modal de descuentos para otorgar una rebaja porcentual o por monto a la línea seleccionada o a toda la venta global. |
+| `F4` | Siempre activo | **Cambiar / Crear Cliente** | Abre el selector express de clientes. Permite buscar clientes frecuentes por RIF/Cédula o dar de alta rápida a un cliente nuevo. |
+| `F5` | Línea seleccionada | **Incrementar Cantidad (+1)** | Suma una unidad a la cantidad de la línea activa en el carrito sin necesidad de usar el ratón. |
+| `F6` | Línea seleccionada | **Eliminar Línea del Carrito** | Remueve la línea de producto actualmente seleccionada del carrito. |
+| `F8` | Carrito con productos | **Poner Venta en Espera (Hold)** | Guarda el carrito actual en la base de datos como borrador asociado al cliente y limpia la pantalla para atender al siguiente cliente en fila. |
+| `F9` | Siempre activo | **Ver Tickets en Espera** | Despliega la lista de ventas pausadas con su hora y cliente para recuperarlas o descartarlas. |
+| `F10` | Siempre activo | **Movimiento de Efectivo** | Abre el formulario para registrar entradas (recarga de cambio) o salidas manuales de dinero (sangrías / retiros de seguridad / gastos menores). |
+| `F11` | Siempre activo | **Lectura X de Caja** | Muestra en pantalla el arqueo parcial y ventas acumuladas del turno en tiempo real sin cerrar la sesión ni congelar saldos. |
+| `F12` | Siempre activo | **Abrir Gaveta de Dinero** | Envía el pulso eléctrico a la gaveta portamonedas o emite señal sonora de apertura sin registrar una venta. |
+| `Esc` | Con modal abierto | **Cerrar Modal Activo** | Cierra cualquier modal o diálogo emergente sin aplicar cambios y regresa el foco al terminal. |
+| `Esc` | Sin modal abierto | **Vaciar Carrito Actual** | Si el carrito contiene productos y no hay modales abiertos, solicita confirmación rápida para limpiar todo el carrito. |
+| `Enter` | En buscador de productos | **Agregar Ítem Automático** | Si el texto coincide exactamente con un código de barras o código interno, añade el ítem al carrito y limpia el buscador. |
+
+---
+
+#### 4.4.2 Atajos Contextuales en el Modal de Cobro (`PosPaymentModal`)
+
+Al presionar `F2` o `Espacio` y desplegarse la ventana de cobro express, el teclado adopta atajos específicos de liquidación:
+
+| Tecla | Acción | Descripción |
+|---|---|---|
+| `1` | **Efectivo USD** | Selecciona dólares en efectivo como forma de pago activa. |
+| `2` | **Efectivo VES** | Selecciona bolívares en efectivo como forma de pago activa. |
+| `3` | **Punto de Venta Débito** | Selecciona terminal bancario / tarjeta de débito en bolívares. |
+| `4` | **Pago Móvil** | Selecciona Pago Móvil interbancario en bolívares. |
+| `5` | **Biopago** | Selecciona Biopago BDV (biométrico con huella dactilar) en bolívares. |
+| `6` | **Transferencia Bancaria** | Selecciona transferencia bancaria nacional / divisas. |
+| `Enter` | **Confirmar y Facturar / Agregar Pago** | Si hay saldo restante, agrega el pago parcial a la lista de formas de pago combinadas. Si el saldo restante es `$ 0.00` o el monto cubre el total, emite la factura, descarga el inventario en kardex y abre la vista de impresión. |
+| `Esc` | **Cancelar Cobro** | Cierra el modal de pago y regresa a la edición del carrito de compra. |
+
+---
+
+#### 4.4.3 Atajos en el Modal de Comprobante / Ticket (`PosReceiptModal`)
+
+| Tecla | Acción | Descripción |
+|---|---|---|
+| `Enter` o `P` | **Imprimir Ticket** | Dispara el comando de impresión del navegador (`window.print()`) hacia la impresora térmica de 80mm configurada. |
+| `Esc` | **Finalizar Venta** | Cierra el visor de recibo y deja la terminal completamente limpia para la siguiente transacción. |
+
+---
+
+#### 4.4.4 Integración con Escáneres de Código de Barras (Hardware Emulation)
+
+- **Modo Teclado Virtual (HID Keyboard Wedge):** La mayoría de los lectores de códigos de barras ópticos (pistolas láser o escáneres omnidireccionales de sobremesa) funcionan emulando la entrada de un teclado USB.
+- **Disparo de Lectura:** Al escanear una etiqueta, el lector envía los caracteres del código seguidos automáticamente por el carácter de retorno de carro (`Enter`).
+- **Comportamiento en el POS:** 
+  1. Si el cursor está en el buscador (`F1`), el código se ingresa y el `Enter` emitido por el escáner añade el artículo al carrito al instante en menos de 100 ms.
+  2. Si el producto ya existía en el carrito, el sistema incrementa su cantidad automáticamente sin duplicar la fila.
+  3. El campo de búsqueda queda seleccionado y listo para el siguiente escaneo inmediato sin intervención manual.
+
+---
+
+#### 4.4.5 Reglas de Precedencia y Prevención de Conflictos
+
+1. **Prioridad de Modales:** Si un modal está desplegado en pantalla, los atajos de la pantalla principal (`F2`, `F3`, `F8`, `F10`, etc.) se desactivan temporalmente para prevenir aperturas concurrentes o inconsistencias de estado.
+2. **Escritura en Campos de Texto:** Cuando el cajero escribe en campos de texto (por ejemplo, nombre de un cliente, motivo de una sangría o notas de venta), teclas reservadas como `Espacio` operan como texto normal y no disparan el cobro.
+3. **Tecla de Escape Jerárquica:** La tecla `Esc` siempre cierra primero el diálogo que tenga la capa superior (*z-index* más alto). Solo cuando no hay ningún diálogo activo se evalúa el vaciado del carrito.
 
 ---
 

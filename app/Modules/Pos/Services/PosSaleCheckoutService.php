@@ -166,6 +166,14 @@ class PosSaleCheckoutService
                     continue;
                 }
 
+                $collectionPaymentMethod = match ($payment->paymentMethod) {
+                    'cash' => 'cash',
+                    'card_debit', 'card_credit', 'biopago' => 'card',
+                    'transfer', 'mobile_payment' => 'transfer',
+                    'credit_note' => 'credit_note',
+                    default => 'other',
+                };
+
                 $collection = $this->collectionCreateService->execute(new CreateClientCollectionCommand(
                     id: (string) Str::uuid(),
                     companyId: $command->companyId,
@@ -180,7 +188,7 @@ class PosSaleCheckoutService
                     ],
                     originType: 'invoice',
                     originId: $invoice->id,
-                    paymentMethod: $payment->paymentMethod,
+                    paymentMethod: $collectionPaymentMethod,
                     reference: $payment->reference,
                     currency: $payment->currency,
                     exchangeRateOverride: (string) $payment->exchangeRate,

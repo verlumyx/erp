@@ -142,7 +142,7 @@ export interface PosCartLine {
 }
 
 export interface PosPaymentInput {
-    payment_method: 'cash' | 'card_debit' | 'card_credit' | 'mobile_payment' | 'transfer' | 'credit_note' | 'other';
+    payment_method: 'cash' | 'card_debit' | 'card_credit' | 'mobile_payment' | 'transfer' | 'biopago' | 'credit_note' | 'other';
     currency: 'USD' | 'VES' | 'EUR';
     amount_tendered: number;
     amount_applied: number;
@@ -252,6 +252,7 @@ export interface PosZReport {
         cash_ves: number;
         card_ves: number;
         mobile_ves: number;
+        biopago_ves?: number;
         other: number;
     };
     audit_usd: {

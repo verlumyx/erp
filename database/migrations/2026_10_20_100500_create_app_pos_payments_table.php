@@ -22,6 +22,7 @@ return new class extends Migration
                 'card_credit',
                 'mobile_payment',
                 'transfer',
+                'biopago',
                 'credit_note',
                 'other',
             ]);

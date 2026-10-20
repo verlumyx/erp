@@ -101,6 +101,12 @@ export function PosReadingXModal({ isOpen, onClose }: PosReadingXModalProps) {
                                 <span>Pago Móvil:</span>
                                 <span>Bs. {report.payments.mobile_ves.toFixed(2)}</span>
                             </div>
+                            {report.payments.biopago_ves !== undefined && report.payments.biopago_ves > 0 && (
+                                <div className="flex justify-between">
+                                    <span>Biopago:</span>
+                                    <span>Bs. {report.payments.biopago_ves.toFixed(2)}</span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-1.5 bg-muted/40 p-2.5 rounded-lg border">

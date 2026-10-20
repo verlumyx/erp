@@ -10,6 +10,17 @@ interface PosReceiptModalProps {
     sale: PosSale | null;
 }
 
+const PAYMENT_METHOD_NAMES: Record<string, string> = {
+    cash: 'Efectivo',
+    card_debit: 'Punto Débito',
+    card_credit: 'Punto Crédito',
+    mobile_payment: 'Pago Móvil',
+    biopago: 'Biopago',
+    transfer: 'Transferencia',
+    credit_note: 'Nota de Crédito',
+    other: 'Otro',
+};
+
 export function PosReceiptModal({ isOpen, onClose, sale }: PosReceiptModalProps) {
     const printAreaRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +128,7 @@ export function PosReceiptModal({ isOpen, onClose, sale }: PosReceiptModalProps)
                         <p className="font-bold uppercase text-gray-600">Formas de Pago:</p>
                         {(sale.payments || []).map((p, idx) => (
                             <div key={idx} className="flex justify-between">
-                                <span className="capitalize">{p.payment_method.replace('_', ' ')}:</span>
+                                <span>{PAYMENT_METHOD_NAMES[p.payment_method] || p.payment_method.replace('_', ' ')}:</span>
                                 <span>
                                     {p.currency === 'USD' ? '$' : 'Bs.'} {p.amount_tendered.toFixed(2)}
                                 </span>

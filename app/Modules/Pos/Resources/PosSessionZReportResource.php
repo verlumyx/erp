@@ -68,6 +68,7 @@ class PosSessionZReportResource extends JsonResource
                 'cash_ves' => $calc['salesCashVes'],
                 'card_ves' => $calc['salesCardVes'],
                 'mobile_ves' => $calc['salesMobileVes'],
+                'biopago_ves' => $calc['salesBiopagoVes'],
                 'other' => $calc['salesOther'],
             ],
             'audit_usd' => [

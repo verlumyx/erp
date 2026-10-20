@@ -26,6 +26,7 @@ class PosPayment extends Model
         'card_credit',
         'mobile_payment',
         'transfer',
+        'biopago',
         'credit_note',
         'other',
     ];
