@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Clock, DollarSign, LogOut, TrendingDown, TrendingUp, User, Monitor } from 'lucide-react';
+import { ArrowLeft, Clock, DollarSign, LogOut, TrendingDown, TrendingUp, User, Monitor, HelpCircle } from 'lucide-react';
 import { usePosSession } from '../context/PosSessionContext';
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/react';
@@ -8,12 +8,14 @@ interface PosHeaderProps {
     onOpenCashMovement: () => void;
     onOpenReadingX: () => void;
     onOpenCloseSession: () => void;
+    onOpenShortcuts: () => void;
 }
 
 export function PosHeader({
     onOpenCashMovement,
     onOpenReadingX,
     onOpenCloseSession,
+    onOpenShortcuts,
 }: PosHeaderProps) {
     const { session, rate, companyId } = usePosSession();
 
@@ -66,6 +68,17 @@ export function PosHeader({
                         {rate.toFixed(2)} VES/USD
                     </span>
                 </div>
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onOpenShortcuts}
+                    className="hidden sm:flex items-center gap-1.5 h-8 text-xs font-medium text-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                    title="Ver atajos de teclado y ayuda"
+                >
+                    <HelpCircle className="h-3.5 w-3.5 text-primary" />
+                    <span>Ayuda</span>
+                </Button>
 
                 <Button
                     variant="outline"

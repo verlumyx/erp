@@ -16,6 +16,7 @@ import { PosReceiptModal } from './components/PosReceiptModal';
 import { PosClientModal } from './components/PosClientModal';
 import { PosDiscountModal } from './components/PosDiscountModal';
 import { PosReadingXModal } from './components/PosReadingXModal';
+import { PosShortcutsModal } from './components/PosShortcutsModal';
 import type { PosCategory, PosClient, PosItem, PosSale, PosSession } from './types/Pos';
 
 interface PosTerminalPageProps {
@@ -64,6 +65,7 @@ function PosTerminalInner({
     const [isClientOpen, setIsClientOpen] = useState(false);
     const [isDiscountOpen, setIsDiscountOpen] = useState(false);
     const [isReadingXOpen, setIsReadingXOpen] = useState(false);
+    const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
     const [completedSale, setCompletedSale] = useState<PosSale | null>(null);
     const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
@@ -78,6 +80,7 @@ function PosTerminalInner({
         isClientOpen ||
         isDiscountOpen ||
         isReadingXOpen ||
+        isShortcutsOpen ||
         isReceiptOpen;
 
     // Refresh held sales from server
@@ -290,6 +293,7 @@ function PosTerminalInner({
                 onOpenCashMovement={() => setIsCashMovementOpen(true)}
                 onOpenReadingX={() => setIsReadingXOpen(true)}
                 onOpenCloseSession={() => setIsCloseSessionOpen(true)}
+                onOpenShortcuts={() => setIsShortcutsOpen(true)}
             />
 
             {/* Main Content Area: 2 Columns */}
@@ -380,6 +384,11 @@ function PosTerminalInner({
             <PosReadingXModal
                 isOpen={isReadingXOpen}
                 onClose={() => setIsReadingXOpen(false)}
+            />
+
+            <PosShortcutsModal
+                isOpen={isShortcutsOpen}
+                onClose={() => setIsShortcutsOpen(false)}
             />
         </div>
     );
