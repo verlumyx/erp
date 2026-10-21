@@ -5,6 +5,7 @@ import { usePosSession } from '../context/PosSessionContext';
 import type { PosZReport } from '../types/Pos';
 import { TrendingUp, Printer } from 'lucide-react';
 import { posApi } from '../utils/posApi';
+import { printThermalReportXZ } from '../utils/printReportXZ';
 
 interface PosReadingXModalProps {
     isOpen: boolean;
@@ -27,7 +28,8 @@ export function PosReadingXModal({ isOpen, onClose }: PosReadingXModalProps) {
     }, [isOpen, session.id, companyId]);
 
     const handlePrint = () => {
-        window.print();
+        if (!report) return;
+        printThermalReportXZ(report);
     };
 
     return (

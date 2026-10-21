@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Printer, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Calendar, User, Monitor, Warehouse } from 'lucide-react';
 import type { BreadcrumbItem } from '@/types';
 import type { PosZReport } from '../types/Pos';
+import { printThermalReportXZ } from '../utils/printReportXZ';
 
 interface ShowSessionProps {
     report: PosZReport;
@@ -21,7 +22,7 @@ export default function PosSessionShowPage({ report }: ShowSessionProps) {
     ];
 
     const handlePrint = () => {
-        window.print();
+        printThermalReportXZ(report);
     };
 
     const getDiffBadge = (diff: number | null | undefined, status: string) => {
@@ -69,8 +70,11 @@ export default function PosSessionShowPage({ report }: ShowSessionProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90">
-                            <Printer className="mr-1.5 h-4 w-4" /> Imprimir Comprobante
+                        <Button variant="outline" onClick={() => window.print()} className="no-print">
+                            <FileText className="mr-1.5 h-4 w-4" /> Hoja Carta/A4
+                        </Button>
+                        <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90 font-bold">
+                            <Printer className="mr-1.5 h-4 w-4" /> Imprimir Ticket (58mm)
                         </Button>
                     </div>
                 </div>
