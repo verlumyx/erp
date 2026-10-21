@@ -226,7 +226,7 @@ class PosSaleCheckoutService
                 $command->payments
             );
 
-            return $posSale->refresh();
+            return $this->posSaleRepository->findOrFail($posSale->id, $command->companyId);
         });
     }
 }

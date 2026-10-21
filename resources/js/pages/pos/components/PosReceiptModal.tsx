@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { PosSale } from '../types/Pos';
 import { Printer, CheckCircle } from 'lucide-react';
+import { printThermalReceipt } from '../utils/printReceipt';
 
 interface PosReceiptModalProps {
     isOpen: boolean;
@@ -23,9 +25,11 @@ const PAYMENT_METHOD_NAMES: Record<string, string> = {
 
 export function PosReceiptModal({ isOpen, onClose, sale }: PosReceiptModalProps) {
     const printAreaRef = useRef<HTMLDivElement>(null);
+    const { currentCompany } = usePage<{ currentCompany?: { id: string; name: string } }>().props;
 
     const handlePrint = () => {
-        window.print();
+        if (!sale) return;
+        printThermalReceipt(sale, currentCompany?.name);
     };
 
     useEffect(() => {
@@ -61,7 +65,7 @@ export function PosReceiptModal({ isOpen, onClose, sale }: PosReceiptModalProps)
                 <div
                     ref={printAreaRef}
                     id="pos-thermal-receipt"
-                    className="my-2 p-4 bg-white text-black font-mono text-xs rounded-xl border border-dashed border-gray-300 shadow-inner print:m-0 print:p-0 print:border-none print:shadow-none print:w-[80mm]"
+                    className="my-2 p-4 bg-white text-black font-mono text-xs rounded-xl border border-dashed border-gray-300 shadow-inner print:m-0 print:p-0 print:border-none print:shadow-none print:w-[58mm]"
                 >
                     {/* Header */}
                     <div className="text-center space-y-1 pb-3 border-b border-dashed border-gray-400">
@@ -87,12 +91,18 @@ export function PosReceiptModal({ isOpen, onClose, sale }: PosReceiptModalProps)
                         </div>
 
                         {(sale.lines || []).map((line, idx) => (
-                            <div key={idx} className="flex justify-between items-baseline text-[11px]">
-                                <div className="truncate max-w-[190px]">
-                                    <span className="font-bold">{line.quantity}</span> x ${line.unit_price.toFixed(2)}{' '}
-                                    <span className="capitalize">{line.item_name}</span>
+                            <div key={idx} className="space-y-0.5 text-[11px]">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="font-bold">
+                                        {line.quantity} x ${line.unit_price.toFixed(2)}
+                                    </span>
+                                    <span className="font-bold shrink-0">${line.total.toFixed(2)}</span>
                                 </div>
-                                <span className="font-bold shrink-0">${line.total.toFixed(2)}</span>
+                                {(line.item_name || line.item_code) && (
+                                    <div className="text-[10px] text-gray-700 capitalize break-words">
+                                        {line.item_name || line.item_code}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -180,7 +190,7 @@ export function PosReceiptModal({ isOpen, onClose, sale }: PosReceiptModalProps)
                         position: absolute !important;
                         left: 0 !important;
                         top: 0 !important;
-                        width: 80mm !important;
+                        width: 58mm !important;
                         margin: 0 !important;
                         padding: 2mm !important;
                     }
