@@ -41,6 +41,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/current', [PosSessionGetController::class, 'current'])->name('pos-sessions.current');
             Route::get('/{id}', [PosSessionGetController::class, 'show'])->where('id', $uuid)->name('pos-sessions.show');
             Route::get('/{id}/reading-x', [PosSessionGetController::class, 'readingX'])->where('id', $uuid)->name('pos-sessions.reading-x');
+            Route::get('/{id}/pdf', [PosSessionGetController::class, 'pdf'])->where('id', $uuid)->name('pos-sessions.pdf');
             Route::post('/{id}/close', PosSessionClosePostController::class)->where('id', $uuid)->name('pos-sessions.close');
             Route::post('/{id}/cash-movements', PosCashMovementPostController::class)->where('id', $uuid)->name('pos-sessions.cash-movements.store');
         });

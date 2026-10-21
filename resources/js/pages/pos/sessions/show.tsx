@@ -25,6 +25,10 @@ export default function PosSessionShowPage({ report }: ShowSessionProps) {
         printThermalReportXZ(report);
     };
 
+    const handlePdf = () => {
+        window.open(`/${companyId}/pos-sessions/${report.session.id}/pdf`, '_blank');
+    };
+
     const getDiffBadge = (diff: number | null | undefined, status: string) => {
         if (diff === null || diff === undefined) {
             return <Badge variant="outline">Sin declarar</Badge>;
@@ -70,8 +74,8 @@ export default function PosSessionShowPage({ report }: ShowSessionProps) {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => window.print()} className="no-print">
-                            <FileText className="mr-1.5 h-4 w-4" /> Hoja Carta/A4
+                        <Button variant="outline" onClick={handlePdf} className="no-print">
+                            <FileText className="mr-1.5 h-4 w-4" /> Hoja Carta/A4 (PDF)
                         </Button>
                         <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90 font-bold">
                             <Printer className="mr-1.5 h-4 w-4" /> Imprimir Ticket (58mm)

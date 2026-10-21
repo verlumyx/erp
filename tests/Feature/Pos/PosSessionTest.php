@@ -235,4 +235,13 @@ test('a session can be closed with blind count declarations and denominations', 
     expect((float) $session->difference_cash_usd)->toBe(0.00);
     expect((float) $session->difference_cash_ves)->toBe(0.00);
     expect($session->denominations)->toHaveCount(2);
+
+    // Test PDF generation for closed session
+    $pdfResponse = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('pos-sessions.pdf', ['company' => $company->id, 'id' => $session->id]));
+
+    $pdfResponse->assertOk();
+    $pdfResponse->assertHeader('content-type', 'application/pdf');
+    expect($pdfResponse->getContent())->toStartWith('%PDF-');
 });

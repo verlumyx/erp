@@ -117,4 +117,21 @@ class PosSessionGetController extends Controller
             'reading' => (new PosSessionZReportResource($session))->resolve(),
         ]);
     }
+
+    public function pdf(Request $request, string $company, string $id): \Illuminate\Http\Response
+    {
+        abort_unless($request->user()?->hasPermission('pos-sessions.read') ?? false, 403);
+
+        $companyId = session('current_company_id');
+        $session = $this->sessionRepository->findOrFail($id, $companyId);
+        $report = (new PosSessionZReportResource($session))->resolve();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.pos-z-report', [
+            'report' => $report,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = ($session->isClosed() ? 'corte-z-' : 'corte-x-') . "{$session->code}.pdf";
+
+        return $pdf->stream($filename);
+    }
 }
