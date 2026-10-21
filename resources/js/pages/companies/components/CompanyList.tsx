@@ -15,6 +15,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Eye, Edit, Plus, Search, ChevronDown, Power } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
 import { Company, CompanyFilters, CompanyMeta } from '../types/Company';
 import companies from '@/routes/companies';
 
@@ -44,7 +45,16 @@ export function CompanyList({ companies: items, meta, filters: initialFilters }:
     const [filters, setFilters] = useState<CompanyFilters>(initialFilters);
 
     const handleSearch = () => {
-        router.get(companies.index(companyId).url, filters as Record<string, string>, {
+        router.get(companies.index(companyId).url, filters as unknown as Record<string, string>, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    const handlePageChange = (newOffset: number) => {
+        const next = { ...filters, offset: newOffset };
+        setFilters(next);
+        router.get(companies.index(companyId).url, next as unknown as Record<string, string>, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -201,9 +211,11 @@ export function CompanyList({ companies: items, meta, filters: initialFilters }:
                                     ))}
                                 </TableBody>
                             </Table>
-                            <div className="px-4 py-3 border-t text-sm text-muted-foreground">
-                                {meta.total} empresa{meta.total !== 1 ? 's' : ''} en total
-                            </div>
+                            <Pagination
+                                meta={meta}
+                                onPageChange={handlePageChange}
+                                label="empresa"
+                            />
                         </>
                     )}
                 </CardContent>

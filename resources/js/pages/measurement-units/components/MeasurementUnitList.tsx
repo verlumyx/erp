@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/pagination';
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Power, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -290,10 +291,13 @@ export function MeasurementUnitList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {items.length} de {meta.total} unidad
-                    {meta.total !== 1 ? 'es' : ''}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="unidad de medida" labelPlural="unidades de medida"
+                />
             </Card>
         </div>
     );

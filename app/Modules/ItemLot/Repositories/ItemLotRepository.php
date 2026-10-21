@@ -91,9 +91,7 @@ class ItemLotRepository extends ItemLotFilters implements ItemLotRepositoryInter
 
         $total = $query->count();
 
-        $data = $query->orderByRaw('expires_at IS NULL')
-            ->orderBy('expires_at')
-            ->orderBy('lot_number')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

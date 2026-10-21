@@ -11,7 +11,7 @@ class SearchStoreItemCommand
      */
     public function __construct(
         public readonly array $filters = [],
-        public readonly int $limit = 20,
+        public readonly int $limit = 10,
         public readonly int $offset = 0,
         public readonly ?string $companyId = null,
         /** Orden del listado público: `order`, `name`, `price`, `newest`. */

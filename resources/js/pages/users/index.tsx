@@ -64,6 +64,8 @@ export default function UsersIndex({ users: items, meta, filters }: Props) {
                         users={items}
                         loading={false}
                         error={null}
+                        meta={meta}
+                        filters={filters}
                         onCreate={handleCreate}
                         onSearch={handleSearch}
                     />

@@ -112,7 +112,7 @@ class StoreOrderRepository extends StoreOrderFilters implements StoreOrderReposi
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('created_at')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

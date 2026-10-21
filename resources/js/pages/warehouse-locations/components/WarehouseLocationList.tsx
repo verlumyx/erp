@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/pagination';
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Power, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -344,10 +345,13 @@ export function WarehouseLocationList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {locations.length} de {meta.total} ubicaci
-                    {meta.total !== 1 ? 'ones' : 'ón'}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="ubicación" labelPlural="ubicaciones"
+                />
             </Card>
         </div>
     );

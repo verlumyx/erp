@@ -29,7 +29,7 @@ class CompanyGetController extends Controller
 
         $command = new SearchCompanyCommand(
             filters: $request->only(['name', 'status']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
         );
 

@@ -140,7 +140,7 @@ class SupplierRepository extends SupplierFilters implements SupplierRepositoryIn
 
         $total = $query->count();
 
-        $data = $query->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

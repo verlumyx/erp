@@ -119,8 +119,7 @@ class ClientAdvanceRepository extends ClientAdvanceFilters implements ClientAdva
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('advance_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

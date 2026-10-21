@@ -36,7 +36,7 @@ class StoreOrderGetController extends Controller
 
         $command = new SearchStoreOrderCommand(
             filters: $request->only(['status', 'q', 'date_from', 'date_to']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: $company,
         );

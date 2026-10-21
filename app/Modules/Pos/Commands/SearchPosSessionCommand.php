@@ -15,7 +15,7 @@ class SearchPosSessionCommand
         public readonly ?string $search = null,
         public readonly string $sortBy = 'opened_at',
         public readonly string $sortDirection = 'desc',
-        public readonly int $perPage = 15,
+        public readonly int $perPage = 10,
         public readonly int $page = 1,
     ) {}
 }

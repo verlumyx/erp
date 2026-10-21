@@ -151,8 +151,7 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('order_date')
-            ->orderByDesc('created_at')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

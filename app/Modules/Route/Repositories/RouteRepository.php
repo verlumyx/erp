@@ -111,7 +111,7 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
 
         $total = $query->count();
 
-        $data = $query->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

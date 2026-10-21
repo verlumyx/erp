@@ -2,7 +2,7 @@ import React from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { RoleList } from './components/role-list';
-import { Role } from '@/types/role';
+import { Role, RoleSearchFilters } from '@/types/role';
 import type { BreadcrumbItem } from '@/types';
 import roles from '@/routes/roles';
 
@@ -14,12 +14,7 @@ interface Props {
         offset: number;
         has_more: boolean;
     };
-    filters: {
-        name?: string;
-        status?: string;
-        limit?: number;
-        offset?: number;
-    };
+    filters: RoleSearchFilters;
 }
 
 interface PageProps {
@@ -55,6 +50,8 @@ export default function RolesIndex({ roles: items, meta, filters }: Props) {
                         roles={items}
                         loading={false}
                         error={null}
+                        meta={meta}
+                        filters={filters}
                         onSearch={handleSearch}
                     />
                 </div>

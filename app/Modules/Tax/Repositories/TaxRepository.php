@@ -76,7 +76,7 @@ class TaxRepository extends TaxFilters implements TaxRepositoryInterface
 
         $total = $query->count();
 
-        $data = $query->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

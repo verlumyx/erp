@@ -84,8 +84,7 @@ class InventoryMovementRepository extends InventoryMovementFilters implements In
         $total = $query->count();
 
         /** El kardex se lee del movimiento más reciente hacia atrás. */
-        $data = $query->orderByDesc('movement_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

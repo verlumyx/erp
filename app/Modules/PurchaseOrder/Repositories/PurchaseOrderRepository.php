@@ -251,8 +251,7 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('order_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

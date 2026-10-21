@@ -70,7 +70,7 @@ class PriceListRepository extends PriceListFilters implements PriceListRepositor
 
         $total = $query->count();
 
-        $data = $query->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

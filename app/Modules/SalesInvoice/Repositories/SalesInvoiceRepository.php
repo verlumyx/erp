@@ -231,8 +231,7 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('invoice_date')
-            ->orderByDesc('created_at')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

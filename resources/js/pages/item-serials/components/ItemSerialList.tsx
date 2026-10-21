@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/pagination';
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Power, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -375,10 +376,13 @@ export function ItemSerialList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {serials.length} de {meta.total} serie
-                    {meta.total !== 1 ? 's' : ''}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="serie"
+                />
             </Card>
         </div>
     );

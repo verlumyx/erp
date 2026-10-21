@@ -126,3 +126,62 @@ test('a line without traceability carries empty lists', function () {
     expect($props['dispatch']['lines'][0]['lots'])->toBe([]);
     expect($props['dispatch']['lines'][0]['serials'])->toBe([]);
 });
+
+test('the delivery note pdf is generated successfully', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.delivery-note', ['company' => $company->id, 'id' => $dispatch->id]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    expect($response->headers->get('content-disposition'))
+        ->toContain('inline')
+        ->toContain("nota-entrega-{$dispatch->code}.pdf");
+});
+
+test('the delivery note pdf requires the show permission', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+
+    assignRoleWithPermissions($user, $company, ['dispatches.list']);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.delivery-note', ['company' => $company->id, 'id' => $dispatch->id]))
+        ->assertForbidden();
+});
+
+test('the delivery note pdf renders active lines and traceability', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    \App\Modules\Item\Models\Item::where('id', $item->id)->update(['type' => 'serialized']);
+
+    $lot = \App\Modules\ItemLot\Models\ItemLot::factory()->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'created_by' => $user->id,
+    ]);
+
+    $serials = \App\Modules\ItemSerial\Models\ItemSerial::factory()->count(2)->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+    ]);
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'lots' => [['lot_id' => $lot->id, 'quantity' => 2]],
+            'serials' => $serials->map(fn ($serial): array => ['serial_id' => $serial->id])->all(),
+        ]],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.delivery-note', ['company' => $company->id, 'id' => $dispatch->id]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});

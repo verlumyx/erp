@@ -219,8 +219,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('collection_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

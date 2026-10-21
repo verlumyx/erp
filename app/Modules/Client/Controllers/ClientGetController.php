@@ -40,7 +40,7 @@ class ClientGetController extends Controller
                 'name', 'email', 'phone', 'code', 'document_number', 'document_type',
                 'client_type_id', 'salesperson_id', 'credit_blocked', 'status',
             ]),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

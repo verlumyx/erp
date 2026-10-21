@@ -34,6 +34,7 @@ DECLARE
     v_mod_sup_pay     UUID;
     v_mod_purch_ret   UUID;
     v_mod_sales_inv   UUID;
+    v_mod_sales_ncp   UUID;
     v_mod_cli_coll    UUID;
     v_mod_sales_ret   UUID;
     v_mod_cli_adv     UUID;
@@ -76,7 +77,8 @@ BEGIN
         (gen_random_uuid(), 'configuration', 'Configuración', 'Moneda principal, tasa y decimales de la empresa', 'Settings', true, 18, NOW(), NOW()),
         (gen_random_uuid(), 'purchase-invoices', 'Facturas de compra', 'Deuda con el proveedor: genera la cuenta por pagar y el costo de la mercancía', 'ReceiptText', true, 19, NOW(), NOW()),
         (gen_random_uuid(), 'sales-invoices', 'Facturas de venta', 'Documento fiscal: genera la cuenta por cobrar y descarga inventario', 'ReceiptText', true, 20, NOW(), NOW()),
-        (gen_random_uuid(), 'item-lots', 'Lotes', 'Lotes de artículos con fabricación y vencimiento', 'Layers', true, 21, NOW(), NOW()),
+        (gen_random_uuid(), 'sales-credit-notes', 'Notas de crédito de venta', 'Disminuye la deuda del cliente: devoluciones, descuentos y correcciones de precio', 'FileMinus', true, 21, NOW(), NOW()),
+        (gen_random_uuid(), 'item-lots', 'Lotes', 'Lotes de artículos con fabricación y vencimiento', 'Layers', true, 22, NOW(), NOW()),
         (gen_random_uuid(), 'item-serials', 'Series', 'Números de serie: cada unidad se controla por separado', 'Barcode', true, 22, NOW(), NOW()),
         (gen_random_uuid(), 'item-stocks', 'Existencias', 'Saldo actual por artículo, bodega, ubicación y lote', 'Boxes', true, 23, NOW(), NOW()),
         (gen_random_uuid(), 'inventory-movements', 'Kardex', 'Libro mayor del inventario: una fila por cada afectación de existencia', 'ArrowLeftRight', true, 24, NOW(), NOW()),
@@ -124,6 +126,7 @@ BEGIN
     SELECT id INTO v_mod_sup_pay     FROM app_modules WHERE name = 'supplier-payments';
     SELECT id INTO v_mod_purch_ret   FROM app_modules WHERE name = 'purchase-returns';
     SELECT id INTO v_mod_sales_inv   FROM app_modules WHERE name = 'sales-invoices';
+    SELECT id INTO v_mod_sales_ncp   FROM app_modules WHERE name = 'sales-credit-notes';
     SELECT id INTO v_mod_cli_coll    FROM app_modules WHERE name = 'client-collections';
     SELECT id INTO v_mod_sales_ret   FROM app_modules WHERE name = 'sales-returns';
     SELECT id INTO v_mod_cli_adv     FROM app_modules WHERE name = 'client-advances';
@@ -372,6 +375,16 @@ BEGIN
         (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.show',          'Ver detalle de factura de venta', true, 3, NOW(), NOW()),
         (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.update',        'Editar facturas de venta',        true, 4, NOW(), NOW()),
         (gen_random_uuid(), v_mod_sales_inv, 'sales-invoices.update-status', 'Emitir o anular una factura',     true, 5, NOW(), NOW())
+    ON CONFLICT (module_id, action) DO NOTHING;
+
+    -- Notas de crédito de venta
+    INSERT INTO app_permissions (id, module_id, action, label, is_active, "order", created_at, updated_at)
+    VALUES
+        (gen_random_uuid(), v_mod_sales_ncp, 'sales-credit-notes.list',          'Listar notas de crédito',           true, 1, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ncp, 'sales-credit-notes.create',        'Crear notas de crédito',            true, 2, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ncp, 'sales-credit-notes.show',          'Ver detalle de nota de crédito',    true, 3, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ncp, 'sales-credit-notes.update',        'Editar notas de crédito',           true, 4, NOW(), NOW()),
+        (gen_random_uuid(), v_mod_sales_ncp, 'sales-credit-notes.update-status', 'Emitir o anular nota de crédito',   true, 5, NOW(), NOW())
     ON CONFLICT (module_id, action) DO NOTHING;
 
     -- Cobros a clientes

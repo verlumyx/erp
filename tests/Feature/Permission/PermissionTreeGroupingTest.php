@@ -119,5 +119,6 @@ test('modules come ordered by menu group and, inside it, by menu order', functio
         'purchase-orders',  // Compras (grupo 5), segundo hijo
         'clients',          // Ventas (grupo 6)
         'users',            // sin grupo: al final
+        'pos',
     ]);
 });

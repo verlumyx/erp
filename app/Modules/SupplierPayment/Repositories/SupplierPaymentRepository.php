@@ -205,8 +205,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('payment_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

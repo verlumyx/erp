@@ -16,12 +16,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Role, RoleSearchFilters } from '@/types/role';
 import { Eye, Edit, Search, Plus, ChevronDown, Power } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
 import roles from '@/routes/roles';
 
 interface RoleListProps {
   roles: Role[];
   loading?: boolean;
   error?: string | null;
+  meta?: {
+    total: number;
+    limit: number;
+    offset: number;
+    has_more?: boolean;
+  };
+  filters?: RoleSearchFilters;
   onSearch: (filters: RoleSearchFilters) => void;
 }
 
@@ -40,16 +48,25 @@ export const RoleList: React.FC<RoleListProps> = ({
   roles: items,
   loading = false,
   error,
+  meta,
+  filters: initialFilters,
   onSearch
 }) => {
   const { currentCompany } = usePage<PageProps>().props;
   const companyId = currentCompany!.id;
 
   const [filters, setFilters] = useState<RoleSearchFilters>({
-    name: '',
-    status: undefined,
-    description: ''
+    name: initialFilters?.name ?? '',
+    status: initialFilters?.status,
+    description: initialFilters?.description ?? ''
   });
+
+  const handlePageChange = (newOffset: number) => {
+    onSearch({
+      ...filters,
+      offset: newOffset,
+    });
+  };
 
   const handleFilterChange = (field: keyof RoleSearchFilters, value: string | undefined) => {
     const newFilters = {
@@ -248,6 +265,15 @@ export const RoleList: React.FC<RoleListProps> = ({
                   ))}
                 </TableBody>
               </Table>
+            )}
+
+            {meta && (
+              <Pagination
+                meta={meta}
+                onPageChange={handlePageChange}
+                label="rol"
+                labelPlural="roles"
+              />
             )}
           </CardContent>
         </Card>

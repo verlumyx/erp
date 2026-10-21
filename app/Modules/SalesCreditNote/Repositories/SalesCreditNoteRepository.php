@@ -165,8 +165,7 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('note_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

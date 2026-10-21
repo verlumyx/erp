@@ -23,7 +23,7 @@ test('the price lists index renders with price lists', function () {
     );
 });
 
-test('price lists are sorted by name', function () {
+test('price lists are sorted by code descending', function () {
     [$user, $company] = createUserWithCompany();
 
     PriceList::factory()->create(['company_id' => $company->id, 'name' => 'Corporativa']);
@@ -35,8 +35,8 @@ test('price lists are sorted by name', function () {
         ->get(route('price-lists.index', ['company' => $company->id]));
 
     $response->assertInertia(fn ($page) => $page
-        ->where('priceLists.0.name', 'Aliados')
-        ->where('priceLists.1.name', 'Base')
+        ->where('priceLists.0.name', 'Base')
+        ->where('priceLists.1.name', 'Aliados')
         ->where('priceLists.2.name', 'Corporativa')
     );
 });

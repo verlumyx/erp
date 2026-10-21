@@ -9,6 +9,7 @@ use App\Modules\PurchaseInvoice\Exceptions\PurchaseInvoiceOverpaidException;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\PurchaseInvoice\Repositories\Contracts\PurchaseInvoiceRepositoryInterface;
 use App\Modules\PurchaseInvoice\Services\PurchaseInvoiceApplyPaymentService;
+use App\Modules\PurchaseInvoice\Services\PurchaseInvoiceSettleStatusService;
 
 uses(Tests\TestCase::class);
 
@@ -47,7 +48,9 @@ function applyPayment(PurchaseInvoice $invoice, float $delta): WritePurchaseInvo
         },
     );
 
-    (new PurchaseInvoiceApplyPaymentService($repository))->execute(
+    $settle = new PurchaseInvoiceSettleStatusService($repository);
+
+    (new PurchaseInvoiceApplyPaymentService($repository, $settle))->execute(
         new ApplyPurchaseInvoicePaymentCommand('company-uuid', 'invoice-uuid', $delta),
     );
 
@@ -103,8 +106,9 @@ test('reversing more than the invoice was paid is rejected', function () {
 test('applying to an invoice that does not exist fails', function () {
     $repository = Mockery::mock(PurchaseInvoiceRepositoryInterface::class);
     $repository->expects('lockById')->andReturn(null);
+    $settle = new PurchaseInvoiceSettleStatusService($repository);
 
-    (new PurchaseInvoiceApplyPaymentService($repository))->execute(
+    (new PurchaseInvoiceApplyPaymentService($repository, $settle))->execute(
         new ApplyPurchaseInvoicePaymentCommand('company-uuid', 'missing-uuid', 10),
     );
 })->throws(PurchaseInvoiceNotFoundException::class);

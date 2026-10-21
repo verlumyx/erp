@@ -1,4 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
+import { Pagination } from '@/components/pagination';
 import {
     Edit,
     Eye,
@@ -355,10 +356,14 @@ export function StoreItemList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {rows.length} de {meta.total} publicaci
-                    {meta.total !== 1 ? 'ones' : 'ón'}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="publicación"
+                    labelPlural="publicaciones"
+                />
             </Card>
         </div>
     );

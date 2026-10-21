@@ -37,7 +37,7 @@ class SupplierGetController extends Controller
             filters: $request->only([
                 'name', 'code', 'document_number', 'document_type', 'email', 'supplier_type_id', 'status',
             ]),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

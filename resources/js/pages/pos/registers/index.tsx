@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Select2, type OptionType } from '@/components/ui/select2';
+import { Pagination } from '@/components/pagination';
 import {
     Plus,
     Search,
@@ -35,6 +36,7 @@ interface RegistersIndexProps {
         search?: string;
         status?: string;
         warehouse_id?: string;
+        page?: number;
     };
     warehouses: Array<{ id: string; name: string }>;
 }
@@ -48,12 +50,19 @@ export default function PosRegistersIndexPage({
     const companyId = currentCompany?.id || '';
 
     const registers = registersProp.data || [];
+    const meta = registersProp.meta;
     const [filters, setFilters] = useState(initialFilters);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Punto de Venta', href: `/${companyId}/pos` },
         { title: 'Cajas Registradoras', href: `/${companyId}/pos-registers` },
     ];
+
+    const paginationMeta = {
+        total: meta?.total ?? registers.length,
+        limit: meta?.per_page ?? 10,
+        offset: meta ? (meta.current_page - 1) * (meta.per_page ?? 10) : 0,
+    };
 
     const applyFilters = (newFilters: typeof filters) => {
         setFilters(newFilters);
@@ -66,7 +75,12 @@ export default function PosRegistersIndexPage({
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        applyFilters(filters);
+        applyFilters({ ...filters, page: 1 });
+    };
+
+    const handlePageChange = (offset: number) => {
+        const page = Math.floor(offset / paginationMeta.limit) + 1;
+        applyFilters({ ...filters, page });
     };
 
     const statusOptions: OptionType[] = [
@@ -127,7 +141,7 @@ export default function PosRegistersIndexPage({
                             <Select2
                                 options={statusOptions}
                                 value={statusOptions.find((o) => o.value === (filters.status || '')) ?? statusOptions[0]}
-                                onChange={(opt) => applyFilters({ ...filters, status: opt?.value || undefined })}
+                                onChange={(opt) => applyFilters({ ...filters, status: opt?.value || undefined, page: 1 })}
                                 size="md"
                                 placeholder="Estado"
                             />
@@ -137,7 +151,7 @@ export default function PosRegistersIndexPage({
                             <Select2
                                 options={warehouseOptions}
                                 value={warehouseOptions.find((o) => o.value === (filters.warehouse_id || '')) ?? warehouseOptions[0]}
-                                onChange={(opt) => applyFilters({ ...filters, warehouse_id: opt?.value || undefined })}
+                                onChange={(opt) => applyFilters({ ...filters, warehouse_id: opt?.value || undefined, page: 1 })}
                                 size="md"
                                 placeholder="Almacén"
                             />
@@ -246,6 +260,12 @@ export default function PosRegistersIndexPage({
                             </tbody>
                         </table>
                     </div>
+                    <Pagination
+                        meta={paginationMeta}
+                        onPageChange={handlePageChange}
+                        label="caja registradora"
+                        labelPlural="cajas registradoras"
+                    />
                 </Card>
             </div>
         </AppLayout>

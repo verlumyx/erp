@@ -197,8 +197,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('dispatch_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

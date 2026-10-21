@@ -34,7 +34,7 @@ class WarehouseGetController extends Controller
 
         $command = new SearchWarehouseCommand(
             filters: $request->only(['name', 'code', 'city', 'type', 'status']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

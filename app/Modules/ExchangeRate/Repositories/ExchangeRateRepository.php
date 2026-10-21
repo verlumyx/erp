@@ -123,8 +123,7 @@ class ExchangeRateRepository extends ExchangeRateFilters implements ExchangeRate
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('rate_date')
-            ->orderBy('currency')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

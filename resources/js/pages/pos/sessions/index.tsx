@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Pagination } from '@/components/pagination';
 import {
     Plus,
     Search,
@@ -38,6 +39,7 @@ interface SessionsIndexProps {
         pos_register_id?: string;
         from_date?: string;
         to_date?: string;
+        page?: number;
     };
     registers: PosRegister[];
     users: Array<{ id: string; name: string }>;
@@ -66,6 +68,12 @@ export default function PosSessionsIndexPage({
         { title: 'Sesiones y Cortes de Caja', href: `/${companyId}/pos-sessions` },
     ];
 
+    const paginationMeta = {
+        total: meta?.total ?? sessions.length,
+        limit: meta?.per_page ?? 10,
+        offset: meta ? (meta.current_page - 1) * (meta.per_page ?? 10) : 0,
+    };
+
     const applyFilters = (newFilters: typeof filters) => {
         setFilters(newFilters);
         router.get(
@@ -77,7 +85,12 @@ export default function PosSessionsIndexPage({
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        applyFilters(filters);
+        applyFilters({ ...filters, page: 1 });
+    };
+
+    const handlePageChange = (offset: number) => {
+        const page = Math.floor(offset / paginationMeta.limit) + 1;
+        applyFilters({ ...filters, page });
     };
 
     const getStatusBadge = (status: string) => {
@@ -154,7 +167,7 @@ export default function PosSessionsIndexPage({
                         <div>
                             <select
                                 value={filters.status || ''}
-                                onChange={(e) => applyFilters({ ...filters, status: e.target.value || undefined })}
+                                onChange={(e) => applyFilters({ ...filters, status: e.target.value || undefined, page: 1 })}
                                 className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm font-medium focus:border-primary focus:outline-hidden"
                             >
                                 <option value="">Todos los Estados</option>
@@ -167,7 +180,7 @@ export default function PosSessionsIndexPage({
                         <div>
                             <select
                                 value={filters.pos_register_id || ''}
-                                onChange={(e) => applyFilters({ ...filters, pos_register_id: e.target.value || undefined })}
+                                onChange={(e) => applyFilters({ ...filters, pos_register_id: e.target.value || undefined, page: 1 })}
                                 className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm font-medium focus:border-primary focus:outline-hidden"
                             >
                                 <option value="">Todas las Cajas</option>
@@ -182,7 +195,7 @@ export default function PosSessionsIndexPage({
                         <div>
                             <select
                                 value={filters.user_id || ''}
-                                onChange={(e) => applyFilters({ ...filters, user_id: e.target.value || undefined })}
+                                onChange={(e) => applyFilters({ ...filters, user_id: e.target.value || undefined, page: 1 })}
                                 className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm font-medium focus:border-primary focus:outline-hidden"
                             >
                                 <option value="">Todos los Cajeros</option>
@@ -275,6 +288,12 @@ export default function PosSessionsIndexPage({
                             </tbody>
                         </table>
                     </div>
+                    <Pagination
+                        meta={paginationMeta}
+                        onPageChange={handlePageChange}
+                        label="sesión"
+                        labelPlural="sesiones"
+                    />
                 </Card>
             </div>
         </AppLayout>

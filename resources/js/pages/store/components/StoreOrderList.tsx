@@ -1,4 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
+import { Pagination } from '@/components/pagination';
 import { Eye, MoreHorizontal, Search } from 'lucide-react';
 import { useState } from 'react';
 import { AmountDual } from '@/components/amount-dual';
@@ -280,10 +281,13 @@ export function StoreOrderList({
                     )}
                 </div>
                 {!embedded && (
-                    <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                        {rows.length} de {meta.total} pedido
-                        {meta.total !== 1 ? 's' : ''}
-                    </div>
+                    <Pagination
+                        meta={meta}
+                        onPageChange={(newOffset) =>
+                            applyFilters({ ...filters, offset: newOffset })
+                        }
+                        label="pedido"
+                    />
                 )}
             </Card>
         </div>

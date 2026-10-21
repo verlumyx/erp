@@ -104,8 +104,7 @@ class StoreItemRepository extends StoreItemFilters implements StoreItemRepositor
 
         $total = $query->count();
 
-        $data = $query->orderBy('app_store_items.order')
-            ->orderBy('app_store_items.title')
+        $data = $query->orderByDesc('app_store_items.code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

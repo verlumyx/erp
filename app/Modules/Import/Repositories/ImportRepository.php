@@ -109,8 +109,7 @@ class ImportRepository extends ImportFilters implements ImportRepositoryInterfac
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('import_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

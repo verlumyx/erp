@@ -101,8 +101,7 @@ class WarehouseRepository extends WarehouseFilters implements WarehouseRepositor
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('is_default')
-            ->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

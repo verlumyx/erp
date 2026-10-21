@@ -8,13 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Modules\PurchaseOrder\Commands\SearchPurchaseOrderCommand;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
-use App\Modules\PurchaseOrder\Resources\PurchaseOrderPendingLineResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderOptionResource;
+use App\Modules\PurchaseOrder\Resources\PurchaseOrderPendingLineResource;
 use App\Modules\PurchaseOrder\Resources\PurchaseOrderResource;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFindService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderFormOptionsService;
-use App\Modules\PurchaseOrder\Services\PurchaseOrderPendingLinesService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderOptionSearchService;
+use App\Modules\PurchaseOrder\Services\PurchaseOrderPendingLinesService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderSearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -53,7 +53,7 @@ class PurchaseOrderGetController extends Controller
 
         $command = new SearchPurchaseOrderCommand(
             filters: $request->only(self::FILTERS),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

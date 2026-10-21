@@ -60,7 +60,7 @@ class CompanyRepository extends CompanyFilters implements CompanyRepositoryInter
 
         $total = $query->count();
 
-        $data = $query->limit($command->limit)->offset($command->offset)->get();
+        $data = $query->orderByDesc('created_at')->limit($command->limit)->offset($command->offset)->get();
 
         return ['data' => $data->all(), 'total' => $total];
     }

@@ -20,6 +20,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/lookup', [DispatchGetController::class, 'lookup'])->name('dispatches.lookup');
             Route::post('/', DispatchPostController::class)->name('dispatches.store');
             Route::get('/{id}', [DispatchGetController::class, 'show'])->where('id', $uuid)->name('dispatches.show');
+            Route::get('/{id}/delivery-note', [DispatchGetController::class, 'deliveryNote'])->where('id', $uuid)->name('dispatches.delivery-note');
             Route::get('/{id}/edit', [DispatchGetController::class, 'edit'])->where('id', $uuid)->name('dispatches.edit');
             Route::put('/{id}', DispatchPutController::class)->where('id', $uuid)->name('dispatches.update');
             Route::put('/{id}/status', DispatchUpdateStatusController::class)->where('id', $uuid)->name('dispatches.update-status');

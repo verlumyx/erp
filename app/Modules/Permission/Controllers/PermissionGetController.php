@@ -23,7 +23,7 @@ class PermissionGetController extends Controller
     {
         $command = new SearchPermissionCommand(
             filters: $request->only(['label', 'module_id', 'is_active']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
         );
 

@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { WhatsAppButton } from '@/components/whatsapp-button';
+import { Pagination } from '@/components/pagination';
 import clients from '@/routes/clients';
 import {
     formatDocument,
@@ -366,10 +367,13 @@ export function ClientList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {rows.length} de {meta.total} cliente
-                    {meta.total !== 1 ? 's' : ''}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="cliente"
+                />
             </Card>
         </div>
     );

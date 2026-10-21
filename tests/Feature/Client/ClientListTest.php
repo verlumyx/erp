@@ -23,6 +23,22 @@ test('the clients index renders with clients', function () {
     );
 });
 
+test('clients are ordered by code descending', function () {
+    [$user, $company] = createUserWithCompany();
+
+    $first = Client::factory()->create(['company_id' => $company->id]);
+    $second = Client::factory()->create(['company_id' => $company->id]);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('clients.index', ['company' => $company->id]));
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('clients.0.id', $second->id)
+        ->where('clients.1.id', $first->id)
+    );
+});
+
 test('clients can be filtered by name', function () {
     [$user, $company] = createUserWithCompany();
 

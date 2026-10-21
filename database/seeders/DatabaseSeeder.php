@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use App\Modules\User\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,5 +23,12 @@ class DatabaseSeeder extends Seeder
 
         $this->call(MenuSeeder::class);
         $this->call(CurrencySeeder::class);
+
+        if (DB::getDriverName() === 'pgsql') {
+            $sqlPath = database_path('sql/seed_initial_modules.sql');
+            if (File::exists($sqlPath)) {
+                DB::unprepared(File::get($sqlPath));
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, Edit, Search, Plus, Mail, MailCheck, ChevronDown, Power } from 'lucide-react';
+import { Pagination } from '@/components/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,8 +43,21 @@ interface UserListProps {
     users: User[];
     loading: boolean;
     error: string | null;
+    meta?: {
+        total: number;
+        limit: number;
+        offset: number;
+        has_more?: boolean;
+    };
+    filters?: {
+        name?: string;
+        email?: string;
+        email_verified?: boolean;
+        limit?: number;
+        offset?: number;
+    };
     onCreate: () => void;
-    onSearch: (filters: { name?: string; email?: string; email_verified?: boolean }) => void;
+    onSearch: (filters: { name?: string; email?: string; email_verified?: boolean; offset?: number }) => void;
 }
 
 const EMAIL_VERIFIED_OPTIONS: OptionType[] = [
@@ -56,15 +70,37 @@ export const UserList: React.FC<UserListProps> = ({
     users: items,
     loading,
     error,
+    meta,
+    filters: initialFilters,
     onCreate,
     onSearch,
 }) => {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
 
-    const [searchName, setSearchName] = useState('');
-    const [searchEmail, setSearchEmail] = useState('');
-    const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>('all');
+    const [searchName, setSearchName] = useState(initialFilters?.name ?? '');
+    const [searchEmail, setSearchEmail] = useState(initialFilters?.email ?? '');
+    const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>(
+        initialFilters?.email_verified === undefined
+            ? 'all'
+            : initialFilters.email_verified
+              ? 'verified'
+              : 'unverified',
+    );
+
+    const handlePageChange = (newOffset: number) => {
+        const filters: { name?: string; email?: string; email_verified?: boolean; offset?: number } = {
+            offset: newOffset,
+        };
+
+        if (searchName.trim()) filters.name = searchName.trim();
+        if (searchEmail.trim()) filters.email = searchEmail.trim();
+        if (emailVerifiedFilter !== 'all') {
+            filters.email_verified = emailVerifiedFilter === 'verified';
+        }
+
+        onSearch(filters);
+    };
 
     const handleSearch = () => {
         const filters: { name?: string; email?: string; email_verified?: boolean } = {};
@@ -306,6 +342,14 @@ export const UserList: React.FC<UserListProps> = ({
                             ))}
                         </TableBody>
                     </Table>
+                )}
+
+                {meta && (
+                    <Pagination
+                        meta={meta}
+                        onPageChange={handlePageChange}
+                        label="usuario"
+                    />
                 )}
             </div>
         </div>

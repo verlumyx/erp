@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/pagination';
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -399,10 +400,13 @@ export function PurchaseReturnList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {rows.length} de {meta.total} devolución
-                    {meta.total !== 1 ? 'es' : ''}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="devolución de compra" labelPlural="devoluciones de compra"
+                />
             </Card>
         </div>
     );

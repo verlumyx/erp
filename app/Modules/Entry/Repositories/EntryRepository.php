@@ -129,8 +129,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('entry_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

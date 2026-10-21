@@ -36,7 +36,7 @@ class StoreItemGetController extends Controller
 
         $command = new SearchStoreItemCommand(
             filters: $request->only(['q', 'is_featured', 'status', 'category_id']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: $company,
         );

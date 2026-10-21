@@ -97,9 +97,7 @@ class WarehouseLocationRepository extends WarehouseLocationFilters implements Wa
 
         $total = $query->count();
 
-        $data = $query->orderBy('warehouse_id')
-            ->orderByDesc('is_default')
-            ->orderBy('location_code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

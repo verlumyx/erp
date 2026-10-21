@@ -35,9 +35,9 @@ class PosSessionGetController extends Controller
             companyId: $companyId,
             filters: $request->only(['status', 'user_id', 'pos_register_id', 'from_date', 'to_date']),
             search: $request->string('search')->toString() ?: null,
-            sortBy: $request->string('sort_by', 'opened_at')->toString(),
+            sortBy: $request->string('sort_by', 'code')->toString(),
             sortDirection: $request->string('sort_direction', 'desc')->toString(),
-            perPage: $request->integer('per_page', 15),
+            perPage: $request->integer('per_page', 10),
             page: $request->integer('page', 1),
         );
 
@@ -130,7 +130,7 @@ class PosSessionGetController extends Controller
             'report' => $report,
         ])->setPaper('letter', 'portrait');
 
-        $filename = ($session->isClosed() ? 'corte-z-' : 'corte-x-') . "{$session->code}.pdf";
+        $filename = ($session->isClosed() ? 'corte-z-' : 'corte-x-')."{$session->code}.pdf";
 
         return $pdf->stream($filename);
     }

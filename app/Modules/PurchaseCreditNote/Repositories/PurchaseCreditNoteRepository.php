@@ -150,8 +150,7 @@ class PurchaseCreditNoteRepository extends PurchaseCreditNoteFilters implements 
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('note_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

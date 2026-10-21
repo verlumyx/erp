@@ -13,8 +13,10 @@ use App\Modules\Dispatch\Services\DispatchFindService;
 use App\Modules\Dispatch\Services\DispatchFormOptionsService;
 use App\Modules\Dispatch\Services\DispatchOptionSearchService;
 use App\Modules\Dispatch\Services\DispatchSearchService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -91,7 +93,7 @@ class DispatchGetController extends Controller
 
         $command = new SearchDispatchCommand(
             filters: $request->only(self::FILTERS),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );
@@ -143,5 +145,22 @@ class DispatchGetController extends Controller
             'dispatch' => (new DispatchResource($model))->resolve(),
             'options' => $this->formOptionsService->execute($company),
         ]);
+    }
+
+    public function deliveryNote(Request $request, string $company, string $id): HttpResponse
+    {
+        abort_unless($request->user()?->hasPermission('dispatches.show') ?? false, 403);
+
+        $dispatch = $this->findService->execute($id, $company);
+        $dispatch->loadMissing('company');
+
+        $pdf = Pdf::loadView('pdf.dispatch-delivery-note', [
+            'dispatch' => $dispatch,
+            'company' => $dispatch->company,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = "nota-entrega-{$dispatch->code}.pdf";
+
+        return $pdf->stream($filename);
     }
 }

@@ -23,7 +23,7 @@ test('the categories index renders with categories', function () {
     );
 });
 
-test('categories are sorted by their order column', function () {
+test('categories are sorted by code descending', function () {
     [$user, $company] = createUserWithCompany();
 
     Category::factory()->create(['company_id' => $company->id, 'name' => 'Tercera', 'order' => 30]);
@@ -35,8 +35,8 @@ test('categories are sorted by their order column', function () {
         ->get(route('categories.index', ['company' => $company->id]));
 
     $response->assertInertia(fn ($page) => $page
-        ->where('categories.0.name', 'Primera')
-        ->where('categories.1.name', 'Segunda')
+        ->where('categories.0.name', 'Segunda')
+        ->where('categories.1.name', 'Primera')
         ->where('categories.2.name', 'Tercera')
     );
 });

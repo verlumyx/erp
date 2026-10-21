@@ -8,13 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Modules\SalesOrder\Commands\SearchSalesOrderCommand;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
-use App\Modules\SalesOrder\Resources\SalesOrderPendingLineResource;
 use App\Modules\SalesOrder\Resources\SalesOrderOptionResource;
+use App\Modules\SalesOrder\Resources\SalesOrderPendingLineResource;
 use App\Modules\SalesOrder\Resources\SalesOrderResource;
 use App\Modules\SalesOrder\Services\SalesOrderFindService;
 use App\Modules\SalesOrder\Services\SalesOrderFormOptionsService;
-use App\Modules\SalesOrder\Services\SalesOrderPendingLinesService;
 use App\Modules\SalesOrder\Services\SalesOrderOptionSearchService;
+use App\Modules\SalesOrder\Services\SalesOrderPendingLinesService;
 use App\Modules\SalesOrder\Services\SalesOrderSearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,7 +48,7 @@ class SalesOrderGetController extends Controller
 
         $command = new SearchSalesOrderCommand(
             filters: $request->only(self::FILTER_KEYS),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

@@ -42,7 +42,7 @@ class StoreCustomerGetController extends Controller
 
         $command = new SearchStoreCustomerCommand(
             filters: $request->only(['q', 'status', 'linked']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: $company,
         );

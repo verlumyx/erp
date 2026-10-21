@@ -31,9 +31,9 @@ class PosRegisterGetController extends Controller
             companyId: $companyId,
             filters: $request->only(['status', 'warehouse_id']),
             search: $request->string('search')->toString() ?: null,
-            sortBy: $request->string('sort_by', 'name')->toString(),
-            sortDirection: $request->string('sort_direction', 'asc')->toString(),
-            perPage: $request->integer('per_page', 15),
+            sortBy: $request->string('sort_by', 'code')->toString(),
+            sortDirection: $request->string('sort_direction', 'desc')->toString(),
+            perPage: $request->integer('per_page', 10),
             page: $request->integer('page', 1),
         );
 

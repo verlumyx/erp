@@ -30,7 +30,7 @@ class UserGetController extends Controller
 
         $command = new SearchUserCommand(
             filters: $request->only(['name', 'email', 'email_verified']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: $company,
         );

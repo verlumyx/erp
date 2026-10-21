@@ -15,7 +15,7 @@ class SearchPosRegisterCommand
         public readonly ?string $search = null,
         public readonly string $sortBy = 'name',
         public readonly string $sortDirection = 'asc',
-        public readonly int $perPage = 15,
+        public readonly int $perPage = 10,
         public readonly int $page = 1,
     ) {}
 }

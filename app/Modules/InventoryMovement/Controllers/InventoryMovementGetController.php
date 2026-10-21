@@ -56,7 +56,7 @@ class InventoryMovementGetController extends Controller
 
         $command = new SearchInventoryMovementCommand(
             filters: $request->only(self::FILTER_KEYS),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

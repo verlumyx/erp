@@ -37,7 +37,7 @@ class ItemGetController extends Controller
 
         $command = new SearchItemCommand(
             filters: $request->only(['name', 'sku', 'barcode', 'code', 'type', 'category_id', 'status']),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

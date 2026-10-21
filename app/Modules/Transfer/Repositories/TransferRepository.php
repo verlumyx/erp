@@ -200,8 +200,7 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('transfer_date')
-            ->orderByDesc('code')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

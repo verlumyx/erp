@@ -104,7 +104,7 @@ class StoreCustomerRepository extends StoreCustomerFilters implements StoreCusto
 
         $total = $query->count();
 
-        $data = $query->orderByDesc('created_at')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

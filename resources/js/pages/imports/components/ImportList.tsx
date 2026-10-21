@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/pagination';
 import { router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -394,10 +395,13 @@ export function ImportList({
                         </div>
                     )}
                 </div>
-                <div className="px-5 py-3.5 text-[13px] font-semibold text-muted-foreground">
-                    {rows.length} de {meta.total} expediente
-                    {meta.total !== 1 ? 's' : ''}
-                </div>
+                <Pagination
+                    meta={meta}
+                    onPageChange={(newOffset) =>
+                        applyFilters({ ...filters, offset: newOffset })
+                    }
+                    label="expediente" labelPlural="expedientes"
+                />
             </Card>
         </div>
     );

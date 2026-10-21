@@ -91,7 +91,7 @@ class SalesReturnGetController extends Controller
 
         $command = new SearchSalesReturnCommand(
             filters: $request->only(self::FILTERS),
-            limit: $request->integer('limit', 20),
+            limit: $request->integer('limit', 10),
             offset: $request->integer('offset', 0),
             companyId: session('current_company_id'),
         );

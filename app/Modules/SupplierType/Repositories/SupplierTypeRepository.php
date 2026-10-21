@@ -70,7 +70,7 @@ class SupplierTypeRepository extends SupplierTypeFilters implements SupplierType
 
         $total = $query->count();
 
-        $data = $query->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

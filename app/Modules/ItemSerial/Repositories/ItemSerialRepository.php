@@ -91,8 +91,7 @@ class ItemSerialRepository extends ItemSerialFilters implements ItemSerialReposi
 
         $total = $query->count();
 
-        $data = $query->orderBy('item_id')
-            ->orderBy('serial_number')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

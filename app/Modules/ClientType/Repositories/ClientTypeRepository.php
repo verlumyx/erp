@@ -70,7 +70,7 @@ class ClientTypeRepository extends ClientTypeFilters implements ClientTypeReposi
 
         $total = $query->count();
 
-        $data = $query->orderBy('name')
+        $data = $query->orderByDesc('code')
             ->limit($command->limit)
             ->offset($command->offset)
             ->get();

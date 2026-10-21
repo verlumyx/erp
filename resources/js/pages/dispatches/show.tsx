@@ -7,6 +7,7 @@ import {
     ClipboardList,
     Contact,
     Edit,
+    Printer,
     StickyNote,
     Truck,
     Warehouse,
@@ -174,6 +175,25 @@ export default function DispatchesShow({ dispatch }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
+                        <a
+                            href={
+                                dispatchRoutes.deliveryNote({
+                                    company: companyId,
+                                    id: dispatch.id,
+                                }).url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                            >
+                                <Printer />
+                                Imprimir nota de entrega
+                            </Button>
+                        </a>
                         {transitions
                             .filter((status) => status !== 'cancelled')
                             .map((status) => (

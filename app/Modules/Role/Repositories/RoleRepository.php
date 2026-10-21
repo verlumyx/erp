@@ -103,7 +103,7 @@ class RoleRepository extends RoleFilters implements RoleRepositoryInterface
 
         $total = $query->count();
 
-        $data = $query->limit($command->limit)->offset($command->offset)->get();
+        $data = $query->orderBy('name')->limit($command->limit)->offset($command->offset)->get();
 
         return ['data' => $data->all(), 'total' => $total];
     }
