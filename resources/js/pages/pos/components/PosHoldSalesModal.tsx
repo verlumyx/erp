@@ -38,7 +38,7 @@ export function PosHoldSalesModal({
                 measurement_unit_id: '',
                 measurement_unit_name: line.measurement_unit_name,
                 measurement_unit_symbol: line.measurement_unit_symbol,
-                tax_id: null,
+                tax_id: line.tax_id || null,
                 tax_percent: line.tax_percent,
             };
 
@@ -49,7 +49,7 @@ export function PosHoldSalesModal({
                 unit_price: line.unit_price,
                 discount_percent: line.discount_percent,
                 discount_amount: line.discount_amount,
-                tax_id: null,
+                tax_id: line.tax_id || null,
                 tax_percent: line.tax_percent,
                 tax_amount: line.tax_amount,
                 subtotal: line.subtotal,

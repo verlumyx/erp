@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Clock, Pause, Trash2, ArrowRight } from 'lucide-react';
 import { usePosCart } from '../context/PosCartContext';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,18 @@ export function PosTotals({
 }: PosTotalsProps) {
     const { subtotal, discountAmount, taxAmount, total, totalVes, clearCart, lines } = usePosCart();
     const hasItems = lines.length > 0;
+
+    const taxLabel = useMemo(() => {
+        const taxedLines = lines.filter((l) => (l.tax_percent ?? 0) > 0);
+        if (taxedLines.length === 0) {
+            return 'IVA (0%):';
+        }
+        const distinctPercents = Array.from(new Set(taxedLines.map((l) => l.tax_percent)));
+        if (distinctPercents.length === 1) {
+            return `IVA (${distinctPercents[0]}%):`;
+        }
+        return 'Impuestos:';
+    }, [lines]);
 
     return (
         <div className="flex flex-col rounded-2xl border bg-card p-4 shadow-xs gap-3">
@@ -43,7 +56,7 @@ export function PosTotals({
                 </div>
 
                 <div className="flex items-center justify-between text-muted-foreground">
-                    <span>IVA (16%):</span>
+                    <span>{taxLabel}</span>
                     <span className="font-mono font-medium text-foreground">$ {taxAmount.toFixed(2)}</span>
                 </div>
 

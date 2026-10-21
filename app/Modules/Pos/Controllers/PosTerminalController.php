@@ -100,7 +100,8 @@ class PosTerminalController extends Controller
                 'measurement_unit_name' => $baseUnit?->measurementUnit?->name,
                 'measurement_unit_symbol' => $baseUnit?->measurementUnit?->symbol,
                 'tax_id' => $item->sale_tax_id,
-                'tax_percent' => $item->saleTax ? (float) $item->saleTax->rate : 0.0,
+                'tax_name' => $item->saleTax?->name,
+                'tax_percent' => $item->saleTax ? (float) $item->saleTax->percentage : 0.0,
             ];
         });
 

@@ -6,6 +6,7 @@ use App\Modules\Item\Models\Item;
 use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\Pos\Models\PosRegister;
 use App\Modules\Pos\Models\PosSession;
+use App\Modules\Tax\Models\Tax;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
@@ -13,11 +14,21 @@ use function Pest\Laravel\actingAs;
 test('pos terminal displays sellable items with warehouse stock and sku', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
 
+    $tax = Tax::factory()->create([
+        'company_id' => $company->id,
+        'code' => 'IVA16',
+        'name' => 'IVA 16%',
+        'percentage' => 16.0,
+        'status' => 'active',
+        'created_by' => $user->id,
+    ]);
+
     $item->update([
         'code' => 'ART-001',
         'sku' => 'ITEM-INVENTARIADO-01',
         'name' => 'ITEM-INVENTARIADO-01',
         'is_sellable' => 'yes',
+        'sale_tax_id' => $tax->id,
         'status' => 'active',
     ]);
 
@@ -74,5 +85,8 @@ test('pos terminal displays sellable items with warehouse stock and sku', functi
         ->where('items.0.name', 'ITEM-INVENTARIADO-01')
         ->where('items.0.code', 'ART-001')
         ->where('items.0.stock', 12)
+        ->where('items.0.tax_id', $tax->id)
+        ->where('items.0.tax_percent', 16)
+        ->where('items.0.tax_name', 'IVA 16%')
     );
 });

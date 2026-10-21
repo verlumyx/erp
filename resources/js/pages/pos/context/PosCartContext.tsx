@@ -49,12 +49,12 @@ export function PosCartProvider({
         taxPercent: number
     ) => {
         const gross = quantity * unitPrice;
-        const discountAmount = Number((gross * (discountPercent / 100)).toFixed(2));
-        const subtotal = Number((gross - discountAmount).toFixed(2));
-        const taxAmount = Number((subtotal * (taxPercent / 100)).toFixed(2));
-        const total = Number((subtotal + taxAmount).toFixed(2));
+        const discount_amount = Number((gross * (discountPercent / 100)).toFixed(2));
+        const subtotal = Number((gross - discount_amount).toFixed(2));
+        const tax_amount = Number((subtotal * (taxPercent / 100)).toFixed(2));
+        const total = Number((subtotal + tax_amount).toFixed(2));
 
-        return { discountAmount, subtotal, taxAmount, total };
+        return { discount_amount, subtotal, tax_amount, total };
     };
 
     const addItem = (item: PosItem, quantity: number = 1) => {
@@ -88,12 +88,10 @@ export function PosCartProvider({
                 quantity,
                 unit_price: item.unit_price,
                 discount_percent: 0,
-                discount_amount: calc.discountAmount,
                 tax_id: item.tax_id,
+                tax_name: item.tax_name,
                 tax_percent: item.tax_percent,
-                tax_amount: calc.taxAmount,
-                subtotal: calc.subtotal,
-                total: calc.total,
+                ...calc,
             };
 
             const updated = [...prev, newLine];
@@ -194,6 +192,26 @@ export function PosCartProvider({
         });
     };
 
+    const handleSetGlobalDiscountPercent = (percent: number) => {
+        const clamped = Math.max(0, Math.min(100, percent));
+        setGlobalDiscountPercent(clamped);
+        setLines((prev) =>
+            prev.map((line) => {
+                const calc = calculateLineAmounts(
+                    line.quantity,
+                    line.unit_price,
+                    clamped,
+                    line.tax_percent
+                );
+                return {
+                    ...line,
+                    discount_percent: clamped,
+                    ...calc,
+                };
+            })
+        );
+    };
+
     const clearCart = () => {
         setLines([]);
         setSelectedLineIndex(0);
@@ -214,14 +232,8 @@ export function PosCartProvider({
     }, [lines]);
 
     const discountAmount = useMemo(() => {
-        const linesDiscount = lines.reduce((sum, line) => sum + line.discount_amount, 0);
-        if (globalDiscountPercent > 0) {
-            const remaining = subtotal - linesDiscount;
-            const globalAmount = remaining * (globalDiscountPercent / 100);
-            return Number((linesDiscount + globalAmount).toFixed(2));
-        }
-        return Number(linesDiscount.toFixed(2));
-    }, [lines, subtotal, globalDiscountPercent]);
+        return Number(lines.reduce((sum, line) => sum + line.discount_amount, 0).toFixed(2));
+    }, [lines]);
 
     const taxAmount = useMemo(() => {
         return Number(lines.reduce((sum, line) => sum + line.tax_amount, 0).toFixed(2));
@@ -249,7 +261,7 @@ export function PosCartProvider({
                 client,
                 setClient,
                 globalDiscountPercent,
-                setGlobalDiscountPercent,
+                setGlobalDiscountPercent: handleSetGlobalDiscountPercent,
                 addItem,
                 updateQuantity,
                 incrementQuantity,

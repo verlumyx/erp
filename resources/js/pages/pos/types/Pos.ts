@@ -108,6 +108,7 @@ export interface PosItem {
     measurement_unit_name?: string;
     measurement_unit_symbol?: string;
     tax_id?: string | null;
+    tax_name?: string | null;
     tax_percent: number;
 }
 
@@ -134,6 +135,7 @@ export interface PosCartLine {
     discount_percent: number;
     discount_amount: number;
     tax_id?: string | null;
+    tax_name?: string | null;
     tax_percent: number;
     tax_amount: number;
     subtotal: number;
@@ -197,6 +199,7 @@ export interface PosSale {
         unit_price: number;
         discount_percent: number;
         discount_amount: number;
+        tax_id?: string | null;
         tax_percent: number;
         tax_amount: number;
         subtotal: number;

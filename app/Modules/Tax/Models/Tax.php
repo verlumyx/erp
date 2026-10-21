@@ -47,6 +47,11 @@ class Tax extends Model
         ];
     }
 
+    public function getRateAttribute(): ?float
+    {
+        return $this->percentage !== null ? (float) $this->percentage : null;
+    }
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'company_id', 'id');

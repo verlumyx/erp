@@ -36,6 +36,15 @@ export function PosCartLine({ line, index, isSelected, onSelect }: PosCartLinePr
                             -{line.discount_percent}% desc
                         </span>
                     )}
+                    {line.tax_percent > 0 ? (
+                        <span className="text-emerald-700 dark:text-emerald-400 font-mono font-medium">
+                            +{line.tax_percent}% IVA
+                        </span>
+                    ) : (
+                        <span className="text-muted-foreground/60 font-mono">
+                            Exento
+                        </span>
+                    )}
                 </div>
             </td>
 

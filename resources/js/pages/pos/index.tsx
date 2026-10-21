@@ -132,19 +132,6 @@ function PosTerminalInner({
         }
     }, [lines, session.id, client, companyId, clearCart, fetchHeldSales]);
 
-    // Open cash drawer (simulate ESC/POS kick or alert)
-    const handleOpenCashDrawer = useCallback(() => {
-        // In physical retail, a silent 0-byte or pulse command can be sent to printer service.
-        // For UI feedback, show toast/notification.
-        const audio = new AudioContext();
-        const osc = audio.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, audio.currentTime);
-        osc.connect(audio.destination);
-        osc.start();
-        osc.stop(audio.currentTime + 0.15);
-    }, []);
-
     // Global keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -231,12 +218,6 @@ function PosTerminalInner({
                 return;
             }
 
-            if (e.key === 'F12') {
-                e.preventDefault();
-                handleOpenCashDrawer();
-                return;
-            }
-
             if (e.key === 'Escape') {
                 if (!isAnyModalOpen && lines.length > 0) {
                     if (confirm('¿Deseas vaciar el carrito actual?')) {
@@ -256,7 +237,6 @@ function PosTerminalInner({
         removeLine,
         clearCart,
         handleHoldCurrentSale,
-        handleOpenCashDrawer,
     ]);
 
     // Handle barcode scanner enter in search input

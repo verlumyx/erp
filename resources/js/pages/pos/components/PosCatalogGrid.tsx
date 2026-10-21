@@ -118,9 +118,20 @@ export function PosCatalogGrid({ items, categories, searchQuery }: PosCatalogGri
                                     </div>
 
                                     <div className="mt-3 pt-2 border-t border-dashed border-border/70 flex flex-col">
-                                        <span className="font-mono text-base font-bold text-foreground">
-                                            $ {item.unit_price.toFixed(2)}
-                                        </span>
+                                        <div className="flex items-baseline justify-between">
+                                            <span className="font-mono text-base font-bold text-foreground">
+                                                $ {item.unit_price.toFixed(2)}
+                                            </span>
+                                            {item.tax_percent > 0 ? (
+                                                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                                    +{item.tax_percent}% IVA
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-medium text-muted-foreground/60">
+                                                    Exento
+                                                </span>
+                                            )}
+                                        </div>
                                         <span className="font-mono text-[11px] text-muted-foreground">
                                             Bs. {priceVes}
                                         </span>

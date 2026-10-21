@@ -28,7 +28,6 @@ const DRAWER_SHORTCUTS: ShortcutItem[] = [
     { keys: ['F9'], action: 'Recuperar Tickets', description: 'Ver y restaurar ventas que estaban en espera.' },
     { keys: ['F10'], action: 'Movimiento de Efectivo', description: 'Registra una entrada (recarga cambio) o salida (sangría / gasto).' },
     { keys: ['F11'], action: 'Lectura X', description: 'Consulta el arqueo parcial acumulado del turno sin cerrar caja.' },
-    { keys: ['F12'], action: 'Abrir Gaveta', description: 'Envía señal para abrir la gaveta eléctrica portamonedas.' },
     { keys: ['Esc'], action: 'Cerrar / Cancelar', description: 'Cierra cualquier modal abierto o solicita confirmación para vaciar el carrito.' },
 ];
 
