@@ -6,12 +6,7 @@
     <style>
         @page {
             size: letter portrait;
-            margin: 15mm 16mm 15mm 16mm;
-        }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+            margin: 18mm 20mm 18mm 20mm;
         }
         body {
             font-family: Helvetica, Arial, sans-serif;
@@ -19,6 +14,8 @@
             color: #0f172a;
             line-height: 1.35;
             background-color: #ffffff;
+            margin: 0;
+            padding: 0;
         }
 
         /* Header Section */
