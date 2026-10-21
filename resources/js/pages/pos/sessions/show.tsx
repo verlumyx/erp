@@ -218,11 +218,33 @@ export default function PosSessionShowPage({ report }: ShowSessionProps) {
                                     <span className="font-mono font-bold">Bs. {report.payments.mobile_ves.toFixed(2)}</span>
                                 </div>
                             </div>
+                            <div className="rounded-xl border p-3 flex justify-between items-center">
+                                <div>
+                                    <span className="text-xs text-muted-foreground block">Transferencia / Zelle</span>
+                                    <span className="font-mono font-bold">$ {(report.payments.transfer_usd ?? 0).toFixed(2)}</span>
+                                </div>
+                            </div>
                             {report.payments.biopago_ves !== undefined && report.payments.biopago_ves > 0 && (
                                 <div className="rounded-xl border p-3 flex justify-between items-center">
                                     <div>
                                         <span className="text-xs text-muted-foreground block">Biopago VES</span>
                                         <span className="font-mono font-bold">Bs. {report.payments.biopago_ves.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            )}
+                            {report.payments.transfer_ves !== undefined && report.payments.transfer_ves > 0 && (
+                                <div className="rounded-xl border p-3 flex justify-between items-center">
+                                    <div>
+                                        <span className="text-xs text-muted-foreground block">Transferencia VES</span>
+                                        <span className="font-mono font-bold">Bs. {report.payments.transfer_ves.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            )}
+                            {report.payments.other !== undefined && report.payments.other > 0 && (
+                                <div className="rounded-xl border p-3 flex justify-between items-center">
+                                    <div>
+                                        <span className="text-xs text-muted-foreground block">Otros</span>
+                                        <span className="font-mono font-bold">$ {report.payments.other.toFixed(2)}</span>
                                     </div>
                                 </div>
                             )}

@@ -173,6 +173,41 @@ test('it accurately calculates expected cash, totals, and payment methods for a 
         'status' => 'active',
     ]);
 
+    // 5. Sale 5: Total $25. Paid with Transfer / Zelle USD ($25).
+    $sale5 = PosSale::create([
+        'company_id' => $company->id,
+        'code' => 'POS000005',
+        'pos_session_id' => $session->id,
+        'pos_register_id' => $register->id,
+        'client_id' => $client->id,
+        'sale_date' => now(),
+        'currency' => 'USD',
+        'exchange_rate' => 50.0,
+        'subtotal' => 25.00,
+        'discount_amount' => 0.00,
+        'tax_amount' => 0.00,
+        'total' => 25.00,
+        'total_in_local_currency' => 1250.00,
+        'paid_amount' => 25.00,
+        'change_amount_usd' => 0.00,
+        'change_amount_ves' => 0.00,
+        'created_by' => $user->id,
+        'status' => 'completed',
+    ]);
+
+    PosPayment::create([
+        'company_id' => $company->id,
+        'pos_sale_id' => $sale5->id,
+        'pos_session_id' => $session->id,
+        'payment_method' => 'transfer',
+        'currency' => 'USD',
+        'exchange_rate' => 1.0,
+        'amount_tendered' => 25.00,
+        'amount_applied' => 25.00,
+        'amount_in_document_currency' => 25.00,
+        'status' => 'active',
+    ]);
+
     // 4. Cash movement: Entrada $30 USD (change_replenishment)
     PosCashMovement::create([
         'company_id' => $company->id,
@@ -203,10 +238,10 @@ test('it accurately calculates expected cash, totals, and payment methods for a 
     $result = $calcService->calculate($session);
 
     // Sales Count
-    expect($result['salesCount'])->toBe(4);
-    expect($result['totalSalesAmount'])->toBe(95.00); // 20 + 50 + 10 + 15
+    expect($result['salesCount'])->toBe(5);
+    expect($result['totalSalesAmount'])->toBe(120.00); // 20 + 50 + 10 + 15 + 25
     expect($result['totalDiscountsAmount'])->toBe(5.00);
-    expect($result['averageTicket'])->toBe(23.75);
+    expect($result['averageTicket'])->toBe(24.00);
 
     // Cash USD in drawer:
     // Opening: 100
@@ -225,4 +260,7 @@ test('it accurately calculates expected cash, totals, and payment methods for a 
 
     // Biopago VES
     expect($result['salesBiopagoVes'])->toBe(750.00);
+
+    // Transfer USD
+    expect($result['salesTransferUsd'])->toBe(25.00);
 });

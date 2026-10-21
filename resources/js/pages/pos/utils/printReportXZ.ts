@@ -34,6 +34,8 @@ export function generateReportXZHtml(report: PosZReport): string {
         card_ves: 0,
         mobile_ves: 0,
         biopago_ves: 0,
+        transfer_usd: 0,
+        transfer_ves: 0,
         other: 0,
     };
 
@@ -43,6 +45,16 @@ export function generateReportXZHtml(report: PosZReport): string {
                 <div class="flex-between">
                     <span>Biopago:</span>
                     <span>Bs. ${payments.biopago_ves.toFixed(2)}</span>
+                </div>
+            `
+            : '';
+
+    const transferVesHtml =
+        payments.transfer_ves && payments.transfer_ves > 0
+            ? `
+                <div class="flex-between">
+                    <span>Transf. VES:</span>
+                    <span>Bs. ${payments.transfer_ves.toFixed(2)}</span>
                 </div>
             `
             : '';
@@ -489,7 +501,12 @@ export function generateReportXZHtml(report: PosZReport): string {
                 <span>Pago Móvil:</span>
                 <span>Bs. ${payments.mobile_ves.toFixed(2)}</span>
             </div>
+            <div class="flex-between">
+                <span>Transf./Zelle:</span>
+                <span class="font-bold">$${(payments.transfer_usd ?? 0).toFixed(2)}</span>
+            </div>
             ${biopagoHtml}
+            ${transferVesHtml}
             ${otherPaymentsHtml}
         </div>
 

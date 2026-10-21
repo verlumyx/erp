@@ -253,6 +253,8 @@ export interface PosZReport {
         card_ves: number;
         mobile_ves: number;
         biopago_ves?: number;
+        transfer_usd?: number;
+        transfer_ves?: number;
         other: number;
     };
     audit_usd: {

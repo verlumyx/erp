@@ -103,10 +103,26 @@ export function PosReadingXModal({ isOpen, onClose }: PosReadingXModalProps) {
                                 <span>Pago Móvil:</span>
                                 <span>Bs. {report.payments.mobile_ves.toFixed(2)}</span>
                             </div>
+                            <div className="flex justify-between">
+                                <span>Transferencia / Zelle:</span>
+                                <span>$ {(report.payments.transfer_usd ?? 0).toFixed(2)}</span>
+                            </div>
                             {report.payments.biopago_ves !== undefined && report.payments.biopago_ves > 0 && (
                                 <div className="flex justify-between">
                                     <span>Biopago:</span>
                                     <span>Bs. {report.payments.biopago_ves.toFixed(2)}</span>
+                                </div>
+                            )}
+                            {report.payments.transfer_ves !== undefined && report.payments.transfer_ves > 0 && (
+                                <div className="flex justify-between">
+                                    <span>Transferencia VES:</span>
+                                    <span>Bs. {report.payments.transfer_ves.toFixed(2)}</span>
+                                </div>
+                            )}
+                            {report.payments.other !== undefined && report.payments.other > 0 && (
+                                <div className="flex justify-between">
+                                    <span>Otros:</span>
+                                    <span>$ {report.payments.other.toFixed(2)}</span>
                                 </div>
                             )}
                         </div>

@@ -18,12 +18,16 @@ class PosSessionCalculationService
      *     cardVes: float,
      *     mobileVes: float,
      *     biopagoVes: float,
+     *     transferUsd: float,
+     *     transferVes: float,
      *     other: float,
      *     salesCashUsd: float,
      *     salesCashVes: float,
      *     salesCardVes: float,
      *     salesMobileVes: float,
      *     salesBiopagoVes: float,
+     *     salesTransferUsd: float,
+     *     salesTransferVes: float,
      *     salesOther: float,
      *     cashInUsd: float,
      *     cashOutUsd: float,
@@ -89,7 +93,11 @@ class PosSessionCalculationService
         $biopagoPayments = $payments->where('payment_method', 'biopago');
         $salesBiopagoVes = round((float) $biopagoPayments->sum('amount_applied'), 2);
 
-        $otherPayments = $payments->whereIn('payment_method', ['transfer', 'credit_note', 'other']);
+        $transferPayments = $payments->where('payment_method', 'transfer');
+        $salesTransferVes = round((float) $transferPayments->where('currency', 'VES')->sum('amount_applied'), 2);
+        $salesTransferUsd = round((float) $transferPayments->where('currency', '!=', 'VES')->sum('amount_applied'), 2);
+
+        $otherPayments = $payments->whereIn('payment_method', ['credit_note', 'other']);
         $salesOther = round((float) $otherPayments->sum('amount_applied'), 2);
 
         // 3. Manual cash movements
@@ -113,6 +121,8 @@ class PosSessionCalculationService
         $expectedCardVes = $salesCardVes;
         $expectedMobileVes = $salesMobileVes;
         $expectedBiopagoVes = $salesBiopagoVes;
+        $expectedTransferUsd = $salesTransferUsd;
+        $expectedTransferVes = $salesTransferVes;
         $expectedOther = $salesOther;
 
         return [
@@ -121,12 +131,16 @@ class PosSessionCalculationService
             'cardVes' => $expectedCardVes,
             'mobileVes' => $expectedMobileVes,
             'biopagoVes' => $expectedBiopagoVes,
+            'transferUsd' => $expectedTransferUsd,
+            'transferVes' => $expectedTransferVes,
             'other' => $expectedOther,
             'salesCashUsd' => $salesCashUsd,
             'salesCashVes' => $salesCashVes,
             'salesCardVes' => $salesCardVes,
             'salesMobileVes' => $salesMobileVes,
             'salesBiopagoVes' => $salesBiopagoVes,
+            'salesTransferUsd' => $salesTransferUsd,
+            'salesTransferVes' => $salesTransferVes,
             'salesOther' => $salesOther,
             'cashInUsd' => $cashInUsd,
             'cashOutUsd' => $cashOutUsd,
