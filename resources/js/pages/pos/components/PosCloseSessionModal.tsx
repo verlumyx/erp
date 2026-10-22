@@ -14,7 +14,7 @@ interface PosCloseSessionModalProps {
 }
 
 const USD_DENOMINATIONS = [100, 50, 20, 10, 5, 1];
-const VES_DENOMINATIONS = [100, 50, 20, 10, 5];
+const VES_DENOMINATIONS = [500, 200, 100, 50, 20, 10, 5];
 
 export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalProps) {
     const { session, companyId } = usePosSession();
@@ -30,6 +30,8 @@ export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalPr
     });
 
     const [vesCounts, setVesCounts] = useState<Record<number, number>>({
+        500: 0,
+        200: 0,
         100: 0,
         50: 0,
         20: 0,
@@ -112,7 +114,7 @@ export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalPr
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-2xl p-6 rounded-2xl">
+            <DialogContent className="max-w-3xl sm:max-w-3xl p-6 rounded-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader className="border-b pb-3">
                     <DialogTitle className="text-xl font-bold flex items-center justify-between">
                         <div className="flex items-center gap-2">
