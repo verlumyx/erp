@@ -84,87 +84,89 @@ export function NotificationBell() {
         );
     };
 
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <button
-                    type="button"
-                    className="relative grid size-9 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label="Notificaciones"
-                >
-                    <Bell className="size-[19px]" />
-                    {unreadCount > 0 && (
-                        <span className="absolute top-2 right-2.5 size-[7px] rounded-full bg-bad ring-2 ring-card" />
-                    )}
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-0">
-                <div className="flex items-center justify-between px-3 py-2.5">
-                    <DropdownMenuLabel className="p-0 text-sm font-semibold">
-                        Notificaciones
-                        {unreadCount > 0 && (
-                            <span className="ml-2 rounded-full bg-primary-soft px-1.5 py-0.5 text-[11px] font-semibold text-primary">
-                                {unreadCount} nuevas
-                            </span>
-                        )}
-                    </DropdownMenuLabel>
-                    {unreadCount > 0 && (
-                        <button
-                            type="button"
-                            onClick={markAllAsRead}
-                            className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                            <CheckCheck className="size-3.5" />
-                            Marcar leídas
-                        </button>
-                    )}
-                </div>
-                <DropdownMenuSeparator className="my-0" />
-                <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-                            No tienes notificaciones.
-                        </div>
-                    ) : (
-                        notifications.map((notification) => {
-                            const { icon: Icon, className } = typeConfig[notification.type];
+    return (<></>)
 
-                            return (
-                                <div
-                                    key={notification.id}
-                                    className={cn(
-                                        'flex items-start gap-3 px-3 py-3 transition-colors hover:bg-muted',
-                                        !notification.read && 'bg-muted/40',
-                                    )}
-                                >
-                                    <span
-                                        className={cn(
-                                            'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full',
-                                            className,
-                                        )}
-                                    >
-                                        <Icon className="size-4" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                                            {notification.title}
-                                            {!notification.read && (
-                                                <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-                                            )}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {notification.description}
-                                        </p>
-                                        <p className="mt-0.5 text-[11px] text-muted-foreground/70">
-                                            {notification.time}
-                                        </p>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
+    // return (
+    //     <DropdownMenu>
+    //         <DropdownMenuTrigger asChild>
+    //             <button
+    //                 type="button"
+    //                 className="relative grid size-9 place-items-center rounded-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    //                 aria-label="Notificaciones"
+    //             >
+    //                 <Bell className="size-[19px]" />
+    //                 {unreadCount > 0 && (
+    //                     <span className="absolute top-2 right-2.5 size-[7px] rounded-full bg-bad ring-2 ring-card" />
+    //                 )}
+    //             </button>
+    //         </DropdownMenuTrigger>
+    //         <DropdownMenuContent align="end" className="w-80 p-0">
+    //             <div className="flex items-center justify-between px-3 py-2.5">
+    //                 <DropdownMenuLabel className="p-0 text-sm font-semibold">
+    //                     Notificaciones
+    //                     {unreadCount > 0 && (
+    //                         <span className="ml-2 rounded-full bg-primary-soft px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+    //                             {unreadCount} nuevas
+    //                         </span>
+    //                     )}
+    //                 </DropdownMenuLabel>
+    //                 {unreadCount > 0 && (
+    //                     <button
+    //                         type="button"
+    //                         onClick={markAllAsRead}
+    //                         className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+    //                     >
+    //                         <CheckCheck className="size-3.5" />
+    //                         Marcar leídas
+    //                     </button>
+    //                 )}
+    //             </div>
+    //             <DropdownMenuSeparator className="my-0" />
+    //             <div className="max-h-80 overflow-y-auto">
+    //                 {notifications.length === 0 ? (
+    //                     <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+    //                         No tienes notificaciones.
+    //                     </div>
+    //                 ) : (
+    //                     notifications.map((notification) => {
+    //                         const { icon: Icon, className } = typeConfig[notification.type];
+    //
+    //                         return (
+    //                             <div
+    //                                 key={notification.id}
+    //                                 className={cn(
+    //                                     'flex items-start gap-3 px-3 py-3 transition-colors hover:bg-muted',
+    //                                     !notification.read && 'bg-muted/40',
+    //                                 )}
+    //                             >
+    //                                 <span
+    //                                     className={cn(
+    //                                         'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full',
+    //                                         className,
+    //                                     )}
+    //                                 >
+    //                                     <Icon className="size-4" />
+    //                                 </span>
+    //                                 <div className="min-w-0 flex-1">
+    //                                     <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+    //                                         {notification.title}
+    //                                         {!notification.read && (
+    //                                             <span className="size-1.5 shrink-0 rounded-full bg-primary" />
+    //                                         )}
+    //                                     </p>
+    //                                     <p className="text-xs text-muted-foreground">
+    //                                         {notification.description}
+    //                                     </p>
+    //                                     <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+    //                                         {notification.time}
+    //                                     </p>
+    //                                 </div>
+    //                             </div>
+    //                         );
+    //                     })
+    //                 )}
+    //             </div>
+    //         </DropdownMenuContent>
+    //     </DropdownMenu>
+    // );
 }

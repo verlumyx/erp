@@ -14,7 +14,7 @@ class CreateWarehouseLocationCommand
         public readonly string $warehouseId,
         public readonly string $name,
         public readonly string $locationCode,
-        public readonly string $createdBy,
+        public readonly ?string $createdBy = null,
         public readonly ?string $parentId = null,
         public readonly string $type = 'shelf',
         public readonly float $capacity = 0,

@@ -12,7 +12,7 @@ class CreateWarehouseCommand
         public readonly string $id,
         public readonly string $companyId,
         public readonly string $name,
-        public readonly string $createdBy,
+        public readonly ?string $createdBy = null,
         public readonly string $type = 'main',
         public readonly ?string $address = null,
         public readonly ?string $phone = null,

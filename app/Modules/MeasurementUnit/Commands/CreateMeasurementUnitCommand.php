@@ -13,7 +13,7 @@ class CreateMeasurementUnitCommand
         public readonly string $companyId,
         public readonly string $name,
         public readonly string $abbreviation,
-        public readonly string $createdBy,
+        public readonly ?string $createdBy = null,
         public readonly ?string $description = null,
     ) {}
 

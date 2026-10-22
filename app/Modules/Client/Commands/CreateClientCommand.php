@@ -18,7 +18,7 @@ class CreateClientCommand
         public readonly string $name,
         public readonly string $documentType,
         public readonly string $documentNumber,
-        public readonly string $createdBy,
+        public readonly ?string $createdBy = null,
         public readonly array $contacts = [],
         public readonly array $addresses = [],
         public readonly ?string $clientTypeId = null,
