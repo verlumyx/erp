@@ -1,7 +1,10 @@
 export interface Company {
   id: string;
   name: string;
+  rif?: string | null;
   address: string;
+  fiscal_address?: string | null;
+  taxpayer_type?: 'ordinary' | 'formal' | 'special';
   email?: string;
   phone?: string;
   status: 'active' | 'inactive';
@@ -12,7 +15,10 @@ export interface Company {
 
 export interface CompanyFormData {
   name: string;
+  rif?: string;
   address: string;
+  fiscal_address?: string;
+  taxpayer_type?: 'ordinary' | 'formal' | 'special';
   email?: string;
   phone?: string;
   description?: string;

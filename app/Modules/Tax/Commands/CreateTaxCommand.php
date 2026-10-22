@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tax\Commands;
 
+use App\Modules\Tax\Models\Tax;
 use App\Modules\Tax\Requests\CreateTaxRequest;
 
 class CreateTaxCommand
@@ -15,8 +16,9 @@ class CreateTaxCommand
         public readonly string $percentage,
         public readonly string $hasWithholding,
         public readonly string $withholdingPercentage,
-        public readonly string $createdBy,
+        public readonly ?string $createdBy = null,
         public readonly ?string $description = null,
+        public readonly string $taxType = Tax::TYPE_GENERAL,
     ) {}
 
     public static function fromRequest(CreateTaxRequest $request, ?string $companyId = null): self
@@ -34,6 +36,7 @@ class CreateTaxCommand
                 : '0',
             createdBy: $request->user()->id,
             description: $request->input('description'),
+            taxType: $request->input('tax_type', Tax::TYPE_GENERAL),
         );
     }
 }

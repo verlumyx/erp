@@ -13,8 +13,10 @@ use App\Modules\SalesInvoice\Services\SalesInvoiceFindService;
 use App\Modules\SalesInvoice\Services\SalesInvoiceFormOptionsService;
 use App\Modules\SalesInvoice\Services\SalesInvoiceOptionSearchService;
 use App\Modules\SalesInvoice\Services\SalesInvoiceSearchService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -155,5 +157,32 @@ class SalesInvoiceGetController extends Controller
             'salesInvoice' => (new SalesInvoiceResource($model))->resolve(),
             'options' => $this->formOptionsService->execute($company),
         ]);
+    }
+
+    public function pdf(Request $request, string $company, string $id): HttpResponse
+    {
+        abort_unless($request->user()?->hasPermission('sales-invoices.show') ?? false, 403);
+
+        $invoice = $this->findService->execute($id, $company);
+        $invoice->loadMissing([
+            'company',
+            'client',
+            'clientAddress',
+            'warehouse',
+            'salesperson',
+            'dispatch',
+            'lines.item',
+            'lines.measurementUnit',
+            'lines.tax',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.sales-invoice', [
+            'invoice' => $invoice,
+            'company' => $invoice->company,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = "factura-{$invoice->code}.pdf";
+
+        return $pdf->stream($filename);
     }
 }

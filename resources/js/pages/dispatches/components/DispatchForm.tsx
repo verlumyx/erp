@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useDispatchFormContext } from '../contexts/DispatchFormContext';
+import { TRANSFER_REASONS } from '../types/Dispatch';
 import { DispatchLinesSection } from './DispatchLinesSection';
 
 export function DispatchForm() {
@@ -233,6 +234,120 @@ export function DispatchForm() {
                             </p>
                         )}
                     </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label
+                            htmlFor="control_number"
+                            className="text-[13px] font-semibold"
+                        >
+                            N° de Control fiscal
+                        </Label>
+                        <Input
+                            id="control_number"
+                            value={data.control_number}
+                            onChange={(e) =>
+                                setData('control_number', e.target.value)
+                            }
+                            maxLength={30}
+                            placeholder="Auto (00-00000001)"
+                            className="h-[42px] rounded-[10px]"
+                        />
+                        <span className="text-[12px] text-muted-foreground">
+                            Correlativo legal SENIAT (Art. 13.3)
+                        </span>
+                        {errors.control_number && (
+                            <p className="text-sm text-bad">
+                                {errors.control_number}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[13px] font-semibold">
+                            ¿Representa venta?
+                        </Label>
+                        <Select2
+                            inputId="is_sale"
+                            options={[
+                                { value: 'yes', label: 'Sí (Ampara venta de bienes)' },
+                                { value: 'no', label: 'No (Traslado no comercial)' },
+                            ]}
+                            value={{
+                                value: data.is_sale ? 'yes' : 'no',
+                                label: data.is_sale
+                                    ? 'Sí (Ampara venta de bienes)'
+                                    : 'No (Traslado no comercial)',
+                            }}
+                            onChange={(opt) => {
+                                const isSale = opt?.value === 'yes';
+                                setData('is_sale', isSale);
+                                if (isSale) {
+                                    setData('transfer_reason', 'sale');
+                                } else if (data.transfer_reason === 'sale') {
+                                    setData('transfer_reason', 'internal_transfer');
+                                }
+                            }}
+                            size="md"
+                        />
+                        <span className="text-[12px] text-muted-foreground">
+                            Art. 20 y 21 PA 00071
+                        </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[13px] font-semibold">
+                            Motivo del traslado
+                        </Label>
+                        <Select2
+                            inputId="transfer_reason"
+                            options={Object.entries(TRANSFER_REASONS).map(([value, label]) => ({
+                                value,
+                                label,
+                            }))}
+                            value={
+                                Object.entries(TRANSFER_REASONS)
+                                    .map(([value, label]) => ({ value, label }))
+                                    .find((opt) => opt.value === data.transfer_reason) ?? null
+                            }
+                            onChange={(opt) => {
+                                const reason = opt?.value ?? 'sale';
+                                setData('transfer_reason', reason);
+                                setData('is_sale', reason === 'sale');
+                            }}
+                            size="md"
+                        />
+                        {errors.transfer_reason && (
+                            <p className="text-sm text-bad">
+                                {errors.transfer_reason}
+                            </p>
+                        )}
+                    </div>
+
+                    {!data.is_sale && (
+                        <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
+                            <Label
+                                htmlFor="transfer_reason_detail"
+                                className="text-[13px] font-semibold"
+                            >
+                                Justificación del traslado no comercial (Art. 21)
+                            </Label>
+                            <Input
+                                id="transfer_reason_detail"
+                                value={data.transfer_reason_detail}
+                                onChange={(e) =>
+                                    setData('transfer_reason_detail', e.target.value)
+                                }
+                                maxLength={500}
+                                placeholder="Ej: Traslado a sucursal para exhibición, reparación de equipos, etc."
+                                className="h-[42px] rounded-[10px]"
+                            />
+                            {errors.transfer_reason_detail && (
+                                <p className="text-sm text-bad">
+                                    {errors.transfer_reason_detail}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div
                         className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3"

@@ -1,5 +1,13 @@
 import type { PosSale } from '../types/Pos';
 
+export interface ReceiptCompanyInfo {
+    name?: string;
+    rif?: string;
+    fiscal_address?: string;
+    taxpayer_type?: string;
+    phone?: string;
+}
+
 const PAYMENT_METHOD_NAMES: Record<string, string> = {
     cash: 'Efectivo',
     card_debit: 'Punto Débito',
@@ -21,20 +29,92 @@ function escapeHtml(text?: string | null): string {
         .replace(/'/g, '&#039;');
 }
 
-export function generateReceiptHtml(sale: PosSale, companyName?: string): string {
+function getTaxpayerTypeLabel(type?: string): string {
+    switch (type) {
+        case 'special':
+            return 'CONTRIBUYENTE ESPECIAL';
+        case 'formal':
+            return 'CONTRIBUYENTE FORMAL';
+        case 'ordinary':
+        default:
+            return 'CONTRIBUYENTE ORDINARIO';
+    }
+}
+
+function formatDateTime(saleDateStr?: string | null): { date: string; time: string } {
+    if (!saleDateStr) {
+        const now = new Date();
+        const d = String(now.getDate()).padStart(2, '0');
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const y = now.getFullYear();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        return { date: `${d}/${m}/${y}`, time: `${hh}:${mm}` };
+    }
+
+    const [datePart, timePart] = saleDateStr.split(' ');
+    let formattedDate = datePart;
+    if (datePart && datePart.includes('-')) {
+        const [y, m, d] = datePart.split('-');
+        formattedDate = `${d}/${m}/${y}`;
+    }
+
+    let formattedTime = '12:00';
+    if (timePart) {
+        formattedTime = timePart.slice(0, 5);
+    }
+
+    return { date: formattedDate, time: formattedTime };
+}
+
+export function generateReceiptHtml(
+    sale: PosSale,
+    companyOrName?: string | ReceiptCompanyInfo | null
+): string {
+    const company: ReceiptCompanyInfo =
+        typeof companyOrName === 'string'
+            ? { name: companyOrName }
+            : companyOrName || {};
+
+    const exchangeRate = Number(sale.exchange_rate) || 1;
+    const dateTime = formatDateTime(sale.sale_date);
+
+    const controlNumber = (sale as any).control_number
+        || (sale.sales_invoice_code
+            ? '00-' + String(sale.sales_invoice_code.replace(/[^0-9]/g, '') || '00001045').padStart(8, '0')
+            : '00-' + String(sale.code.replace(/[^0-9]/g, '') || '00001045').padStart(8, '0'));
+
+    const invoiceNumber = sale.sales_invoice_code || sale.code;
+
+    // Group taxable bases and taxes dynamically by percentage
+    let exemptBase = 0;
+    const taxGroups: Record<number, { base: number; tax: number }> = {};
+
     const linesHtml = (sale.lines || [])
         .map((line) => {
             const desc = escapeHtml(line.item_name || line.item_code || 'Producto');
-            const qtyPrice = `${line.quantity} x $${line.unit_price.toFixed(2)}`;
-            const total = `$${line.total.toFixed(2)}`;
+            const taxPercent = Number(line.tax_percent) || 0;
+            const subtotal = Number(line.subtotal) || 0;
+            const taxAmount = Number(line.tax_amount) || 0;
+
+            if (taxPercent === 0) {
+                exemptBase += subtotal;
+            } else {
+                if (!taxGroups[taxPercent]) {
+                    taxGroups[taxPercent] = { base: 0, tax: 0 };
+                }
+                taxGroups[taxPercent].base += subtotal;
+                taxGroups[taxPercent].tax += taxAmount;
+            }
+
+            const taxTag = taxPercent === 0 ? '(E)' : `(${taxPercent}%)`;
+            const qty = line.quantity.toFixed(1);
+            const total = line.total.toFixed(2);
 
             return `
-                <div class="item-row">
-                    <div class="flex-between">
-                        <span><strong>${escapeHtml(qtyPrice)}</strong></span>
-                        <span class="font-bold">${escapeHtml(total)}</span>
-                    </div>
-                    <div class="item-name">${desc}</div>
+                <div class="flex-between item-row">
+                    <span class="item-desc">${qty} ${desc} ${taxTag}</span>
+                    <span class="item-total">${total}</span>
                 </div>
             `;
         })
@@ -43,22 +123,86 @@ export function generateReceiptHtml(sale: PosSale, companyName?: string): string
     const paymentsHtml = (sale.payments || [])
         .map((p) => {
             const label = PAYMENT_METHOD_NAMES[p.payment_method] || p.payment_method.replace('_', ' ');
-            const amount = `${p.currency === 'USD' ? '$' : 'Bs.'} ${p.amount_tendered.toFixed(2)}`;
+            const curr = p.currency === 'USD' ? '$' : 'Bs.';
+            const amt = `${curr}  ${p.amount_tendered.toFixed(2)}`;
+            const fullLabel = `${label} ${p.currency === 'USD' ? 'USD' : 'VES'}:`;
             return `
                 <div class="flex-between">
-                    <span>${escapeHtml(label)}:</span>
-                    <span>${escapeHtml(amount)}</span>
+                    <span>${escapeHtml(fullLabel)}</span>
+                    <span>${escapeHtml(amt)}</span>
                 </div>
             `;
         })
         .join('');
+
+    const changeHtml = (sale.change_amount_usd > 0 || sale.change_amount_ves > 0)
+        ? `
+            ${sale.change_amount_usd > 0 ? `
+            <div class="flex-between font-bold">
+                <span>Vuelto USD:</span>
+                <span>$  ${sale.change_amount_usd.toFixed(2)}</span>
+            </div>` : ''}
+            ${sale.change_amount_ves > 0 ? `
+            <div class="flex-between font-bold">
+                <span>Vuelto VES:</span>
+                <span>Bs.  ${sale.change_amount_ves.toFixed(2)}</span>
+            </div>` : ''}
+        `
+        : '';
 
     const discountHtml =
         sale.discount_amount > 0
             ? `
                 <div class="flex-between">
                     <span>Descuento:</span>
-                    <span>-$${sale.discount_amount.toFixed(2)}</span>
+                    <span>-$  ${sale.discount_amount.toFixed(2)}</span>
+                </div>
+            `
+            : '';
+
+    const exemptHtml =
+        exemptBase > 0
+            ? `
+                <div class="flex-between">
+                    <span>Exento:</span>
+                    <span>$  ${exemptBase.toFixed(2)}</span>
+                </div>
+            `
+            : '';
+
+    const taxBreakdownHtml = Object.entries(taxGroups)
+        .sort(([a], [b]) => Number(b) - Number(a))
+        .map(([percentStr, data]) => {
+            const percent = Number(percentStr);
+            return `
+                <div class="flex-between">
+                    <span>Base Imponible (${percent}%):</span>
+                    <span>$  ${data.base.toFixed(2)}</span>
+                </div>
+                <div class="flex-between">
+                    <span>IVA (${percent}%):</span>
+                    <span>$  ${data.tax.toFixed(2)}</span>
+                </div>
+            `;
+        })
+        .join('');
+
+    const fallbackTaxHtml =
+        Object.keys(taxGroups).length === 0 && sale.tax_amount > 0
+            ? `
+                <div class="flex-between">
+                    <span>IVA:</span>
+                    <span>$  ${sale.tax_amount.toFixed(2)}</span>
+                </div>
+            `
+            : '';
+
+    const rateHtml =
+        exchangeRate > 1
+            ? `
+                <div class="flex-between meta-rate">
+                    <span>Tasa BCV:</span>
+                    <span>Bs. ${exchangeRate.toFixed(4)} / $</span>
                 </div>
             `
             : '';
@@ -67,9 +211,15 @@ export function generateReceiptHtml(sale: PosSale, companyName?: string): string
         ? `<p><strong>RIF/CI:</strong> ${escapeHtml(sale.client_tax_number)}</p>`
         : '';
 
-    const companyHeader = companyName
-        ? `<div class="company-name">${escapeHtml(companyName)}</div>`
-        : '';
+    const taxpayerLabel = company.taxpayer_type ? getTaxpayerTypeLabel(company.taxpayer_type) : '';
+
+    const companyHeader = `
+        <div class="company-name">${escapeHtml(company.name || 'COMPROBANTE DE VENTA')}</div>
+        ${company.rif ? `<p class="company-meta"><strong>RIF:</strong> ${escapeHtml(company.rif)}</p>` : ''}
+        ${taxpayerLabel ? `<p class="company-meta"><strong>${escapeHtml(taxpayerLabel)}</strong></p>` : ''}
+        ${company.fiscal_address ? `<p class="company-meta">${escapeHtml(company.fiscal_address)}</p>` : ''}
+        ${company.phone ? `<p class="company-meta">Tel: ${escapeHtml(company.phone)}</p>` : ''}
+    `;
 
     return `<!DOCTYPE html>
 <html lang="es">
@@ -209,15 +359,39 @@ export function generateReceiptHtml(sale: PosSale, companyName?: string): string
             padding-top: 4px;
             margin-top: 4px;
         }
+        .sep-double, .sep-single {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: -0.5px;
+            text-align: center;
+            overflow: hidden;
+            white-space: nowrap;
+            color: #000;
+            margin: 3px 0;
+            line-height: 1;
+        }
+        .text-meta {
+            font-size: 9.5px;
+            color: #374151;
+            line-height: 1.2;
+        }
         .flex-between {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
+            gap: 4px;
         }
         .company-name {
             font-size: 12px;
             font-weight: bold;
             text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .company-meta {
+            font-size: 10px;
+            color: #1f2937;
+            line-height: 1.25;
             margin-bottom: 2px;
         }
         .header-title {
@@ -266,6 +440,12 @@ export function generateReceiptHtml(sale: PosSale, companyName?: string): string
             font-size: 11px;
             font-weight: bold;
         }
+        .meta-rate {
+            font-size: 10px;
+            color: #374151;
+            font-style: italic;
+            padding-top: 2px;
+        }
         .payments-section {
             font-size: 10px;
             line-height: 1.35;
@@ -308,72 +488,91 @@ export function generateReceiptHtml(sale: PosSale, companyName?: string): string
     </div>
 
     <div class="receipt-ticket" id="pos-receipt">
-        <!-- Header -->
-        <div class="text-center dashed-border">
-            ${companyHeader}
-            <h3 class="header-title">COMPROBANTE DE VENTA</h3>
-            <p class="ticket-code">TICKET POS: ${escapeHtml(sale.code)}</p>
-            <p class="meta-line">Fecha: ${escapeHtml(sale.sale_date)}</p>
-            <p class="meta-line">
-                Caja: ${escapeHtml(sale.pos_register_name || '01')} • Cajero: ${escapeHtml(sale.pos_session_code || '')}
-            </p>
-        </div>
+        <div class="sep-double">================================</div>
+        <div class="company-name text-center">${escapeHtml(company.name || 'EMPRESA')}</div>
+        ${company.rif ? `<div class="text-center">RIF: ${escapeHtml(company.rif)}</div>` : ''}
+        ${company.fiscal_address ? `<div class="text-center text-meta">${escapeHtml(company.fiscal_address)}</div>` : ''}
+        ${company.phone ? `<div class="text-center">Tel: ${escapeHtml(company.phone)}</div>` : ''}
+        <div class="sep-double">================================</div>
 
-        <!-- Customer -->
-        <div class="dashed-border client-section">
-            <p><strong>Cliente:</strong> ${escapeHtml(sale.client_name || 'Consumidor Final')}</p>
-            ${clientTaxHtml}
+        <div class="header-title text-center">FACTURA</div>
+        <div class="flex-between">
+            <span>FACTURA N°:</span>
+            <span class="font-bold">${escapeHtml(invoiceNumber)}</span>
         </div>
+        <div class="flex-between">
+            <span>N° CONTROL:</span>
+            <span class="font-bold">${escapeHtml(controlNumber)}</span>
+        </div>
+        <div class="flex-between">
+            <span>FECHA: ${escapeHtml(dateTime.date)}</span>
+            <span>HORA: ${escapeHtml(dateTime.time)}</span>
+        </div>
+        <div class="flex-between">
+            <span>CAJA: ${escapeHtml(sale.pos_register_name || '01')}</span>
+            <span>CAJERO: ${escapeHtml(sale.pos_session_code || 'USR-001')}</span>
+        </div>
+        <div class="sep-single">--------------------------------</div>
 
-        <!-- Items Table -->
-        <div class="dashed-border">
-            <div class="flex-between items-header">
-                <span>Cant • Descripción</span>
-                <span>Total</span>
-            </div>
-            ${linesHtml}
+        <div class="flex-between">
+            <span>CLIENTE:</span>
+            <span class="font-bold uppercase">${escapeHtml(sale.client_name || 'CONSUMIDOR FINAL')}</span>
         </div>
+        <div class="flex-between">
+            <span>CI/RIF:</span>
+            <span class="font-bold">${escapeHtml(sale.client_tax_number || 'V-00000000-0')}</span>
+        </div>
+        ${company.fiscal_address ? `
+        <div class="flex-between">
+            <span>DIR:</span>
+            <span class="text-right text-meta">${escapeHtml(company.fiscal_address)}</span>
+        </div>` : ''}
+        <div class="sep-single">--------------------------------</div>
+
+        <div class="flex-between font-bold">
+            <span>CANT DESCRIPCIÓN</span>
+            <span>TOTAL $</span>
+        </div>
+        <div class="sep-single">--------------------------------</div>
+        ${linesHtml}
+        <div class="sep-single">--------------------------------</div>
 
         <!-- Totals -->
-        <div class="dashed-border totals-section">
-            <div class="flex-between">
-                <span>Subtotal:</span>
-                <span>$${sale.subtotal.toFixed(2)}</span>
-            </div>
-            ${discountHtml}
-            <div class="flex-between">
-                <span>IVA:</span>
-                <span>$${sale.tax_amount.toFixed(2)}</span>
-            </div>
-            <div class="flex-between dotted-border total-usd">
-                <span>TOTAL USD:</span>
-                <span>$${sale.total.toFixed(2)}</span>
-            </div>
-            <div class="flex-between total-bs">
-                <span>TOTAL BS:</span>
-                <span>Bs. ${sale.total_in_local_currency.toFixed(2)}</span>
-            </div>
+        <div class="flex-between">
+            <span>Subtotal:</span>
+            <span>$  ${sale.subtotal.toFixed(2)}</span>
         </div>
+        ${discountHtml}
+        ${exemptHtml}
+        ${taxBreakdownHtml}
+        ${fallbackTaxHtml}
+        <div class="sep-single">--------------------------------</div>
+
+        <div class="flex-between font-black total-usd">
+            <span>TOTAL USD:</span>
+            <span>$ ${sale.total.toFixed(2)}</span>
+        </div>
+        <div class="flex-between">
+            <span>Tasa BCV:</span>
+            <span>${exchangeRate.toFixed(2)} Bs./$</span>
+        </div>
+        <div class="flex-between font-bold total-bs">
+            <span>TOTAL VES:</span>
+            <span>Bs.  ${sale.total_in_local_currency.toFixed(2)}</span>
+        </div>
+        <div class="sep-single">--------------------------------</div>
 
         <!-- Payments -->
-        <div class="dashed-border payments-section">
-            <p class="payments-title">Formas de Pago:</p>
-            ${paymentsHtml}
-            <div class="flex-between font-bold" style="padding-top: 3px;">
-                <span>Vuelto USD:</span>
-                <span>$${sale.change_amount_usd.toFixed(2)}</span>
-            </div>
-            <div class="flex-between font-bold">
-                <span>Vuelto VES:</span>
-                <span>Bs. ${sale.change_amount_ves.toFixed(2)}</span>
-            </div>
-        </div>
+        <div class="font-bold" style="padding-bottom: 2px;">PAGOS:</div>
+        ${paymentsHtml}
+        ${changeHtml}
+        <div class="sep-single">--------------------------------</div>
 
         <!-- Footer -->
         <div class="footer-section">
-            <p>¡Gracias por su compra!</p>
-            <p>Conserve este ticket como comprobante</p>
+            <div class="font-bold">¡GRACIAS POR SU COMPRA!</div>
         </div>
+        <div class="sep-double">================================</div>
 
         <!-- Cutting spacer to advance paper past physical tear bar -->
         <div class="cut-spacer">.</div>
@@ -400,7 +599,10 @@ export function generateReceiptHtml(sale: PosSale, companyName?: string): string
 </html>`;
 }
 
-export function printThermalReceipt(sale: PosSale, companyName?: string): void {
+export function printThermalReceipt(
+    sale: PosSale,
+    companyOrName?: string | ReceiptCompanyInfo | null
+): void {
     const width = 450;
     const height = 700;
     const left = Math.max(0, Math.round((window.screen.width - width) / 2));
@@ -418,7 +620,7 @@ export function printThermalReceipt(sale: PosSale, companyName?: string): void {
         return;
     }
 
-    const html = generateReceiptHtml(sale, companyName);
+    const html = generateReceiptHtml(sale, companyOrName);
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();

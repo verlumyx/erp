@@ -20,6 +20,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/lookup', [SalesInvoiceGetController::class, 'lookup'])->name('sales-invoices.lookup');
             Route::post('/', SalesInvoicePostController::class)->name('sales-invoices.store');
             Route::get('/{id}', [SalesInvoiceGetController::class, 'show'])->where('id', $uuid)->name('sales-invoices.show');
+            Route::get('/{id}/pdf', [SalesInvoiceGetController::class, 'pdf'])->where('id', $uuid)->name('sales-invoices.pdf');
             Route::get('/{id}/edit', [SalesInvoiceGetController::class, 'edit'])->where('id', $uuid)->name('sales-invoices.edit');
             Route::put('/{id}', SalesInvoicePutController::class)->where('id', $uuid)->name('sales-invoices.update');
             Route::put('/{id}/status', SalesInvoiceUpdateStatusController::class)->where('id', $uuid)->name('sales-invoices.update-status');

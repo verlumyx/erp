@@ -29,6 +29,10 @@ class DispatchFactory extends Factory
         return [
             'company_id' => Company::factory(),
             'code' => 'DES'.str_pad((string) $sequence, 6, '0', STR_PAD_LEFT),
+            'control_number' => '00-'.str_pad((string) $sequence, 8, '0', STR_PAD_LEFT),
+            'is_sale' => true,
+            'transfer_reason' => 'sale',
+            'transfer_reason_detail' => null,
             'recipient_type' => Client::MORPH_ALIAS,
             'recipient_id' => Client::factory(),
             'sourceable_type' => null,

@@ -18,6 +18,11 @@ class DispatchResource extends JsonResource
             'id' => $this->id,
             'company_id' => $this->company_id,
             'code' => $this->code,
+            'control_number' => $this->control_number,
+            'is_sale' => (bool) ($this->is_sale ?? true),
+            'transfer_reason' => $this->transfer_reason,
+            'transfer_reason_label' => $this->transfer_reason_label,
+            'transfer_reason_detail' => $this->transfer_reason_detail,
             /**
              * A quién va la mercancía. Un despacho de venta la lleva a un
              * cliente; uno que sirve un traslado, a otra bodega propia.

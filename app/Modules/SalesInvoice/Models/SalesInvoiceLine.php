@@ -112,6 +112,11 @@ class SalesInvoiceLine extends Model
         return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
     }
 
+    public function tax(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Tax\Models\Tax::class, 'tax_id', 'id');
+    }
+
     /**
      * Línea del documento origen. Nula en una factura directa.
      */

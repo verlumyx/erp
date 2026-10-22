@@ -8,6 +8,7 @@ import {
     FileText,
     Hash,
     Package,
+    Printer,
     StickyNote,
     User,
     Warehouse,
@@ -173,6 +174,25 @@ export default function SalesInvoicesShow({ salesInvoice: invoice }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
+                        <a
+                            href={
+                                salesInvoices.pdf({
+                                    company: companyId,
+                                    id: invoice.id,
+                                }).url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                            >
+                                <Printer />
+                                Imprimir Factura
+                            </Button>
+                        </a>
                         {canConfirm && (
                             <Button
                                 className="h-10 rounded-[11px] px-4 font-semibold"

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Tax\Requests;
 
+use App\Modules\Tax\Models\Tax;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,6 +33,7 @@ class CreateTaxRequest extends FormRequest
             ],
             'description' => ['nullable', 'string'],
             'percentage' => ['required', 'numeric', 'min:0', 'max:100'],
+            'tax_type' => ['nullable', 'string', Rule::in(Tax::TAX_TYPES)],
             'has_withholding' => ['required', 'string', 'in:yes,no'],
             'withholding_percentage' => [
                 'nullable',

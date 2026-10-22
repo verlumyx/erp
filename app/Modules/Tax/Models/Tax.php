@@ -24,6 +24,18 @@ class Tax extends Model
 
     public const CODE_PREFIX = 'IMP';
 
+    public const TYPE_GENERAL = 'general';
+    public const TYPE_REDUCED = 'reduced';
+    public const TYPE_ADDITIONAL = 'additional';
+    public const TYPE_EXEMPT = 'exempt';
+
+    public const TAX_TYPES = [
+        self::TYPE_GENERAL,
+        self::TYPE_REDUCED,
+        self::TYPE_ADDITIONAL,
+        self::TYPE_EXEMPT,
+    ];
+
     protected $fillable = [
         'id',
         'company_id',
@@ -31,6 +43,7 @@ class Tax extends Model
         'name',
         'description',
         'percentage',
+        'tax_type',
         'has_withholding',
         'withholding_percentage',
         'status',
@@ -45,6 +58,11 @@ class Tax extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function isExempt(): bool
+    {
+        return $this->tax_type === self::TYPE_EXEMPT || (float) $this->percentage === 0.0;
     }
 
     public function getRateAttribute(): ?float

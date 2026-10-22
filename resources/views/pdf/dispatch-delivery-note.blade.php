@@ -3,7 +3,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <meta charset="UTF-8">
-    <title>Nota de Entrega - {{ $dispatch->code }}</title>
+    <title>Guía de Despacho / Orden de Entrega - {{ $dispatch->code }}</title>
     <style>
         @page {
             size: letter portrait;
@@ -61,6 +61,47 @@
             text-transform: uppercase;
             letter-spacing: 0.4px;
             margin-top: 2px;
+        }
+        .tax-legend {
+            font-size: 8px;
+            font-weight: bold;
+            color: #b91c1c;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            text-align: right;
+            margin-top: 3px;
+        }
+        .control-number-container {
+            font-size: 8px;
+            color: #0f172a;
+            margin-top: 3px;
+            text-align: right;
+        }
+        .control-number-badge {
+            font-size: 10px;
+            font-weight: bold;
+            color: #b91c1c;
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.5px;
+        }
+        .operation-badge {
+            display: inline-block;
+            font-size: 7px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .operation-sale {
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        .operation-nonsale {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
         }
         .code-badge {
             display: inline-block;
@@ -448,31 +489,55 @@
         // Filter active lines
         $activeLines = ($dispatch->lines ?? collect())->filter(fn($l) => $l->status === 'active')->sortBy('line_number');
         $hasOrderedQty = $activeLines->some(fn($l) => !empty($l->sourceable?->quantity) || !empty($l->source_quantity));
+
+        $isSale = method_exists($dispatch, 'isSale') ? $dispatch->isSale() : (bool) ($dispatch->is_sale ?? true);
+        $reasonLabel = $dispatch->transfer_reason_label ?? ($isSale ? 'Venta de bienes' : 'Traslado sin efecto de venta');
+
+        if ($dispatch->recipient_type === 'warehouse' && $dispatch->recipient) {
+            $recipientName = ($company->name ?? 'Misma Empresa') . ' — Bodega ' . ($dispatch->recipient->name ?? '');
+            $recipientDoc = $company->rif ?? '—';
+            $recipientPhone = $company->phone ?? '—';
+        }
     @endphp
 
     <!-- Header -->
     <table class="header-table">
         <tr>
-            <td style="width: 55%; vertical-align: middle;">
+            <td style="width: 53%; vertical-align: middle;">
                 <div class="company-name">{{ $company->name ?? 'EMPRESA' }}</div>
-                @if(!empty($company->address))
-                    <div class="company-meta">{{ $company->address }}</div>
+                @if(!empty($company->rif))
+                    <div class="company-meta"><strong>RIF:</strong> {{ $company->rif }}</div>
+                @endif
+                @if(!empty($company->fiscal_address) || !empty($company->address))
+                    <div class="company-meta"><strong>Domicilio Fiscal:</strong> {{ $company->fiscal_address ?? $company->address }}</div>
                 @endif
                 @if(!empty($company->phone))
                     <div class="company-meta"><strong>Teléfono:</strong> {{ $company->phone }}</div>
                 @endif
-                @if(!empty($company->description))
-                    <div class="company-meta">{{ $company->description }}</div>
+                @if(!empty($company->taxpayer_type))
+                    <div class="company-meta">
+                        <strong>Condición IVA:</strong>
+                        {{ match($company->taxpayer_type) {
+                            'formal' => 'CONTRIBUYENTE FORMAL',
+                            'special' => 'CONTRIBUYENTE ESPECIAL',
+                            default => 'CONTRIBUYENTE ORDINARIO',
+                        } }}
+                    </div>
                 @endif
             </td>
-            <td style="width: 45%; vertical-align: middle; text-align: right;">
-                <div class="doc-main-title">Nota de Entrega</div>
-                <div class="doc-sub-title">Comprobante de Despacho y Recepción</div>
+            <td style="width: 47%; vertical-align: middle; text-align: right;">
+                <div class="doc-main-title">Guía de Despacho</div>
+                <div class="doc-sub-title">Orden de Entrega</div>
+                <div class="tax-legend">SIN DERECHO A CRÉDITO FISCAL</div>
                 <div style="margin-top: 4px;">
                     <span class="code-badge">{{ $dispatch->code }}</span>
                     <span class="status-badge {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
                 </div>
-                <div class="company-meta" style="margin-top: 4px;">
+                <div class="control-number-container">
+                    <strong style="color: #64748b; font-size: 8px;">N° DE CONTROL:</strong>
+                    <span class="control-number-badge">{{ $dispatch->control_number ?? '00-00000000' }}</span>
+                </div>
+                <div class="company-meta" style="margin-top: 3px;">
                     <strong>Fecha Emisión:</strong> {{ $dispatch->dispatch_date?->format('d/m/Y') ?? date('d/m/Y') }}
                     @if($dispatch->delivery_date)
                         &nbsp;|&nbsp; <strong>Fecha Entrega:</strong> {{ $dispatch->delivery_date->format('d/m/Y') }}
@@ -534,6 +599,28 @@
                         <td class="data-value">{{ $sourceDocLabel }}</td>
                     </tr>
                     <tr>
+                        <td class="data-label">Operación:</td>
+                        <td class="data-value">
+                            <span class="operation-badge {{ $isSale ? 'operation-sale' : 'operation-nonsale' }}">
+                                {{ $isSale ? 'Venta de Bienes' : 'Traslado (No Venta)' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="data-label">Motivo Traslado:</td>
+                        <td class="data-value data-value-strong">
+                            {{ $reasonLabel }}
+                        </td>
+                    </tr>
+                    @if(!empty($dispatch->transfer_reason_detail))
+                        <tr>
+                            <td class="data-label">Justificación:</td>
+                            <td class="data-value" style="font-style: italic;">
+                                {{ $dispatch->transfer_reason_detail }}
+                            </td>
+                        </tr>
+                    @endif
+                    <tr>
                         <td class="data-label">Conductor:</td>
                         <td class="data-value">{{ $dispatch->driver?->name ?? $dispatch->driver_name ?? '—' }}</td>
                     </tr>
@@ -588,6 +675,19 @@
             </td>
         </tr>
     </table>
+
+    <!-- Aviso Legal de Operación -->
+    @if(!$isSale)
+        <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-left: 3.5px solid #d97706; border-radius: 4px; padding: 6px 10px; font-size: 8px; color: #92400e; margin-bottom: 9px; line-height: 1.35;">
+            <strong style="text-transform: uppercase;">Aviso Legal — Traslado que no representa venta (Arts. 20 y 21 Providencia SENIAT N° SNAT/2011/00071):</strong><br>
+            Este documento ampara única y exclusivamente el traslado y circulación física de los bienes muebles descritos por motivo de <strong>{{ strtolower($reasonLabel) }}</strong>{{ !empty($dispatch->transfer_reason_detail) ? ' (' . $dispatch->transfer_reason_detail . ')' : '' }}. La presente operación no constituye venta ni genera derecho a crédito fiscal. En virtud del Art. 21, se omite el precio comercial.
+        </div>
+    @else
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-left: 3.5px solid #16a34a; border-radius: 4px; padding: 5px 10px; font-size: 7.5px; color: #166534; margin-bottom: 9px; line-height: 1.35;">
+            <strong>OPERACIÓN DE VENTA (Art. 20 Providencia SENIAT N° SNAT/2011/00071):</strong>
+            La respectiva factura comercial deberá emitirse dentro del mismo período de imposición mensual, haciendo referencia expresa a la presente Guía de Despacho / Orden de Entrega.
+        </div>
+    @endif
 
     <!-- Detalle de Productos Despachados -->
     <div class="section-header">Artículos Despachados</div>
@@ -675,7 +775,7 @@
 
     <!-- Declaración de Conformidad -->
     <div class="conformity-text">
-        <strong>Declaración de recepción:</strong> El receptor confirma haber recibido conforme la totalidad de los artículos detallados en la presente nota de entrega, en las cantidades descritas y en perfecto estado físico y embalaje.
+        <strong>Declaración de recepción y traslado:</strong> El receptor confirma haber recibido conforme la totalidad de los artículos detallados en la presente Guía de Despacho / Orden de Entrega, en las cantidades descritas y en perfecto estado físico y embalaje. Documento emitido sin derecho a crédito fiscal (Art. 21 Providencia Administrativa SENIAT N° SNAT/2011/00071).
     </div>
 
     <!-- Firmas de Entrega y Recepción -->
@@ -715,7 +815,7 @@
     <table class="footer-table">
         <tr>
             <td style="text-align: left;">
-                Nota de Entrega · Documento oficial de transporte y recepción · Sistema ERP
+                Guía de Despacho / Orden de Entrega · Providencia Administrativa SENIAT N° SNAT/2011/00071 (Art. 20 y 21) · <strong>SIN DERECHO A CRÉDITO FISCAL</strong>
             </td>
             <td style="text-align: right;">
                 Fecha y hora de impresión: {{ date('d/m/Y H:i:s') }}

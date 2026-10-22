@@ -22,7 +22,12 @@ class CompanyFactory extends Factory
     {
         return [
             'name' => 'Company '.Str::uuid()->toString(),
+            'rif' => 'J-'.fake()->numerify('########-#'),
             'status' => 'active',
+            'address' => fake()->optional()->address(),
+            'fiscal_address' => fake()->optional()->address(),
+            'phone' => fake()->optional()->phoneNumber(),
+            'taxpayer_type' => 'ordinary',
             'description' => fake()->optional()->sentence(),
             'created_by' => User::factory(),
         ];

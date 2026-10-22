@@ -24,6 +24,7 @@ class TaxRepository extends TaxFilters implements TaxRepositoryInterface
                 'name' => $command->name,
                 'description' => $command->description,
                 'percentage' => $command->percentage,
+                'tax_type' => $command->taxType,
                 'has_withholding' => $command->hasWithholding,
                 'withholding_percentage' => $command->withholdingPercentage,
                 'status' => 'active',
@@ -48,13 +49,19 @@ class TaxRepository extends TaxFilters implements TaxRepositoryInterface
 
     public function update(Tax $model, UpdateTaxCommand $command): void
     {
-        $model->update([
+        $attributes = [
             'name' => $command->name,
             'description' => $command->description,
             'percentage' => $command->percentage,
             'has_withholding' => $command->hasWithholding,
             'withholding_percentage' => $command->withholdingPercentage,
-        ]);
+        ];
+
+        if ($command->taxType !== null) {
+            $attributes['tax_type'] = $command->taxType;
+        }
+
+        $model->update($attributes);
     }
 
     public function updateStatus(Tax $model, UpdateStatusTaxCommand $command): void

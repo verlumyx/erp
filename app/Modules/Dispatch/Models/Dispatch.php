@@ -40,6 +40,21 @@ class Dispatch extends Model
     public const CODE_PREFIX = 'DES';
 
     /**
+     * Motivos legales de traslado conforme al Art. 21 de la Providencia 00071 del SENIAT.
+     */
+    public const TRANSFER_REASONS = [
+        'sale' => 'Venta de bienes',
+        'internal_transfer' => 'Traslado a depósitos, almacenes o bodegas del propio emisor',
+        'external_transfer' => 'Traslado a depósitos o almacenes de terceros',
+        'repair' => 'Reparación o mantenimiento',
+        'distribution' => 'Traslado para su distribución',
+        'purchase_return' => 'Devolución a proveedor',
+        'consignment' => 'Consignación',
+        'demonstration' => 'Exhibición o demostración',
+        'other' => 'Otras causas',
+    ];
+
+    /**
      * Alias con el que el despacho viaja en las columnas `sourceable_type` de
      * los documentos que origina: la entrada que recibe en destino lo que este
      * despacho sacó del origen.
@@ -118,6 +133,10 @@ class Dispatch extends Model
         'id',
         'company_id',
         'code',
+        'control_number',
+        'is_sale',
+        'transfer_reason',
+        'transfer_reason_detail',
         'recipient_type',
         'recipient_id',
         'sourceable_type',
@@ -148,6 +167,7 @@ class Dispatch extends Model
     protected function casts(): array
     {
         return [
+            'is_sale' => 'boolean',
             'dispatch_date' => 'date',
             'delivery_date' => 'date',
             'total_quantity' => 'decimal:4',
@@ -158,6 +178,20 @@ class Dispatch extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function getTransferReasonLabelAttribute(): ?string
+    {
+        if (empty($this->transfer_reason)) {
+            return null;
+        }
+
+        return self::TRANSFER_REASONS[$this->transfer_reason] ?? $this->transfer_reason;
+    }
+
+    public function isSale(): bool
+    {
+        return (bool) ($this->is_sale ?? ($this->sourceable_type === SalesOrder::MORPH_ALIAS || $this->sourceable_type === SalesInvoice::MORPH_ALIAS));
     }
 
     public function company(): BelongsTo

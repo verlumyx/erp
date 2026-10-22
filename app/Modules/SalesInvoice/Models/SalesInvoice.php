@@ -168,6 +168,11 @@ class SalesInvoice extends Model
         return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
     }
 
+    public function dispatch(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Dispatch\Models\Dispatch::class, 'dispatch_id', 'id');
+    }
+
     public function salesperson(): BelongsTo
     {
         return $this->belongsTo(User::class, 'salesperson_id', 'id');

@@ -129,6 +129,11 @@ export default function DispatchesShow({ dispatch }: Props) {
                             <h1 className="text-2xl font-extrabold tracking-tight">
                                 {dispatch.code}
                             </h1>
+                            {dispatch.control_number && (
+                                <span className="rounded-md border bg-muted px-2.5 py-0.5 font-mono text-xs font-semibold text-muted-foreground">
+                                    Ctrl: {dispatch.control_number}
+                                </span>
+                            )}
                             <StatusPill
                                 kind={STATUS_PILL_KIND[dispatch.status]}
                             >
@@ -191,7 +196,7 @@ export default function DispatchesShow({ dispatch }: Props) {
                                 className="h-10 rounded-[11px] bg-card px-4 font-semibold"
                             >
                                 <Printer />
-                                Imprimir nota de entrega
+                                Imprimir Guía de Despacho
                             </Button>
                         </a>
                         {transitions
@@ -299,6 +304,34 @@ export default function DispatchesShow({ dispatch }: Props) {
                         <DataRow
                             label="Costo de la mercancía"
                             value={formatAmount(dispatch.total_cost, currency)}
+                        />
+                    </Card>
+
+                    <Card className="gap-3 rounded-2xl px-[18px] py-4 lg:col-span-2">
+                        <div className="text-[13px] font-bold text-muted-foreground">
+                            Información Fiscal (SENIAT PA 00071 - Art. 20 y 21)
+                        </div>
+                        <DataRow
+                            label="N° de Control"
+                            value={dispatch.control_number ? <span className="font-mono text-bad">{dispatch.control_number}</span> : '—'}
+                        />
+                        <DataRow
+                            label="Naturaleza de la operación"
+                            value={dispatch.is_sale ? 'Venta de bienes' : 'Traslado no comercial (sin venta)'}
+                        />
+                        <DataRow
+                            label="Motivo del traslado"
+                            value={dispatch.transfer_reason_label ?? dispatch.transfer_reason ?? 'Venta'}
+                        />
+                        {dispatch.transfer_reason_detail && (
+                            <DataRow
+                                label="Justificación / Detalle"
+                                value={dispatch.transfer_reason_detail}
+                            />
+                        )}
+                        <DataRow
+                            label="Régimen fiscal"
+                            value={<span className="font-semibold text-bad">SIN DERECHO A CRÉDITO FISCAL</span>}
                         />
                     </Card>
 

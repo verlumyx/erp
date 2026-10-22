@@ -12,6 +12,11 @@ interface UseCompanyFormProps {
 interface CompanyFormData {
     id: string;
     name: string;
+    rif: string;
+    address: string;
+    fiscal_address: string;
+    phone: string;
+    taxpayer_type: 'ordinary' | 'formal' | 'special';
     description: string;
 }
 
@@ -27,6 +32,11 @@ export function useCompanyForm({ mode, initialData, onSuccess }: UseCompanyFormP
     const { data, setData, post, put, processing, errors, reset } = useForm<CompanyFormData>({
         id: initialData?.id ?? generateUUID(),
         name: initialData?.name ?? '',
+        rif: initialData?.rif ?? '',
+        address: initialData?.address ?? '',
+        fiscal_address: initialData?.fiscal_address ?? '',
+        phone: initialData?.phone ?? '',
+        taxpayer_type: initialData?.taxpayer_type ?? 'ordinary',
         description: initialData?.description ?? '',
     });
 

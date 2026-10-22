@@ -33,10 +33,34 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     public function create(CreateDispatchCommand $command, array $unitCosts, array $lines): void
     {
         DB::transaction(function () use ($command, $unitCosts, $lines): void {
+            $isSale = $command->isSale;
+            $transferReason = $command->transferReason;
+
+            if ($command->sourceableType === 'sales_order' || $command->sourceableType === 'sales_invoice') {
+                $isSale = true;
+                $transferReason = $transferReason ?: 'sale';
+            } elseif ($command->sourceableType === 'transfer') {
+                $isSale = false;
+                $transferReason = $transferReason ?: 'internal_transfer';
+            } elseif ($command->sourceableType === 'purchase_return') {
+                $isSale = false;
+                $transferReason = $transferReason ?: 'purchase_return';
+            } else {
+                $transferReason = $transferReason ?: ($isSale ? 'sale' : 'other');
+            }
+
+            $controlNumber = !empty($command->controlNumber)
+                ? $command->controlNumber
+                : $this->generateNextControlNumber($command->companyId);
+
             $dispatch = Dispatch::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
                 'code' => $this->generateNextCode($command->companyId),
+                'control_number' => $controlNumber,
+                'is_sale' => $isSale,
+                'transfer_reason' => $transferReason,
+                'transfer_reason_detail' => $command->transferReasonDetail,
                 'recipient_type' => $command->recipientType,
                 'recipient_id' => $command->recipientId,
                 'sourceable_type' => $command->sourceableType,
@@ -83,8 +107,32 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     public function update(Dispatch $model, UpdateDispatchCommand $command, array $unitCosts, array $lines): void
     {
         DB::transaction(function () use ($model, $command, $unitCosts, $lines): void {
+            $isSale = $command->isSale;
+            $transferReason = $command->transferReason;
+
+            if ($command->sourceableType === 'sales_order' || $command->sourceableType === 'sales_invoice') {
+                $isSale = true;
+                $transferReason = $transferReason ?: 'sale';
+            } elseif ($command->sourceableType === 'transfer') {
+                $isSale = false;
+                $transferReason = $transferReason ?: 'internal_transfer';
+            } elseif ($command->sourceableType === 'purchase_return') {
+                $isSale = false;
+                $transferReason = $transferReason ?: 'purchase_return';
+            } else {
+                $transferReason = $transferReason ?: ($isSale ? 'sale' : 'other');
+            }
+
+            $controlNumber = !empty($command->controlNumber)
+                ? $command->controlNumber
+                : ($model->control_number ?: $this->generateNextControlNumber($model->company_id));
+
             /** El resultado del viaje y la marca de anulación no se editan aquí. */
             $model->update([
+                'control_number' => $controlNumber,
+                'is_sale' => $isSale,
+                'transfer_reason' => $transferReason,
+                'transfer_reason_detail' => $command->transferReasonDetail,
                 'recipient_type' => $command->recipientType,
                 'recipient_id' => $command->recipientId,
                 'sourceable_type' => $command->sourceableType,
@@ -509,6 +557,27 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
         }
 
         return $measures;
+    }
+
+    /**
+     * Generate the next sequential per-company fiscal control number (00-00000001, 00-00000002, …).
+     */
+    private function generateNextControlNumber(string $companyId): string
+    {
+        $last = Dispatch::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull('control_number')
+            ->where('control_number', '!=', '')
+            ->lockForUpdate()
+            ->orderByDesc('control_number')
+            ->value('control_number');
+
+        $next = 1;
+        if ($last !== null && preg_match('/(\d+)$/', $last, $matches)) {
+            $next = ((int) $matches[1]) + 1;
+        }
+
+        return '00-'.str_pad((string) $next, 8, '0', STR_PAD_LEFT);
     }
 
     /**

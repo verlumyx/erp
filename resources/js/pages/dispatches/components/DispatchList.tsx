@@ -282,6 +282,11 @@ export function DispatchList({
                                 <span className="font-semibold text-muted-foreground tabular-nums">
                                     {row.code}
                                 </span>
+                                {row.control_number && (
+                                    <div className="text-[11px] font-mono text-muted-foreground">
+                                        Ctrl: {row.control_number}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex min-w-0 flex-col">
                                 <span className="truncate font-bold">

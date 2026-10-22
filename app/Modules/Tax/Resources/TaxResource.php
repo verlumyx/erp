@@ -21,6 +21,7 @@ class TaxResource extends JsonResource
             'name' => $this->name,
             'description' => $this->description,
             'percentage' => (string) $this->percentage,
+            'tax_type' => $this->tax_type,
             'has_withholding' => $this->has_withholding,
             'withholding_percentage' => (string) $this->withholding_percentage,
             'status' => $this->status,

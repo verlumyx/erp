@@ -14,7 +14,12 @@ class CompanyResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'rif' => $this->rif,
             'status' => $this->status,
+            'address' => $this->address,
+            'fiscal_address' => $this->fiscal_address,
+            'phone' => $this->phone,
+            'taxpayer_type' => $this->taxpayer_type,
             'description' => $this->description,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

@@ -50,8 +50,9 @@ class PosSessionZReportResource extends JsonResource
             'company' => [
                 'id' => $session->company?->id,
                 'name' => $session->company?->name,
-                'tax_number' => $session->company?->tax_number ?? $session->company?->rif ?? '',
-                'address' => $session->company?->address ?? '',
+                'tax_number' => $session->company?->rif ?? $session->company?->tax_number ?? '',
+                'address' => $session->company?->fiscal_address ?? $session->company?->address ?? '',
+                'taxpayer_type' => $session->company?->taxpayer_type ?? '',
             ],
             'summary' => [
                 'sales_count' => $calc['salesCount'],

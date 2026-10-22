@@ -18,6 +18,11 @@ class CompanyRepository extends CompanyFilters implements CompanyRepositoryInter
         Company::create([
             'id' => $command->id,
             'name' => $command->name,
+            'rif' => $command->rif,
+            'address' => $command->address,
+            'fiscal_address' => $command->fiscalAddress,
+            'phone' => $command->phone,
+            'taxpayer_type' => $command->taxpayerType ?? 'ordinary',
             'description' => $command->description,
             'status' => 'active',
             'created_by' => $command->createdBy,
@@ -36,10 +41,28 @@ class CompanyRepository extends CompanyFilters implements CompanyRepositoryInter
 
     public function update(Company $model, UpdateCompanyCommand $command): void
     {
-        $model->update([
+        $attributes = [
             'name' => $command->name,
             'description' => $command->description,
-        ]);
+        ];
+
+        if ($command->rif !== null) {
+            $attributes['rif'] = $command->rif;
+        }
+        if ($command->address !== null) {
+            $attributes['address'] = $command->address;
+        }
+        if ($command->fiscalAddress !== null) {
+            $attributes['fiscal_address'] = $command->fiscalAddress;
+        }
+        if ($command->phone !== null) {
+            $attributes['phone'] = $command->phone;
+        }
+        if ($command->taxpayerType !== null) {
+            $attributes['taxpayer_type'] = $command->taxpayerType;
+        }
+
+        $model->update($attributes);
     }
 
     public function updateStatus(Company $model, UpdateStatusCompanyCommand $command): void

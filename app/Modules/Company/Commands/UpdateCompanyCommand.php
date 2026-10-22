@@ -10,6 +10,11 @@ class UpdateCompanyCommand
 {
     public function __construct(
         public readonly string $name,
+        public readonly ?string $rif = null,
+        public readonly ?string $address = null,
+        public readonly ?string $fiscalAddress = null,
+        public readonly ?string $phone = null,
+        public readonly ?string $taxpayerType = null,
         public readonly ?string $description = null,
     ) {}
 
@@ -17,6 +22,11 @@ class UpdateCompanyCommand
     {
         return new self(
             name: $request->string('name')->toString(),
+            rif: $request->input('rif'),
+            address: $request->input('address'),
+            fiscalAddress: $request->input('fiscal_address'),
+            phone: $request->input('phone'),
+            taxpayerType: $request->input('taxpayer_type'),
             description: $request->input('description'),
         );
     }

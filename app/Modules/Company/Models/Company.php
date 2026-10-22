@@ -21,11 +21,26 @@ class Company extends Model
 
     protected $keyType = 'string';
 
+    public const TAXPAYER_TYPE_ORDINARY = 'ordinary';
+    public const TAXPAYER_TYPE_FORMAL = 'formal';
+    public const TAXPAYER_TYPE_SPECIAL = 'special';
+
+    public const TAXPAYER_TYPES = [
+        self::TAXPAYER_TYPE_ORDINARY,
+        self::TAXPAYER_TYPE_FORMAL,
+        self::TAXPAYER_TYPE_SPECIAL,
+    ];
+
     protected $fillable = [
         'id',
         'name',
+        'rif',
         'status',
+        'address',
+        'fiscal_address',
+        'taxpayer_type',
         'description',
+        'phone',
         'created_by',
     ];
 

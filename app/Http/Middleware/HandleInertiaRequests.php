@@ -60,7 +60,13 @@ class HandleInertiaRequests extends Middleware
                 $companiesQuery->where('app_companies.status', 'active');
             }
 
-            $companies = $companiesQuery->get(['app_companies.id', 'app_companies.name']);
+            $companies = $companiesQuery->get([
+                'app_companies.id',
+                'app_companies.name',
+                'app_companies.rif',
+                'app_companies.fiscal_address',
+                'app_companies.taxpayer_type',
+            ]);
 
             $userCompanies = $companies->map(fn (Company $c): array => [
                 'id' => $c->id,
@@ -87,7 +93,13 @@ class HandleInertiaRequests extends Middleware
             if ($currentCompanyId) {
                 $found = $companies->firstWhere('id', $currentCompanyId);
                 if ($found) {
-                    $currentCompany = ['id' => $found->id, 'name' => $found->name];
+                    $currentCompany = [
+                        'id' => $found->id,
+                        'name' => $found->name,
+                        'rif' => $found->rif,
+                        'fiscal_address' => $found->fiscal_address,
+                        'taxpayer_type' => $found->taxpayer_type,
+                    ];
 
                     /**
                      * La moneda principal se comparte con todas las páginas: los

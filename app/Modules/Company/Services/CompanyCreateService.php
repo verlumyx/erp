@@ -13,6 +13,7 @@ use App\Modules\Role\Commands\CreateRoleCommand;
 use App\Modules\Role\Repositories\Contracts\RoleRepositoryInterface;
 use App\Modules\Shared\Commands\CreateUserCompanyCommand;
 use App\Modules\Shared\Repositories\Contracts\UserCompanyRepositoryInterface;
+use App\Modules\Tax\Services\TaxProvisionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -23,6 +24,7 @@ class CompanyCreateService
         private readonly RoleRepositoryInterface $roleRepository,
         private readonly UserCompanyRepositoryInterface $userCompanyRepository,
         private readonly ConfigurationCreateService $configurationCreateService,
+        private readonly TaxProvisionService $taxProvisionService,
     ) {}
 
     public function execute(CreateCompanyCommand $command): Company
@@ -53,6 +55,9 @@ class CompanyCreateService
             $this->configurationCreateService->execute(
                 CreateConfigurationCommand::defaults($command->id, $command->createdBy),
             );
+
+            /** Impuestos oficiales de Venezuela (Exento 0%, General 16%, Reducido 8%, Adicional 31%). */
+            $this->taxProvisionService->provisionDefaults($command->id, $command->createdBy);
 
             return $this->companyRepository->findOrFail($command->id);
         });

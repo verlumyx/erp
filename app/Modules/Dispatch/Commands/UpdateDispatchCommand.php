@@ -31,6 +31,10 @@ class UpdateDispatchCommand
         public readonly ?string $carrier = null,
         public readonly ?string $trackingNumber = null,
         public readonly ?string $notes = null,
+        public readonly ?string $controlNumber = null,
+        public readonly bool $isSale = true,
+        public readonly ?string $transferReason = null,
+        public readonly ?string $transferReasonDetail = null,
     ) {}
 
     public static function fromRequest(UpdateDispatchRequest $request): self
@@ -55,6 +59,10 @@ class UpdateDispatchCommand
             carrier: $request->input('carrier'),
             trackingNumber: $request->input('tracking_number'),
             notes: $request->input('notes'),
+            controlNumber: $request->input('control_number'),
+            isSale: $request->has('is_sale') ? $request->boolean('is_sale') : true,
+            transferReason: $request->input('transfer_reason'),
+            transferReasonDetail: $request->input('transfer_reason_detail'),
         );
     }
 }

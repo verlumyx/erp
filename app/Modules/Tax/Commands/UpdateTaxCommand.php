@@ -14,6 +14,7 @@ class UpdateTaxCommand
         public readonly string $hasWithholding,
         public readonly string $withholdingPercentage,
         public readonly ?string $description = null,
+        public readonly ?string $taxType = null,
     ) {}
 
     public static function fromRequest(UpdateTaxRequest $request): self
@@ -28,6 +29,7 @@ class UpdateTaxCommand
                 ? (string) $request->input('withholding_percentage', 0)
                 : '0',
             description: $request->input('description'),
+            taxType: $request->input('tax_type'),
         );
     }
 }

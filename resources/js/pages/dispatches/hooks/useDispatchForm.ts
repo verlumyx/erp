@@ -125,6 +125,10 @@ interface DispatchFormData {
     carrier: string;
     tracking_number: string;
     notes: string;
+    control_number: string;
+    is_sale: boolean;
+    transfer_reason: string;
+    transfer_reason_detail: string;
     lines: DispatchLineRow[];
 }
 
@@ -421,6 +425,10 @@ export function useDispatchForm({
             carrier: initialData?.carrier ?? '',
             tracking_number: initialData?.tracking_number ?? '',
             notes: initialData?.notes ?? '',
+            control_number: initialData?.control_number ?? '',
+            is_sale: initialData?.is_sale ?? true,
+            transfer_reason: initialData?.transfer_reason ?? 'sale',
+            transfer_reason_detail: initialData?.transfer_reason_detail ?? '',
             lines: lineRows(initialData),
         });
 

@@ -159,7 +159,14 @@ export function CompanyList({ companies: items, meta, filters: initialFilters }:
                                 <TableBody>
                                     {items.map((company) => (
                                         <TableRow key={company.id}>
-                                            <TableCell className="font-medium">{company.name}</TableCell>
+                                            <TableCell>
+                                                <div className="font-medium">{company.name}</div>
+                                                {company.rif && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        RIF: {company.rif}
+                                                    </div>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{statusBadge(company.status)}</TableCell>
                                             <TableCell className="max-w-xs">
                                                 <span className="truncate block" title={company.description ?? ''}>

@@ -4,6 +4,19 @@ import type { TaxOption } from '@/types/tax';
 
 export type DispatchStatus = 'draft' | 'confirmed' | 'delivered' | 'cancelled';
 
+/** Motivos legales de traslado conforme al Art. 21 de la Providencia SENIAT 00071 */
+export const TRANSFER_REASONS: Record<string, string> = {
+    sale: 'Venta de bienes',
+    internal_transfer: 'Traslado a depósitos o almacenes propios',
+    external_transfer: 'Traslado a depósitos o almacenes de terceros',
+    repair: 'Reparación o mantenimiento',
+    distribution: 'Traslado para distribución',
+    purchase_return: 'Devolución a proveedor',
+    consignment: 'Consignación',
+    demonstration: 'Exhibición o demostración',
+    other: 'Otras causas',
+};
+
 /** Alias del morph map admitidos como documento origen. */
 export type DispatchSourceType = 'sales_order' | 'transfer' | 'purchase_return';
 
@@ -79,6 +92,11 @@ export interface Dispatch {
     id: string;
     company_id: string | null;
     code: string;
+    control_number?: string | null;
+    is_sale?: boolean;
+    transfer_reason?: string | null;
+    transfer_reason_label?: string | null;
+    transfer_reason_detail?: string | null;
     /**
      * A quién va la mercancía: un cliente en un despacho de venta, una bodega
      * propia en uno que sirve un traslado, un proveedor en el que saca lo que

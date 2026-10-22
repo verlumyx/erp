@@ -1,7 +1,12 @@
 export interface Company {
     id: string;
     name: string;
+    rif?: string | null;
     status: 'active' | 'inactive';
+    address?: string | null;
+    fiscal_address?: string | null;
+    phone?: string | null;
+    taxpayer_type?: 'ordinary' | 'formal' | 'special';
     description: string | null;
     created_at: string;
     updated_at: string | null;

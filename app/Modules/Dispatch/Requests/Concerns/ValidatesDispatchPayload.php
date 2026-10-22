@@ -96,6 +96,10 @@ trait ValidatesDispatchPayload
             'carrier' => ['nullable', 'string', 'max:150'],
             'tracking_number' => ['nullable', 'string', 'max:60'],
             'notes' => ['nullable', 'string'],
+            'control_number' => ['nullable', 'string', 'max:30'],
+            'is_sale' => ['nullable', 'boolean'],
+            'transfer_reason' => ['nullable', 'string', 'max:100'],
+            'transfer_reason_detail' => ['nullable', 'string', 'max:500'],
 
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.id' => ['nullable', 'uuid'],
