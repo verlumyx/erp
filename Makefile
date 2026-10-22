@@ -78,6 +78,13 @@ clean: ## Clean up Docker resources
 status: ## Show container status
 	docker compose ps
 
+# Cloudflare Tunnel Commands
+tunnel-logs: ## View Cloudflare tunnel logs
+	docker compose logs -f cloudflared
+
+tunnel-restart: ## Restart Cloudflare tunnel
+	docker compose restart cloudflared
+
 # Quick aliases
 up: db-up ## Alias for db-up
 down: db-down ## Alias for db-down

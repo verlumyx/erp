@@ -21,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'company.access' => \App\Http\Middleware\EnsureUserBelongsToCompany::class,
             'company.access.api' => \App\Http\Middleware\EnsureUserBelongsToCompanyApi::class,
