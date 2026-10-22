@@ -68,7 +68,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     </div>
 
                     <div className="auth-card">
-                        <h1>Bienvenido de vuelta</h1>
+                        <h1>Bienvenido de vuelta.</h1>
                         <p className="sub">
                             Ingresa tus datos para entrar a tu panel.
                         </p>
