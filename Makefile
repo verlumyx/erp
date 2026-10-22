@@ -1,5 +1,5 @@
 # ERP - PostgreSQL Development Database
-.PHONY: help db-up db-down db-restart db-logs db-shell backup-db restore-db clean app-shell migrate dev install assets watch test
+.PHONY: help db-up db-down db-restart db-logs db-shell backup-db restore-db clean app-shell migrate dev install assets watch test tunnel-up tunnel-down tunnel-start tunnel-stop tunnel-restart tunnel-logs
 
 # Default target
 help: ## Show this help message
@@ -79,11 +79,22 @@ status: ## Show container status
 	docker compose ps
 
 # Cloudflare Tunnel Commands
-tunnel-logs: ## View Cloudflare tunnel logs
-	docker compose logs -f cloudflared
+tunnel-up: ## Start Cloudflare tunnel container
+	docker compose up -d cloudflared
+	@echo "Cloudflare tunnel started"
+
+tunnel-down: ## Stop Cloudflare tunnel container
+	docker compose stop cloudflared
+	@echo "Cloudflare tunnel stopped"
 
 tunnel-restart: ## Restart Cloudflare tunnel
 	docker compose restart cloudflared
+
+tunnel-logs: ## View Cloudflare tunnel logs
+	docker compose logs -f cloudflared
+
+tunnel-start: tunnel-up ## Alias for tunnel-up
+tunnel-stop: tunnel-down ## Alias for tunnel-down
 
 # Quick aliases
 up: db-up ## Alias for db-up
