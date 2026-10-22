@@ -749,7 +749,7 @@
     <table class="footer-table">
         <tr>
             <td style="text-align: left;">
-                Comprobante Oficial de Caja | Sistema ERP StreamCRM
+                Comprobante Oficial de Caja | Sistema ERP ValolabsPOS
             </td>
             <td style="text-align: right;">
                 Generado el {{ date('d/m/Y H:i:s') }}

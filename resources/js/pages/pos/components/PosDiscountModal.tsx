@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
 import { usePosCart } from '../context/PosCartContext';
 import { usePosSession } from '../context/PosSessionContext';
 import { Percent } from 'lucide-react';
@@ -91,18 +91,17 @@ export function PosDiscountModal({ isOpen, onClose }: PosDiscountModalProps) {
                         </div>
 
                         <div className="relative">
-                            <Input
+                            <NumberInput
                                 autoFocus
-                                type="number"
-                                min="0"
+                                min={0}
                                 max={maxAllowed > 0 ? maxAllowed : 100}
-                                step="any"
-                                value={discountValue}
-                                onChange={(e) => setDiscountValue(e.target.value)}
+                                decimals={2}
+                                value={discountValue === '' ? null : Number(discountValue)}
+                                onValueChange={(val) => setDiscountValue(val.toString())}
                                 className="h-11 text-lg font-mono font-bold pr-8"
                                 placeholder="0"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-muted-foreground font-bold">
+                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-muted-foreground font-bold">
                                 %
                             </span>
                         </div>

@@ -18,7 +18,7 @@ const TERMINAL_SHORTCUTS: ShortcutItem[] = [
     { keys: ['F2', 'Espacio'], action: 'Cobrar Venta', description: 'Abre la ventana de Cobro Express multimoneda (USD / VES).' },
     { keys: ['F3'], action: 'Descuento', description: 'Aplica descuento por monto o porcentaje a la línea o venta.' },
     { keys: ['F4'], action: 'Cliente', description: 'Cambia el cliente o crea uno nuevo de forma express.' },
-    { keys: ['F5'], action: 'Sumar Cantidad (+1)', description: 'Incrementa la cantidad del ítem seleccionado en el carrito.' },
+    { keys: ['F5'], action: 'Editar Cantidad', description: 'Enfoca el campo de cantidad del último ítem agregado para modificarlo.' },
     { keys: ['F6'], action: 'Eliminar Ítem', description: 'Remueve la línea seleccionada del carrito de compra.' },
     { keys: ['Enter'], action: 'Agregar Producto', description: 'Inserta el ítem coincidente en el carrito desde el buscador.' },
 ];

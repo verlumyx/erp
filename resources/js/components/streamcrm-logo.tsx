@@ -26,7 +26,7 @@ export default function StreamCrmLogo({
                 </svg>
             </span>
             <span className="logo-txt">
-                Stream<b>CRM</b>
+                Valolabs<b>POS</b>
             </span>
         </>
     );

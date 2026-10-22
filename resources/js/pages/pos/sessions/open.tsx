@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { Monitor, DollarSign, Banknote, ArrowRight, AlertCircle, CheckCircle } from 'lucide-react';
 import type { BreadcrumbItem } from '@/types';
 import type { PosRegister, PosSession } from '../types/Pos';
@@ -157,19 +158,16 @@ export default function PosSessionOpenPage({
                                     <Label htmlFor="opening_cash_usd" className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
                                         Fondo Efectivo USD
                                     </Label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-600" />
-                                        <Input
-                                            id="opening_cash_usd"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={data.opening_cash_usd}
-                                            onChange={(e) => setData('opening_cash_usd', e.target.value)}
-                                            className="h-11 pl-9 font-mono font-bold text-base"
-                                            placeholder="0.00"
-                                        />
-                                    </div>
+                                    <CurrencyInput
+                                        id="opening_cash_usd"
+                                        currencySymbol="$"
+                                        decimals={2}
+                                        min={0}
+                                        value={data.opening_cash_usd === '' ? null : Number(data.opening_cash_usd)}
+                                        onValueChange={(val) => setData('opening_cash_usd', val > 0 ? val.toString() : '0')}
+                                        className="h-11 font-mono font-bold text-base"
+                                        placeholder="0.00"
+                                    />
                                     {errors.opening_cash_usd && (
                                         <p className="text-xs text-destructive">{errors.opening_cash_usd}</p>
                                     )}
@@ -179,19 +177,16 @@ export default function PosSessionOpenPage({
                                     <Label htmlFor="opening_cash_ves" className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
                                         Fondo Efectivo VES (Bs.)
                                     </Label>
-                                    <div className="relative">
-                                        <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600" />
-                                        <Input
-                                            id="opening_cash_ves"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={data.opening_cash_ves}
-                                            onChange={(e) => setData('opening_cash_ves', e.target.value)}
-                                            className="h-11 pl-9 font-mono font-bold text-base"
-                                            placeholder="0.00"
-                                        />
-                                    </div>
+                                    <CurrencyInput
+                                        id="opening_cash_ves"
+                                        currencySymbol="Bs."
+                                        decimals={2}
+                                        min={0}
+                                        value={data.opening_cash_ves === '' ? null : Number(data.opening_cash_ves)}
+                                        onValueChange={(val) => setData('opening_cash_ves', val > 0 ? val.toString() : '0')}
+                                        className="h-11 font-mono font-bold text-base"
+                                        placeholder="0.00"
+                                    />
                                     {errors.opening_cash_ves && (
                                         <p className="text-xs text-destructive">{errors.opening_cash_ves}</p>
                                     )}

@@ -45,7 +45,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
 
     return (
         <>
-            <Head title="Restablecer contraseña — StreamCRM">
+            <Head title="Restablecer contraseña — ValolabsPOS">
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 

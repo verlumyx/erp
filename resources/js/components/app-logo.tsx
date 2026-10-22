@@ -13,7 +13,7 @@ export default function AppLogo() {
             </div>
             <div className="ml-1 grid flex-1 text-left">
                 <span className="truncate text-base leading-tight font-semibold tracking-tight text-sidebar-accent-foreground">
-                    Stream<b className="font-extrabold">CRM</b>
+                    Valolabs<b className="font-extrabold">POS</b>
                 </span>
             </div>
         </>

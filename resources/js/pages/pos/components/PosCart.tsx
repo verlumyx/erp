@@ -49,12 +49,12 @@ export function PosCart({ onOpenClientModal }: PosCartProps) {
                     <table className="w-full border-collapse">
                         <thead className="sticky top-0 bg-muted/80 backdrop-blur-xs text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border z-10">
                             <tr>
-                                <th className="py-2 pl-3 pr-1 text-center w-8">#</th>
-                                <th className="py-2 px-2 text-left">Ítem</th>
-                                <th className="py-2 px-2 text-right w-20">P. Unit</th>
-                                <th className="py-2 px-2 text-center w-28">Cant [F5]</th>
-                                <th className="py-2 px-2 text-right w-24">Total</th>
-                                <th className="py-2 pl-1 pr-3 text-center w-8"></th>
+                                <th className="py-2.5 pl-3 pr-1 text-center w-8">#</th>
+                                <th className="py-2.5 px-2 text-left">Ítem</th>
+                                <th className="py-2.5 px-2 text-right w-24">P. Unit</th>
+                                <th className="py-2.5 px-2 text-center w-36">Cant [F5]</th>
+                                <th className="py-2.5 px-2 text-right w-28">Total</th>
+                                <th className="py-2.5 pl-1 pr-3 text-center w-9"></th>
                             </tr>
                         </thead>
                         <tbody>

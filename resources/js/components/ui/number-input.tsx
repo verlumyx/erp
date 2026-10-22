@@ -49,71 +49,79 @@ function sanitizeNumeric(
  * Permite escribir libremente mientras el campo está enfocado y aplica
  * el clamp de `min`/`max` al perder el foco.
  */
-export function NumberInput({
-    value,
-    onValueChange,
-    min,
-    max,
-    decimals = 0,
-    allowNegative = false,
-    className,
-    inputMode,
-    onFocus,
-    onBlur,
-    ...props
-}: NumberInputProps) {
-    const [isFocused, setIsFocused] = React.useState(false);
-    const [draft, setDraft] = React.useState('');
-
-    const format = React.useCallback(
-        (input: number | null | undefined): string => {
-            if (input === null || input === undefined || Number.isNaN(input)) {
-                return '';
-            }
-            return decimals > 0 ? String(input) : String(Math.trunc(input));
+export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
+    function NumberInput(
+        {
+            value,
+            onValueChange,
+            min,
+            max,
+            decimals = 0,
+            allowNegative = false,
+            className,
+            inputMode,
+            onFocus,
+            onBlur,
+            ...props
         },
-        [decimals],
-    );
+        ref,
+    ) {
+        const [isFocused, setIsFocused] = React.useState(false);
+        const [draft, setDraft] = React.useState('');
 
-    const display = isFocused ? draft : format(value);
+        const format = React.useCallback(
+            (input: number | null | undefined): string => {
+                if (input === null || input === undefined || Number.isNaN(input)) {
+                    return '';
+                }
+                return decimals > 0 ? String(input) : String(Math.trunc(input));
+            },
+            [decimals],
+        );
 
-    const handleFocus = (event: React.FocusEvent<HTMLInputElement>): void => {
-        setIsFocused(true);
-        setDraft(format(value));
-        onFocus?.(event);
-    };
+        const display = isFocused ? draft : format(value);
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-        const next = sanitizeNumeric(event.target.value, decimals, allowNegative);
-        setDraft(next);
+        const handleFocus = (event: React.FocusEvent<HTMLInputElement>): void => {
+            setIsFocused(true);
+            setDraft(format(value));
+            onFocus?.(event);
+        };
 
-        if (next === '' || next === '-') {
-            onValueChange(min ?? 0);
-            return;
-        }
+        const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+            const next = sanitizeNumeric(event.target.value, decimals, allowNegative);
+            setDraft(next);
 
-        const parsed = parseFloat(next);
-        onValueChange(Number.isNaN(parsed) ? (min ?? 0) : parsed);
-    };
+            if (next === '' || next === '-') {
+                onValueChange(min ?? 0);
+                return;
+            }
 
-    const handleBlur = (event: React.FocusEvent<HTMLInputElement>): void => {
-        setIsFocused(false);
-        const parsed = parseFloat(draft);
-        const base = Number.isNaN(parsed) ? (min ?? 0) : parsed;
-        onValueChange(clampNumber(base, min, max));
-        onBlur?.(event);
-    };
+            const parsed = parseFloat(next);
+            onValueChange(Number.isNaN(parsed) ? (min ?? 0) : parsed);
+        };
 
-    return (
-        <Input
-            {...props}
-            type="text"
-            inputMode={inputMode ?? (decimals > 0 ? 'decimal' : 'numeric')}
-            value={display}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            className={cn('tabular-nums', className)}
-        />
-    );
-}
+        const handleBlur = (event: React.FocusEvent<HTMLInputElement>): void => {
+            setIsFocused(false);
+            const parsed = parseFloat(draft);
+            const base = Number.isNaN(parsed) ? (min ?? 0) : parsed;
+            onValueChange(clampNumber(base, min, max));
+            onBlur?.(event);
+        };
+
+        return (
+            <Input
+                {...props}
+                ref={ref}
+                type="text"
+                inputMode={inputMode ?? (decimals > 0 ? 'decimal' : 'numeric')}
+                value={display}
+                onChange={handleChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                className={cn('tabular-nums', className)}
+            />
+        );
+    },
+);
+
+NumberInput.displayName = 'NumberInput';

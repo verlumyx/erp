@@ -5,6 +5,7 @@ interface PosCartContextType {
     lines: PosCartLine[];
     selectedLineIndex: number;
     setSelectedLineIndex: (index: number) => void;
+    lastAddedLineId: string | null;
     client: PosClient | null;
     setClient: (client: PosClient | null) => void;
     globalDiscountPercent: number;
@@ -39,6 +40,7 @@ export function PosCartProvider({
 }) {
     const [lines, setLines] = useState<PosCartLine[]>([]);
     const [selectedLineIndex, setSelectedLineIndex] = useState<number>(0);
+    const [lastAddedLineId, setLastAddedLineId] = useState<string | null>(null);
     const [client, setClient] = useState<PosClient | null>(defaultClient);
     const [globalDiscountPercent, setGlobalDiscountPercent] = useState<number>(0);
 
@@ -78,12 +80,14 @@ export function PosCartProvider({
                     ...calc,
                 };
                 setSelectedLineIndex(existingIndex);
+                setLastAddedLineId(existing.id);
                 return updated;
             }
 
             const calc = calculateLineAmounts(quantity, item.unit_price, 0, item.tax_percent);
+            const lineId = crypto.randomUUID();
             const newLine: PosCartLine = {
-                id: crypto.randomUUID(),
+                id: lineId,
                 item,
                 quantity,
                 unit_price: item.unit_price,
@@ -96,6 +100,7 @@ export function PosCartProvider({
 
             const updated = [...prev, newLine];
             setSelectedLineIndex(updated.length - 1);
+            setLastAddedLineId(lineId);
             return updated;
         });
     };
@@ -217,6 +222,7 @@ export function PosCartProvider({
         setSelectedLineIndex(0);
         setGlobalDiscountPercent(0);
         setClient(defaultClient);
+        setLastAddedLineId(null);
     };
 
     const loadLines = (newLines: PosCartLine[], newClient?: PosClient | null) => {
@@ -225,6 +231,7 @@ export function PosCartProvider({
             setClient(newClient);
         }
         setSelectedLineIndex(0);
+        setLastAddedLineId(newLines[newLines.length - 1]?.id ?? null);
     };
 
     const subtotal = useMemo(() => {
@@ -258,6 +265,7 @@ export function PosCartProvider({
                 lines,
                 selectedLineIndex,
                 setSelectedLineIndex,
+                lastAddedLineId,
                 client,
                 setClient,
                 globalDiscountPercent,

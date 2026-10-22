@@ -72,7 +72,7 @@ export function PosCatalogGrid({ items, categories, searchQuery }: PosCatalogGri
                 ))}
             </div>
 
-            {/* Products grid */}
+            {/* Products list (one below another) */}
             <div className="flex-1 overflow-y-auto pr-1">
                 {filteredItems.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
@@ -81,7 +81,7 @@ export function PosCatalogGrid({ items, categories, searchQuery }: PosCatalogGri
                         <p className="text-xs">Prueba con otra categoría o término de búsqueda</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+                    <div className="flex flex-col gap-2">
                         {filteredItems.map((item) => {
                             const isOutOfStock = item.moves_stock && item.stock <= 0;
                             const priceVes = (item.unit_price * rate).toFixed(2);
@@ -92,47 +92,45 @@ export function PosCatalogGrid({ items, categories, searchQuery }: PosCatalogGri
                                     type="button"
                                     onClick={() => !isOutOfStock && addItem(item)}
                                     disabled={isOutOfStock}
-                                    className={`group flex flex-col justify-between rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
+                                    className={`group flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-all active:scale-[0.99] ${
                                         isOutOfStock
                                             ? 'opacity-50 cursor-not-allowed bg-muted/40 border-border'
-                                            : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
+                                            : 'bg-card border-border hover:border-primary/50 hover:bg-muted/30 hover:shadow-xs'
                                     }`}
                                 >
-                                    <div>
-                                        <div className="flex items-start justify-between gap-1 mb-1">
-                                            <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="font-mono text-[11px] text-muted-foreground uppercase font-medium">
                                                 {item.barcode || item.sku || item.code}
                                             </span>
                                             {item.moves_stock && (
                                                 <Badge
                                                     variant={item.stock > 10 ? 'outline' : item.stock > 0 ? 'secondary' : 'destructive'}
-                                                    className="text-[10px] px-1.5 py-0 h-4"
+                                                    className="text-[10px] px-1.5 py-0 h-4 font-mono font-semibold"
                                                 >
                                                     {item.stock} {item.measurement_unit_symbol || 'und'}
                                                 </Badge>
                                             )}
-                                        </div>
-                                        <h4 className="font-medium text-xs text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-                                            {item.name}
-                                        </h4>
-                                    </div>
-
-                                    <div className="mt-3 pt-2 border-t border-dashed border-border/70 flex flex-col">
-                                        <div className="flex items-baseline justify-between">
-                                            <span className="font-mono text-base font-bold text-foreground">
-                                                $ {item.unit_price.toFixed(2)}
-                                            </span>
                                             {item.tax_percent > 0 ? (
                                                 <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
                                                     +{item.tax_percent}% IVA
                                                 </span>
                                             ) : (
-                                                <span className="text-[10px] font-medium text-muted-foreground/60">
+                                                <span className="text-[10px] font-medium text-muted-foreground/70">
                                                     Exento
                                                 </span>
                                             )}
                                         </div>
-                                        <span className="font-mono text-[11px] text-muted-foreground">
+                                        <h4 className="font-semibold text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                                            {item.name}
+                                        </h4>
+                                    </div>
+
+                                    <div className="flex flex-col items-end shrink-0 pl-2">
+                                        <span className="font-mono text-base font-bold text-foreground">
+                                            $ {item.unit_price.toFixed(2)}
+                                        </span>
+                                        <span className="font-mono text-xs text-muted-foreground">
                                             Bs. {priceVes}
                                         </span>
                                     </div>

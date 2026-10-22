@@ -9,7 +9,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
     return (
         <>
-            <Head title="Recuperar contraseña — StreamCRM">
+            <Head title="Recuperar contraseña — ValolabsPOS">
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 

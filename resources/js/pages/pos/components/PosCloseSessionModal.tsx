@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NumberInput } from '@/components/ui/number-input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { usePosSession } from '../context/PosSessionContext';
 import { router } from '@inertiajs/react';
 import { Calculator, ShieldAlert, DollarSign, Banknote, CreditCard, Smartphone } from 'lucide-react';
@@ -190,11 +192,11 @@ export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalPr
                                                 Total: $ {(denom * (usdCounts[denom] || 0)).toFixed(2)}
                                             </span>
                                         </div>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={usdCounts[denom] || ''}
-                                            onChange={(e) => handleUsdChange(denom, e.target.value)}
+                                        <NumberInput
+                                            min={0}
+                                            decimals={0}
+                                            value={usdCounts[denom] ?? 0}
+                                            onValueChange={(val) => handleUsdChange(denom, val > 0 ? val.toString() : '')}
                                             placeholder="0"
                                             className="w-16 h-8 text-center font-mono font-bold text-xs"
                                         />
@@ -221,11 +223,11 @@ export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalPr
                                                 Total: Bs. {(denom * (vesCounts[denom] || 0)).toFixed(2)}
                                             </span>
                                         </div>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={vesCounts[denom] || ''}
-                                            onChange={(e) => handleVesChange(denom, e.target.value)}
+                                        <NumberInput
+                                            min={0}
+                                            decimals={0}
+                                            value={vesCounts[denom] ?? 0}
+                                            onValueChange={(val) => handleVesChange(denom, val > 0 ? val.toString() : '')}
                                             placeholder="0"
                                             className="w-16 h-8 text-center font-mono font-bold text-xs"
                                         />
@@ -243,12 +245,12 @@ export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalPr
                                     <CreditCard className="h-4 w-4" />
                                     <span>Puntos de Venta / Débito (Total según cierre de lote bancario en Bs):</span>
                                 </label>
-                                <Input
-                                    type="number"
-                                    step="any"
-                                    min="0"
-                                    value={declaredCardVes}
-                                    onChange={(e) => setDeclaredCardVes(e.target.value)}
+                                <CurrencyInput
+                                    min={0}
+                                    decimals={2}
+                                    currencySymbol="Bs."
+                                    value={declaredCardVes === '' ? null : Number(declaredCardVes)}
+                                    onValueChange={(val) => setDeclaredCardVes(val > 0 ? val.toString() : '')}
                                     placeholder="0.00"
                                     className="h-10 font-mono font-bold text-sm"
                                 />
@@ -259,12 +261,12 @@ export function PosCloseSessionModal({ isOpen, onClose }: PosCloseSessionModalPr
                                     <Smartphone className="h-4 w-4" />
                                     <span>Pago Móvil (Total confirmado según comprobantes en Bs):</span>
                                 </label>
-                                <Input
-                                    type="number"
-                                    step="any"
-                                    min="0"
-                                    value={declaredMobileVes}
-                                    onChange={(e) => setDeclaredMobileVes(e.target.value)}
+                                <CurrencyInput
+                                    min={0}
+                                    decimals={2}
+                                    currencySymbol="Bs."
+                                    value={declaredMobileVes === '' ? null : Number(declaredMobileVes)}
+                                    onValueChange={(val) => setDeclaredMobileVes(val > 0 ? val.toString() : '')}
                                     placeholder="0.00"
                                     className="h-10 font-mono font-bold text-sm"
                                 />

@@ -15,7 +15,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     return (
         <>
-            <Head title="Iniciar sesión — StreamCRM">
+            <Head title="Iniciar sesión — ValolabsPOS">
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 
@@ -26,30 +26,29 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <StreamCrmLogo />
                     </Link>
                     <div className="auth-brand-body">
-                        <h2>Tu negocio de streaming, bajo control.</h2>
+                        <h2>Tu sistema de facturación y POS, bajo control.</h2>
                         <p>
-                            Clientes, perfiles, vencimientos y cobros — todo en
-                            un panel. Entra y sigue vendiendo con orden.
+                            Ventas, inventario, caja y facturación — todo en
+                            un panel. Entra y gestiona tu negocio con orden.
                         </p>
                         <div className="auth-mini">
                             <div className="m">
-                                <div className="mv">$241k</div>
-                                <div className="ml">Ganancia / mes</div>
+                                <div className="mv">100%</div>
+                                <div className="ml">Control de caja</div>
                             </div>
                             <div className="m">
-                                <div className="mv">52</div>
-                                <div className="ml">Perfiles activos</div>
+                                <div className="mv">POS</div>
+                                <div className="ml">Punto de venta</div>
                             </div>
                             <div className="m">
-                                <div className="mv">9</div>
-                                <div className="ml">Plataformas</div>
+                                <div className="mv">Multi</div>
+                                <div className="ml">Moneda (USD/VES)</div>
                             </div>
                         </div>
                         <div className="auth-quote">
-                            “Antes llevaba todo en cuadernos y notas del
-                            teléfono. Ahora sé al instante quién me debe y qué
-                            vence.”
-                            <span>— Vendedor independiente, Santiago</span>
+                            “Control total de ventas, cobros multimoneda y
+                            facturación rápida en cada turno de caja.”
+                            <span>— Sistema de Facturación & POS</span>
                         </div>
                     </div>
                 </aside>
@@ -62,7 +61,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         </Link>
                         <span className="alt">
                             ¿Necesitas una cuenta?{' '}
-                            <a href="mailto:soporte@streamcrm.cl">
+                            <a href="mailto:soporte@valolabspos.com">
                                 Contáctanos
                             </a>
                         </span>
@@ -264,7 +263,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
                         <p className="alt-foot">
                             ¿Problemas para entrar?{' '}
-                            <a href="mailto:soporte@streamcrm.cl">Escríbenos</a>
+                            <a href="mailto:soporte@valolabspos.com">Escríbenos</a>
                         </p>
                     </div>
                 </main>

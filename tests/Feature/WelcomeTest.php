@@ -1,10 +1,17 @@
 <?php
 
-use Inertia\Testing\AssertableInertia as Assert;
+use App\Modules\User\Models\User;
 
-test('the landing page renders for guests', function () {
+test('guests visiting home are redirected to login', function () {
     $response = $this->get(route('home'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (Assert $page) => $page->component('welcome'));
+    $response->assertRedirect(route('login'));
+});
+
+test('authenticated users visiting home are redirected to dashboard', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get(route('home'));
+
+    $response->assertRedirect(route('dashboard'));
 });

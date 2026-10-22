@@ -2,6 +2,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import type { PosCartLine as PosCartLineType } from '../types/Pos';
 import { usePosCart } from '../context/PosCartContext';
 import { usePosSession } from '../context/PosSessionContext';
+import { NumberInput } from '@/components/ui/number-input';
 
 interface PosCartLineProps {
     line: PosCartLineType;
@@ -27,8 +28,10 @@ export function PosCartLine({ line, index, isSelected, onSelect }: PosCartLinePr
                 {index + 1}
             </td>
 
-            <td className="py-2.5 px-2 max-w-[180px]">
-                <div className="font-semibold text-foreground line-clamp-1">{line.item.name}</div>
+            <td className="py-2.5 px-2 min-w-0">
+                <div className="font-semibold text-foreground truncate" title={line.item.name}>
+                    {line.item.name}
+                </div>
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span className="font-mono">{line.item.barcode || line.item.sku || line.item.code}</span>
                     {line.discount_percent > 0 && (
@@ -48,42 +51,66 @@ export function PosCartLine({ line, index, isSelected, onSelect }: PosCartLinePr
                 </div>
             </td>
 
-            <td className="py-2.5 px-2 text-right font-mono text-muted-foreground w-20">
+            <td className="py-2.5 px-2 text-right font-mono text-muted-foreground w-24">
                 $ {line.unit_price.toFixed(2)}
             </td>
 
-            <td className="py-2.5 px-2 w-28" onClick={(e) => e.stopPropagation()}>
+            <td className="py-2.5 px-2 w-36" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-1 rounded-lg border bg-background p-0.5 shadow-2xs">
                     <button
                         type="button"
                         onClick={() => decrementQuantity(index)}
-                        className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         <Minus className="h-3 w-3" />
                     </button>
-                    <input
-                        type="number"
-                        min="1"
-                        step="any"
+                    <NumberInput
+                        id={`pos-cart-qty-${line.id}`}
                         value={line.quantity}
-                        onChange={(e) => updateQuantity(index, parseFloat(e.target.value) || 1)}
-                        className="w-10 text-center font-mono text-xs font-bold border-none p-0 focus:outline-hidden focus:ring-0"
+                        onValueChange={(val) => {
+                            if (val > 0) {
+                                updateQuantity(index, val);
+                            }
+                        }}
+                        onBlur={(e) => {
+                            const parsed = parseFloat(e.target.value);
+                            if (!parsed || parsed <= 0) {
+                                updateQuantity(index, 1);
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                (e.target as HTMLInputElement).blur();
+                                const searchInput = document.getElementById('pos-search-input') as HTMLInputElement | null;
+                                searchInput?.focus();
+                                searchInput?.select();
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                (e.target as HTMLInputElement).blur();
+                                const searchInput = document.getElementById('pos-search-input') as HTMLInputElement | null;
+                                searchInput?.focus();
+                            }
+                        }}
+                        min={0.0001}
+                        decimals={4}
+                        className="h-6 w-16 border-0 bg-transparent px-1 py-0 text-center font-mono text-xs font-bold shadow-none focus-visible:ring-0 focus-visible:border-transparent"
                     />
                     <button
                         type="button"
                         onClick={() => incrementQuantity(index)}
-                        className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         <Plus className="h-3 w-3" />
                     </button>
                 </div>
             </td>
 
-            <td className="py-2.5 px-2 text-right font-mono font-bold text-foreground w-24">
+            <td className="py-2.5 px-2 text-right font-mono font-bold text-foreground w-28">
                 $ {line.total.toFixed(2)}
             </td>
 
-            <td className="py-2.5 pl-1 pr-3 text-center w-8" onClick={(e) => e.stopPropagation()}>
+            <td className="py-2.5 pl-1 pr-3 text-center w-9" onClick={(e) => e.stopPropagation()}>
                 <button
                     type="button"
                     onClick={() => removeLine(index)}

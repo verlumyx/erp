@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { usePosSession } from '../context/PosSessionContext';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { posApi } from '../utils/posApi';
@@ -153,12 +154,12 @@ export function PosCashMovementModal({ isOpen, onClose, onSuccess }: PosCashMove
 
                         <div className="col-span-2">
                             <label className="text-xs font-bold text-muted-foreground block mb-1">Monto:</label>
-                            <Input
-                                type="number"
-                                step="any"
-                                min="0.01"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
+                            <CurrencyInput
+                                min={0.01}
+                                decimals={2}
+                                currencySymbol={currency === 'USD' ? '$' : 'Bs.'}
+                                value={amount === '' ? null : Number(amount)}
+                                onValueChange={(val) => setAmount(val > 0 ? val.toString() : '')}
                                 placeholder="0.00"
                                 className="h-10 text-base font-mono font-bold"
                                 required

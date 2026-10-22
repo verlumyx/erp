@@ -11,6 +11,8 @@ interface CurrencyInputProps
     decimals?: number;
     currencySymbol?: string;
     locale?: string;
+    containerClassName?: string;
+    symbolClassName?: string;
 }
 
 function clampNumber(value: number, min?: number, max?: number): number {
@@ -43,86 +45,101 @@ function sanitizeNumeric(raw: string, decimals: number): string {
  * Muestra el valor formateado cuando no está enfocado y permite editar el
  * número plano mientras se escribe; aplica clamp de `min`/`max` al salir.
  */
-export function CurrencyInput({
-    value,
-    onValueChange,
-    min = 0,
-    max,
-    decimals = 0,
-    currencySymbol = '$',
-    locale = 'es-CL',
-    className,
-    onFocus,
-    onBlur,
-    ...props
-}: CurrencyInputProps) {
-    const [isFocused, setIsFocused] = React.useState(false);
-    const [draft, setDraft] = React.useState('');
+export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
+    function CurrencyInput(
+        {
+            value,
+            onValueChange,
+            min = 0,
+            max,
+            decimals = 0,
+            currencySymbol = '$',
+            locale = 'es-CL',
+            containerClassName,
+            symbolClassName,
+            className,
+            onFocus,
+            onBlur,
+            ...props
+        },
+        ref,
+    ) {
+        const [isFocused, setIsFocused] = React.useState(false);
+        const [draft, setDraft] = React.useState('');
 
-    const formatGrouped = React.useCallback(
-        (input: number | null | undefined): string => {
+        const formatGrouped = React.useCallback(
+            (input: number | null | undefined): string => {
+                if (input === null || input === undefined || Number.isNaN(input)) {
+                    return '';
+                }
+                return input.toLocaleString(locale, {
+                    minimumFractionDigits: decimals,
+                    maximumFractionDigits: decimals,
+                });
+            },
+            [locale, decimals],
+        );
+
+        const formatPlain = (input: number | null | undefined): string => {
             if (input === null || input === undefined || Number.isNaN(input)) {
                 return '';
             }
-            return input.toLocaleString(locale, {
-                minimumFractionDigits: decimals,
-                maximumFractionDigits: decimals,
-            });
-        },
-        [locale, decimals],
-    );
+            return decimals > 0 ? String(input) : String(Math.trunc(input));
+        };
 
-    const formatPlain = (input: number | null | undefined): string => {
-        if (input === null || input === undefined || Number.isNaN(input)) {
-            return '';
-        }
-        return decimals > 0 ? String(input) : String(Math.trunc(input));
-    };
+        const display = isFocused ? draft : formatGrouped(value);
 
-    const display = isFocused ? draft : formatGrouped(value);
+        const handleFocus = (event: React.FocusEvent<HTMLInputElement>): void => {
+            setIsFocused(true);
+            setDraft(formatPlain(value));
+            onFocus?.(event);
+        };
 
-    const handleFocus = (event: React.FocusEvent<HTMLInputElement>): void => {
-        setIsFocused(true);
-        setDraft(formatPlain(value));
-        onFocus?.(event);
-    };
+        const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
+            const next = sanitizeNumeric(event.target.value, decimals);
+            setDraft(next);
 
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-        const next = sanitizeNumeric(event.target.value, decimals);
-        setDraft(next);
+            if (next === '') {
+                onValueChange(min);
+                return;
+            }
 
-        if (next === '') {
-            onValueChange(min);
-            return;
-        }
+            const parsed = parseFloat(next);
+            onValueChange(Number.isNaN(parsed) ? min : parsed);
+        };
 
-        const parsed = parseFloat(next);
-        onValueChange(Number.isNaN(parsed) ? min : parsed);
-    };
+        const handleBlur = (event: React.FocusEvent<HTMLInputElement>): void => {
+            setIsFocused(false);
+            const parsed = parseFloat(draft);
+            const base = Number.isNaN(parsed) ? min : parsed;
+            onValueChange(clampNumber(base, min, max));
+            onBlur?.(event);
+        };
 
-    const handleBlur = (event: React.FocusEvent<HTMLInputElement>): void => {
-        setIsFocused(false);
-        const parsed = parseFloat(draft);
-        const base = Number.isNaN(parsed) ? min : parsed;
-        onValueChange(clampNumber(base, min, max));
-        onBlur?.(event);
-    };
+        return (
+            <div className={cn('relative', containerClassName)}>
+                <span
+                    className={cn(
+                        'pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-semibold text-muted-foreground select-none',
+                        symbolClassName,
+                    )}
+                >
+                    {currencySymbol}
+                </span>
+                <Input
+                    {...props}
+                    ref={ref}
+                    type="text"
+                    inputMode={decimals > 0 ? 'decimal' : 'numeric'}
+                    value={display}
+                    onChange={handleChange}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    className={cn('pl-7 text-right tabular-nums', className)}
+                />
+            </div>
+        );
+    },
+);
 
-    return (
-        <div className="relative">
-            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-semibold text-muted-foreground select-none">
-                {currencySymbol}
-            </span>
-            <Input
-                {...props}
-                type="text"
-                inputMode={decimals > 0 ? 'decimal' : 'numeric'}
-                value={display}
-                onChange={handleChange}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                className={cn('pl-7 text-right tabular-nums', className)}
-            />
-        </div>
-    );
-}
+CurrencyInput.displayName = 'CurrencyInput';

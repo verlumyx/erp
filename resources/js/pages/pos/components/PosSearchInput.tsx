@@ -30,6 +30,7 @@ export const PosSearchInput = forwardRef<HTMLInputElement, PosSearchInputProps>(
                 <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
                     ref={inputRef}
+                    id="pos-search-input"
                     type="text"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}

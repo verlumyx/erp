@@ -43,8 +43,9 @@ function PosTerminalInner({
     const {
         lines,
         selectedLineIndex,
+        setSelectedLineIndex,
+        lastAddedLineId,
         addItem,
-        incrementQuantity,
         removeLine,
         clearCart,
         client,
@@ -132,6 +133,30 @@ function PosTerminalInner({
         }
     }, [lines, session.id, client, companyId, clearCart, fetchHeldSales]);
 
+    // Focus quantity input of the last item added
+    const focusLastItemQuantity = useCallback(() => {
+        if (lines.length === 0) return;
+        const targetLine =
+            (lastAddedLineId ? lines.find((l) => l.id === lastAddedLineId) : null) ||
+            lines[selectedLineIndex] ||
+            lines[lines.length - 1];
+
+        if (!targetLine) return;
+
+        const targetIndex = lines.findIndex((l) => l.id === targetLine.id);
+        if (targetIndex >= 0) {
+            setSelectedLineIndex(targetIndex);
+        }
+
+        requestAnimationFrame(() => {
+            const inputEl = document.getElementById(`pos-cart-qty-${targetLine.id}`) as HTMLInputElement | null;
+            if (inputEl) {
+                inputEl.focus();
+                inputEl.select();
+            }
+        });
+    }, [lines, lastAddedLineId, selectedLineIndex, setSelectedLineIndex]);
+
     // Global keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -173,7 +198,7 @@ function PosTerminalInner({
             if (e.key === 'F5') {
                 e.preventDefault();
                 if (lines.length > 0 && !isAnyModalOpen) {
-                    incrementQuantity(selectedLineIndex);
+                    focusLastItemQuantity();
                 }
                 return;
             }
@@ -233,7 +258,7 @@ function PosTerminalInner({
         isAnyModalOpen,
         lines,
         selectedLineIndex,
-        incrementQuantity,
+        focusLastItemQuantity,
         removeLine,
         clearCart,
         handleHoldCurrentSale,
@@ -300,8 +325,8 @@ function PosTerminalInner({
                     </div>
                 </section>
 
-                {/* Right Column: Cart & Totals (40%) */}
-                <aside className="flex flex-col w-[420px] lg:w-[460px] xl:w-[500px] shrink-0 h-full gap-3">
+                {/* Right Column: Cart & Totals (Expanded) */}
+                <aside className="flex flex-col w-[480px] lg:w-[560px] xl:w-[640px] 2xl:w-[720px] shrink-0 h-full gap-3">
                     {/* Cart Items Table */}
                     <div className="flex-1 min-h-0">
                         <PosCart onOpenClientModal={() => setIsClientOpen(true)} />

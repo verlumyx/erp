@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { usePosCart } from '../context/PosCartContext';
 import { usePosSession } from '../context/PosSessionContext';
 import type { PosPaymentInput, PosSale } from '../types/Pos';
@@ -29,7 +30,7 @@ interface PosPaymentModalProps {
     onSaleCompleted: (sale: PosSale) => void;
 }
 
-export type MethodKey = 'cash_usd' | 'cash_ves' | 'card_debit' | 'mobile_payment' | 'biopago' | 'transfer';
+export type MethodKey = 'card_debit' | 'biopago' | 'mobile_payment' | 'cash_ves' | 'cash_usd' | 'transfer';
 
 interface MethodConfig {
     key: MethodKey;
@@ -43,26 +44,8 @@ interface MethodConfig {
 
 const METHODS: MethodConfig[] = [
     {
-        key: 'cash_usd',
-        shortcut: '[1]',
-        label: 'Efectivo USD',
-        currency: 'USD',
-        icon: DollarSign,
-        badgeColor: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
-        description: 'Dólares en efectivo',
-    },
-    {
-        key: 'cash_ves',
-        shortcut: '[2]',
-        label: 'Efectivo VES',
-        currency: 'VES',
-        icon: Banknote,
-        badgeColor: 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10',
-        description: 'Bolívares en efectivo',
-    },
-    {
         key: 'card_debit',
-        shortcut: '[3]',
+        shortcut: '[1]',
         label: 'Punto Débito',
         currency: 'VES',
         icon: CreditCard,
@@ -70,8 +53,17 @@ const METHODS: MethodConfig[] = [
         description: 'Punto de venta / tarjeta',
     },
     {
+        key: 'biopago',
+        shortcut: '[2]',
+        label: 'Biopago',
+        currency: 'VES',
+        icon: Fingerprint,
+        badgeColor: 'border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/10',
+        description: 'Biopago BDV huella',
+    },
+    {
         key: 'mobile_payment',
-        shortcut: '[4]',
+        shortcut: '[3]',
         label: 'Pago Móvil',
         currency: 'VES',
         icon: Smartphone,
@@ -79,13 +71,22 @@ const METHODS: MethodConfig[] = [
         description: 'Pago móvil interbancario',
     },
     {
-        key: 'biopago',
-        shortcut: '[5]',
-        label: 'Biopago',
+        key: 'cash_ves',
+        shortcut: '[4]',
+        label: 'Efectivo VES',
         currency: 'VES',
-        icon: Fingerprint,
-        badgeColor: 'border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/10',
-        description: 'Biopago BDV huella',
+        icon: Banknote,
+        badgeColor: 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10',
+        description: 'Bolívares en efectivo',
+    },
+    {
+        key: 'cash_usd',
+        shortcut: '[5]',
+        label: 'Efectivo USD',
+        currency: 'USD',
+        icon: DollarSign,
+        badgeColor: 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+        description: 'Dólares en efectivo',
     },
     {
         key: 'transfer',
@@ -102,7 +103,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
     const { total, totalVes, lines, client, discountAmount, subtotal, taxAmount, clearCart } = usePosCart();
     const { session, rate, companyId } = usePosSession();
 
-    const [activeMethod, setActiveMethod] = useState<MethodKey>('cash_usd');
+    const [activeMethod, setActiveMethod] = useState<MethodKey>('card_debit');
     const [tenderedInput, setTenderedInput] = useState<string>('');
     const [referenceInput, setReferenceInput] = useState<string>('');
     const [cardDigitsInput, setCardDigitsInput] = useState<string>('');
@@ -149,14 +150,14 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
             setErrorMessage(null);
             setReferenceInput('');
             setCardDigitsInput('');
-            setActiveMethod('cash_usd');
-            setTenderedInput(total.toFixed(2));
+            setActiveMethod('card_debit');
+            setTenderedInput(getRemainingForMethod('card_debit', total));
             setTimeout(() => {
                 inputRef.current?.focus();
                 inputRef.current?.select();
             }, 100);
         }
-    }, [isOpen, total]);
+    }, [isOpen, total, rate]);
 
     // Switch payment method
     const handleSelectMethod = (method: MethodKey) => {
@@ -169,41 +170,6 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
             inputRef.current?.select();
         }, 50);
     };
-
-    // Keyboard shortcuts (1-6 for quick method switch when not focused on an input)
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement | null;
-            const isTyping = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
-
-            if (!isTyping) {
-                if (e.key === '1') {
-                    e.preventDefault();
-                    handleSelectMethod('cash_usd');
-                } else if (e.key === '2') {
-                    e.preventDefault();
-                    handleSelectMethod('cash_ves');
-                } else if (e.key === '3') {
-                    e.preventDefault();
-                    handleSelectMethod('card_debit');
-                } else if (e.key === '4') {
-                    e.preventDefault();
-                    handleSelectMethod('mobile_payment');
-                } else if (e.key === '5') {
-                    e.preventDefault();
-                    handleSelectMethod('biopago');
-                } else if (e.key === '6') {
-                    e.preventDefault();
-                    handleSelectMethod('transfer');
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, remainingUsd, rate]);
 
     // Change calculation (Vuelto)
     const changeUsd = useMemo(() => {
@@ -474,6 +440,57 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
         }
     };
 
+    const handleDetailKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (isPendingFullyPaid) {
+                handleConfirmCheckout();
+            } else {
+                handleAddPayment();
+            }
+        }
+    };
+
+    // Keyboard shortcuts (1-6 for quick method switch, Enter for confirming checkout)
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement | null;
+            const isTyping = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+
+            if (!isTyping) {
+                if (e.key === '1') {
+                    e.preventDefault();
+                    handleSelectMethod('card_debit');
+                } else if (e.key === '2') {
+                    e.preventDefault();
+                    handleSelectMethod('biopago');
+                } else if (e.key === '3') {
+                    e.preventDefault();
+                    handleSelectMethod('mobile_payment');
+                } else if (e.key === '4') {
+                    e.preventDefault();
+                    handleSelectMethod('cash_ves');
+                } else if (e.key === '5') {
+                    e.preventDefault();
+                    handleSelectMethod('cash_usd');
+                } else if (e.key === '6') {
+                    e.preventDefault();
+                    handleSelectMethod('transfer');
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isPendingFullyPaid && !isSubmitting) {
+                        handleConfirmCheckout();
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, remainingUsd, rate, isPendingFullyPaid, isSubmitting, handleConfirmCheckout]);
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-4xl sm:max-w-5xl w-[96vw] max-h-[92vh] p-0 gap-0 overflow-hidden rounded-2xl flex flex-col bg-background shadow-2xl border">
@@ -619,30 +636,27 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                 </div>
                             </div>
 
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground font-mono font-black text-lg">
-                                    {activeConfig.currency === 'USD' ? '$' : 'Bs.'}
-                                </div>
-                                <Input
-                                    ref={inputRef}
-                                    type="number"
-                                    step="any"
-                                    value={tenderedInput}
-                                    onChange={(e) => setTenderedInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            if (isPendingFullyPaid) {
-                                                handleConfirmCheckout();
-                                            } else {
-                                                handleAddPayment();
-                                            }
+                            <CurrencyInput
+                                ref={inputRef}
+                                min={0}
+                                decimals={2}
+                                currencySymbol={activeConfig.currency === 'USD' ? '$' : 'Bs.'}
+                                symbolClassName="text-xl font-mono font-black pl-1"
+                                value={tenderedInput === '' ? null : Number(tenderedInput)}
+                                onValueChange={(val) => setTenderedInput(val > 0 ? val.toString() : '')}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (isPendingFullyPaid) {
+                                            handleConfirmCheckout();
+                                        } else {
+                                            handleAddPayment();
                                         }
-                                    }}
-                                    className="h-13 pl-11 text-2xl font-mono font-black border-2 focus-visible:ring-primary"
-                                    placeholder="0.00"
-                                />
-                            </div>
+                                    }
+                                }}
+                                className="h-13 pl-14 text-2xl font-mono font-black border-2 focus-visible:ring-primary"
+                                placeholder="0.00"
+                            />
                         </div>
 
                         {/* 3. Transaction Details (Biopago, Punto, Pago Móvil, Transferencia) */}
@@ -660,6 +674,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                         <Input
                                             value={referenceInput}
                                             onChange={(e) => setReferenceInput(e.target.value)}
+                                            onKeyDown={handleDetailKeyDown}
                                             placeholder="Ej. 082914"
                                             className="h-9 text-xs font-mono font-semibold"
                                         />
@@ -671,6 +686,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                         <Input
                                             value={cardDigitsInput}
                                             onChange={(e) => setCardDigitsInput(e.target.value)}
+                                            onKeyDown={handleDetailKeyDown}
                                             placeholder="Ej. V-18234567"
                                             className="h-9 text-xs font-mono"
                                         />
@@ -693,6 +709,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                         <Input
                                             value={referenceInput}
                                             onChange={(e) => setReferenceInput(e.target.value)}
+                                            onKeyDown={handleDetailKeyDown}
                                             placeholder="Ej. 123456"
                                             className="h-9 text-xs font-mono font-semibold"
                                         />
@@ -705,6 +722,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                             maxLength={4}
                                             value={cardDigitsInput}
                                             onChange={(e) => setCardDigitsInput(e.target.value)}
+                                            onKeyDown={handleDetailKeyDown}
                                             placeholder="Ej. 4321"
                                             className="h-9 text-xs font-mono font-semibold"
                                         />
@@ -726,6 +744,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                     <Input
                                         value={referenceInput}
                                         onChange={(e) => setReferenceInput(e.target.value)}
+                                        onKeyDown={handleDetailKeyDown}
                                         placeholder="Ej. 748392 ó 0414-1234567"
                                         className="h-9 text-xs font-mono font-semibold"
                                     />
@@ -746,6 +765,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
                                     <Input
                                         value={referenceInput}
                                         onChange={(e) => setReferenceInput(e.target.value)}
+                                        onKeyDown={handleDetailKeyDown}
                                         placeholder="Ej. ZLL-994821"
                                         className="h-9 text-xs font-mono font-semibold"
                                     />
