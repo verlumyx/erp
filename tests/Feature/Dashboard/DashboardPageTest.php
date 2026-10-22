@@ -12,7 +12,13 @@ test('the company dashboard renders for a member of the company', function () {
         ->get(route('company.dashboard', ['company' => $company->id]));
 
     $response->assertSuccessful();
-    $response->assertInertia(fn ($page) => $page->component('dashboard'));
+    $response->assertInertia(fn ($page) => $page
+        ->component('dashboard')
+        ->has('stats')
+        ->has('stats.kpis')
+        ->has('stats.alerts')
+        ->has('stats.recentInvoices')
+    );
 });
 
 test('the company dashboard requires authentication', function () {
