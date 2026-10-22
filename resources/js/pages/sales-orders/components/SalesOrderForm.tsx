@@ -18,7 +18,6 @@ import { useSalesOrderFormContext } from '../contexts/SalesOrderFormContext';
 import { SalesOrderLinesSection } from './SalesOrderLinesSection';
 
 const NO_ADDRESS = 'none';
-const NO_PRICE_LIST = 'none';
 const NO_SALESPERSON = 'none';
 
 export function SalesOrderForm() {
@@ -60,7 +59,7 @@ export function SalesOrderForm() {
     ];
 
     const priceListOptions: OptionType[] = [
-        { value: NO_PRICE_LIST, label: 'Lista por defecto de la empresa' },
+        { value: '', label: 'Seleccione' },
         ...options.priceLists.map((priceList) => ({
             value: priceList.id,
             label: priceList.name,
@@ -265,19 +264,15 @@ export function SalesOrderForm() {
                                 priceListOptions.find(
                                     (option) =>
                                         option.value ===
-                                        (data.price_list_id || NO_PRICE_LIST),
+                                        (data.price_list_id || ''),
                                 ) ?? null
                             }
                             onChange={(option) =>
-                                selectPriceList(
-                                    !option || option.value === NO_PRICE_LIST
-                                        ? ''
-                                        : option.value,
-                                )
+                                selectPriceList(option?.value ?? '')
                             }
                             error={!!errors.price_list_id}
                             size="md"
-                            placeholder="Lista por defecto de la empresa"
+                            placeholder="Seleccione"
                         />
                         <span className="text-[12px] text-muted-foreground">
                             Cambiarla revalúa las líneas sin precio pactado

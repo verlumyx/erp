@@ -280,10 +280,7 @@ export default function SalesOrdersShow({ salesOrder: order }: Props) {
                         />
                         <DataRow
                             label="Lista de precio"
-                            value={
-                                order.price_list_name ??
-                                'Lista por defecto de la empresa'
-                            }
+                            value={order.price_list_name ?? '—'}
                         />
                         <DataRow
                             label="Días de crédito"

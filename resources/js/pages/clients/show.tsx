@@ -204,10 +204,7 @@ export default function ClientsShow({ client }: Props) {
                         </div>
                         <DataRow
                             label="Lista de precio"
-                            value={
-                                client.price_list_name ??
-                                'Lista por defecto de la empresa'
-                            }
+                            value={client.price_list_name ?? '—'}
                         />
                         <DataRow
                             label="Días de crédito"

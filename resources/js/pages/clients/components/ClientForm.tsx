@@ -23,7 +23,6 @@ import { ClientAddressesSection } from './ClientAddressesSection';
 import { ClientContactsSection } from './ClientContactsSection';
 
 const NO_CLIENT_TYPE = 'none';
-const NO_PRICE_LIST = 'none';
 const NO_SALESPERSON = 'none';
 
 interface TextFieldProps {
@@ -86,7 +85,7 @@ export function ClientForm() {
     ];
 
     const priceListOptions: OptionType[] = [
-        { value: NO_PRICE_LIST, label: 'Lista por defecto de la empresa' },
+        { value: '', label: 'Seleccione' },
         ...options.priceLists.map((priceList) => ({
             value: priceList.id,
             label: priceList.name,
@@ -364,20 +363,15 @@ export function ClientForm() {
                                 priceListOptions.find(
                                     (option) =>
                                         option.value ===
-                                        (data.price_list_id || NO_PRICE_LIST),
+                                        (data.price_list_id || ''),
                                 ) ?? null
                             }
                             onChange={(option) =>
-                                setData(
-                                    'price_list_id',
-                                    !option || option.value === NO_PRICE_LIST
-                                        ? ''
-                                        : option.value,
-                                )
+                                setData('price_list_id', option?.value ?? '')
                             }
                             error={!!errors.price_list_id}
                             size="md"
-                            placeholder="Lista por defecto"
+                            placeholder="Seleccione"
                         />
                         {errors.price_list_id && (
                             <p className="text-sm text-bad">

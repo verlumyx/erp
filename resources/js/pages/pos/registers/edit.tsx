@@ -101,7 +101,7 @@ export default function PosRegisterEditPage({
 
     const priceListOptions: OptionType[] = useMemo(
         () => [
-            { value: '', label: 'Lista Estándar del Sistema' },
+            { value: '', label: 'Seleccione' },
             ...priceLists.map((p) => ({ value: p.id, label: p.name })),
         ],
         [priceLists],
@@ -188,7 +188,7 @@ export default function PosRegisterEditPage({
                                     onChange={(opt) => setData('price_list_id', opt?.value ?? '')}
                                     error={!!errors.price_list_id}
                                     size="md"
-                                    placeholder="Lista Estándar del Sistema"
+                                    placeholder="Seleccione"
                                 />
                                 {errors.price_list_id && (
                                     <p className="text-sm text-bad">{errors.price_list_id}</p>
@@ -335,7 +335,7 @@ export default function PosRegisterEditPage({
                             {clientRemoteOption.optionOf(data.default_client_id)?.label || register.default_client_label || register.default_client_name || '—'}
                         </SummaryRow>
                         <SummaryRow label="Lista de Precios">
-                            {priceListOptions.find((p) => p.value === data.price_list_id)?.label || 'Lista Estándar'}
+                            {priceListOptions.find((p) => p.value === data.price_list_id && p.value !== '')?.label || '—'}
                         </SummaryRow>
                         <SummaryRow label="Descuento Máx.">
                             {`${data.max_discount_percent ?? 0}%`}
