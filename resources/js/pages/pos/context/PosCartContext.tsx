@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import { generateUUID } from '@/lib/utils';
 import type { PosCartLine, PosClient, PosItem } from '../types/Pos';
 
 interface PosCartContextType {
@@ -85,7 +86,7 @@ export function PosCartProvider({
             }
 
             const calc = calculateLineAmounts(quantity, item.unit_price, 0, item.tax_percent);
-            const lineId = crypto.randomUUID();
+            const lineId = generateUUID();
             const newLine: PosCartLine = {
                 id: lineId,
                 item,

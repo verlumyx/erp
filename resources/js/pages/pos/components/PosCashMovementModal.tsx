@@ -6,6 +6,7 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { usePosSession } from '../context/PosSessionContext';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { posApi } from '../utils/posApi';
+import { generateUUID } from '@/lib/utils';
 
 interface PosCashMovementModalProps {
     isOpen: boolean;
@@ -45,7 +46,7 @@ export function PosCashMovementModal({ isOpen, onClose, onSuccess }: PosCashMove
             await posApi(`/${companyId}/pos-sessions/${session.id}/cash-movements`, {
                 method: 'POST',
                 body: {
-                    id: crypto.randomUUID(),
+                    id: generateUUID(),
                     pos_session_id: session.id,
                     movement_type: movementType,
                     concept,

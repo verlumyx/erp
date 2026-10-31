@@ -335,7 +335,9 @@ class AdjustmentRepository extends AdjustmentFilters implements AdjustmentReposi
 
         $difference = round($counted - $system, 4);
         $baseQuantity = round($difference * $resolved['factor'], 4);
-        $unitCost = round($resolved['average'], 6);
+        $unitCost = $resolved['average'] > 0.0
+            ? round($resolved['average'], 6)
+            : round($newCost ?? 0.0, 6);
 
         return [
             'system' => $system,

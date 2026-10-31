@@ -4,7 +4,7 @@ import { usePage } from '@inertiajs/react';
 import { CheckCircle2, X, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-type ToastType = 'success' | 'error';
+export type ToastType = 'success' | 'error';
 
 interface ToastItem {
     id: number;
@@ -14,8 +14,16 @@ interface ToastItem {
 
 const AUTO_DISMISS_MS = 5000;
 
+export function showToast(type: ToastType, message: string) {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent('app:toast', { detail: { type, message } })
+        );
+    }
+}
+
 export function Toaster() {
-    const { flash } = usePage<SharedData>().props;
+    const { flash, errors } = usePage<SharedData>().props;
     const [toasts, setToasts] = useState<ToastItem[]>([]);
     const idRef = useRef(0);
     const lastRef = useRef<{ message: string; time: number } | null>(null);
@@ -46,6 +54,35 @@ export function Toaster() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [flash?.error, flash?.success]);
+
+    useEffect(() => {
+        if (errors && typeof errors === 'object') {
+            const errorMessages = Object.values(errors).filter(
+                (msg): msg is string => typeof msg === 'string' && msg.length > 0,
+            );
+            if (errorMessages.length > 0) {
+                const count = errorMessages.length;
+                const message =
+                    count > 1
+                        ? `${errorMessages[0]} (+${count - 1} error${count - 1 > 1 ? 'es' : ''} más)`
+                        : errorMessages[0];
+                push('error', message);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [errors]);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const customEvent = event as CustomEvent<{ type?: ToastType; message?: string }>;
+            if (customEvent.detail?.message) {
+                push(customEvent.detail.type || 'error', customEvent.detail.message);
+            }
+        };
+
+        window.addEventListener('app:toast', handler);
+        return () => window.removeEventListener('app:toast', handler);
+    }, []);
 
     if (toasts.length === 0) {
         return null;

@@ -484,6 +484,7 @@ export function useAdjustmentForm({
 
         const difference = round4(line.counted_quantity - stock.system);
         const baseDifference = round4(difference * factor);
+        const cost = line.unit_cost > 0 ? line.unit_cost : stock.average;
 
         return {
             system: stock.system,
@@ -491,8 +492,8 @@ export function useAdjustmentForm({
             difference,
             baseDifference,
             baseSystem,
-            unitCost: stock.average,
-            impact: round2(baseDifference * stock.average),
+            unitCost: cost,
+            impact: round2(baseDifference * cost),
         };
     };
 
@@ -573,6 +574,8 @@ export function useAdjustmentForm({
      */
     const setLineItem = (index: number, option: AjaxOption | null) => {
         const item = option ? catalog.remember(option) : undefined;
+        const meta = option?.meta as { standard_cost?: string | number } | undefined;
+        const standardCost = Number(item?.standard_cost ?? meta?.standard_cost ?? 0);
 
         setData(
             'lines',
@@ -585,7 +588,7 @@ export function useAdjustmentForm({
                           lots: [],
                           serials: [],
                           counted_quantity: 0,
-                          unit_cost: 0,
+                          unit_cost: standardCost,
                       }
                     : line,
             ),

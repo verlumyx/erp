@@ -106,7 +106,7 @@ export function AdjustmentLinesSection() {
                         key={line.id}
                         className="flex flex-col gap-3 rounded-[12px] border p-4"
                     >
-                        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-[2.4fr_1.2fr_1fr_1.2fr_auto]">
+                        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[2.2fr_1fr_1.1fr_1fr_1.1fr_auto]">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-[13px] font-semibold">
                                     Artículo *
@@ -228,77 +228,82 @@ export function AdjustmentLinesSection() {
                                 </span>
                             </div>
 
-                            {isRevaluation ? (
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[13px] font-semibold">
-                                        Costo nuevo *
-                                    </Label>
-                                    <CurrencyInput
-                                        value={line.unit_cost}
-                                        onValueChange={(value) =>
-                                            updateLine(
-                                                index,
-                                                'unit_cost',
-                                                value,
-                                            )
-                                        }
-                                        min={0}
-                                        decimals={6}
-                                        className={`h-[42px] rounded-[10px] ${
-                                            fieldError(index, 'unit_cost')
-                                                ? 'border-bad'
-                                                : ''
-                                        }`}
-                                    />
-                                    <span className="text-[12px] text-muted-foreground">
-                                        Hoy vale{' '}
-                                        {formatAmount(
-                                            amounts.average,
-                                            currency,
-                                        )}{' '}
-                                        por unidad base
-                                    </span>
-                                    {fieldError(index, 'unit_cost') && (
-                                        <p className="text-sm text-bad">
-                                            {fieldError(index, 'unit_cost')}
-                                        </p>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col gap-1.5">
-                                    <Label className="text-[13px] font-semibold">
-                                        Contado *
-                                    </Label>
-                                    <NumberInput
-                                        value={line.counted_quantity}
-                                        onValueChange={(value) =>
-                                            updateLine(
-                                                index,
-                                                'counted_quantity',
-                                                value,
-                                            )
-                                        }
-                                        min={0}
-                                        decimals={4}
-                                        className={`h-[42px] rounded-[10px] ${
-                                            fieldError(
-                                                index,
-                                                'counted_quantity',
-                                            )
-                                                ? 'border-bad'
-                                                : ''
-                                        }`}
-                                    />
-                                    {fieldError(index, 'counted_quantity') && (
-                                        <p className="text-sm text-bad">
-                                            {fieldError(
-                                                index,
-                                                'counted_quantity',
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[13px] font-semibold">
+                                    {isRevaluation ? 'Costo nuevo *' : 'Costo'}
+                                </Label>
+                                <CurrencyInput
+                                    value={line.unit_cost}
+                                    onValueChange={(value) =>
+                                        updateLine(
+                                            index,
+                                            'unit_cost',
+                                            value,
+                                        )
+                                    }
+                                    min={0}
+                                    decimals={6}
+                                    className={`h-[42px] rounded-[10px] ${
+                                        fieldError(index, 'unit_cost')
+                                            ? 'border-bad'
+                                            : ''
+                                    }`}
+                                />
+                                <span className="truncate text-[12px] text-muted-foreground">
+                                    {amounts.average > 0
+                                        ? `Promedio: ${formatAmount(
+                                              amounts.average,
+                                              currency,
+                                          )}`
+                                        : isRevaluation
+                                          ? 'Costo de revaluación'
+                                          : 'Costo unitario'}
+                                </span>
+                                {fieldError(index, 'unit_cost') && (
+                                    <p className="text-sm text-bad">
+                                        {fieldError(index, 'unit_cost')}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-[13px] font-semibold">
+                                    Contado *
+                                </Label>
+                                <NumberInput
+                                    value={
+                                        isRevaluation
+                                            ? amounts.system
+                                            : line.counted_quantity
+                                    }
+                                    onValueChange={(value) =>
+                                        updateLine(
+                                            index,
+                                            'counted_quantity',
+                                            value,
+                                        )
+                                    }
+                                    disabled={isRevaluation}
+                                    min={0}
+                                    decimals={4}
+                                    className={`h-[42px] rounded-[10px] ${
+                                        fieldError(
+                                            index,
+                                            'counted_quantity',
+                                        )
+                                            ? 'border-bad'
+                                            : ''
+                                    }`}
+                                />
+                                {fieldError(index, 'counted_quantity') && (
+                                    <p className="text-sm text-bad">
+                                        {fieldError(
+                                            index,
+                                            'counted_quantity',
+                                        )}
+                                    </p>
+                                )}
+                            </div>
 
                             <div className="flex flex-col gap-1.5">
                                 <Label

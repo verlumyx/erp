@@ -23,6 +23,7 @@ import {
     Coins,
 } from 'lucide-react';
 import { posApi } from '../utils/posApi';
+import { generateUUID } from '@/lib/utils';
 
 interface PosPaymentModalProps {
     isOpen: boolean;
@@ -396,7 +397,7 @@ export function PosPaymentModal({ isOpen, onClose, onSaleCompleted }: PosPayment
 
         try {
             const payload = {
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 pos_session_id: session.id,
                 client_id: client ? client.id : session.default_client_id,
                 currency: 'USD',

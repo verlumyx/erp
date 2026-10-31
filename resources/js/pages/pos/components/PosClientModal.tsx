@@ -7,6 +7,7 @@ import { usePosSession } from '../context/PosSessionContext';
 import type { PosClient } from '../types/Pos';
 import { UserCheck, Search, Plus } from 'lucide-react';
 import { posApi } from '../utils/posApi';
+import { generateUUID } from '@/lib/utils';
 
 interface PosClientModalProps {
     isOpen: boolean;
@@ -48,7 +49,7 @@ export function PosClientModal({ isOpen, onClose, clients: initialClients }: Pos
 
         setIsSubmitting(true);
         try {
-            const id = crypto.randomUUID();
+            const id = generateUUID();
             const cleanDocNumber = newTaxNumber.replace(/\D/g, '');
             const formattedTaxNumber = cleanDocNumber ? `${newDocType}-${cleanDocNumber}` : '';
 
@@ -83,7 +84,7 @@ export function PosClientModal({ isOpen, onClose, clients: initialClients }: Pos
             // Fallback: set local client directly
             const cleanDocNumber = newTaxNumber.replace(/\D/g, '');
             const fallback: PosClient = {
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 name: newName.trim(),
                 document_type: newDocType,
                 document_number: cleanDocNumber,

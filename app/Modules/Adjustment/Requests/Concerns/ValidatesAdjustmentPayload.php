@@ -102,7 +102,15 @@ trait ValidatesAdjustmentPayload
             'lines.*.serials.*.lot_id' => ['nullable', 'uuid'],
             'lines.*.serials.*.status' => ['nullable', 'string', 'in:active,inactive'],
             /** Solo lo lee una revaluación: en el resto el costo lo pone el kardex. */
-            'lines.*.unit_cost' => ['nullable', 'numeric', 'gt:0'],
+            'lines.*.unit_cost' => [
+                'nullable',
+                'numeric',
+                Rule::when(
+                    fn () => $this->input('type') === Adjustment::REVALUATION_TYPE,
+                    ['required', 'gt:0'],
+                    ['min:0'],
+                ),
+            ],
             'lines.*.reason' => ['nullable', 'string', 'max:500'],
             'lines.*.counted_by' => ['nullable', 'uuid', Rule::exists('users', 'id')],
             'lines.*.notes' => ['nullable', 'string', 'max:500'],
