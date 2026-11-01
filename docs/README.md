@@ -10,7 +10,8 @@ un conjunto de módulos relacionados.
 | [logistica.md](logistica.md)   | Logística  | Despachos, Traslados, Entradas, Rutas, Ajustes, Importaciones (§6, diseño en revisión)                                                              |
 | [compras.md](compras.md)       | Compras    | Proveedores, Órdenes de compra, Facturas de compra, Notas de crédito a proveedor, Anticipos a proveedor, Pagos a proveedor, Devoluciones de compras |
 | [ventas.md](ventas.md)         | Ventas     | Clientes, Órdenes de venta, Facturas de venta, Notas de crédito a cliente, Anticipos de clientes, Cobros a clientes, Devoluciones de ventas         |
-| [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (pendiente de definir)                                                                                                            |
+| [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (catálogo general)                                                                                                            |
+| [reportesv2.md](reportesv2.md) | Reportes V1 | Especificación de los 4 reportes esenciales para la primera versión (Cuentas por cobrar, Cuentas por pagar, Ventas por artículo, Ingresos y gastos) |
 | [monedas.md](monedas.md)       | Transversal | Monedas, tasas de cambio y configuración por empresa. Atraviesa todos los grupos.                                                                   |
 | [selects-remotos.md](selects-remotos.md) | Transversal | Selects que buscan contra el servidor (`Select2Ajax`) y el endpoint de lookup de cada módulo. Atraviesa todos los grupos. |
 | [documentos-origen.md](documentos-origen.md) | Transversal | Qué arrastra un documento del que lo origina: la regla de traer todo lo compatible, el saldo pendiente y su endpoint. Atraviesa todos los grupos. |
