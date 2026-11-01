@@ -190,7 +190,7 @@ export function useImportForm({
     const configuration = useConfiguration();
 
     const defaultCurrency =
-        initialData?.currency ?? configuration?.base_currency ?? '';
+        configuration?.base_currency ?? initialData?.currency ?? 'USD';
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<ImportFormData>({

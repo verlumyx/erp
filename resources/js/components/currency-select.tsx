@@ -4,10 +4,11 @@ import type { Currency } from '@/types';
 
 interface CurrencySelectProps {
     value: string;
-    onValueChange: (value: string) => void;
+    onValueChange?: (value: string) => void;
     id?: string;
     error?: string;
     className?: string;
+    disabled?: boolean;
 }
 
 interface PageProps {
@@ -32,6 +33,7 @@ export function CurrencySelect({
     id,
     error,
     className = '',
+    disabled = false,
 }: CurrencySelectProps) {
     const currencies = useCurrencies();
 
@@ -45,10 +47,11 @@ export function CurrencySelect({
             inputId={id}
             options={options}
             value={options.find((option) => option.value === value) ?? null}
-            onChange={(option) => onValueChange(option?.value ?? '')}
+            onChange={(option) => onValueChange?.(option?.value ?? '')}
             error={!!error}
             size="md"
             className={className}
+            isDisabled={disabled}
             placeholder="Moneda"
         />
     );

@@ -57,7 +57,7 @@ export function Toaster() {
 
     useEffect(() => {
         if (errors && typeof errors === 'object') {
-            const errorMessages = Object.values(errors).filter(
+            const errorMessages = (Object.values(errors) as unknown[]).filter(
                 (msg): msg is string => typeof msg === 'string' && msg.length > 0,
             );
             if (errorMessages.length > 0) {

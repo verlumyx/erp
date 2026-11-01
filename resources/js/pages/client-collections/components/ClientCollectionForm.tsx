@@ -497,6 +497,7 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
                             value={data.currency}
                             error={errors.currency}
                             onValueChange={selectCurrency}
+                            disabled={true}
                         />
                         {errors.currency && (
                             <p className="text-sm text-bad">

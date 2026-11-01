@@ -290,27 +290,29 @@ export function SupplierForm() {
                 sub="Moneda, crédito y tiempo de entrega acordados"
             >
                 <FormFieldGrid>
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="currency"
-                            className="text-[13px] font-semibold"
-                        >
-                            Moneda *
-                        </Label>
-                        <CurrencySelect
-                            id="currency"
-                            value={data.currency}
-                            error={errors.currency}
-                            onValueChange={(value) =>
-                                setData('currency', value)
-                            }
-                        />
-                        {errors.currency && (
-                            <p className="text-sm text-bad">
-                                {errors.currency}
-                            </p>
-                        )}
-                    </div>
+                    {/*Revisar en un futuro "PENDIENTE"*/}
+                    {/*<div className="flex flex-col gap-1.5">*/}
+                    {/*    <Label*/}
+                    {/*        htmlFor="currency"*/}
+                    {/*        className="text-[13px] font-semibold"*/}
+                    {/*    >*/}
+                    {/*        Moneda **/}
+                    {/*    </Label>*/}
+                    {/*    <CurrencySelect*/}
+                    {/*        id="currency"*/}
+                    {/*        value={data.currency}*/}
+                    {/*        error={errors.currency}*/}
+                    {/*        onValueChange={(value) =>*/}
+                    {/*            setData('currency', value)*/}
+                    {/*        }*/}
+                    {/*        disabled={true}*/}
+                    {/*    />*/}
+                    {/*    {errors.currency && (*/}
+                    {/*        <p className="text-sm text-bad">*/}
+                    {/*            {errors.currency}*/}
+                    {/*        </p>*/}
+                    {/*    )}*/}
+                    {/*</div>*/}
 
                     <div className="flex flex-col gap-1.5">
                         <Label

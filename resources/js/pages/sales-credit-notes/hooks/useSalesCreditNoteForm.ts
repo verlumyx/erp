@@ -258,7 +258,7 @@ export function useSalesCreditNoteForm({
     });
 
     const initialCurrency =
-        initialData?.currency ?? configuration?.base_currency ?? '';
+        configuration?.base_currency ?? initialData?.currency ?? 'USD';
 
     /**
      * Con la corrección permitida el campo nace con la tasa del catálogo a la

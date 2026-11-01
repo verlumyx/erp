@@ -143,8 +143,7 @@ export function useSupplierForm({
             state: initialData?.state ?? '',
             country: initialData?.country ?? '',
             /** Un proveedor nace en la moneda en la que la empresa lleva sus cifras. */
-            currency:
-                initialData?.currency ?? configuration?.base_currency ?? '',
+            currency: configuration?.base_currency ?? 'USD',
             payment_term_days: Number(initialData?.payment_term_days ?? 0),
             credit_limit: Number(initialData?.credit_limit ?? 0),
             lead_time_days: Number(initialData?.lead_time_days ?? 0),

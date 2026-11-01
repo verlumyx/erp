@@ -199,6 +199,7 @@ export function ImportForm() {
                                 setData('currency', value)
                             }
                             error={errors.currency}
+                            disabled={true}
                         />
                         <span className="text-[12px] text-muted-foreground">
                             A ella se convierte cada costo

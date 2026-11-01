@@ -234,7 +234,7 @@ export function usePurchaseOrderForm({
     });
 
     const initialCurrency =
-        initialData?.currency ?? configuration?.base_currency ?? '';
+        configuration?.base_currency ?? initialData?.currency ?? 'USD';
 
     /**
      * Con la corrección permitida el campo nace con la tasa del catálogo a la
@@ -297,10 +297,6 @@ export function usePurchaseOrderForm({
             payment_term_days:
                 meta.payment_term_days ?? current.payment_term_days,
         }));
-
-        if (meta.currency) {
-            selectCurrency(meta.currency);
-        }
     };
 
     const addLine = () => setData('lines', [...data.lines, emptyLine()]);

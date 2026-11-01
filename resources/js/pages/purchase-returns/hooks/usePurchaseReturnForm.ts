@@ -204,7 +204,7 @@ export function usePurchaseReturnForm({
     });
 
     const initialCurrency =
-        initialData?.currency ?? configuration?.base_currency ?? '';
+        configuration?.base_currency ?? initialData?.currency ?? 'USD';
 
     /**
      * Con la corrección permitida el campo nace con la tasa del catálogo a la
@@ -310,10 +310,6 @@ export function usePurchaseReturnForm({
                 purchase_invoice_line_id: '',
             })),
         }));
-
-        if (meta.currency) {
-            selectCurrency(meta.currency);
-        }
     };
 
     /**

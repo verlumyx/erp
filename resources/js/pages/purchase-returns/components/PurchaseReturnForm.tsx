@@ -290,6 +290,7 @@ export function PurchaseReturnForm() {
                             value={data.currency}
                             error={errors.currency}
                             onValueChange={selectCurrency}
+                            disabled={true}
                         />
                         {errors.currency && (
                             <p className="text-sm text-bad">

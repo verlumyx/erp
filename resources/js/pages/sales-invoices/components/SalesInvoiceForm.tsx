@@ -327,6 +327,7 @@ export function SalesInvoiceForm() {
                             value={data.currency}
                             onValueChange={selectCurrency}
                             error={errors.currency}
+                            disabled={true}
                         />
                         {errors.currency && (
                             <p className="text-sm text-bad">

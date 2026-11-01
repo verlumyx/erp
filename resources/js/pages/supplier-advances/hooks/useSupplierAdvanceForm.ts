@@ -107,7 +107,7 @@ export function useSupplierAdvanceForm({
     });
 
     const initialCurrency =
-        initialData?.currency ?? configuration?.base_currency ?? '';
+        configuration?.base_currency ?? initialData?.currency ?? 'USD';
 
     /**
      * Con la corrección permitida el campo nace con la tasa del catálogo a la
@@ -167,12 +167,6 @@ export function useSupplierAdvanceForm({
             supplier_id: option?.value ?? '',
             purchase_order_id: '',
         }));
-
-        const meta = (option?.meta ?? {}) as Partial<SupplierOptionMeta>;
-
-        if (meta.currency) {
-            selectCurrency(meta.currency);
-        }
     };
 
     /** Elegir la orden arrastra su moneda: el anticipo se entrega en la misma. */
@@ -186,10 +180,6 @@ export function useSupplierAdvanceForm({
             purchase_order_id: option?.value ?? '',
             supplier_id: meta.supplier_id ?? current.supplier_id,
         }));
-
-        if (meta.currency) {
-            selectCurrency(meta.currency);
-        }
     };
 
     const balances: SupplierBalances = (() => {

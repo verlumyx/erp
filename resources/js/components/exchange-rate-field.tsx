@@ -3,6 +3,23 @@ import { Label } from '@/components/ui/label';
 import { useConfiguration } from '@/hooks/use-configuration';
 import { useTodayRates } from '@/hooks/use-today-rates';
 
+import type { Configuration } from '@/types';
+
+export function shouldShowExchangeRate(
+    configuration: Configuration | null,
+): boolean {
+    if (!configuration) {
+        return false;
+    }
+
+    const isUsdOrEur =
+        configuration.base_currency === 'USD' ||
+        configuration.base_currency === 'EUR';
+    const isVesSecondary = configuration.secondary_currency === 'VES';
+
+    return isUsdOrEur && isVesSecondary;
+}
+
 interface ExchangeRateFieldProps {
     /**
      * Tasa que viaja en el formulario. Con la corrección permitida nace con la
@@ -36,6 +53,10 @@ export function ExchangeRateField({
 }: ExchangeRateFieldProps) {
     const configuration = useConfiguration();
     const todayRates = useTodayRates();
+
+    if (!shouldShowExchangeRate(configuration)) {
+        return null;
+    }
 
     const canOverride = configuration?.allows_rate_override === 'yes';
     const hasRate = todayRates[currency] !== undefined;

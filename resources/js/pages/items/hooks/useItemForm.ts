@@ -83,13 +83,13 @@ function unitRows(item?: Item): ItemUnitRow[] {
     return rows.length > 0 ? rows : [{ ...emptyUnit, is_base: 'yes' }];
 }
 
-function priceRows(item?: Item): ItemPriceRow[] {
+function priceRows(item?: Item, defaultCurrency: string = 'USD'): ItemPriceRow[] {
     return (item?.prices ?? [])
         .filter((price) => price.status === 'active')
         .map((price) => ({
             price_list_id: price.price_list_id,
             price: Number(price.price),
-            currency: price.currency,
+            currency: defaultCurrency || price.currency || 'USD',
         }));
 }
 
@@ -126,7 +126,7 @@ export function useItemForm({
             volume: Number(initialData?.volume ?? 0),
             notes: initialData?.notes ?? '',
             units: unitRows(initialData),
-            prices: priceRows(initialData),
+            prices: priceRows(initialData, baseCurrency || 'USD'),
         });
 
     const addUnit = () => setData('units', [...data.units, { ...emptyUnit }]);

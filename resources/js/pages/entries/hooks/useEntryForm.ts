@@ -333,7 +333,7 @@ export function useEntryForm({
     });
 
     const initialCurrency =
-        initialData?.currency ?? configuration?.base_currency ?? '';
+        configuration?.base_currency ?? initialData?.currency ?? 'USD';
 
     /**
      * Con la corrección permitida el campo nace con la tasa del catálogo a la
@@ -445,10 +445,6 @@ export function useEntryForm({
                 source_quantity: null,
             })),
         }));
-
-        if (meta.currency) {
-            selectCurrency(meta.currency);
-        }
     };
 
     /**
@@ -500,10 +496,6 @@ export function useEntryForm({
             sourceable_id: option.value,
             warehouse_id: meta.warehouse_id ?? current.warehouse_id,
         }));
-
-        if (meta.currency) {
-            selectCurrency(meta.currency);
-        }
 
         const pending = await pendingLines.fetchLines(option.value);
 

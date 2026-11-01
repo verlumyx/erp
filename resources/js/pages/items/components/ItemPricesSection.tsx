@@ -35,7 +35,7 @@ export function ItemPricesSection() {
             {data.prices.map((price, index) => (
                 <div
                     key={index}
-                    className="grid grid-cols-1 items-end gap-3 rounded-[12px] border p-4 sm:grid-cols-[1.6fr_1fr_1fr_auto]"
+                    className="grid grid-cols-1 items-end gap-3 rounded-[12px] border p-4 sm:grid-cols-[1.6fr_1fr_auto]"
                 >
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
@@ -89,23 +89,25 @@ export function ItemPricesSection() {
                         )}
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Moneda *
-                        </Label>
-                        <CurrencySelect
-                            value={price.currency}
-                            onValueChange={(value) =>
-                                updatePrice(index, 'currency', value)
-                            }
-                            error={fieldError(index, 'currency')}
-                        />
-                        {fieldError(index, 'currency') && (
-                            <p className="text-sm text-bad">
-                                {fieldError(index, 'currency')}
-                            </p>
-                        )}
-                    </div>
+                    {/*Revisar en un futuro "PENDIENTE"*/}
+                    {/*<div className="flex flex-col gap-1.5">*/}
+                    {/*    <Label className="text-[13px] font-semibold">*/}
+                    {/*        Moneda **/}
+                    {/*    </Label>*/}
+                    {/*    <CurrencySelect*/}
+                    {/*        value={price.currency}*/}
+                    {/*        onValueChange={(value) =>*/}
+                    {/*            updatePrice(index, 'currency', value)*/}
+                    {/*        }*/}
+                    {/*        error={fieldError(index, 'currency')}*/}
+                    {/*        disabled={true}*/}
+                    {/*    />*/}
+                    {/*    {fieldError(index, 'currency') && (*/}
+                    {/*        <p className="text-sm text-bad">*/}
+                    {/*            {fieldError(index, 'currency')}*/}
+                    {/*        </p>*/}
+                    {/*    )}*/}
+                    {/*</div>*/}
 
                     <Button
                         type="button"
