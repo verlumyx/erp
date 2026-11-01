@@ -1,6 +1,17 @@
 import { Pagination } from '@/components/pagination';
 import { router, usePage } from '@inertiajs/react';
-import { Edit, Eye, MoreHorizontal, Plus, Power, Search } from 'lucide-react';
+import {
+    ChevronDown,
+    Download,
+    Edit,
+    Eye,
+    FileSpreadsheet,
+    MoreHorizontal,
+    Plus,
+    Power,
+    Search,
+    Upload,
+} from 'lucide-react';
 import { useState } from 'react';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
@@ -16,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select2, type OptionType } from '@/components/ui/select2';
 import items from '@/routes/items';
+import { ItemImportModal } from './ItemImportModal';
 import {
     ITEM_TYPE_LABELS,
     type Item,
@@ -63,6 +75,7 @@ export function ItemList({
     const companyId = currentCompany!.id;
 
     const [filters, setFilters] = useState<ItemFilters>(initialFilters);
+    const [importModalOpen, setImportModalOpen] = useState(false);
 
     const categoryOptions: OptionType[] = [
         { value: ALL, label: 'Todas' },
@@ -105,13 +118,69 @@ export function ItemList({
                         {meta.total} artículo{meta.total !== 1 ? 's' : ''}
                     </p>
                 </div>
-                <Button
-                    className="h-10 rounded-[11px] px-4 font-semibold shadow-[0_4px_12px_color-mix(in_srgb,var(--primary)_28%,transparent)]"
-                    onClick={() => router.visit(items.create(companyId).url)}
-                >
-                    <Plus />
-                    Nuevo artículo
-                </Button>
+                <div className="flex flex-wrap items-center gap-2.5">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="h-10 cursor-pointer rounded-[11px] border-muted-foreground/20 px-3.5 font-medium hover:bg-muted/50"
+                            >
+                                <Download className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                                Descargar plantilla
+                                <ChevronDown className="ml-1 h-3.5 w-3.5 opacity-60" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-60">
+                            <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => {
+                                    window.location.href = items.template(
+                                        companyId,
+                                        {
+                                            query: { type: 'blank' },
+                                        },
+                                    ).url;
+                                }}
+                            >
+                                <FileSpreadsheet className="mr-2 h-4 w-4 text-primary" />
+                                Plantilla en blanco
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="cursor-pointer"
+                                onClick={() => {
+                                    window.location.href = items.template(
+                                        companyId,
+                                        {
+                                            query: { type: 'current' },
+                                        },
+                                    ).url;
+                                }}
+                            >
+                                <Download className="mr-2 h-4 w-4 text-emerald-600" />
+                                Con artículos actuales
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button
+                        variant="outline"
+                        className="h-10 cursor-pointer rounded-[11px] border-muted-foreground/20 px-3.5 font-medium hover:bg-muted/50"
+                        onClick={() => setImportModalOpen(true)}
+                    >
+                        <Upload className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                        Importar Excel
+                    </Button>
+
+                    <Button
+                        className="h-10 cursor-pointer rounded-[11px] px-4 font-semibold shadow-[0_4px_12px_color-mix(in_srgb,var(--primary)_28%,transparent)]"
+                        onClick={() =>
+                            router.visit(items.create(companyId).url)
+                        }
+                    >
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        Nuevo artículo
+                    </Button>
+                </div>
             </div>
 
             <div className="rounded-lg border bg-card p-4">
@@ -364,6 +433,12 @@ export function ItemList({
                     label="artículo"
                 />
             </Card>
+
+            <ItemImportModal
+                open={importModalOpen}
+                onOpenChange={setImportModalOpen}
+                companyId={companyId}
+            />
         </div>
     );
 }

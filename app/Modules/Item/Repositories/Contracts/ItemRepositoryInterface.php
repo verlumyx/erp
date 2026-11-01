@@ -17,6 +17,8 @@ interface ItemRepositoryInterface
 
     public function findById(string $id, ?string $companyId = null): ?Item;
 
+    public function findBySku(string $sku, string $companyId): ?Item;
+
     public function findOrFail(string $id, ?string $companyId = null): Item;
 
     public function update(Item $model, UpdateItemCommand $command): void;
@@ -31,4 +33,6 @@ interface ItemRepositoryInterface
 
     /** @return array{ data: Item[], total: int } */
     public function search(SearchItemCommand $command): array;
+
+    public function generateNextCode(string $companyId): string;
 }

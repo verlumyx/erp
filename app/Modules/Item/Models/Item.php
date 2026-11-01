@@ -131,6 +131,11 @@ class Item extends Model
         return $this->belongsTo(\App\Modules\Tax\Models\Tax::class, 'sale_tax_id', 'id');
     }
 
+    public function purchaseTax(): BelongsTo
+    {
+        return $this->belongsTo(\App\Modules\Tax\Models\Tax::class, 'purchase_tax_id', 'id');
+    }
+
     protected static function newFactory(): ItemFactory
     {
         return ItemFactory::new();

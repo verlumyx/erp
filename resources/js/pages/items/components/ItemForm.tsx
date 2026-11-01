@@ -13,7 +13,6 @@ import { Select2, type OptionType } from '@/components/ui/select2';
 import { Textarea } from '@/components/ui/textarea';
 import { useItemFormContext } from '../contexts/ItemFormContext';
 import {
-    COST_METHOD_LABELS,
     ITEM_TYPE_LABELS,
     type CostMethod,
     type ItemType,
@@ -86,10 +85,6 @@ function MoneyField({ id, label, value, error, onChange }: NumericFieldProps) {
 const TYPE_OPTIONS: OptionType[] = Object.entries(ITEM_TYPE_LABELS).map(
     ([value, label]) => ({ value, label }),
 );
-
-const COST_METHOD_OPTIONS: OptionType[] = Object.entries(
-    COST_METHOD_LABELS,
-).map(([value, label]) => ({ value, label }));
 
 const YES_NO_OPTIONS: OptionType[] = [
     { value: 'yes', label: 'Sí' },
@@ -289,29 +284,6 @@ export function ItemForm() {
                 sub="Cómo se valúa el artículo, qué impuestos aplica y dónde puede usarse"
             >
                 <FormFieldGrid>
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Método de costo *
-                        </Label>
-                        <Select2
-                            options={COST_METHOD_OPTIONS}
-                            value={
-                                COST_METHOD_OPTIONS.find(
-                                    (option) =>
-                                        option.value === data.cost_method,
-                                ) ?? null
-                            }
-                            onChange={(option) =>
-                                setData(
-                                    'cost_method',
-                                    (option?.value ?? '') as CostMethod,
-                                )
-                            }
-                            error={!!errors.cost_method}
-                            size="md"
-                        />
-                    </div>
-
                     <MoneyField
                         id="standard_cost"
                         label="Costo estándar"
@@ -322,7 +294,7 @@ export function ItemForm() {
 
                     <MoneyField
                         id="min_price"
-                        label="Precio mínimo"
+                        label="Precio mínimo de venta"
                         value={data.min_price}
                         error={errors.min_price}
                         onChange={(value) => setData('min_price', value)}
@@ -355,6 +327,31 @@ export function ItemForm() {
 
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
+                            Se vende
+                        </Label>
+                        <Select2
+                            options={YES_NO_OPTIONS}
+                            value={
+                                YES_NO_OPTIONS.find(
+                                    (option) =>
+                                        option.value === data.is_sellable,
+                                ) ?? null
+                            }
+                            onChange={(option) =>
+                                setData(
+                                    'is_sellable',
+                                    (option?.value ?? 'no') as 'yes' | 'no',
+                                )
+                            }
+                            error={!!errors.is_sellable}
+                            size="md"
+                            isSearchable={false}
+                        />
+                    </div>
+                </FormFieldGrid>
+                <FormFieldGrid>
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[13px] font-semibold">
                             Impuesto de compra
                         </Label>
                         <Select2
@@ -383,30 +380,6 @@ export function ItemForm() {
                                 {errors.purchase_tax_id}
                             </p>
                         )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Se vende
-                        </Label>
-                        <Select2
-                            options={YES_NO_OPTIONS}
-                            value={
-                                YES_NO_OPTIONS.find(
-                                    (option) =>
-                                        option.value === data.is_sellable,
-                                ) ?? null
-                            }
-                            onChange={(option) =>
-                                setData(
-                                    'is_sellable',
-                                    (option?.value ?? 'no') as 'yes' | 'no',
-                                )
-                            }
-                            error={!!errors.is_sellable}
-                            size="md"
-                            isSearchable={false}
-                        />
                     </div>
 
                     <div className="flex flex-col gap-1.5">

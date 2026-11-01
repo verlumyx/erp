@@ -13,10 +13,12 @@ use App\Modules\Item\Services\ItemFindService;
 use App\Modules\Item\Services\ItemFormOptionsService;
 use App\Modules\Item\Services\ItemOptionSearchService;
 use App\Modules\Item\Services\ItemSearchService;
+use App\Modules\Item\Services\ItemTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ItemGetController extends Controller
 {
@@ -144,5 +146,14 @@ class ItemGetController extends Controller
             'item' => (new ItemResource($model))->resolve(),
             'options' => $this->formOptionsService->execute($company),
         ]);
+    }
+
+    public function template(Request $request, string $company, ItemTemplateService $templateService): StreamedResponse
+    {
+        abort_unless($request->user()?->hasPermission('items.list') ?? false, 403);
+
+        $includeCurrent = $request->query('type') === 'current';
+
+        return $templateService->download($company, $includeCurrent);
     }
 }

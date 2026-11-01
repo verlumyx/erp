@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Modules\Item\Controllers\ItemGetController;
+use App\Modules\Item\Controllers\ItemImportPostController;
 use App\Modules\Item\Controllers\ItemPostController;
 use App\Modules\Item\Controllers\ItemPutController;
 use App\Modules\Item\Controllers\ItemUpdateStatusController;
@@ -18,6 +19,8 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/', [ItemGetController::class, 'index'])->name('items.index');
             Route::get('/create', [ItemGetController::class, 'create'])->name('items.create');
             Route::get('/lookup', [ItemGetController::class, 'lookup'])->name('items.lookup');
+            Route::get('/template', [ItemGetController::class, 'template'])->name('items.template');
+            Route::post('/import', ItemImportPostController::class)->name('items.import');
             Route::post('/', ItemPostController::class)->name('items.store');
             Route::get('/{id}', [ItemGetController::class, 'show'])->where('id', $uuid)->name('items.show');
             Route::get('/{id}/edit', [ItemGetController::class, 'edit'])->where('id', $uuid)->name('items.edit');

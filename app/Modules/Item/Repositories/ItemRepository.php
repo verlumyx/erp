@@ -63,6 +63,15 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
             ->find($id);
     }
 
+    public function findBySku(string $sku, string $companyId): ?Item
+    {
+        return Item::query()
+            ->with(['units.measurementUnit', 'prices.priceList', 'category'])
+            ->where('company_id', $companyId)
+            ->where('sku', $sku)
+            ->first();
+    }
+
     public function findOrFail(string $id, ?string $companyId = null): Item
     {
         return Item::query()
@@ -234,7 +243,7 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
     /**
      * Generate the next sequential per-company code (ART000001, ART000002, …).
      */
-    private function generateNextCode(string $companyId): string
+    public function generateNextCode(string $companyId): string
     {
         $last = Item::query()
             ->where('company_id', $companyId)
