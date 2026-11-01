@@ -16,6 +16,9 @@ use App\Modules\Transfer\Models\Transfer;
 use App\Modules\Transfer\Models\TransferLine;
 use App\Modules\Transfer\Repositories\Contracts\TransferRepositoryInterface;
 use App\Modules\Warehouse\Models\Warehouse;
+use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
+use App\Modules\WarehouseLocation\Models\WarehouseLocation;
+use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -41,6 +44,7 @@ class TransferMirrorDispatchService
         private readonly TransferRepositoryInterface $transfers,
         private readonly DispatchRepositoryInterface $dispatches,
         private readonly DispatchCostService $costs,
+        private readonly WarehouseLocationRepositoryInterface $locations,
     ) {}
 
     /**
@@ -155,6 +159,7 @@ class TransferMirrorDispatchService
     private function stockedLines(Transfer $transfer): array
     {
         $lines = [];
+        $defaultLocation = $this->defaultLocation((string) $transfer->company_id, (string) $transfer->origin_warehouse_id);
 
         foreach ($this->transfers->activeLines($transfer) as $line) {
             if (! $this->movesStock($line)) {
@@ -177,10 +182,44 @@ class TransferMirrorDispatchService
                 total: 0.0,
                 sourceableType: TransferLine::MORPH_ALIAS,
                 sourceableId: $line->id,
+                locationId: $defaultLocation?->id,
             );
         }
 
         return $lines;
+    }
+
+    /** La ubicación por defecto de la bodega, si tiene una. */
+    private function defaultLocation(string $companyId, string $warehouseId): ?WarehouseLocation
+    {
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'is_default' => 'yes',
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $location = $result['data'][0] ?? null;
+
+        if ($location instanceof WarehouseLocation) {
+            return $location;
+        }
+
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $fallback = $result['data'][0] ?? null;
+
+        return $fallback instanceof WarehouseLocation ? $fallback : null;
     }
 
     /** Un artículo sin existencia no se traslada: no hay saldo que mover. */

@@ -383,6 +383,7 @@ test('confirming without a location and without a default one is refused', funct
     WarehouseLocation::where('id', $location->id)->update(['is_default' => 'no']);
 
     $entry = createEntry($user, $company, $supplier, $warehouse, $item, $unit);
+    $entry->lines()->update(['location_id' => null]);
 
     moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasErrors('status');
 

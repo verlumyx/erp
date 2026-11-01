@@ -17,6 +17,9 @@ use App\Modules\Item\Models\Item;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
+use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
+use App\Modules\WarehouseLocation\Models\WarehouseLocation;
+use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -41,6 +44,7 @@ class SalesOrderMirrorDispatchService
         private readonly DispatchRepositoryInterface $dispatches,
         private readonly DispatchPricingService $pricing,
         private readonly DispatchCostService $costs,
+        private readonly WarehouseLocationRepositoryInterface $locations,
     ) {}
 
     /**
@@ -219,6 +223,7 @@ class SalesOrderMirrorDispatchService
     private function pendingLines(SalesOrder $order): array
     {
         $lines = [];
+        $defaultLocation = $this->defaultLocation((string) $order->company_id, (string) $order->warehouse_id);
 
         foreach ($this->orders->activeLines($order) as $line) {
             $pending = $this->pendingQuantity($line);
@@ -243,10 +248,44 @@ class SalesOrderMirrorDispatchService
                 total: 0.0,
                 sourceableType: SalesOrderLine::MORPH_ALIAS,
                 sourceableId: $line->id,
+                locationId: $defaultLocation?->id,
             );
         }
 
         return $lines;
+    }
+
+    /** La ubicación por defecto de la bodega, si tiene una. */
+    private function defaultLocation(string $companyId, string $warehouseId): ?WarehouseLocation
+    {
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'is_default' => 'yes',
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $location = $result['data'][0] ?? null;
+
+        if ($location instanceof WarehouseLocation) {
+            return $location;
+        }
+
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $fallback = $result['data'][0] ?? null;
+
+        return $fallback instanceof WarehouseLocation ? $fallback : null;
     }
 
     /**

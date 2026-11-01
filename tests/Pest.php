@@ -75,7 +75,7 @@ function createUserWithCompany(): array
     ]);
 
     $user->companies()->attach($company->id, [
-        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
         'role_id' => $role->id,
         'status' => 'active',
     ]);
@@ -1585,19 +1585,37 @@ function dispatchPayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $locationId = $warehouse->defaultLocation?->id
+        ?? $warehouse->locations()->first()?->id
+        ?? \App\Modules\WarehouseLocation\Models\WarehouseLocation::factory()->default()->create([
+            'warehouse_id' => $warehouse->id,
+            'company_id' => $warehouse->company_id,
+        ])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'unit_price' => 100,
+        ],
+    ];
+
+    $lines = array_map(static function (array $line) use ($locationId): array {
+        if (! array_key_exists('location_id', $line)) {
+            $line['location_id'] = $locationId;
+        }
+
+        return $line;
+    }, $lines);
+
+    $overrides['lines'] = $lines;
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'client_id' => $client->id,
         'warehouse_id' => $warehouse->id,
         'dispatch_date' => now()->toDateString(),
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 2,
-                'unit_price' => 100,
-            ],
-        ],
         ...$overrides,
     ];
 }
@@ -1706,6 +1724,31 @@ function entryPayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $locationId = $warehouse->defaultLocation?->id
+        ?? $warehouse->locations()->first()?->id
+        ?? \App\Modules\WarehouseLocation\Models\WarehouseLocation::factory()->default()->create([
+            'warehouse_id' => $warehouse->id,
+            'company_id' => $warehouse->company_id,
+        ])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+        ],
+    ];
+
+    $lines = array_map(static function (array $line) use ($locationId): array {
+        if (! array_key_exists('location_id', $line)) {
+            $line['location_id'] = $locationId;
+        }
+
+        return $line;
+    }, $lines);
+
+    $overrides['lines'] = $lines;
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'supplier_id' => $supplier->id,
@@ -1714,13 +1757,6 @@ function entryPayload(
         'entry_type' => 'purchase',
         'inspection_status' => 'pending',
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 10,
-            ],
-        ],
         ...$overrides,
     ];
 }

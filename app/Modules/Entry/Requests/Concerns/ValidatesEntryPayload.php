@@ -85,7 +85,7 @@ trait ValidatesEntryPayload
             'lines.*.sourceable_type' => ['nullable', 'string', Rule::in(EntryLine::SOURCE_TYPES)],
             'lines.*.sourceable_id' => ['nullable', 'uuid'],
             'lines.*.location_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
             ],
@@ -151,6 +151,7 @@ trait ValidatesEntryPayload
             'lines.*.lots.*.quantity.gt' => 'La cantidad del lote debe ser mayor que cero.',
             'lines.*.lots.*.lot_id.exists' => 'El lote indicado no existe en esta empresa.',
             'lines.*.serials.*.serial_number.required' => 'Indica el número de la serie.',
+            'lines.*.location_id.required' => 'Selecciona la ubicación de la línea.',
             'lines.*.location_id.exists' => 'La ubicación de la línea no existe en esta empresa.',
         ];
     }

@@ -32,8 +32,8 @@ it('genera un ajuste de revaluación en borrador al confirmarse', function (): v
         ->and((float) $line->counted_quantity)->toBe(10.0)
         /** Una revaluación no mueve cantidad: solo cambia lo que vale la que ya está. */
         ->and((float) $line->base_quantity)->toBe(0.0)
-        /** La entrada no fijó ubicación, así que el ajuste tampoco: la pone la bodega. */
-        ->and($line->location_id)->toBeNull();
+        /** La entrada fijó ubicación, así que el ajuste la hereda. */
+        ->and($line->location_id)->toBe($entry->lines->first()->location_id);
 });
 
 it('el expediente no toca el kardex: lo toca el ajuste', function (): void {

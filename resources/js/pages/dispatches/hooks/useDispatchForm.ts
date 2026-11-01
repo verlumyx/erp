@@ -594,6 +594,12 @@ export function useDispatchForm({
             label: meta.client_name ?? meta.code,
         });
 
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === meta.warehouse_id &&
+                loc.is_default === 'yes',
+        );
+
         setData((current) => ({
             ...current,
             sourceable_type: SALES_ORDER,
@@ -601,7 +607,10 @@ export function useDispatchForm({
             client_id: meta.client_id,
             client_address_id: meta.client_address_id ?? '',
             warehouse_id: meta.warehouse_id,
-            lines: current.lines.map((line) => ({ ...line, location_id: '' })),
+            lines: current.lines.map((line) => ({
+                ...line,
+                location_id: line.location_id || (defaultLocation?.id ?? ''),
+            })),
         }));
 
         const pending = await pendingLines.fetchLines(option.value);
@@ -621,7 +630,7 @@ export function useDispatchForm({
                 quantity: round2(Number(line.pending_quantity)),
                 source_quantity: Number(line.quantity),
                 sourceable_id: line.id,
-                location_id: '',
+                location_id: defaultLocation?.id ?? '',
                 lots: [],
                 serials: [],
                 notes: line.notes ?? '',
@@ -707,6 +716,9 @@ export function useDispatchForm({
                     sourceable_id: source.id,
                     item_id: source.item_id,
                     measurement_unit_id: source.measurement_unit_id,
+                    location_id:
+                        line.location_id ||
+                        (locations.find((l) => l.is_default === 'yes')?.id ?? ''),
                 };
             }),
         );

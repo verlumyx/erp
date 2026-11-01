@@ -16,9 +16,6 @@ import { EntryLineTraceabilityDialog } from './EntryLineTraceabilityDialog';
 /** Valor del select cuando la línea no sale de ninguna línea de orden. */
 const NO_ORDER_LINE = 'none';
 
-/** Valor del select cuando el kardex debe usar la ubicación por defecto. */
-const DEFAULT_LOCATION = 'default';
-
 /**
  * 3.2 Líneas de la entrada. Cada fila dice qué artículo llega, en qué unidad,
  * cuánto se pidió y cuánto se recibe. Nada más: el costo, el impuesto y el
@@ -44,7 +41,7 @@ export function EntryLinesSection() {
     } = useEntryFormContext();
 
     const locationOptions: OptionType[] = [
-        { value: DEFAULT_LOCATION, label: 'Ubicación por defecto' },
+        { value: '', label: 'Seleccione' },
         ...locations.map((location) => ({
             value: location.id,
             label:
@@ -311,7 +308,7 @@ export function EntryLinesSection() {
                             <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Ubicación
+                                        Ubicación *
                                     </Label>
                                     <Select2
                                         options={locationOptions}
@@ -319,26 +316,21 @@ export function EntryLinesSection() {
                                             locationOptions.find(
                                                 (option) =>
                                                     option.value ===
-                                                    (line.location_id ||
-                                                        DEFAULT_LOCATION),
+                                                    (line.location_id ?? ''),
                                             ) ?? null
                                         }
                                         onChange={(option) =>
                                             updateLine(
                                                 index,
                                                 'location_id',
-                                                !option ||
-                                                    option.value ===
-                                                        DEFAULT_LOCATION
-                                                    ? ''
-                                                    : option.value,
+                                                option?.value ?? '',
                                             )
                                         }
                                         error={
                                             !!fieldError(index, 'location_id')
                                         }
                                         size="md"
-                                        placeholder="Ubicación por defecto"
+                                        placeholder="Seleccione"
                                     />
                                     {fieldError(index, 'location_id') && (
                                         <p className="text-sm text-bad">

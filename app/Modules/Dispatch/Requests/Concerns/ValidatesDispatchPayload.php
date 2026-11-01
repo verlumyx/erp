@@ -123,7 +123,7 @@ trait ValidatesDispatchPayload
             ],
             'lines.*.sourceable_id' => ['nullable', 'uuid', 'required_with:lines.*.sourceable_type'],
             'lines.*.location_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_warehouse_locations', 'id')->where('company_id', $companyId),
             ],
@@ -188,6 +188,7 @@ trait ValidatesDispatchPayload
             'lines.*.lots.*.quantity.gt' => 'La cantidad del lote debe ser mayor que cero.',
             'lines.*.serials.*.serial_id.required' => 'Elige la serie que sale.',
             'lines.*.serials.*.serial_id.exists' => 'La serie indicada no existe en esta empresa.',
+            'lines.*.location_id.required' => 'Selecciona la ubicación de la línea.',
             'lines.*.location_id.exists' => 'La ubicación de la línea no existe en esta empresa.',
         ];
     }

@@ -15,9 +15,6 @@ import { DispatchLineTraceabilityDialog } from './DispatchLineTraceabilityDialog
 /** Valor del select cuando la línea no sale de ninguna línea del pedido. */
 const NO_ORDER_LINE = 'none';
 
-/** Valor del select cuando el kardex debe usar la ubicación por defecto. */
-const DEFAULT_LOCATION = 'default';
-
 /**
  * 1.2 Líneas del despacho. Cada fila dice qué artículo sale, en qué unidad,
  * cuánto se pidió y cuánto se despacha. Nada más: el precio y sus cargos se
@@ -44,7 +41,7 @@ export function DispatchLinesSection() {
     } = useDispatchFormContext();
 
     const locationOptions: OptionType[] = [
-        { value: DEFAULT_LOCATION, label: 'Ubicación por defecto' },
+        { value: '', label: 'Seleccione' },
         ...locations.map((location) => ({
             value: location.id,
             label:
@@ -333,7 +330,7 @@ export function DispatchLinesSection() {
                             <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Ubicación
+                                        Ubicación *
                                     </Label>
                                     <Select2
                                         options={locationOptions}
@@ -341,26 +338,21 @@ export function DispatchLinesSection() {
                                             locationOptions.find(
                                                 (option) =>
                                                     option.value ===
-                                                    (line.location_id ||
-                                                        DEFAULT_LOCATION),
+                                                    (line.location_id ?? ''),
                                             ) ?? null
                                         }
                                         onChange={(option) =>
                                             updateLine(
                                                 index,
                                                 'location_id',
-                                                !option ||
-                                                    option.value ===
-                                                        DEFAULT_LOCATION
-                                                    ? ''
-                                                    : option.value,
+                                                option?.value ?? '',
                                             )
                                         }
                                         error={
                                             !!fieldError(index, 'location_id')
                                         }
                                         size="md"
-                                        placeholder="Ubicación por defecto"
+                                        placeholder="Seleccione"
                                     />
                                     {fieldError(index, 'location_id') && (
                                         <p className="text-sm text-bad">

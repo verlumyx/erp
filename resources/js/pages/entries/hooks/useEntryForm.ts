@@ -487,6 +487,12 @@ export function useEntryForm({
         }
 
         const meta = (option.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
+        const targetWarehouseId = meta.warehouse_id ?? data.warehouse_id;
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === targetWarehouseId &&
+                loc.is_default === 'yes',
+        );
 
         setData((current) => ({
             ...current,
@@ -518,7 +524,7 @@ export function useEntryForm({
                 sourceable_type: PURCHASE_ORDER_LINE,
                 sourceable_id: line.id,
                 source_quantity: Number(line.quantity),
-                location_id: '',
+                location_id: defaultLocation?.id ?? '',
                 lots: [],
                 serials: [],
                 notes: '',
@@ -614,6 +620,9 @@ export function useEntryForm({
                     item_id: source.item_id,
                     /** La línea se recibe en la unidad en la que se pidió. */
                     measurement_unit_id: source.measurement_unit_id,
+                    location_id:
+                        line.location_id ||
+                        (locations.find((l) => l.is_default === 'yes')?.id ?? ''),
                 };
             }),
         );

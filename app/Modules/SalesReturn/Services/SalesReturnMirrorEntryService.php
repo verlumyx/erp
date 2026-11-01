@@ -17,6 +17,9 @@ use App\Modules\Item\Repositories\Contracts\ItemRepositoryInterface;
 use App\Modules\SalesReturn\Models\SalesReturn;
 use App\Modules\SalesReturn\Models\SalesReturnLine;
 use App\Modules\SalesReturn\Repositories\Contracts\SalesReturnRepositoryInterface;
+use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
+use App\Modules\WarehouseLocation\Models\WarehouseLocation;
+use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -51,6 +54,7 @@ class SalesReturnMirrorEntryService
         private readonly EntryRepositoryInterface $entries,
         private readonly ItemRepositoryInterface $items,
         private readonly DocumentRatesResolverInterface $rates,
+        private readonly WarehouseLocationRepositoryInterface $locations,
     ) {}
 
     /**
@@ -175,6 +179,7 @@ class SalesReturnMirrorEntryService
         }
 
         $lines = [];
+        $defaultLocation = $this->defaultLocation((string) $return->company_id, (string) $return->warehouse_id);
 
         foreach ($this->returns->activeLines($return) as $line) {
             $quantity = $this->stockedQuantity($line);
@@ -213,10 +218,44 @@ class SalesReturnMirrorEntryService
                 total: $amount,
                 sourceableType: SalesReturnLine::MORPH_ALIAS,
                 sourceableId: $line->id,
+                locationId: $defaultLocation?->id,
             );
         }
 
         return $lines;
+    }
+
+    /** La ubicación por defecto de la bodega, si tiene una. */
+    private function defaultLocation(string $companyId, string $warehouseId): ?WarehouseLocation
+    {
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'is_default' => 'yes',
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $location = $result['data'][0] ?? null;
+
+        if ($location instanceof WarehouseLocation) {
+            return $location;
+        }
+
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $fallback = $result['data'][0] ?? null;
+
+        return $fallback instanceof WarehouseLocation ? $fallback : null;
     }
 
     /**

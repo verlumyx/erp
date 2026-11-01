@@ -39,6 +39,7 @@ function loadEntrySerials(
                 'quantity' => (float) $line->quantity,
                 'sourceable_type' => $line->sourceable_type,
                 'sourceable_id' => $line->sourceable_id,
+                'location_id' => $line->location_id,
                 'serials' => array_map(
                     static fn (string $serial): array => ['serial_number' => $serial],
                     $serials,
@@ -97,6 +98,9 @@ test('approving a purchase order writes the entry that will receive the goods', 
     /** La línea queda colgada de la línea de la orden que la originó. */
     expect($line->sourceable_type)->toBe(PurchaseOrderLine::MORPH_ALIAS);
     expect($line->sourceable_id)->toBe($order->lines->first()->id);
+    expect($line->location_id)->toBe(
+        $warehouse->defaultLocation?->id ?? $warehouse->locations()->where('is_default', 'yes')->first()?->id
+    );
 });
 
 test('the cost of the generated line comes from the order, not from zero', function () {

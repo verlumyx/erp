@@ -555,6 +555,26 @@ test('the same serial cannot come twice in one entry', function () {
         ->assertSessionHasErrors('lines.1.serials');
 });
 
+test('an entry line requires a location', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = entryScenario();
+
+    $payload = entryPayload($supplier, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 10,
+                'location_id' => '',
+            ],
+        ],
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('entries.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors(['lines.0.location_id' => 'Selecciona la ubicación de la línea.']);
+});
+
 test('the create screen renders with its catalogs', function () {
     [$user, $company] = entryScenario();
 

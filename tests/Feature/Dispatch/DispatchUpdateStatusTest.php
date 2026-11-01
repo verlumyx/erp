@@ -98,6 +98,7 @@ test('a warehouse without a default location cannot confirm the dispatch', funct
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
     WarehouseLocation::where('id', $location->id)->update(['is_default' => 'no']);
+    $dispatch->lines()->update(['location_id' => null]);
 
     moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
 

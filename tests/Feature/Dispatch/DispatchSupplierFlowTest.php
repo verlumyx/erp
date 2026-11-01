@@ -65,6 +65,7 @@ function supplierDispatchPayload(
                 'quantity' => (float) $line->quantity,
                 'sourceable_type' => 'purchase_return_line',
                 'sourceable_id' => $line->sourceable_id,
+                'location_id' => $line->location_id,
             ],
         ],
         ...$overrides,
@@ -86,6 +87,7 @@ test('a mirror dispatch to a supplier can be edited without a client', function 
                 'quantity' => 1,
                 'sourceable_type' => 'purchase_return_line',
                 'sourceable_id' => $dispatch->lines->first()->sourceable_id,
+                'location_id' => $dispatch->lines->first()->location_id,
             ],
         ],
     ]);

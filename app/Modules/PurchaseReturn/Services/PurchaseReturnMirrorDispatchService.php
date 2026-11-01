@@ -17,6 +17,9 @@ use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
 use App\Modules\Supplier\Models\Supplier;
+use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
+use App\Modules\WarehouseLocation\Models\WarehouseLocation;
+use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -47,6 +50,7 @@ class PurchaseReturnMirrorDispatchService
         private readonly DispatchRepositoryInterface $dispatches,
         private readonly DispatchCostService $costs,
         private readonly DispatchPricingService $pricing,
+        private readonly WarehouseLocationRepositoryInterface $locations,
     ) {}
 
     /**
@@ -176,6 +180,7 @@ class PurchaseReturnMirrorDispatchService
     private function stockedLines(PurchaseReturn $return): array
     {
         $lines = [];
+        $defaultLocation = $this->defaultLocation((string) $return->company_id, (string) $return->warehouse_id);
 
         foreach ($this->returns->activeLines($return) as $line) {
             if (! $this->movesStock($line)) {
@@ -198,10 +203,44 @@ class PurchaseReturnMirrorDispatchService
                 total: 0.0,
                 sourceableType: PurchaseReturnLine::MORPH_ALIAS,
                 sourceableId: $line->id,
+                locationId: $defaultLocation?->id,
             );
         }
 
         return $lines;
+    }
+
+    /** La ubicación por defecto de la bodega, si tiene una. */
+    private function defaultLocation(string $companyId, string $warehouseId): ?WarehouseLocation
+    {
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'is_default' => 'yes',
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $location = $result['data'][0] ?? null;
+
+        if ($location instanceof WarehouseLocation) {
+            return $location;
+        }
+
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $fallback = $result['data'][0] ?? null;
+
+        return $fallback instanceof WarehouseLocation ? $fallback : null;
     }
 
     /** Un artículo sin existencia no se devuelve: no hay saldo que mover. */

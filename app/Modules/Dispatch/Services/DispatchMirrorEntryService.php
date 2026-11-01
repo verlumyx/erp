@@ -17,6 +17,9 @@ use App\Modules\Entry\Repositories\Contracts\EntryRepositoryInterface;
 use App\Modules\Entry\Services\EntryPricingService;
 use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
 use App\Modules\Transfer\Models\Transfer;
+use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
+use App\Modules\WarehouseLocation\Models\WarehouseLocation;
+use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -46,6 +49,7 @@ class DispatchMirrorEntryService
         private readonly EntryPricingService $pricing,
         private readonly DocumentRatesResolverInterface $rates,
         private readonly ConfigurationFindService $configurations,
+        private readonly WarehouseLocationRepositoryInterface $locations,
     ) {}
 
     /**
@@ -66,7 +70,7 @@ class DispatchMirrorEntryService
             return null;
         }
 
-        $lines = $this->shippedLines($dispatch);
+        $lines = $this->shippedLines($dispatch, (string) $dispatch->recipient_id);
 
         if ($lines === []) {
             return null;
@@ -181,9 +185,10 @@ class DispatchMirrorEntryService
      *
      * @return array<int, EntryLineData>
      */
-    private function shippedLines(Dispatch $dispatch): array
+    private function shippedLines(Dispatch $dispatch, string $destinationWarehouseId): array
     {
         $lines = [];
+        $defaultLocation = $this->defaultLocation((string) $dispatch->company_id, $destinationWarehouseId);
 
         foreach ($this->dispatches->activeLines($dispatch) as $line) {
             $quantity = round((float) $line->quantity, 4);
@@ -211,10 +216,44 @@ class DispatchMirrorEntryService
                 total: 0.0,
                 sourceableType: DispatchLine::MORPH_ALIAS,
                 sourceableId: $line->id,
+                locationId: $defaultLocation?->id,
             );
         }
 
         return $lines;
+    }
+
+    /** La ubicación por defecto de la bodega, si tiene una. */
+    private function defaultLocation(string $companyId, string $warehouseId): ?WarehouseLocation
+    {
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'is_default' => 'yes',
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $location = $result['data'][0] ?? null;
+
+        if ($location instanceof WarehouseLocation) {
+            return $location;
+        }
+
+        $result = $this->locations->search(new SearchWarehouseLocationCommand(
+            filters: [
+                'warehouse_id' => $warehouseId,
+                'status' => 'active',
+            ],
+            limit: 1,
+            companyId: $companyId,
+        ));
+
+        $fallback = $result['data'][0] ?? null;
+
+        return $fallback instanceof WarehouseLocation ? $fallback : null;
     }
 
     /**

@@ -228,6 +228,26 @@ test('a location from another warehouse is rejected', function () {
         ->assertSessionHasErrors('lines.0.location_id');
 });
 
+test('a dispatch line requires a location', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $payload = dispatchPayload($client, $warehouse, $item, $unit, [
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1,
+                'unit_price' => 10,
+                'location_id' => '',
+            ],
+        ],
+    ]);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(route('dispatches.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasErrors(['lines.0.location_id' => 'Selecciona la ubicación de la línea.']);
+});
+
 test('a dispatch without lines is rejected', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
 

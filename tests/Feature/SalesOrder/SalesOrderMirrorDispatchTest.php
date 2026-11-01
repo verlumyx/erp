@@ -50,6 +50,7 @@ function loadDispatchSerials(
                 'quantity' => (float) $line->quantity,
                 'sourceable_type' => $line->sourceable_type,
                 'sourceable_id' => $line->sourceable_id,
+                'location_id' => $line->location_id,
                 'serials' => array_map(
                     static fn (string $id): array => ['serial_id' => $id],
                     $serialIds,
@@ -91,6 +92,9 @@ test('approving a sales order writes the dispatch that will take the goods out',
     /** La línea queda colgada de la línea del pedido que la originó. */
     expect($line->sourceable_type)->toBe(SalesOrderLine::MORPH_ALIAS);
     expect($line->sourceable_id)->toBe($order->lines->first()->id);
+    expect($line->location_id)->toBe(
+        $warehouse->defaultLocation?->id ?? $warehouse->locations()->where('is_default', 'yes')->first()?->id
+    );
 });
 
 test('the generated dispatch inherits the delivery address and the route of the order', function () {
