@@ -104,7 +104,7 @@ test('a register cannot have two active sessions from different users', function
 
     $user2 = User::factory()->create();
     $user2->companies()->attach($company->id, [
-        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
         'role_id' => $user1->companies()->first()->pivot->role_id,
         'status' => 'active',
     ]);

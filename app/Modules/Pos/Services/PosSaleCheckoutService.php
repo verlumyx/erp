@@ -76,7 +76,7 @@ class PosSaleCheckoutService
             );
 
             // 3. Step 1: Create SalesInvoice (FVE)
-            $invoiceId = (string) Str::uuid();
+            $invoiceId = (string) Str::uuid7();
             $invoice = $this->invoiceCreateService->execute(new CreateSalesInvoiceCommand(
                 id: $invoiceId,
                 companyId: $command->companyId,
@@ -131,7 +131,7 @@ class PosSaleCheckoutService
                 }
 
                 $dispatch = $this->dispatchCreateService->execute(new CreateDispatchCommand(
-                    id: (string) Str::uuid(),
+                    id: (string) Str::uuid7(),
                     companyId: $command->companyId,
                     recipientType: Client::MORPH_ALIAS,
                     recipientId: $command->clientId,
@@ -180,7 +180,7 @@ class PosSaleCheckoutService
                 };
 
                 $collection = $this->collectionCreateService->execute(new CreateClientCollectionCommand(
-                    id: (string) Str::uuid(),
+                    id: (string) Str::uuid7(),
                     companyId: $command->companyId,
                     clientId: $command->clientId,
                     collectionDate: now()->toDateString(),

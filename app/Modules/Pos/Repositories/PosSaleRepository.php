@@ -72,7 +72,7 @@ class PosSaleRepository implements PosSaleRepositoryInterface
             // Create lines
             foreach ($command->lines as $index => $line) {
                 PosSaleLine::create([
-                    'id' => (string) Str::uuid(),
+                    'id' => (string) Str::uuid7(),
                     'company_id' => $command->companyId,
                     'pos_sale_id' => $sale->id,
                     'line_number' => $index + 1,
@@ -95,7 +95,7 @@ class PosSaleRepository implements PosSaleRepositoryInterface
             // Create payments
             foreach ($command->payments as $payment) {
                 PosPayment::create([
-                    'id' => (string) Str::uuid(),
+                    'id' => (string) Str::uuid7(),
                     'company_id' => $command->companyId,
                     'pos_sale_id' => $sale->id,
                     'pos_session_id' => $command->posSessionId,
@@ -143,7 +143,7 @@ class PosSaleRepository implements PosSaleRepositoryInterface
 
             foreach ($command->lines as $index => $line) {
                 PosSaleLine::create([
-                    'id' => (string) Str::uuid(),
+                    'id' => (string) Str::uuid7(),
                     'company_id' => $command->companyId,
                     'pos_sale_id' => $sale->id,
                     'line_number' => $index + 1,

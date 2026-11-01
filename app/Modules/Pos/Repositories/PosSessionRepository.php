@@ -227,7 +227,7 @@ class PosSessionRepository implements PosSessionRepositoryInterface
 
         foreach ($denominations as $denom) {
             PosSessionDenomination::create([
-                'id' => (string) Str::uuid(),
+                'id' => (string) Str::uuid7(),
                 'company_id' => $session->company_id,
                 'pos_session_id' => $session->id,
                 'currency' => $denom->currency,
