@@ -44,7 +44,8 @@ trait ValidatesDispatchPayload
              * Uno de los dos caminos tiene que venir.
              */
             'client_id' => [
-                'required_without:recipient_id',
+                'nullable',
+                Rule::requiredIf(fn () => blank($this->input('recipient_id')) && $this->input('sourceable_type') !== 'transfer'),
                 'uuid',
                 Rule::exists('app_clients', 'id')
                     ->where('company_id', $companyId)

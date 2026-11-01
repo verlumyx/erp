@@ -319,6 +319,15 @@ export function useSalesInvoiceForm({
      * lo vuelva a buscar.
      */
     const [orderSeeds, setOrderSeeds] = useState<ItemCatalogSeed[]>([]);
+    const [sourceType, setSourceType] = useState<string>(() => {
+        if (initialData?.sourceable_type === 'pos_session') {
+            return 'pos_session';
+        }
+        if (initialData?.sourceable_id) {
+            return 'sales_order';
+        }
+        return 'none';
+    });
 
     /**
      * El catálogo de artículos ya no viaja en las props: la pantalla solo
@@ -529,8 +538,16 @@ export function useSalesInvoiceForm({
 
         const meta = option.meta as unknown as SalesOrderOptionMeta;
 
+        if (meta.client_id) {
+            client.select({
+                value: meta.client_id,
+                label: meta.client_name ?? meta.client_id,
+            });
+        }
+
         setData((current) => ({
             ...current,
+            client_id: meta.client_id ?? current.client_id,
             sourceable_type: 'sales_order',
             sourceable_id: option.value,
             client_address_id:
@@ -758,6 +775,9 @@ export function useSalesInvoiceForm({
         mode,
         totals,
         catalog,
+        sourceType,
+        setSourceType,
+        sourceableCode: initialData?.sourceable_code,
         clientLookupUrl: client.url,
         clientOption: client.optionOf(data.client_id),
         /** Las condiciones del cliente elegido: direcciones, crédito, descuento. */

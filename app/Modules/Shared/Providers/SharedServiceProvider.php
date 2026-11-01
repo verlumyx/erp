@@ -7,6 +7,8 @@ namespace App\Modules\Shared\Providers;
 use App\Modules\Client\Models\Client;
 use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Models\DispatchLine;
+use App\Modules\Pos\Models\PosSale;
+use App\Modules\Pos\Models\PosSession;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
@@ -62,6 +64,9 @@ class SharedServiceProvider extends ServiceProvider
         SalesInvoiceLine::MORPH_ALIAS => SalesInvoiceLine::class,
         /** Documento que respalda un costo del expediente de importación. */
         PurchaseInvoice::MORPH_ALIAS => PurchaseInvoice::class,
+        /** Documento que originó la venta desde caja POS */
+        PosSession::MORPH_ALIAS => PosSession::class,
+        PosSale::MORPH_ALIAS => PosSale::class,
         /** Destinatarios de un despacho: un cliente, una bodega propia o un proveedor. */
         Client::MORPH_ALIAS => Client::class,
         Warehouse::MORPH_ALIAS => Warehouse::class,

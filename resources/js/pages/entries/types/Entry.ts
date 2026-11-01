@@ -116,6 +116,10 @@ export interface Entry {
     id: string;
     company_id: string | null;
     code: string;
+    recipient_type?: string | null;
+    recipient_id?: string | null;
+    recipient_name?: string | null;
+    recipient_code?: string | null;
     supplier_id: string | null;
     supplier_name?: string | null;
     supplier_code?: string | null;

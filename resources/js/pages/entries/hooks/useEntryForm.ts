@@ -1,5 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
 import {
@@ -14,9 +14,12 @@ import {
 import { useRemoteOption } from '@/hooks/use-remote-option';
 import { useTodayRates } from '@/hooks/use-today-rates';
 import { generateUUID } from '@/lib/utils';
+import clients from '@/routes/clients';
 import entries from '@/routes/entries';
 import purchaseOrders from '@/routes/purchase-orders';
+import salesReturns from '@/routes/sales-returns';
 import suppliers from '@/routes/suppliers';
+import transfers from '@/routes/transfers';
 import {
     INITIAL_TYPE,
     PURCHASE_ORDER,
@@ -92,6 +95,8 @@ export interface EntryLineRow {
 
 interface EntryFormData {
     id: string;
+    recipient_type: string;
+    recipient_id: string;
     supplier_id: string;
     /** Documento origen; vacío en una entrada sin documento previo. */
     sourceable_type: string;
@@ -140,7 +145,7 @@ function supplierSeed(model?: Entry): AjaxOption | null {
 
 /** La orden de la que salió la mercancía, si salió de alguna. */
 function orderSeed(model?: Entry): AjaxOption | null {
-    if (!model?.sourceable_id) {
+    if (!model?.sourceable_id || model?.sourceable_type !== 'purchase_order') {
         return null;
     }
 
@@ -148,6 +153,36 @@ function orderSeed(model?: Entry): AjaxOption | null {
         value: model.sourceable_id,
         label: model.sourceable_code ?? 'Orden de compra',
     };
+}
+
+function clientSeed(model?: Entry): AjaxOption | null {
+    if (model?.recipient_type === 'client' && model?.recipient_id) {
+        return {
+            value: model.recipient_id,
+            label: model.recipient_name ?? model.recipient_id,
+        };
+    }
+    return null;
+}
+
+function salesReturnSeed(model?: Entry): AjaxOption | null {
+    if (model?.sourceable_type === 'sales_return' && model?.sourceable_id) {
+        return {
+            value: model.sourceable_id,
+            label: model.sourceable_code ?? 'Devolución de venta',
+        };
+    }
+    return null;
+}
+
+function transferSeed(model?: Entry): AjaxOption | null {
+    if (model?.sourceable_type === 'transfer' && model?.sourceable_id) {
+        return {
+            value: model.sourceable_id,
+            label: model.sourceable_code ?? 'Traslado',
+        };
+    }
+    return null;
 }
 
 /** En compras el artículo se reconoce por su código. */
@@ -309,10 +344,32 @@ export function useEntryForm({
         seed: supplierSeed(initialData),
     });
 
+    const client = useRemoteOption({
+        url: clients.lookup(companyId).url,
+        seed: clientSeed(initialData),
+    });
+
     /** Y las órdenes contra el suyo, acotadas al proveedor elegido. */
     const order = useRemoteOption({
         url: purchaseOrders.lookup(companyId).url,
         seed: orderSeed(initialData),
+    });
+
+    const salesReturn = useRemoteOption({
+        url: salesReturns.lookup(companyId).url,
+        seed: salesReturnSeed(initialData),
+    });
+
+    const transfer = useRemoteOption({
+        url: transfers.lookup(companyId).url,
+        seed: transferSeed(initialData),
+    });
+
+    const [sourceType, setSourceType] = useState<string>(() => {
+        if (initialData?.sourceable_type === 'sales_return') return 'sales_return';
+        if (initialData?.sourceable_type === 'transfer') return 'transfer';
+        if (initialData?.sourceable_type === 'purchase_order' || initialData?.sourceable_id) return 'purchase_order';
+        return 'none';
     });
 
     /**
@@ -351,9 +408,26 @@ export function useEntryForm({
         return rate === undefined ? '' : String(rate);
     };
 
-    const { data, setData, post, put, transform, processing, errors, reset } =
-        useForm<EntryFormData>({
+    const {
+        data,
+        setData,
+        post,
+        put,
+        transform,
+        processing,
+        errors,
+        reset,
+        setError,
+        clearErrors,
+    } = useForm<EntryFormData>({
             id: initialData?.id ?? generateUUID(),
+            recipient_type:
+                initialData?.recipient_type ??
+                (initialData?.supplier_id ? 'supplier' : ''),
+            recipient_id:
+                initialData?.recipient_id ??
+                initialData?.supplier_id ??
+                '',
             supplier_id: initialData?.supplier_id ?? '',
             sourceable_type: initialData?.sourceable_type ?? '',
             sourceable_id: initialData?.sourceable_id ?? '',
@@ -429,37 +503,27 @@ export function useEntryForm({
      */
     const selectSupplier = (option: AjaxOption | null) => {
         supplier.select(option);
-        order.select(null);
-
-        const meta = (option?.meta ?? {}) as Partial<SupplierOptionMeta>;
+        if (sourceType === 'none') {
+            order.select(null);
+        }
 
         setData((current) => ({
             ...current,
+            recipient_type: option ? 'supplier' : '',
+            recipient_id: option?.value ?? '',
             supplier_id: option?.value ?? '',
-            sourceable_type: '',
-            sourceable_id: '',
-            lines: current.lines.map((line) => ({
-                ...line,
-                sourceable_type: '',
-                sourceable_id: '',
-                source_quantity: null,
-            })),
         }));
     };
 
-    /**
-     * Elegir la orden origen arma la entrada con lo que le queda por llegar: su
-     * cabecera —bodega y moneda— y sus líneas pendientes, cada una apuntando a
-     * la suya. Sustituye lo capturado: es el punto de partida de la entrada, no
-     * un añadido.
-     *
-     * Lo ya recibido por completo no vuelve: no hay nada que esperar de ahí. Y
-     * la cantidad queda editable, porque lo que manda es lo que de verdad entró
-     * al muelle, no lo que se pidió.
-     *
-     * Las líneas se piden aparte y no viajan en el `meta` del select: el saldo
-     * solo interesa de la orden elegida.
-     */
+    const selectClient = (option: AjaxOption | null) => {
+        client.select(option);
+        setData((current) => ({
+            ...current,
+            recipient_type: option ? 'client' : '',
+            recipient_id: option?.value ?? '',
+        }));
+    };
+
     const selectOrder = async (option: AjaxOption | null) => {
         order.select(option);
 
@@ -468,9 +532,10 @@ export function useEntryForm({
 
             setData((current) => ({
                 ...current,
+                recipient_type: '',
+                recipient_id: '',
                 sourceable_type: '',
                 sourceable_id: '',
-                /** Sin orden no hay contra qué trazar las líneas. */
                 lines: current.lines.map((line) => ({
                     ...line,
                     sourceable_type: '',
@@ -483,6 +548,14 @@ export function useEntryForm({
         }
 
         const meta = (option.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
+        clearErrors('sourceable_id', 'sourceable_type');
+        if (meta.supplier_id) {
+            supplier.select({
+                value: meta.supplier_id,
+                label: meta.supplier_name ?? meta.supplier_id,
+            });
+        }
+
         const targetWarehouseId = meta.warehouse_id ?? data.warehouse_id;
         const defaultLocation = options.locations.find(
             (loc) =>
@@ -492,6 +565,10 @@ export function useEntryForm({
 
         setData((current) => ({
             ...current,
+            recipient_type: 'supplier',
+            recipient_id: meta.supplier_id ?? current.recipient_id,
+            supplier_id: meta.supplier_id ?? current.supplier_id,
+            entry_type: 'purchase',
             sourceable_type: PURCHASE_ORDER,
             sourceable_id: option.value,
             warehouse_id: meta.warehouse_id ?? current.warehouse_id,
@@ -499,7 +576,6 @@ export function useEntryForm({
 
         const pending = await pendingLines.fetchLines(option.value);
 
-        /** Una orden sin saldo deja intacto lo que ya se había capturado. */
         if (pending.length === 0) {
             return;
         }
@@ -522,6 +598,136 @@ export function useEntryForm({
                 notes: '',
             })),
         );
+    };
+
+    const selectSalesReturn = async (option: AjaxOption | null) => {
+        salesReturn.select(option);
+
+        if (!option) {
+            setData((current) => ({
+                ...current,
+                recipient_type: '',
+                recipient_id: '',
+                sourceable_type: '',
+                sourceable_id: '',
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_type: '',
+                    sourceable_id: '',
+                    source_quantity: null,
+                })),
+            }));
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as any;
+        clearErrors('sourceable_id', 'sourceable_type');
+        if (meta.client_id) {
+            client.select({
+                value: meta.client_id,
+                label: meta.client_name ?? meta.client_id,
+            });
+        }
+
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === data.warehouse_id &&
+                loc.is_default === 'yes',
+        );
+
+        const returnLines = meta.lines ?? [];
+
+        setData((current) => ({
+            ...current,
+            recipient_type: 'client',
+            recipient_id: meta.client_id ?? '',
+            supplier_id: '',
+            entry_type: 'return',
+            sourceable_type: 'sales_return',
+            sourceable_id: option.value,
+            currency: meta.currency ?? current.currency,
+            lines:
+                returnLines.length > 0
+                    ? returnLines.map((l: any) => ({
+                          id: generateUUID(),
+                          item_id: l.item_id,
+                          measurement_unit_id: l.measurement_unit_id,
+                          quantity: round2(Number(l.quantity)),
+                          rejected_quantity: 0,
+                          rejection_reason: '',
+                          sourceable_type: 'sales_return_line',
+                          sourceable_id: l.id,
+                          source_quantity: Number(l.quantity),
+                          location_id:
+                              l.location_id || (defaultLocation?.id ?? ''),
+                          lots: [],
+                          serials: [],
+                          notes: '',
+                      }))
+                    : current.lines,
+        }));
+    };
+
+    const selectTransfer = async (option: AjaxOption | null) => {
+        transfer.select(option);
+
+        if (!option) {
+            setData((current) => ({
+                ...current,
+                recipient_type: '',
+                recipient_id: '',
+                sourceable_type: '',
+                sourceable_id: '',
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_type: '',
+                    sourceable_id: '',
+                    source_quantity: null,
+                })),
+            }));
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as any;
+        clearErrors('sourceable_id', 'sourceable_type');
+        const targetWarehouseId =
+            meta.destination_warehouse_id ?? data.warehouse_id;
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === targetWarehouseId &&
+                loc.is_default === 'yes',
+        );
+
+        const transferLines = meta.lines ?? [];
+
+        setData((current) => ({
+            ...current,
+            recipient_type: '',
+            recipient_id: '',
+            supplier_id: '',
+            entry_type: 'transfer',
+            sourceable_type: 'transfer',
+            sourceable_id: option.value,
+            warehouse_id: targetWarehouseId,
+            lines:
+                transferLines.length > 0
+                    ? transferLines.map((l: any) => ({
+                          id: generateUUID(),
+                          item_id: l.item_id,
+                          measurement_unit_id: l.measurement_unit_id,
+                          quantity: round2(Number(l.quantity)),
+                          rejected_quantity: 0,
+                          rejection_reason: '',
+                          sourceable_type: 'transfer_line',
+                          sourceable_id: l.id,
+                          source_quantity: Number(l.quantity),
+                          location_id: defaultLocation?.id ?? '',
+                          lots: [],
+                          serials: [],
+                          notes: '',
+                      }))
+                    : current.lines,
+        }));
     };
 
     /** Las líneas de la orden elegida con su saldo, tal como las trajo el servidor. */
@@ -832,6 +1038,17 @@ export function useEntryForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (mode === 'create') {
+            if (sourceType === 'none') {
+                setError('sourceable_type', 'Debes seleccionar el origen de la entrada.');
+                return;
+            }
+            if (!data.sourceable_id) {
+                setError('sourceable_id', 'Debes seleccionar el documento de origen.');
+                return;
+            }
+        }
+
         /**
          * El campo enseña la tasa del catálogo, pero solo viaja como corrección
          * si el usuario escribió otra: así una entrada con fecha anterior se
@@ -865,16 +1082,28 @@ export function useEntryForm({
         setData,
         processing,
         errors,
+        clearErrors,
         handleSubmit,
         reset,
         mode,
         totals,
+        sourceType,
+        setSourceType,
         supplierLookupUrl: supplier.url,
-        supplierOption: supplier.optionOf(data.supplier_id),
+        supplierOption: supplier.optionOf(data.recipient_id || data.supplier_id),
         selectSupplier,
+        clientLookupUrl: client.url,
+        clientOption: client.optionOf(data.recipient_id),
+        selectClient,
         orderLookupUrl: order.url,
         orderOption: order.optionOf(data.sourceable_id),
         selectOrder,
+        salesReturnLookupUrl: salesReturn.url,
+        salesReturnOption: salesReturn.optionOf(data.sourceable_id),
+        selectSalesReturn,
+        transferLookupUrl: transfer.url,
+        transferOption: transfer.optionOf(data.sourceable_id),
+        selectTransfer,
         orderLines,
         pendingOf,
         loadingOrderLines: pendingLines.loading,

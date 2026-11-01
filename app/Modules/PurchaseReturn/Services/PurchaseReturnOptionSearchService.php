@@ -28,7 +28,11 @@ class PurchaseReturnOptionSearchService
     {
         $result = $this->repository->search($command);
 
-        (new Collection($result['data']))->loadMissing(['supplier']);
+        (new Collection($result['data']))->loadMissing([
+            'supplier',
+            'lines.item',
+            'lines.measurementUnit',
+        ]);
 
         return $result;
     }

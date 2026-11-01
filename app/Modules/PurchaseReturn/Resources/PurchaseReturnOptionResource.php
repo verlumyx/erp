@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseReturn\Resources;
 
+use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -39,6 +40,23 @@ class PurchaseReturnOptionResource extends JsonResource
                 'exchange_rate' => $this->exchange_rate,
                 'total' => $this->total,
                 'status' => $this->status,
+                'lines' => $this->relationLoaded('lines') ? $this->lines
+                    ->where('status', 'active')
+                    ->sortBy('line_number')
+                    ->map(fn (PurchaseReturnLine $line): array => [
+                        'id' => $line->id,
+                        'item_id' => $line->item_id,
+                        'item_name' => $line->item?->name,
+                        'item_sku' => $line->item?->sku,
+                        'item_code' => $line->item?->code,
+                        'measurement_unit_id' => $line->measurement_unit_id,
+                        'measurement_unit_name' => $line->measurementUnit?->name,
+                        'quantity' => (string) $line->quantity,
+                        'unit_cost' => (string) $line->unit_cost,
+                        'location_id' => $line->location_id,
+                    ])
+                    ->values()
+                    ->all() : [],
             ],
         ];
     }

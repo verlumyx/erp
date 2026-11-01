@@ -16,6 +16,8 @@ return new class extends Migration
         Schema::create('app_entries', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('company_id')->nullable();
+            $table->string('recipient_type', 255)->nullable();
+            $table->uuid('recipient_id')->nullable();
             $table->string('code', 12)->nullable();
 
             /** Nulo cuando la mercancía no viene de un proveedor. */
@@ -119,6 +121,7 @@ return new class extends Migration
             $table->index('created_at');
 
             // Índices propios del módulo
+            $table->index(['recipient_type', 'recipient_id']);
             $table->index('supplier_id');
             $table->index(['sourceable_type', 'sourceable_id']);
             $table->index('entry_date');

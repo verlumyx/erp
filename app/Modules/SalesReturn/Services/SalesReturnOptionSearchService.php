@@ -28,7 +28,11 @@ class SalesReturnOptionSearchService
     {
         $result = $this->repository->search($command);
 
-        (new Collection($result['data']))->loadMissing(['client']);
+        (new Collection($result['data']))->loadMissing([
+            'client',
+            'lines.item',
+            'lines.measurementUnit',
+        ]);
 
         return $result;
     }

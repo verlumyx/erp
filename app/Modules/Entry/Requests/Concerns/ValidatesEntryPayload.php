@@ -36,6 +36,8 @@ trait ValidatesEntryPayload
         $companyId = session('current_company_id');
 
         return [
+            'recipient_type' => ['nullable', 'string', Rule::in(['client', 'supplier', 'warehouse'])],
+            'recipient_id' => ['nullable', 'uuid'],
             /** Vacío cuando la mercancía no viene de un proveedor. */
             'supplier_id' => [
                 'nullable',

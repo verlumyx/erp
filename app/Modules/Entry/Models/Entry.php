@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Entry\Models;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Company\Models\Company;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\SalesReturn\Models\SalesReturn;
@@ -96,6 +97,8 @@ class Entry extends Model
     protected $fillable = [
         'id',
         'company_id',
+        'recipient_type',
+        'recipient_id',
         'code',
         'supplier_id',
         'sourceable_type',
@@ -142,6 +145,21 @@ class Entry extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class, 'company_id', 'id');
+    }
+
+    /**
+     * A quién va dirigida / de quién viene la mercancía: proveedor en compra,
+     * cliente en devolución de venta. Relación polimórfica.
+     */
+    public function recipient(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    /** El cliente del que viene, si es una devolución. */
+    public function client(): ?Client
+    {
+        return $this->recipient instanceof Client ? $this->recipient : null;
     }
 
     public function supplier(): BelongsTo

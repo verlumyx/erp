@@ -20,8 +20,8 @@ class CreateDispatchCommand
          * su id. La pantalla solo crea despachos a un cliente; los de traslado
          * los arma `TransferMirrorDispatchService`.
          */
-        public readonly string $recipientType,
-        public readonly string $recipientId,
+        public readonly ?string $recipientType = null,
+        public readonly ?string $recipientId = null,
         public readonly string $warehouseId,
         public readonly string $dispatchDate,
         public readonly string $createdBy,
@@ -46,9 +46,13 @@ class CreateDispatchCommand
 
     public static function fromRequest(CreateDispatchRequest $request, ?string $companyId = null): self
     {
-        $recipientType = $request->string('recipient_type')->toString() ?: Client::MORPH_ALIAS;
-        $recipientId = $request->string('recipient_id')->toString()
-            ?: $request->string('client_id')->toString();
+        $isTransfer = $request->string('sourceable_type')->toString() === 'transfer';
+        $recipientType = $isTransfer
+            ? null
+            : ($request->string('recipient_type')->toString() ?: ($request->string('client_id')->toString() ? Client::MORPH_ALIAS : null));
+        $recipientId = $isTransfer
+            ? null
+            : ($request->string('recipient_id')->toString() ?: $request->string('client_id')->toString() ?: null);
 
         return new self(
             id: $request->string('id')->toString(),

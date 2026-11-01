@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Entry\Commands;
 
 use App\Modules\Entry\Requests\CreateEntryRequest;
+use App\Modules\Supplier\Models\Supplier;
 
 class CreateEntryCommand
 {
@@ -20,6 +21,8 @@ class CreateEntryCommand
         public readonly array $lines = [],
         /** Vacío cuando la mercancía no viene de un proveedor. */
         public readonly ?string $supplierId = null,
+        public readonly ?string $recipientType = null,
+        public readonly ?string $recipientId = null,
         /** Alias del documento origen en el morph map (`purchase_order`). */
         public readonly ?string $sourceableType = null,
         public readonly ?string $sourceableId = null,
@@ -53,7 +56,9 @@ class CreateEntryCommand
             entryDate: $request->string('entry_date')->toString(),
             createdBy: $request->user()->id,
             lines: EntryLineData::collection($request->input('lines', [])),
-            supplierId: $request->input('supplier_id'),
+            supplierId: $request->input('supplier_id') ?: ($request->input('recipient_type') === Supplier::MORPH_ALIAS ? $request->input('recipient_id') : null),
+            recipientType: $request->input('recipient_type') ?: ($request->input('supplier_id') ? Supplier::MORPH_ALIAS : null),
+            recipientId: $request->input('recipient_id') ?: $request->input('supplier_id'),
             sourceableType: $request->input('sourceable_type'),
             sourceableId: $request->input('sourceable_id'),
             entryType: $request->string('entry_type', 'purchase')->toString(),

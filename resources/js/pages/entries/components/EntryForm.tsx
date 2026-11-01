@@ -18,14 +18,15 @@ import {
     SELECTABLE_TYPES,
     TYPE_LABELS,
     type EntryInspectionStatus,
-    type EntryType,
 } from '../types/Entry';
 import { EntryLinesSection } from './EntryLinesSection';
 
-const TYPE_OPTIONS: OptionType[] = SELECTABLE_TYPES.map((type) => ({
-    value: type,
-    label: TYPE_LABELS[type],
-}));
+const SOURCE_TYPE_OPTIONS: OptionType[] = [
+    { value: 'none', label: 'Seleccione' },
+    { value: 'purchase_order', label: 'Orden de compra' },
+    { value: 'sales_return', label: 'Devolución de cliente' },
+    { value: 'transfer', label: 'Traslado entre bodegas' },
+];
 
 const INSPECTION_OPTIONS: OptionType[] = Object.entries(INSPECTION_LABELS).map(
     ([value, label]) => ({ value, label }),
@@ -37,22 +38,52 @@ export function EntryForm() {
         setData,
         processing,
         errors,
+        clearErrors,
         handleSubmit,
         mode,
         totals,
+        sourceType,
+        setSourceType,
         supplierLookupUrl,
         supplierOption,
         selectSupplier,
+        clientLookupUrl,
+        clientOption,
         orderLookupUrl,
         orderOption,
         selectOrder,
+        salesReturnLookupUrl,
+        salesReturnOption,
+        selectSalesReturn,
+        transferLookupUrl,
+        transferOption,
+        selectTransfer,
         selectCurrency,
         selectWarehouse,
-        selectEntryType,
         allowsSupplier,
         requiresSupplier,
         options,
     } = useEntryFormContext();
+
+    const handleSourceTypeChange = (opt: OptionType | null) => {
+        const val = opt?.value ?? 'none';
+        setSourceType(val);
+        clearErrors('sourceable_type', 'sourceable_id');
+        if (val === 'none') {
+            selectOrder(null);
+            selectSalesReturn(null);
+            selectTransfer(null);
+        } else if (val === 'purchase_order') {
+            selectSalesReturn(null);
+            selectTransfer(null);
+        } else if (val === 'sales_return') {
+            selectOrder(null);
+            selectTransfer(null);
+        } else if (val === 'transfer') {
+            selectOrder(null);
+            selectSalesReturn(null);
+        }
+    };
 
     const warehouseOptions: OptionType[] = options.warehouses.map(
         (warehouse) => ({ value: warehouse.id, label: warehouse.name }),
@@ -67,106 +98,197 @@ export function EntryForm() {
         <FormLayout onSubmit={handleSubmit}>
             <FormSection
                 step={1}
+                title="Empezar registro desde"
+                sub="Selecciona si deseas iniciar la entrada a partir de una orden de compra, devolución o traslado"
+            >
+                <FormFieldGrid>
+                    <div className="flex flex-col gap-1.5">
+                        <Label
+                            htmlFor="source_type"
+                            className="text-[13px] font-semibold"
+                        >
+                            Origen de la entrada *
+                        </Label>
+                        <Select2
+                            inputId="source_type"
+                            options={SOURCE_TYPE_OPTIONS}
+                            value={
+                                SOURCE_TYPE_OPTIONS.find(
+                                    (opt) => opt.value === sourceType,
+                                ) ?? SOURCE_TYPE_OPTIONS[0]
+                            }
+                            onChange={handleSourceTypeChange}
+                            error={!!errors.sourceable_type}
+                            isDisabled={mode === 'edit'}
+                            size="md"
+                        />
+                        {errors.sourceable_type && (
+                            <p className="text-sm text-bad">
+                                {errors.sourceable_type}
+                            </p>
+                        )}
+                    </div>
+
+                    {sourceType === 'purchase_order' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Orden de compra *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={orderLookupUrl}
+                                value={orderOption}
+                                onChange={selectOrder}
+                                error={!!errors.sourceable_id}
+                                isClearable
+                                size="md"
+                                placeholder="Busca una orden de compra"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga automáticamente el proveedor, bodega y líneas pendientes
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {sourceType === 'sales_return' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Devolución de origen *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={salesReturnLookupUrl}
+                                value={salesReturnOption}
+                                onChange={selectSalesReturn}
+                                error={!!errors.sourceable_id}
+                                isClearable
+                                size="md"
+                                placeholder="Busca una devolución de venta"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga automáticamente el cliente y los artículos devueltos
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {sourceType === 'transfer' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Traslado de origen *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={transferLookupUrl}
+                                value={transferOption}
+                                onChange={selectTransfer}
+                                error={!!errors.sourceable_id}
+                                isClearable
+                                size="md"
+                                placeholder="Busca un traslado"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga automáticamente la bodega de destino y los artículos transferidos
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </FormFieldGrid>
+            </FormSection>
+
+            <FormSection
+                step={2}
                 title="Datos de la entrada"
                 sub="Qué llega, de dónde viene y a qué bodega entra"
             >
                 <FormFieldGrid>
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Tipo de entrada *
-                        </Label>
-                        <Select2
-                            inputId="entry_type"
-                            options={TYPE_OPTIONS}
-                            value={
-                                TYPE_OPTIONS.find(
-                                    (option) =>
-                                        option.value === data.entry_type,
-                                ) ?? null
-                            }
-                            onChange={(option) =>
-                                selectEntryType(
-                                    (option?.value ?? 'purchase') as EntryType,
-                                )
-                            }
-                            error={!!errors.entry_type}
-                            size="md"
-                            placeholder="De dónde viene la mercancía"
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            El inventario inicial se carga una sola vez por
-                            artículo y bodega
-                        </span>
-                        {errors.entry_type && (
-                            <p className="text-sm text-bad">
-                                {errors.entry_type}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="supplier_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Proveedor {requiresSupplier ? '*' : ''}
-                        </Label>
-                        <Select2Ajax
-                            inputId="supplier_id"
-                            url={supplierLookupUrl}
-                            value={supplierOption}
-                            onChange={selectSupplier}
-                            error={!!errors.supplier_id}
-                            isClearable
-                            isDisabled={!allowsSupplier}
-                            size="md"
-                            placeholder={
-                                allowsSupplier
-                                    ? 'Busca un proveedor'
-                                    : 'El inventario inicial no tiene proveedor'
-                            }
-                        />
-                        {errors.supplier_id && (
-                            <p className="text-sm text-bad">
-                                {errors.supplier_id}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="sourceable_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Orden de compra
-                        </Label>
-                        <Select2Ajax
-                            inputId="sourceable_id"
-                            url={orderLookupUrl}
-                            params={{ supplier_id: data.supplier_id }}
-                            value={orderOption}
-                            onChange={selectOrder}
-                            error={!!errors.sourceable_id}
-                            isClearable
-                            isDisabled={
-                                !allowsSupplier || data.supplier_id === ''
-                            }
-                            size="md"
-                            placeholder={
-                                data.supplier_id === ''
-                                    ? 'Elige antes el proveedor'
-                                    : 'Sin orden previa'
-                            }
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            Atarla limita lo recibido a lo que queda pendiente
-                        </span>
-                        {errors.sourceable_id && (
-                            <p className="text-sm text-bad">
-                                {errors.sourceable_id}
-                            </p>
-                        )}
-                    </div>
+                    {sourceType === 'sales_return' ? (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="client_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Cliente *
+                            </Label>
+                            <Select2Ajax
+                                inputId="client_id"
+                                url={clientLookupUrl}
+                                value={clientOption}
+                                onChange={() => {}}
+                                isDisabled
+                                size="md"
+                                placeholder="Cliente de la devolución"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Fijado por la devolución seleccionada
+                            </span>
+                        </div>
+                    ) : sourceType === 'transfer' ? (
+                        <div className="flex flex-col gap-1.5 justify-center">
+                            <span className="text-[13px] font-semibold text-muted-foreground">
+                                Destinatario / Tercero
+                            </span>
+                            <span className="text-[13px] text-muted-foreground">
+                                Sin tercero (movimiento interno entre bodegas)
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="supplier_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Proveedor {requiresSupplier ? '*' : ''}
+                            </Label>
+                            <Select2Ajax
+                                inputId="supplier_id"
+                                url={supplierLookupUrl}
+                                value={supplierOption}
+                                onChange={selectSupplier}
+                                error={!!errors.supplier_id}
+                                isClearable
+                                isDisabled={!allowsSupplier || (sourceType === 'purchase_order' && !!data.sourceable_id)}
+                                size="md"
+                                placeholder={
+                                    allowsSupplier
+                                        ? 'Busca un proveedor'
+                                        : 'El inventario inicial no tiene proveedor'
+                                }
+                            />
+                            {sourceType === 'purchase_order' && !!data.sourceable_id && (
+                                <span className="text-[12px] text-muted-foreground">
+                                    Fijado por la orden de compra seleccionada
+                                </span>
+                            )}
+                            {errors.supplier_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.supplier_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
@@ -245,7 +367,7 @@ export function EntryForm() {
             </FormSection>
 
             <FormSection
-                step={2}
+                step={3}
                 title="Líneas"
                 sub="Qué llegó, qué se acepta, dónde se guarda y con qué lote"
             >
@@ -253,7 +375,7 @@ export function EntryForm() {
             </FormSection>
 
             <FormSection
-                step={3}
+                step={4}
                 title="Transporte e inspección"
                 sub="Quién trajo la carga, quién la recibió y cómo salió el control"
             >
@@ -386,7 +508,7 @@ export function EntryForm() {
             </FormSection>
 
             <FormSection
-                step={4}
+                step={5}
                 title="Moneda"
                 sub="La moneda del documento y su tasa de cambio"
             >

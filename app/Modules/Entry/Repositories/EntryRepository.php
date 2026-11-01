@@ -37,6 +37,8 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
                 'id' => $command->id,
                 'company_id' => $command->companyId,
                 'code' => $this->generateNextCode($command->companyId),
+                'recipient_type' => $command->recipientType,
+                'recipient_id' => $command->recipientId,
                 'supplier_id' => $command->supplierId,
                 'sourceable_type' => $command->sourceableType,
                 'sourceable_id' => $command->sourceableId,
@@ -84,6 +86,8 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
 
             /** La marca de facturado y la de anulación no se editan aquí. */
             $model->update([
+                'recipient_type' => $command->recipientType,
+                'recipient_id' => $command->recipientId,
                 'supplier_id' => $command->supplierId,
                 'sourceable_type' => $command->sourceableType,
                 'sourceable_id' => $command->sourceableId,
@@ -234,6 +238,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     private function detailRelations(): array
     {
         return [
+            'recipient',
             'supplier',
             'sourceable',
             'warehouse',

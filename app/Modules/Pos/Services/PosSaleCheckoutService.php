@@ -20,6 +20,7 @@ use App\Modules\Pos\Commands\PosCheckoutCommand;
 use App\Modules\Pos\Exceptions\PosSessionClosedException;
 use App\Modules\Pos\Exceptions\PosUnauthorizedSessionException;
 use App\Modules\Pos\Models\PosSale;
+use App\Modules\Pos\Models\PosSession;
 use App\Modules\Pos\Repositories\Contracts\PosSaleRepositoryInterface;
 use App\Modules\Pos\Repositories\Contracts\PosSessionRepositoryInterface;
 use App\Modules\SalesInvoice\Commands\CreateSalesInvoiceCommand;
@@ -86,8 +87,8 @@ class PosSaleCheckoutService
                 dueDate: now()->toDateString(),
                 createdBy: $command->userId,
                 lines: $command->toInvoiceLines(),
-                sourceableType: null,
-                sourceableId: null,
+                sourceableType: PosSession::MORPH_ALIAS,
+                sourceableId: $session->id,
                 invoiceSeries: $session->register->invoice_series,
                 saleType: 'cash',
                 currency: $command->currency,

@@ -63,8 +63,8 @@ class DispatchSourceService
     public function guard(
         ?string $sourceableType,
         ?string $sourceableId,
-        string $recipientType,
-        string $recipientId,
+        ?string $recipientType,
+        ?string $recipientId,
         ?string $companyId,
         array $lines,
         ?string $dispatchId = null,
@@ -145,8 +145,8 @@ class DispatchSourceService
      */
     private function guardTransfer(
         string $sourceableId,
-        string $recipientType,
-        string $recipientId,
+        ?string $recipientType,
+        ?string $recipientId,
         ?string $companyId,
         array $lines,
         ?string $dispatchId,
@@ -165,7 +165,7 @@ class DispatchSourceService
             ]);
         }
 
-        if ($recipientType !== Warehouse::MORPH_ALIAS || $recipientId !== $transfer->destination_warehouse_id) {
+        if (! blank($recipientType) && ($recipientType !== Warehouse::MORPH_ALIAS || $recipientId !== $transfer->destination_warehouse_id)) {
             throw ValidationException::withMessages([
                 'recipient_id' => 'El despacho de un traslado va a la bodega de destino del traslado.',
             ]);

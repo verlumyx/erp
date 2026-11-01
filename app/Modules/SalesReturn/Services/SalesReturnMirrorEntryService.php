@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\SalesReturn\Services;
 
+use App\Modules\Client\Models\Client;
 use App\Modules\Entry\Commands\CreateEntryCommand;
 use App\Modules\Entry\Commands\EntryLineData;
 use App\Modules\Entry\Commands\SearchEntryCommand;
@@ -86,6 +87,8 @@ class SalesReturnMirrorEntryService
                 entryDate: $entryDate,
                 createdBy: (string) $return->created_by,
                 lines: $lines,
+                recipientType: Client::MORPH_ALIAS,
+                recipientId: (string) $return->client_id,
                 /** Lo que vuelve de un cliente no se le compra a nadie. */
                 supplierId: null,
                 sourceableType: SalesReturn::MORPH_ALIAS,

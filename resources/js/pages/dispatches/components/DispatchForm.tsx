@@ -25,6 +25,8 @@ export function DispatchForm() {
         totals,
         addresses,
         flow,
+        sourceType,
+        setSourceType,
         clientLookupUrl,
         clientOption,
         selectClient,
@@ -33,12 +35,58 @@ export function DispatchForm() {
         sourceLookupUrl,
         sourceOption,
         selectSource,
+        salesInvoiceLookupUrl,
+        salesInvoiceOption,
+        selectSalesInvoice,
+        purchaseReturnLookupUrl,
+        purchaseReturnOption,
+        selectPurchaseReturn,
+        transferLookupUrl,
+        transferOption,
+        selectTransfer,
         selectWarehouse,
         routeLookupUrl,
         routeOption,
         selectRoute,
         options,
+        clearErrors,
     } = useDispatchFormContext();
+
+    const SOURCE_TYPE_OPTIONS: OptionType[] = [
+        { value: 'none', label: 'Seleccione' },
+        { value: 'sales_order', label: 'Orden de venta' },
+        { value: 'sales_invoice', label: 'Factura de venta' },
+        { value: 'purchase_return', label: 'Devolución de compra' },
+        { value: 'transfer', label: 'Traslado entre bodegas' },
+    ];
+
+    const handleSourceTypeChange = (opt: OptionType | null) => {
+        const next = opt?.value ?? 'none';
+        setSourceType(next);
+        clearErrors('sourceable_type', 'sourceable_id');
+        if (next === 'none') {
+            selectSource(null);
+            selectSalesInvoice(null);
+            selectPurchaseReturn(null);
+            selectTransfer(null);
+        } else if (next === 'sales_order') {
+            selectSalesInvoice(null);
+            selectPurchaseReturn(null);
+            selectTransfer(null);
+        } else if (next === 'sales_invoice') {
+            selectSource(null);
+            selectPurchaseReturn(null);
+            selectTransfer(null);
+        } else if (next === 'purchase_return') {
+            selectSource(null);
+            selectSalesInvoice(null);
+            selectTransfer(null);
+        } else if (next === 'transfer') {
+            selectSource(null);
+            selectSalesInvoice(null);
+            selectPurchaseReturn(null);
+        }
+    };
 
     const warehouseOptions: OptionType[] = options.warehouses.map(
         (warehouse) => ({ value: warehouse.id, label: warehouse.name }),
@@ -60,15 +108,172 @@ export function DispatchForm() {
         <FormLayout onSubmit={handleSubmit}>
             <FormSection
                 step={1}
+                title="Empezar registro desde"
+                sub="Selecciona si deseas iniciar el despacho a partir de una orden de venta, factura, devolución o traslado"
+            >
+                <FormFieldGrid>
+                    <div className="flex flex-col gap-1.5">
+                        <Label
+                            htmlFor="source_type"
+                            className="text-[13px] font-semibold"
+                        >
+                            Origen del despacho *
+                        </Label>
+                        <Select2
+                            inputId="source_type"
+                            options={SOURCE_TYPE_OPTIONS}
+                            value={
+                                SOURCE_TYPE_OPTIONS.find(
+                                    (opt) => opt.value === sourceType,
+                                ) ?? SOURCE_TYPE_OPTIONS[0]
+                            }
+                            onChange={handleSourceTypeChange}
+                            error={!!errors.sourceable_type}
+                            isDisabled={mode === 'edit'}
+                            size="md"
+                        />
+                        {errors.sourceable_type && (
+                            <p className="text-sm text-bad">
+                                {errors.sourceable_type}
+                            </p>
+                        )}
+                    </div>
+
+                    {sourceType === 'sales_order' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_sales_order"
+                                className="text-[13px] font-semibold"
+                            >
+                                Orden de venta *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_sales_order"
+                                url={sourceLookupUrl}
+                                params={{
+                                    dispatchable: 'yes',
+                                    ...(data.client_id ? { client_id: data.client_id } : {}),
+                                }}
+                                value={sourceOption}
+                                onChange={selectSource}
+                                error={!!errors.sourceable_id}
+                                isDisabled={mode === 'edit'}
+                                size="md"
+                                placeholder="Busca una orden de venta"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga automáticamente el cliente, bodega y artículos pendientes
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {sourceType === 'sales_invoice' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_sales_invoice"
+                                className="text-[13px] font-semibold"
+                            >
+                                Factura de venta *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_sales_invoice"
+                                url={salesInvoiceLookupUrl}
+                                value={salesInvoiceOption}
+                                onChange={selectSalesInvoice}
+                                error={!!errors.sourceable_id}
+                                isDisabled={mode === 'edit'}
+                                size="md"
+                                placeholder="Busca una factura de venta"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga automáticamente el cliente, bodega y artículos de la factura
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {sourceType === 'purchase_return' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_purchase_return"
+                                className="text-[13px] font-semibold"
+                            >
+                                Devolución de compra *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_purchase_return"
+                                url={purchaseReturnLookupUrl}
+                                value={purchaseReturnOption}
+                                onChange={selectPurchaseReturn}
+                                error={!!errors.sourceable_id}
+                                isDisabled={mode === 'edit'}
+                                size="md"
+                                placeholder="Busca una devolución de compra"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga automáticamente el proveedor, bodega y artículos a devolver
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {sourceType === 'transfer' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_transfer"
+                                className="text-[13px] font-semibold"
+                            >
+                                Traslado entre bodegas *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_transfer"
+                                url={transferLookupUrl}
+                                value={transferOption}
+                                onChange={selectTransfer}
+                                error={!!errors.sourceable_id}
+                                isDisabled={mode === 'edit'}
+                                size="md"
+                                placeholder="Busca un traslado"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Carga la bodega de origen y los artículos a trasladar
+                            </span>
+                            {errors.sourceable_id && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </FormFieldGrid>
+            </FormSection>
+
+            <FormSection
+                step={2}
                 title="Datos del despacho"
                 sub={
-                    flow === 'supplier'
-                        ? 'A qué proveedor se le regresa, de qué devolución sale y de qué bodega'
-                        : 'A quién se le lleva, de qué pedido sale y de qué bodega'
+                    flow === 'supplier' || sourceType === 'purchase_return'
+                        ? 'A qué proveedor se le regresa y de qué bodega'
+                        : sourceType === 'transfer'
+                          ? 'Información del traslado entre bodegas'
+                          : 'A quién se le lleva y de qué bodega'
                 }
             >
                 <FormFieldGrid>
-                    {flow === 'supplier' ? (
+                    {flow === 'supplier' || sourceType === 'purchase_return' ? (
                         <div className="flex flex-col gap-1.5">
                             <Label
                                 htmlFor="recipient_id"
@@ -95,6 +300,15 @@ export function DispatchForm() {
                                 </p>
                             )}
                         </div>
+                    ) : sourceType === 'transfer' ? (
+                        <div className="flex flex-col justify-center gap-1 rounded-lg border border-border/60 bg-muted/20 p-3 sm:col-span-2">
+                            <span className="text-[13px] font-semibold text-foreground">
+                                Traslado interno entre bodegas
+                            </span>
+                            <span className="text-[12px] text-muted-foreground">
+                                Este despacho corresponde a un movimiento entre bodegas propias, por lo que no requiere destinatario comercial (cliente ni proveedor).
+                            </span>
+                        </div>
                     ) : (
                         <div className="flex flex-col gap-1.5">
                             <Label
@@ -109,77 +323,22 @@ export function DispatchForm() {
                                 value={clientOption}
                                 onChange={selectClient}
                                 error={!!errors.client_id}
+                                isDisabled={
+                                    mode === 'edit' ||
+                                    sourceType === 'sales_order' ||
+                                    sourceType === 'sales_invoice'
+                                }
                                 size="md"
                                 placeholder="Busca un cliente"
                             />
+                            {(sourceType === 'sales_order' || sourceType === 'sales_invoice') && (
+                                <span className="text-[12px] text-muted-foreground">
+                                    El cliente se cargó del documento de origen
+                                </span>
+                            )}
                             {errors.client_id && (
                                 <p className="text-sm text-bad">
                                     {errors.client_id}
-                                </p>
-                            )}
-                        </div>
-                    )}
-
-                    {flow === 'supplier' ? (
-                        <div className="flex flex-col gap-1.5">
-                            <Label
-                                htmlFor="sourceable_id"
-                                className="text-[13px] font-semibold"
-                            >
-                                Devolución de origen
-                            </Label>
-                            <Select2Ajax
-                                inputId="sourceable_id"
-                                url={sourceLookupUrl}
-                                value={sourceOption}
-                                onChange={() => {}}
-                                error={!!errors.sourceable_id}
-                                isDisabled
-                                size="md"
-                                placeholder="Devolución de compra"
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Lo que se saca sale de esta devolución
-                            </span>
-                            {errors.sourceable_id && (
-                                <p className="text-sm text-bad">
-                                    {errors.sourceable_id}
-                                </p>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-1.5">
-                            <Label
-                                htmlFor="sourceable_id"
-                                className="text-[13px] font-semibold"
-                            >
-                                Pedido de origen
-                            </Label>
-                            <Select2Ajax
-                                inputId="sourceable_id"
-                                url={sourceLookupUrl}
-                                params={{
-                                    client_id: data.client_id,
-                                    dispatchable: 'yes',
-                                }}
-                                value={sourceOption}
-                                onChange={selectSource}
-                                error={!!errors.sourceable_id}
-                                isClearable
-                                isDisabled={data.client_id === ''}
-                                size="md"
-                                placeholder={
-                                    data.client_id === ''
-                                        ? 'Elige antes el cliente'
-                                        : 'Despacho directo, sin pedido'
-                                }
-                            />
-                            <span className="text-[12px] text-muted-foreground">
-                                Atarlo limita lo despachado a lo que se pidió
-                            </span>
-                            {errors.sourceable_id && (
-                                <p className="text-sm text-bad">
-                                    {errors.sourceable_id}
                                 </p>
                             )}
                         </div>
@@ -349,49 +508,51 @@ export function DispatchForm() {
                         </div>
                     )}
 
-                    <div
-                        className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3"
-                        hidden={flow === 'supplier'}
-                    >
-                        <Label className="text-[13px] font-semibold">
-                            Dirección de entrega
-                        </Label>
-                        <Select2
-                            inputId="client_address_id"
-                            options={addressOptions}
-                            value={
-                                addressOptions.find(
-                                    (option) =>
-                                        option.value === data.client_address_id,
-                                ) ?? null
-                            }
-                            onChange={(option) =>
-                                setData(
-                                    'client_address_id',
-                                    option?.value ?? '',
-                                )
-                            }
-                            error={!!errors.client_address_id}
-                            isClearable
-                            isDisabled={addresses.length === 0}
-                            size="md"
-                            placeholder={
-                                addresses.length === 0
-                                    ? 'El cliente no tiene direcciones'
-                                    : 'Elige a dónde se entrega'
-                            }
-                        />
-                        {errors.client_address_id && (
-                            <p className="text-sm text-bad">
-                                {errors.client_address_id}
-                            </p>
+                    {sourceType !== 'purchase_return' &&
+                        flow !== 'supplier' &&
+                        sourceType !== 'transfer' && (
+                            <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
+                                <Label className="text-[13px] font-semibold">
+                                    Dirección de entrega
+                                </Label>
+                                <Select2
+                                    inputId="client_address_id"
+                                    options={addressOptions}
+                                    value={
+                                        addressOptions.find(
+                                            (option) =>
+                                                option.value ===
+                                                data.client_address_id,
+                                        ) ?? null
+                                    }
+                                    onChange={(option) =>
+                                        setData(
+                                            'client_address_id',
+                                            option?.value ?? '',
+                                        )
+                                    }
+                                    error={!!errors.client_address_id}
+                                    isClearable
+                                    isDisabled={addresses.length === 0}
+                                    size="md"
+                                    placeholder={
+                                        addresses.length === 0
+                                            ? 'El cliente no tiene direcciones'
+                                            : 'Elige a dónde se entrega'
+                                    }
+                                />
+                                {errors.client_address_id && (
+                                    <p className="text-sm text-bad">
+                                        {errors.client_address_id}
+                                    </p>
+                                )}
+                            </div>
                         )}
-                    </div>
                 </FormFieldGrid>
             </FormSection>
 
             <FormSection
-                step={2}
+                step={3}
                 title="Carga"
                 sub="Qué sale, de qué ubicación y con qué lote o serie"
             >
@@ -399,7 +560,7 @@ export function DispatchForm() {
             </FormSection>
 
             <FormSection
-                step={3}
+                step={4}
                 title="Transporte"
                 sub="Por qué ruta sale, quién la lleva y con qué guía"
             >

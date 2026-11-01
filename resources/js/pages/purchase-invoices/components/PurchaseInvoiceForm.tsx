@@ -27,6 +27,8 @@ export function PurchaseInvoiceForm() {
         mode,
         options,
         totals,
+        sourceType,
+        setSourceType,
         supplierLookupUrl,
         supplierOption,
         selectSupplier,
@@ -44,8 +46,87 @@ export function PurchaseInvoiceForm() {
         <FormLayout onSubmit={handleSubmit}>
             <FormSection
                 step={1}
+                title="Empezar registro desde"
+                sub="Selecciona si deseas iniciar la factura a partir de una orden de compra o cargarla directamente"
+            >
+                <FormFieldGrid>
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[13px] font-semibold">
+                            Origen de la factura
+                        </Label>
+                        <Select2
+                            inputId="source_type"
+                            options={[
+                                {
+                                    value: 'none',
+                                    label: 'Sin orden previa / Compra directa',
+                                },
+                                {
+                                    value: 'purchase_order',
+                                    label: 'Orden de compra',
+                                },
+                            ]}
+                            value={
+                                sourceType === 'purchase_order'
+                                    ? {
+                                          value: 'purchase_order',
+                                          label: 'Orden de compra',
+                                      }
+                                    : {
+                                          value: 'none',
+                                          label: 'Sin orden previa / Compra directa',
+                                      }
+                            }
+                            onChange={(opt) => {
+                                const val = opt?.value ?? 'none';
+                                setSourceType(val);
+                                if (val === 'none') {
+                                    selectSourceOrder(null);
+                                }
+                            }}
+                            isDisabled={mode === 'edit'}
+                            size="md"
+                        />
+                    </div>
+
+                    {sourceType === 'purchase_order' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Orden de compra *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={sourceOrderLookupUrl}
+                                value={sourceOrderOption}
+                                onChange={selectSourceOrder}
+                                error={
+                                    !!errors.sourceable_id ||
+                                    !!errors.sourceable_type
+                                }
+                                isClearable
+                                size="md"
+                                placeholder="Busca una orden de compra"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Al elegir la orden se cargarán el proveedor, bodega y líneas pendientes.
+                            </span>
+                            {(errors.sourceable_id || errors.sourceable_type) && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id ?? errors.sourceable_type}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </FormFieldGrid>
+            </FormSection>
+
+            <FormSection
+                step={2}
                 title="Datos de la factura"
-                sub="Quién la emite, con qué número y contra qué documento"
+                sub="Quién la emite y con qué número"
             >
                 <FormFieldGrid>
                     <div className="flex flex-col gap-1.5">
@@ -62,47 +143,17 @@ export function PurchaseInvoiceForm() {
                             onChange={selectSupplier}
                             error={!!errors.supplier_id}
                             size="md"
+                            isDisabled={sourceType === 'purchase_order' && !!data.sourceable_id}
                             placeholder="Busca un proveedor"
                         />
+                        {sourceType === 'purchase_order' && !!data.sourceable_id && (
+                            <span className="text-[12px] text-muted-foreground">
+                                Fijado por la orden de compra seleccionada
+                            </span>
+                        )}
                         {errors.supplier_id && (
                             <p className="text-sm text-bad">
                                 {errors.supplier_id}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="sourceable_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Orden de compra
-                        </Label>
-                        <Select2Ajax
-                            inputId="sourceable_id"
-                            url={sourceOrderLookupUrl}
-                            params={{ supplier_id: data.supplier_id }}
-                            value={sourceOrderOption}
-                            onChange={selectSourceOrder}
-                            error={
-                                !!errors.sourceable_id ||
-                                !!errors.sourceable_type
-                            }
-                            isClearable
-                            isDisabled={data.supplier_id === ''}
-                            size="md"
-                            placeholder={
-                                data.supplier_id === ''
-                                    ? 'Elige antes el proveedor'
-                                    : 'Sin orden previa'
-                            }
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            Déjala vacía si es una compra directa
-                        </span>
-                        {(errors.sourceable_id || errors.sourceable_type) && (
-                            <p className="text-sm text-bad">
-                                {errors.sourceable_id ?? errors.sourceable_type}
                             </p>
                         )}
                     </div>
@@ -237,7 +288,7 @@ export function PurchaseInvoiceForm() {
             </FormSection>
 
             <FormSection
-                step={2}
+                step={3}
                 title="Líneas"
                 sub="Qué se compró, en qué unidad y a qué costo"
             >
@@ -245,7 +296,7 @@ export function PurchaseInvoiceForm() {
             </FormSection>
 
             <FormSection
-                step={3}
+                step={4}
                 title="Condiciones"
                 sub="Moneda, tasa, vencimiento y descuento"
             >

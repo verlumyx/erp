@@ -35,6 +35,9 @@ export function SalesInvoiceForm() {
         options,
         totals,
         client,
+        sourceType,
+        setSourceType,
+        sourceableCode,
         clientLookupUrl,
         clientOption,
         sourceLookupUrl,
@@ -69,8 +72,122 @@ export function SalesInvoiceForm() {
         <FormLayout onSubmit={handleSubmit}>
             <FormSection
                 step={1}
-                title="Cabecera"
-                sub="Cliente, documento origen y fechas de la factura"
+                title="Empezar registro desde"
+                sub="Selecciona si deseas iniciar la factura a partir de una orden de venta o cargarla directamente"
+            >
+                <FormFieldGrid>
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[13px] font-semibold">
+                            Origen de la factura
+                        </Label>
+                        {sourceType === 'pos_session' ? (
+                            <Select2
+                                inputId="source_type"
+                                options={[
+                                    {
+                                        value: 'pos_session',
+                                        label: 'Terminal POS',
+                                    },
+                                ]}
+                                value={{
+                                    value: 'pos_session',
+                                    label: 'Terminal POS',
+                                }}
+                                onChange={() => {}}
+                                isDisabled
+                                size="md"
+                            />
+                        ) : (
+                            <Select2
+                                inputId="source_type"
+                                options={[
+                                    {
+                                        value: 'none',
+                                        label: 'Sin pedido previo / Venta directa',
+                                    },
+                                    {
+                                        value: 'sales_order',
+                                        label: 'Orden de venta',
+                                    },
+                                ]}
+                                value={
+                                    sourceType === 'sales_order'
+                                        ? {
+                                              value: 'sales_order',
+                                              label: 'Orden de venta',
+                                          }
+                                        : {
+                                              value: 'none',
+                                              label: 'Sin pedido previo / Venta directa',
+                                          }
+                                }
+                                onChange={(opt) => {
+                                    const val = opt?.value ?? 'none';
+                                    setSourceType(val);
+                                    if (val === 'none') {
+                                        selectSource(null);
+                                    }
+                                }}
+                                isDisabled={mode === 'edit'}
+                                size="md"
+                            />
+                        )}
+                    </div>
+
+                    {sourceType === 'pos_session' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-[13px] font-semibold">
+                                Sesión POS origen
+                            </Label>
+                            <Input
+                                value={sourceableCode ? `Sesión POS: ${sourceableCode}` : 'Sesión de caja POS'}
+                                disabled
+                                className="h-[42px] rounded-[10px] bg-muted"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Factura generada automáticamente desde la terminal POS
+                            </span>
+                        </div>
+                    )}
+
+                    {sourceType === 'sales_order' && (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="sourceable_id"
+                                className="text-[13px] font-semibold"
+                            >
+                                Pedido de venta *
+                            </Label>
+                            <Select2Ajax
+                                inputId="sourceable_id"
+                                url={sourceLookupUrl}
+                                value={sourceOption}
+                                onChange={selectSource}
+                                error={
+                                    !!errors.sourceable_id ||
+                                    !!errors.sourceable_type
+                                }
+                                size="md"
+                                isClearable
+                                placeholder="Busca una orden de venta"
+                            />
+                            <span className="text-[12px] text-muted-foreground">
+                                Al elegir la orden se cargarán el cliente, bodega y líneas pendientes.
+                            </span>
+                            {(errors.sourceable_id || errors.sourceable_type) && (
+                                <p className="text-sm text-bad">
+                                    {errors.sourceable_id ?? errors.sourceable_type}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </FormFieldGrid>
+            </FormSection>
+
+            <FormSection
+                step={2}
+                title="Datos de la factura"
+                sub="Cliente, fechas y bodega de la factura"
             >
                 <FormFieldGrid>
                     <div className="flex flex-col gap-1.5">
@@ -86,9 +203,20 @@ export function SalesInvoiceForm() {
                             value={clientOption}
                             onChange={selectClient}
                             error={!!errors.client_id}
+                            isDisabled={sourceType === 'pos_session' || (sourceType === 'sales_order' && !!data.sourceable_id)}
                             size="md"
                             placeholder="Busca un cliente"
                         />
+                        {sourceType === 'sales_order' && !!data.sourceable_id && (
+                            <span className="text-[12px] text-muted-foreground">
+                                Fijado por la orden de venta seleccionada
+                            </span>
+                        )}
+                        {sourceType === 'pos_session' && (
+                            <span className="text-[12px] text-muted-foreground">
+                                Fijado por la terminal POS
+                            </span>
+                        )}
                         {client?.credit_blocked === 'yes' && (
                             <span className="text-[12px] font-semibold text-warn">
                                 Este cliente tiene el crédito bloqueado
@@ -97,43 +225,6 @@ export function SalesInvoiceForm() {
                         {errors.client_id && (
                             <p className="text-sm text-bad">
                                 {errors.client_id}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="sourceable_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Pedido de origen
-                        </Label>
-                        <Select2Ajax
-                            inputId="sourceable_id"
-                            url={sourceLookupUrl}
-                            params={{ client_id: data.client_id }}
-                            value={sourceOption}
-                            onChange={selectSource}
-                            error={
-                                !!errors.sourceable_id ||
-                                !!errors.sourceable_type
-                            }
-                            size="md"
-                            isClearable
-                            isDisabled={data.client_id === ''}
-                            placeholder={
-                                data.client_id === ''
-                                    ? 'Elige antes el cliente'
-                                    : 'Sin pedido previo'
-                            }
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            Elegirlo trae las líneas que al pedido le quedan por
-                            facturar
-                        </span>
-                        {(errors.sourceable_id || errors.sourceable_type) && (
-                            <p className="text-sm text-bad">
-                                {errors.sourceable_id ?? errors.sourceable_type}
                             </p>
                         )}
                     </div>
@@ -302,7 +393,7 @@ export function SalesInvoiceForm() {
             </FormSection>
 
             <FormSection
-                step={2}
+                step={3}
                 title="Líneas"
                 sub="Artículos facturados: el precio queda congelado al guardar"
             >
@@ -310,7 +401,7 @@ export function SalesInvoiceForm() {
             </FormSection>
 
             <FormSection
-                step={3}
+                step={4}
                 title="Condiciones"
                 sub="Moneda, tasa, forma de venta e inventario"
             >

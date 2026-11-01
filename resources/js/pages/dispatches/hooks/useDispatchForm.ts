@@ -1,5 +1,5 @@
 import { useForm, usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { AjaxOption } from '@/components/select2-ajax';
 import { useConfiguration } from '@/hooks/use-configuration';
 import {
@@ -21,9 +21,12 @@ import clients from '@/routes/clients';
 import dispatches from '@/routes/dispatches';
 import itemLots from '@/routes/item-lots';
 import itemSerials from '@/routes/item-serials';
+import purchaseReturns from '@/routes/purchase-returns';
 import routes from '@/routes/routes';
+import salesInvoices from '@/routes/sales-invoices';
 import salesOrders from '@/routes/sales-orders';
 import suppliers from '@/routes/suppliers';
+import transfers from '@/routes/transfers';
 import type {
     ClientAddressOption,
     ClientOptionMeta,
@@ -56,6 +59,7 @@ const SUPPLIER = 'supplier';
  */
 const LINE_SOURCE_TYPE: Record<string, string> = {
     [SALES_ORDER]: SALES_ORDER_LINE,
+    sales_invoice: 'sales_invoice_line',
     transfer: 'transfer_line',
     purchase_return: 'purchase_return_line',
 };
@@ -200,6 +204,36 @@ function sourceSeed(model?: Dispatch): AjaxOption | null {
         value: model.sourceable_id,
         label: model.sourceable_code ?? 'Pedido de venta',
     };
+}
+
+function invoiceSeed(model?: Dispatch): AjaxOption | null {
+    if (model?.sourceable_type === 'sales_invoice' && model.sourceable_id) {
+        return {
+            value: model.sourceable_id,
+            label: model.sourceable_code ?? 'Factura de venta',
+        };
+    }
+    return null;
+}
+
+function purchaseReturnSeed(model?: Dispatch): AjaxOption | null {
+    if (model?.sourceable_type === 'purchase_return' && model.sourceable_id) {
+        return {
+            value: model.sourceable_id,
+            label: model.sourceable_code ?? 'Devolución de compra',
+        };
+    }
+    return null;
+}
+
+function transferSeed(model?: Dispatch): AjaxOption | null {
+    if (model?.sourceable_type === 'transfer' && model.sourceable_id) {
+        return {
+            value: model.sourceable_id,
+            label: model.sourceable_code ?? 'Traslado',
+        };
+    }
+    return null;
 }
 
 /** En ventas el artículo se reconoce por su sku. */
@@ -370,6 +404,29 @@ export function useDispatchForm({
         hydrate: true,
     });
 
+    const salesInvoice = useRemoteOption({
+        url: salesInvoices.lookup(companyId).url,
+        seed: invoiceSeed(initialData),
+    });
+
+    const purchaseReturn = useRemoteOption({
+        url: purchaseReturns.lookup(companyId).url,
+        seed: purchaseReturnSeed(initialData),
+    });
+
+    const transfer = useRemoteOption({
+        url: transfers.lookup(companyId).url,
+        seed: transferSeed(initialData),
+    });
+
+    const [sourceType, setSourceType] = useState<string>(() => {
+        if (initialData?.sourceable_type === 'purchase_return') return 'purchase_return';
+        if (initialData?.sourceable_type === 'sales_invoice') return 'sales_invoice';
+        if (initialData?.sourceable_type === 'transfer') return 'transfer';
+        if (initialData?.sourceable_type === 'sales_order' || initialData?.sourceable_id) return 'sales_order';
+        return 'none';
+    });
+
     /**
      * Lo que al pedido elegido le queda por despachar, en su propia petición.
      * Al abrir un despacho guardado se pide solo, conservando las líneas que
@@ -397,21 +454,27 @@ export function useDispatchForm({
         hydrate: true,
     });
 
-    const { data, setData, post, put, transform, processing, errors, reset } =
-        useForm<DispatchFormData>({
+    const {
+        data,
+        setData,
+        post,
+        put,
+        transform,
+        processing,
+        errors,
+        reset,
+        setError,
+        clearErrors,
+    } = useForm<DispatchFormData>({
             id: initialData?.id ?? generateUUID(),
             client_id:
                 initialData?.recipient_type === 'client'
                     ? (initialData?.recipient_id ?? '')
                     : '',
             recipient_type:
-                initialData && initialData.recipient_type !== 'client'
-                    ? (initialData.recipient_type ?? '')
-                    : '',
+                initialData?.recipient_type ?? 'client',
             recipient_id:
-                initialData && initialData.recipient_type !== 'client'
-                    ? (initialData.recipient_id ?? '')
-                    : '',
+                initialData?.recipient_id ?? '',
             sourceable_type: initialData?.sourceable_type ?? '',
             sourceable_id: initialData?.sourceable_id ?? '',
             client_address_id: initialData?.client_address_id ?? '',
@@ -433,12 +496,14 @@ export function useDispatchForm({
         });
 
     /**
-     * El flujo del despacho. El de venta va a un cliente y se arma a mano; el
-     * espejo de una devolución de compra va a un proveedor, nace generado y su
-     * destinatario y su origen quedan fijados por la devolución.
+     * El flujo del despacho.
      */
-    const flow: 'client' | 'supplier' =
-        data.recipient_type === SUPPLIER ? 'supplier' : 'client';
+    const flow: 'client' | 'supplier' | 'transfer' =
+        sourceType === 'purchase_return' || data.recipient_type === SUPPLIER
+            ? 'supplier'
+            : sourceType === 'transfer'
+            ? 'transfer'
+            : 'client';
 
     /**
      * El catálogo de artículos ya no viaja en las props: la pantalla solo conoce
@@ -533,7 +598,9 @@ export function useDispatchForm({
      */
     const selectClient = (option: AjaxOption | null) => {
         client.select(option);
-        source.select(null);
+        if (sourceType === 'none') {
+            source.select(null);
+        }
 
         const meta = (option?.meta ?? {}) as Partial<ClientOptionMeta>;
         const shipping = (meta.addresses ?? []).find(
@@ -544,27 +611,24 @@ export function useDispatchForm({
         setData((current) => ({
             ...current,
             client_id: option?.value ?? '',
+            recipient_type: option ? 'client' : '',
+            recipient_id: option?.value ?? '',
             client_address_id: shipping?.id ?? '',
-            sourceable_type: '',
-            sourceable_id: '',
-            lines: current.lines.map((line) => ({
-                ...line,
-                sourceable_id: '',
-            })),
+            ...(sourceType === 'none'
+                ? {
+                      sourceable_type: '',
+                      sourceable_id: '',
+                      lines: current.lines.map((line) => ({
+                          ...line,
+                          sourceable_id: '',
+                      })),
+                  }
+                : {}),
         }));
     };
 
     /**
-     * Elegir el pedido arma el despacho con lo que le queda por sacar: su
-     * cabecera —cliente, bodega y dirección— y sus líneas pendientes, cada una
-     * apuntando a la suya. Sustituye lo capturado: es el punto de partida del
-     * despacho, no un añadido.
-     *
-     * Lo ya despachado por completo no vuelve, y la cantidad queda editable:
-     * casi nunca sale el pedido entero de una vez.
-     *
-     * Las líneas se piden aparte y no viajan en el `meta` del select: el saldo
-     * solo interesa del pedido elegido.
+     * Elegir el pedido arma el despacho con lo que le queda por sacar.
      */
     const selectSource = async (option: AjaxOption | null) => {
         source.select(option);
@@ -576,7 +640,6 @@ export function useDispatchForm({
                 ...current,
                 sourceable_type: '',
                 sourceable_id: '',
-                /** Sin pedido de origen, sus líneas tampoco pueden tenerlo. */
                 lines: current.lines.map((line) => ({
                     ...line,
                     sourceable_id: '',
@@ -587,8 +650,8 @@ export function useDispatchForm({
         }
 
         const meta = option.meta as unknown as SalesOrderOptionMeta;
+        clearErrors('sourceable_id', 'sourceable_type');
 
-        /** El cliente lo manda el pedido: despachar a otro sería otro documento. */
         client.select({
             value: meta.client_id,
             label: meta.client_name ?? meta.code,
@@ -604,6 +667,8 @@ export function useDispatchForm({
             ...current,
             sourceable_type: SALES_ORDER,
             sourceable_id: option.value,
+            recipient_type: 'client',
+            recipient_id: meta.client_id,
             client_id: meta.client_id,
             client_address_id: meta.client_address_id ?? '',
             warehouse_id: meta.warehouse_id,
@@ -615,7 +680,6 @@ export function useDispatchForm({
 
         const pending = await pendingLines.fetchLines(option.value);
 
-        /** Un pedido sin saldo deja intacto lo que ya se había capturado. */
         if (pending.length === 0) {
             return;
         }
@@ -636,6 +700,191 @@ export function useDispatchForm({
                 notes: line.notes ?? '',
             })),
         );
+    };
+
+    const selectSalesInvoice = async (option: AjaxOption | null) => {
+        salesInvoice.select(option);
+
+        if (!option) {
+            setData((current) => ({
+                ...current,
+                sourceable_type: '',
+                sourceable_id: '',
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_id: '',
+                    source_quantity: null,
+                })),
+            }));
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as any;
+        clearErrors('sourceable_id', 'sourceable_type');
+        if (meta.client_id) {
+            client.select({
+                value: meta.client_id,
+                label: meta.client_name ?? meta.code,
+            });
+        }
+
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === data.warehouse_id &&
+                loc.is_default === 'yes',
+        );
+
+        const invoiceLines = meta.lines ?? [];
+
+        setData((current) => ({
+            ...current,
+            sourceable_type: 'sales_invoice',
+            sourceable_id: option.value,
+            recipient_type: 'client',
+            recipient_id: meta.client_id ?? '',
+            client_id: meta.client_id ?? '',
+            warehouse_id: meta.warehouse_id ?? current.warehouse_id,
+            lines:
+                invoiceLines.length > 0
+                    ? invoiceLines.map((l: any) => ({
+                          id: generateUUID(),
+                          item_id: l.item_id,
+                          measurement_unit_id: l.measurement_unit_id,
+                          measurement_unit_name:
+                              l.measurement_unit_name ?? '',
+                          quantity: round2(
+                              Number(l.quantity) -
+                                  Number(l.returned_quantity ?? 0),
+                          ),
+                          source_quantity: Number(l.quantity),
+                          sourceable_id: l.id,
+                          location_id:
+                              l.location_id || (defaultLocation?.id ?? ''),
+                          lots: [],
+                          serials: [],
+                          notes: '',
+                      }))
+                    : current.lines,
+        }));
+    };
+
+    const selectPurchaseReturn = async (option: AjaxOption | null) => {
+        purchaseReturn.select(option);
+
+        if (!option) {
+            setData((current) => ({
+                ...current,
+                sourceable_type: '',
+                sourceable_id: '',
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_id: '',
+                    source_quantity: null,
+                })),
+            }));
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as any;
+        clearErrors('sourceable_id', 'sourceable_type');
+        if (meta.supplier_id) {
+            supplier.select({
+                value: meta.supplier_id,
+                label: meta.supplier_name ?? meta.code,
+            });
+        }
+
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === data.warehouse_id &&
+                loc.is_default === 'yes',
+        );
+
+        const returnLines = meta.lines ?? [];
+
+        setData((current) => ({
+            ...current,
+            sourceable_type: 'purchase_return',
+            sourceable_id: option.value,
+            recipient_type: 'supplier',
+            recipient_id: meta.supplier_id ?? '',
+            client_id: '',
+            lines:
+                returnLines.length > 0
+                    ? returnLines.map((l: any) => ({
+                          id: generateUUID(),
+                          item_id: l.item_id,
+                          measurement_unit_id: l.measurement_unit_id,
+                          measurement_unit_name:
+                              l.measurement_unit_name ?? '',
+                          quantity: round2(Number(l.quantity)),
+                          source_quantity: Number(l.quantity),
+                          sourceable_id: l.id,
+                          location_id:
+                              l.location_id || (defaultLocation?.id ?? ''),
+                          lots: [],
+                          serials: [],
+                          notes: '',
+                      }))
+                    : current.lines,
+        }));
+    };
+
+    const selectTransfer = async (option: AjaxOption | null) => {
+        transfer.select(option);
+
+        if (!option) {
+            setData((current) => ({
+                ...current,
+                sourceable_type: '',
+                sourceable_id: '',
+                lines: current.lines.map((line) => ({
+                    ...line,
+                    sourceable_id: '',
+                    source_quantity: null,
+                })),
+            }));
+            return;
+        }
+
+        const meta = (option.meta ?? {}) as any;
+        clearErrors('sourceable_id', 'sourceable_type');
+        const originWarehouseId =
+            meta.origin_warehouse_id ?? data.warehouse_id;
+        const defaultLocation = options.locations.find(
+            (loc) =>
+                loc.warehouse_id === originWarehouseId &&
+                loc.is_default === 'yes',
+        );
+
+        const transferLines = meta.lines ?? [];
+
+        setData((current) => ({
+            ...current,
+            sourceable_type: 'transfer',
+            sourceable_id: option.value,
+            recipient_type: '',
+            recipient_id: '',
+            client_id: '',
+            warehouse_id: originWarehouseId,
+            lines:
+                transferLines.length > 0
+                    ? transferLines.map((l: any) => ({
+                          id: generateUUID(),
+                          item_id: l.item_id,
+                          measurement_unit_id: l.measurement_unit_id,
+                          measurement_unit_name:
+                              l.measurement_unit_name ?? '',
+                          quantity: round2(Number(l.quantity)),
+                          source_quantity: Number(l.quantity),
+                          sourceable_id: l.id,
+                          location_id: defaultLocation?.id ?? '',
+                          lots: [],
+                          serials: [],
+                          notes: '',
+                      }))
+                    : current.lines,
+        }));
     };
 
     /** Las líneas del pedido elegido con su saldo, tal como las trajo el servidor. */
@@ -953,6 +1202,17 @@ export function useDispatchForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (mode === 'create') {
+            if (sourceType === 'none') {
+                setError('sourceable_type', 'Debes seleccionar el origen del despacho.');
+                return;
+            }
+            if (!data.sourceable_id) {
+                setError('sourceable_id', 'Debes seleccionar el documento de origen.');
+                return;
+            }
+        }
+
         /**
          * El alias de la línea origen no se captura: lo pone la pantalla al
          * enviar, y solo en las líneas que de verdad vienen del origen. El
@@ -979,14 +1239,23 @@ export function useDispatchForm({
                 void client_id;
                 void client_address_id;
 
-                return { ...rest, lines };
+                return { ...rest, recipient_type: 'supplier', lines };
+            }
+
+            if (flow === 'transfer') {
+                const { client_id, client_address_id, recipient_id, ...rest } = payload;
+                void client_id;
+                void client_address_id;
+                void recipient_id;
+
+                return { ...rest, recipient_type: null, recipient_id: null, lines };
             }
 
             const { recipient_type, recipient_id, ...rest } = payload;
             void recipient_type;
             void recipient_id;
 
-            return { ...rest, lines };
+            return { ...rest, recipient_type: 'client', recipient_id: payload.client_id, lines };
         });
 
         if (mode === 'create') {
@@ -1012,23 +1281,33 @@ export function useDispatchForm({
         setData,
         processing,
         errors,
+        clearErrors,
         handleSubmit,
         reset,
         mode,
         currency,
         totals,
         addresses,
-        /** A quién va: 'client' de venta, 'supplier' el espejo de una devolución. */
         flow,
+        sourceType,
+        setSourceType,
         clientLookupUrl: client.url,
-        clientOption: client.optionOf(data.client_id),
+        clientOption: client.optionOf(data.client_id || data.recipient_id),
         selectClient,
-        /** El proveedor del espejo, solo para mostrarlo: no se reelige. */
         supplierLookupUrl: supplier.url,
         supplierOption: supplier.optionOf(data.recipient_id),
         sourceLookupUrl: source.url,
         sourceOption: source.optionOf(data.sourceable_id),
         selectSource,
+        salesInvoiceLookupUrl: salesInvoice.url,
+        salesInvoiceOption: salesInvoice.optionOf(data.sourceable_id),
+        selectSalesInvoice,
+        purchaseReturnLookupUrl: purchaseReturn.url,
+        purchaseReturnOption: purchaseReturn.optionOf(data.sourceable_id),
+        selectPurchaseReturn,
+        transferLookupUrl: transfer.url,
+        transferOption: transfer.optionOf(data.sourceable_id),
+        selectTransfer,
         orderLines,
         remainingOf,
         loadingOrderLines: pendingLines.loading,

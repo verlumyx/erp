@@ -285,6 +285,9 @@ export function usePurchaseInvoiceForm({
      * lo vuelva a buscar.
      */
     const [orderSeeds, setOrderSeeds] = useState<ItemCatalogSeed[]>([]);
+    const [sourceType, setSourceType] = useState<string>(
+        initialData?.sourceable_id ? 'purchase_order' : 'none',
+    );
 
     /**
      * El catálogo de artículos ya no viaja en las props: la pantalla solo
@@ -466,8 +469,16 @@ export function usePurchaseInvoiceForm({
 
         const meta = (option.meta ?? {}) as Partial<PurchaseOrderOptionMeta>;
 
+        if (meta.supplier_id) {
+            supplier.select({
+                value: meta.supplier_id,
+                label: meta.supplier_name ?? meta.supplier_id,
+            });
+        }
+
         setData((current) => ({
             ...current,
+            supplier_id: meta.supplier_id ?? current.supplier_id,
             sourceable_type: PURCHASE_ORDER,
             sourceable_id: option.value,
             warehouse_id: meta.warehouse_id ?? current.warehouse_id,
@@ -660,6 +671,8 @@ export function usePurchaseInvoiceForm({
         reset,
         mode,
         totals,
+        sourceType,
+        setSourceType,
         supplierLookupUrl: supplier.url,
         supplierOption: supplier.optionOf(data.supplier_id),
         selectSupplier,

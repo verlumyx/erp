@@ -16,6 +16,7 @@ use App\Modules\Item\Models\Item;
 use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseOrder\Repositories\Contracts\PurchaseOrderRepositoryInterface;
+use App\Modules\Supplier\Models\Supplier;
 use App\Modules\WarehouseLocation\Commands\SearchWarehouseLocationCommand;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;
 use App\Modules\WarehouseLocation\Repositories\Contracts\WarehouseLocationRepositoryInterface;
@@ -105,6 +106,8 @@ class PurchaseOrderMirrorEntryService
                 entryDate: $entryDate,
                 createdBy: (string) $order->created_by,
                 lines: $lines,
+                recipientType: Supplier::MORPH_ALIAS,
+                recipientId: $order->supplier_id,
                 supplierId: $order->supplier_id,
                 sourceableType: PurchaseOrder::MORPH_ALIAS,
                 sourceableId: $order->id,

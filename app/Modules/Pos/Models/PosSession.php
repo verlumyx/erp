@@ -24,6 +24,8 @@ class PosSession extends Model
 
     public const CODE_PREFIX = 'COR';
 
+    public const MORPH_ALIAS = 'pos_session';
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_OPEN = 'confirmed';
