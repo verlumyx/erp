@@ -250,7 +250,7 @@ export function SalesCreditNoteLinesSection() {
                                         updateLine(index, 'unit_price', value)
                                     }
                                     min={0}
-                                    decimals={6}
+                                    decimals={4}
                                     className={`h-[42px] rounded-[10px] ${
                                         fieldError(index, 'unit_price')
                                             ? 'border-bad'

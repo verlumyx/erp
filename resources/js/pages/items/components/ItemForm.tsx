@@ -74,7 +74,7 @@ function MoneyField({ id, label, value, error, onChange }: NumericFieldProps) {
                 value={value}
                 onValueChange={onChange}
                 min={0}
-                decimals={6}
+                decimals={4}
                 className={`h-[42px] rounded-[10px] ${error ? 'border-bad' : ''}`}
             />
             {error && <p className="text-sm text-bad">{error}</p>}

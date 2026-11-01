@@ -204,7 +204,7 @@ export function SalesOrderLinesSection() {
                                         updateLine(index, 'unit_price', value)
                                     }
                                     min={0}
-                                    decimals={6}
+                                    decimals={4}
                                     className={`h-[42px] rounded-[10px] ${priceError ? 'border-bad' : ''}`}
                                 />
                                 {line.list_price > 0 &&

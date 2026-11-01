@@ -242,7 +242,7 @@ export function AdjustmentLinesSection() {
                                         )
                                     }
                                     min={0}
-                                    decimals={6}
+                                    decimals={4}
                                     className={`h-[42px] rounded-[10px] ${
                                         fieldError(index, 'unit_cost')
                                             ? 'border-bad'

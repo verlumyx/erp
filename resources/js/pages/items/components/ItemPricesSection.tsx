@@ -77,7 +77,7 @@ export function ItemPricesSection() {
                                 updatePrice(index, 'price', value)
                             }
                             min={0}
-                            decimals={6}
+                            decimals={4}
                             currencySymbol={price.currency || '$'}
                             /* pl-14 deja sitio al código ISO (USD) en lugar de a un símbolo de un carácter. */
                             className={`h-[42px] rounded-[10px] pl-14 ${fieldError(index, 'price') ? 'border-bad' : ''}`}
