@@ -1676,12 +1676,7 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                         number: 2,
                         title: 'Crear nueva caja',
                         description: 'Presiona "Nueva Caja", nómbrala (ej. "Caja Mostrador 1") y asígnale su almacén.',
-                    },
-                    {
-                        number: 3,
-                        title: 'Asignar permisos',
-                        description: 'Define qué usuarios pueden abrir turno en esta máquina.',
-                    },
+                    }
                 ],
                 tips: [
                     {
