@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\ItemSerial\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Entry\Models\EntryLineSerial;
+use App\Modules\Item\Models\Item;
 use App\Modules\ItemSerial\Commands\SearchItemSerialCommand;
 use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\ItemSerial\Resources\ItemSerialOptionResource;
@@ -85,6 +87,127 @@ class ItemSerialGetController extends Controller
                 $result['data'],
             ),
             'has_more' => $result['total'] > $command->offset + $command->limit,
+        ]);
+    }
+
+    /**
+     * Devuelve la última serie registrada para un artículo en la empresa,
+     * el siguiente número de secuencia libre y las series existentes
+     * para asegurar que las series sean únicas por artículo.
+     */
+    public function lastSequence(Request $request, string $company): JsonResponse
+    {
+        $user = $request->user();
+        $canAccess = $user !== null && (
+            $user->hasPermission('item-serials.list')
+            || $user->hasPermission('entries.create')
+            || $user->hasPermission('entries.edit')
+            || $user->hasPermission('entries.list')
+        );
+        abort_unless($canAccess, 403);
+
+        $itemId = $request->string('item_id')->toString();
+        $requestedPrefix = $request->has('prefix') ? $request->string('prefix')->toString() : null;
+
+        if ($itemId === '') {
+            return response()->json([
+                'item_id' => '',
+                'last_serial_number' => null,
+                'prefix' => $requestedPrefix ?? 'SN-',
+                'next_number' => 1,
+                'pad_length' => 4,
+                'suggested_serial' => ($requestedPrefix ?? 'SN-').'0001',
+                'existing_serials' => [],
+            ]);
+        }
+
+        $item = Item::query()
+            ->where('company_id', $company)
+            ->where('id', $itemId)
+            ->first();
+
+        // 1. Obtener todas las series existentes del artículo en la empresa
+        $masterSerials = ItemSerial::query()
+            ->where('company_id', $company)
+            ->where('item_id', $itemId)
+            ->pluck('serial_number')
+            ->all();
+
+        $draftSerials = EntryLineSerial::query()
+            ->where('app_entry_line_serials.company_id', $company)
+            ->where('app_entry_line_serials.status', 'active')
+            ->whereNotNull('app_entry_line_serials.serial_number')
+            ->join('app_entry_lines', 'app_entry_lines.id', '=', 'app_entry_line_serials.entry_line_id')
+            ->where('app_entry_lines.item_id', $itemId)
+            ->pluck('app_entry_line_serials.serial_number')
+            ->all();
+
+        $existingSerials = array_values(array_unique(array_filter(
+            array_merge($masterSerials, $draftSerials),
+            static fn ($s): bool => filled($s),
+        )));
+
+        // 2. Buscar la última serie generada/registrada para ese artículo
+        $lastSerialObj = ItemSerial::query()
+            ->where('company_id', $company)
+            ->where('item_id', $itemId)
+            ->orderByDesc('created_at')
+            ->orderByDesc('code')
+            ->first();
+
+        $lastSerialNumber = $lastSerialObj?->serial_number;
+
+        if ($lastSerialNumber === null && $draftSerials !== []) {
+            $lastDraftObj = EntryLineSerial::query()
+                ->where('app_entry_line_serials.company_id', $company)
+                ->where('app_entry_line_serials.status', 'active')
+                ->join('app_entry_lines', 'app_entry_lines.id', '=', 'app_entry_line_serials.entry_line_id')
+                ->where('app_entry_lines.item_id', $itemId)
+                ->orderByDesc('app_entry_line_serials.created_at')
+                ->first();
+            $lastSerialNumber = $lastDraftObj?->serial_number;
+        }
+
+        // 3. Determinar prefijo por defecto y longitud de relleno desde la última serie
+        $lastPrefix = null;
+        $lastNum = null;
+        $padLength = 4;
+
+        if ($lastSerialNumber !== null && preg_match('/^(.*?)(\d+)$/', $lastSerialNumber, $matches)) {
+            $lastPrefix = $matches[1];
+            $lastNum = (int) $matches[2];
+            $padLength = max(4, strlen($matches[2]));
+        }
+
+        $defaultPrefix = $lastPrefix ?? ($item?->sku ? $item->sku.'-' : ($item?->code ? $item->code.'-' : 'SN-'));
+        $activePrefix = $requestedPrefix !== null ? $requestedPrefix : $defaultPrefix;
+
+        // 4. Calcular el número máximo existente con el prefijo activo para evitar duplicados
+        $maxNum = 0;
+        foreach ($existingSerials as $s) {
+            if ($activePrefix === '' || str_starts_with($s, $activePrefix)) {
+                $suffix = substr($s, strlen($activePrefix));
+                if (preg_match('/^\d+$/', $suffix)) {
+                    $num = (int) $suffix;
+                    if ($num > $maxNum) {
+                        $maxNum = $num;
+                        $padLength = max($padLength, strlen($suffix));
+                    }
+                }
+            }
+        }
+
+        $nextNumber = $maxNum > 0 ? $maxNum + 1 : ($lastNum !== null && $activePrefix === $lastPrefix ? $lastNum + 1 : 1);
+        $suggestedSerial = $activePrefix.str_pad((string) $nextNumber, $padLength, '0', STR_PAD_LEFT);
+
+        return response()->json([
+            'item_id' => $itemId,
+            'last_serial_number' => $lastSerialNumber,
+            'prefix' => $activePrefix,
+            'next_number' => $nextNumber,
+            'pad_length' => $padLength,
+            'suggested_serial' => $suggestedSerial,
+            'existing_serials' => $existingSerials,
         ]);
     }
 

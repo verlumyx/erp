@@ -968,7 +968,11 @@ export function useEntryForm({
                   };
         });
 
-    const addLineSerials = (index: number, numbers: string[]) =>
+    const addLineSerials = (
+        index: number,
+        numbers: string[],
+        lotNumber: string = '',
+    ) =>
         mapLine(index, (line) => ({
             ...line,
             serials: [
@@ -976,7 +980,7 @@ export function useEntryForm({
                 ...numbers.map((serial_number) => ({
                     id: generateUUID(),
                     serial_number,
-                    lot_number: '',
+                    lot_number: lotNumber,
                     status: 'active' as const,
                 })),
             ],
@@ -1017,6 +1021,18 @@ export function useEntryForm({
                       serials: line.serials.filter((_, i) => i !== serialIndex),
                   };
         });
+
+    const removeAllLineSerials = (index: number) =>
+        mapLine(index, (line) => ({
+            ...line,
+            serials: line.serials
+                .map((serial) =>
+                    isSaved(serial.id, initialData, 'serials')
+                        ? { ...serial, status: 'inactive' as const }
+                        : null,
+                )
+                .filter((s): s is EntryLineSerialRow => s !== null),
+        }));
 
     /**
      * Lo que pidió la línea de la orden. Vacío en una línea suelta.
@@ -1078,6 +1094,7 @@ export function useEntryForm({
     };
 
     return {
+        companyId,
         data,
         setData,
         processing,
@@ -1123,6 +1140,7 @@ export function useEntryForm({
         addLineSerials,
         updateLineSerial,
         removeLineSerial,
+        removeAllLineSerials,
         orderedQuantityOf,
         catalog,
         /** El inventario inicial no admite proveedor ni orden de origen. */

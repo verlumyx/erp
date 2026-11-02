@@ -34,7 +34,7 @@ class Warehouse extends Model
     public const MORPH_ALIAS = 'warehouse';
 
     /** Ubicación por defecto creada junto con la bodega. */
-    public const DEFAULT_LOCATION_CODE = 'PRINCIPAL';
+    public const DEFAULT_LOCATION_CODE = 'ubicación 01';
 
     protected $fillable = [
         'id',

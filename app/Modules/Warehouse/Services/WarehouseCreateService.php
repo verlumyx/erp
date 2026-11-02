@@ -32,7 +32,7 @@ class WarehouseCreateService
                 id: (string) Str::uuid7(),
                 companyId: $command->companyId,
                 warehouseId: $command->id,
-                name: 'Principal',
+                name: 'Ubicación Principal',
                 locationCode: Warehouse::DEFAULT_LOCATION_CODE,
                 createdBy: $command->createdBy,
                 parentId: null,

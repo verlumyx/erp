@@ -80,7 +80,7 @@ export function DispatchLineTraceabilityDialog({
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+            <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Trazabilidad de la línea</DialogTitle>
                     <DialogDescription>

@@ -21,6 +21,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
         Route::prefix('item-serials')->group(function () use ($uuid) {
             Route::get('/', [ItemSerialGetController::class, 'index'])->name('item-serials.index');
             Route::get('/lookup', [ItemSerialGetController::class, 'lookup'])->name('item-serials.lookup');
+            Route::get('/last-sequence', [ItemSerialGetController::class, 'lastSequence'])->name('item-serials.last-sequence');
             Route::get('/{id}', [ItemSerialGetController::class, 'show'])->where('id', $uuid)->name('item-serials.show');
             Route::get('/{id}/edit', [ItemSerialGetController::class, 'edit'])->where('id', $uuid)->name('item-serials.edit');
             Route::put('/{id}', ItemSerialPutController::class)->where('id', $uuid)->name('item-serials.update');
