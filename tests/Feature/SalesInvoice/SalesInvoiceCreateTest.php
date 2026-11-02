@@ -51,6 +51,24 @@ test('a sales invoice can be created with its lines', function () {
     expect($line->status)->toBe('active');
 });
 
+test('a sales invoice stores its price list', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
+
+    $priceList = \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $company->id]);
+
+    $payload = salesInvoicePayload($client, $warehouse, $item, $unit, [
+        'price_list_id' => $priceList->id,
+    ]);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('sales-invoices.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    $invoice = SalesInvoice::find($payload['id']);
+    expect($invoice->price_list_id)->toBe($priceList->id);
+});
+
 test('the totals are computed from the lines and never taken from the payload', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 

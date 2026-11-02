@@ -63,6 +63,7 @@ interface SalesInvoiceFormData {
     sourceable_id: string;
     client_address_id: string;
     warehouse_id: string;
+    price_list_id: string;
     salesperson_id: string;
     invoice_series: string;
     invoice_date: string;
@@ -406,6 +407,7 @@ export function useSalesInvoiceForm({
             client_address_id: initialData?.client_address_id ?? '',
             warehouse_id:
                 initialData?.warehouse_id ?? defaultWarehouseId(options),
+            price_list_id: initialData?.price_list_id ?? '',
             salesperson_id: initialData?.salesperson_id ?? '',
             invoice_series: initialData?.invoice_series ?? '',
             invoice_date: initialData?.invoice_date ?? today,
@@ -423,8 +425,8 @@ export function useSalesInvoiceForm({
         | ClientOptionMeta
         | undefined;
 
-    /** La lista de precio del cliente: en la factura solo sugiere precios. */
-    const priceListId = clientMeta?.price_list_id ?? '';
+    /** La lista de precio activa en el formulario o la del cliente. */
+    const priceListId = data.price_list_id || (clientMeta?.price_list_id ?? '');
 
     /** El vencimiento es la fecha de la factura más los días de crédito. */
     const dueDateFrom = (invoiceDate: string, days: number): string => {
@@ -492,6 +494,7 @@ export function useSalesInvoiceForm({
             ...current,
             client_id: option?.value ?? '',
             client_address_id: defaultAddress?.id ?? '',
+            price_list_id: listId || current.price_list_id,
             sourceable_type: '',
             sourceable_id: '',
             /** Sin vendedor asignado se respeta el que la pantalla ya tenga. */
@@ -502,7 +505,7 @@ export function useSalesInvoiceForm({
             /** La lista del cliente revalúa las líneas sin precio pactado. */
             lines: current.lines.map((line) => ({
                 /** Las líneas del pedido anterior pierden su origen. */
-                ...repriceLine(line, listId, current.currency),
+                ...repriceLine(line, listId || current.price_list_id, current.currency),
                 sourceable_id: '',
             })),
         }));
@@ -553,6 +556,7 @@ export function useSalesInvoiceForm({
             client_address_id:
                 meta.client_address_id ?? current.client_address_id,
             warehouse_id: meta.warehouse_id,
+            price_list_id: meta.price_list_id ?? current.price_list_id,
             salesperson_id: meta.salesperson_id ?? current.salesperson_id,
             currency: meta.currency,
             exchange_rate: catalogRate(meta.currency),
@@ -579,6 +583,17 @@ export function useSalesInvoiceForm({
         );
     };
 
+    /** Cambiar la lista de precio revalúa las líneas cuyo precio no se tocó a mano. */
+    const selectPriceList = (selectedPriceListId: string) => {
+        setData((current) => ({
+            ...current,
+            price_list_id: selectedPriceListId,
+            lines: current.lines.map((line) =>
+                repriceLine(line, selectedPriceListId, current.currency),
+            ),
+        }));
+    };
+
     /** Cambiar la fecha de la factura arrastra su vencimiento. */
     const selectInvoiceDate = (invoiceDate: string) =>
         setData((current) => ({
@@ -601,7 +616,7 @@ export function useSalesInvoiceForm({
             /** Otra moneda, otra tasa: la del catálogo vuelve a la vista. */
             exchange_rate: catalogRate(currency),
             lines: current.lines.map((line) =>
-                repriceLine(line, priceListId, currency),
+                repriceLine(line, current.price_list_id || priceListId, currency),
             ),
         }));
 
@@ -788,6 +803,7 @@ export function useSalesInvoiceForm({
         orderLinesFailed: invoiceableLines.failed,
         selectClient,
         selectSource,
+        selectPriceList,
         selectInvoiceDate,
         selectCurrency,
         addLine,

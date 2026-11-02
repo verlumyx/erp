@@ -179,7 +179,7 @@ export default function PosRegisterEditPage({
 
                             <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="price_list_id" className="text-[13px] font-semibold">
-                                    Lista de Precios por Defecto
+                                    Lista de Precios por Defecto *
                                 </Label>
                                 <Select2
                                     inputId="price_list_id"
@@ -233,16 +233,6 @@ export default function PosRegisterEditPage({
                                 maxLength={20}
                                 className="font-mono"
                                 onChange={(value) => setData('invoice_series', value)}
-                            />
-
-                            <TextField
-                                id="receipt_printer_name"
-                                label="Nombre Impresora de Tickets"
-                                value={data.receipt_printer_name}
-                                error={errors.receipt_printer_name}
-                                placeholder="Ej: EPSON TM-T20III"
-                                maxLength={100}
-                                onChange={(value) => setData('receipt_printer_name', value)}
                             />
                         </FormFieldGrid>
                     </FormSection>

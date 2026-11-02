@@ -7,6 +7,7 @@ namespace App\Modules\SalesInvoice\Models;
 use App\Modules\Client\Models\Client;
 use App\Modules\Client\Models\ClientAddress;
 use App\Modules\Company\Models\Company;
+use App\Modules\PriceList\Models\PriceList;
 use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\User\Models\User;
@@ -88,6 +89,7 @@ class SalesInvoice extends Model
         'dispatch_id',
         'client_address_id',
         'warehouse_id',
+        'price_list_id',
         'salesperson_id',
         'invoice_series',
         'invoice_number',
@@ -166,6 +168,11 @@ class SalesInvoice extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
+    }
+
+    public function priceList(): BelongsTo
+    {
+        return $this->belongsTo(PriceList::class, 'price_list_id', 'id');
     }
 
     public function dispatch(): BelongsTo

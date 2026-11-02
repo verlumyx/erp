@@ -44,6 +44,7 @@ export function SalesInvoiceForm() {
         sourceOption,
         selectClient,
         selectSource,
+        selectPriceList,
         selectInvoiceDate,
         selectCurrency,
     } = useSalesInvoiceFormContext();
@@ -65,6 +66,14 @@ export function SalesInvoiceForm() {
         ...options.salespeople.map((salesperson) => ({
             value: salesperson.id,
             label: salesperson.name,
+        })),
+    ];
+
+    const priceListOptions: OptionType[] = [
+        { value: '', label: 'Seleccione' },
+        ...(options.priceLists ?? []).map((priceList) => ({
+            value: priceList.id,
+            label: priceList.name,
         })),
     ];
 
@@ -313,6 +322,36 @@ export function SalesInvoiceForm() {
                             size="md"
                             placeholder="Sin vendedor"
                         />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label className="text-[13px] font-semibold">
+                            Lista de precio
+                        </Label>
+                        <Select2
+                            options={priceListOptions}
+                            value={
+                                priceListOptions.find(
+                                    (option) =>
+                                        option.value ===
+                                        (data.price_list_id || ''),
+                                ) ?? null
+                            }
+                            onChange={(option) =>
+                                selectPriceList(option?.value ?? '')
+                            }
+                            error={!!errors.price_list_id}
+                            size="md"
+                            placeholder="Seleccione"
+                        />
+                        {errors.price_list_id && (
+                            <p className="text-sm text-bad">
+                                {errors.price_list_id}
+                            </p>
+                        )}
+                        <span className="text-[12px] text-muted-foreground">
+                            Cambiarla revalúa las líneas sin precio pactado
+                        </span>
                     </div>
 
                     <div className="flex flex-col gap-1.5">

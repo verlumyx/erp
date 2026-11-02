@@ -332,6 +332,10 @@ export default function SalesInvoicesShow({ salesInvoice: invoice }: Props) {
                             }
                         />
                         <DataRow
+                            label="Lista de precio"
+                            value={invoice.price_list_name ?? '—'}
+                        />
+                        <DataRow
                             label="Forma de venta"
                             value={SALE_TYPE_LABELS[invoice.sale_type]}
                         />

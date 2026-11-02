@@ -35,6 +35,7 @@ class SalesOrderOptionResource extends JsonResource
                 'client_name' => $this->client?->name,
                 'client_address_id' => $this->client_address_id,
                 'warehouse_id' => $this->warehouse_id,
+                'price_list_id' => $this->price_list_id,
                 'salesperson_id' => $this->salesperson_id,
                 'currency' => $this->currency,
                 'payment_term_days' => (int) $this->payment_term_days,

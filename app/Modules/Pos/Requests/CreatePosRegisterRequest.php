@@ -44,7 +44,7 @@ class CreatePosRegisterRequest extends FormRequest
                     ->where('status', 'active'),
             ],
             'price_list_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_price_lists', 'id')
                     ->where('company_id', $companyId)
@@ -79,6 +79,7 @@ class CreatePosRegisterRequest extends FormRequest
             'warehouse_id.exists' => 'La bodega seleccionada no existe o está inactiva.',
             'default_client_id.required' => 'El cliente por defecto es obligatorio.',
             'default_client_id.exists' => 'El cliente por defecto seleccionado no existe o está inactivo.',
+            'price_list_id.required' => 'La lista de precios es obligatoria.',
             'price_list_id.exists' => 'La lista de precios seleccionada no existe o está inactiva.',
         ];
     }

@@ -316,8 +316,14 @@ function salesOrderScenario(): array
 {
     [$user, $company] = createUserWithCompany();
 
-    $client = \App\Modules\Client\Models\Client::factory()
+    $priceList = \App\Modules\PriceList\Models\PriceList::factory()
         ->create(['company_id' => $company->id]);
+
+    $client = \App\Modules\Client\Models\Client::factory()
+        ->create([
+            'company_id' => $company->id,
+            'price_list_id' => $priceList->id,
+        ]);
 
     $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()
         ->create(['company_id' => $company->id]);
@@ -357,6 +363,7 @@ function salesOrderPayload(
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'client_id' => $client->id,
         'warehouse_id' => $warehouse->id,
+        'price_list_id' => $client->price_list_id ?? \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $client->company_id])->id,
         'order_date' => now()->toDateString(),
         'currency' => 'USD',
         'lines' => [

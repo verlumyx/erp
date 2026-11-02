@@ -32,6 +32,7 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
         'client',
         'clientAddress',
         'warehouse',
+        'priceList',
         'salesperson',
         'sourceable',
     ];
@@ -52,6 +53,7 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
                 'dispatch_id' => $command->dispatchId,
                 'client_address_id' => $command->clientAddressId,
                 'warehouse_id' => $command->warehouseId,
+                'price_list_id' => $command->priceListId,
                 'salesperson_id' => $command->salespersonId,
                 'invoice_series' => $command->invoiceSeries,
                 /** El correlativo fiscal se quema al confirmar, no antes. */
@@ -100,6 +102,7 @@ class SalesInvoiceRepository extends SalesInvoiceFilters implements SalesInvoice
                 'dispatch_id' => $command->dispatchId,
                 'client_address_id' => $command->clientAddressId,
                 'warehouse_id' => $command->warehouseId,
+                'price_list_id' => $command->priceListId,
                 'salesperson_id' => $command->salespersonId,
                 'invoice_series' => $command->invoiceSeries,
                 'invoice_date' => $command->invoiceDate,

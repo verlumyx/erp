@@ -48,7 +48,7 @@ trait ValidatesSalesOrderPayload
                     ->where('status', 'active'),
             ],
             'price_list_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_price_lists', 'id')->where('company_id', $companyId),
             ],
@@ -106,6 +106,8 @@ trait ValidatesSalesOrderPayload
             'client_address_id.exists' => 'La dirección de entrega no pertenece a ese cliente.',
             'warehouse_id.required' => 'Selecciona la bodega de despacho.',
             'warehouse_id.exists' => 'La bodega seleccionada no existe o está inactiva.',
+            'price_list_id.required' => 'Selecciona la lista de precio del pedido.',
+            'price_list_id.exists' => 'La lista de precio seleccionada no existe en la empresa.',
             'order_date.required' => 'La fecha del pedido es obligatoria.',
             'expected_date.after_or_equal' => 'La fecha comprometida no puede ser anterior a la del pedido.',
             'exchange_rate.gt' => 'La tasa de cambio debe ser mayor que cero.',

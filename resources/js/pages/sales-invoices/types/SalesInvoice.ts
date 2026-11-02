@@ -67,6 +67,8 @@ export interface SalesInvoice {
     client_address_name?: string;
     warehouse_id: string;
     warehouse_name?: string;
+    price_list_id?: string | null;
+    price_list_name?: string | null;
     salesperson_id: string | null;
     salesperson_name?: string;
     invoice_series: string | null;
@@ -170,6 +172,7 @@ export interface SalesOrderOptionMeta {
     client_name: string | null;
     client_address_id: string | null;
     warehouse_id: string;
+    price_list_id?: string | null;
     salesperson_id: string | null;
     currency: string;
     payment_term_days: number;
@@ -189,6 +192,7 @@ export interface SalesInvoiceOptions {
         name: string;
         is_default: 'yes' | 'no';
     }>;
+    priceLists: Array<{ id: string; name: string }>;
     salespeople: Array<{ id: string; name: string }>;
     taxes: TaxOption[];
 }

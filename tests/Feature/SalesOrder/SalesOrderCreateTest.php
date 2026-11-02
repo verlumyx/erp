@@ -253,6 +253,17 @@ test('the same item cannot be repeated with the same unit', function () {
         ->assertSessionHasErrors('lines.1.item_id');
 });
 
+test('a price list is required to create a sales order', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-orders.store', ['company' => $company->id]),
+            salesOrderPayload($client, $warehouse, $item, $unit, ['price_list_id' => null]),
+        )
+        ->assertSessionHasErrors(['price_list_id']);
+});
+
 test('a client from another company is rejected', function () {
     [$user, $company, , $warehouse, $item, $unit] = salesOrderScenario();
 

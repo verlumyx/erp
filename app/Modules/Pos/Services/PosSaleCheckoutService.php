@@ -89,6 +89,7 @@ class PosSaleCheckoutService
                 lines: $command->toInvoiceLines(),
                 sourceableType: PosSession::MORPH_ALIAS,
                 sourceableId: $session->id,
+                priceListId: $session->register->price_list_id,
                 invoiceSeries: $session->register->invoice_series,
                 saleType: 'cash',
                 currency: $command->currency,

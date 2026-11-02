@@ -55,6 +55,7 @@ test('the create form is rendered with its catalogs', function () {
                 ->component('sales-invoices/create')
                 ->has('options.warehouses', 1)
                 ->has('options.taxes')
+                ->has('options.priceLists', 1)
                 /* Artículos, clientes y pedidos se buscan contra su lookup. */
                 ->missing('options.items')
                 ->missing('options.clients')

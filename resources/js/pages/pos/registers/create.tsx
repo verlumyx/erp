@@ -77,7 +77,7 @@ export default function PosRegisterCreatePage({
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         warehouse_id: warehouses.length > 0 ? warehouses[0].id : '',
-        price_list_id: '',
+        price_list_id: priceLists.length > 0 ? priceLists[0].id : '',
         default_client_id: clients.length > 0 ? clients[0].id : '',
         receipt_printer_name: '',
         invoice_series: '',
@@ -179,7 +179,7 @@ export default function PosRegisterCreatePage({
 
                             <div className="flex flex-col gap-1.5">
                                 <Label htmlFor="price_list_id" className="text-[13px] font-semibold">
-                                    Lista de Precios por Defecto
+                                    Lista de Precios por Defecto *
                                 </Label>
                                 <Select2
                                     inputId="price_list_id"
@@ -235,15 +235,6 @@ export default function PosRegisterCreatePage({
                                 onChange={(value) => setData('invoice_series', value)}
                             />
 
-                            <TextField
-                                id="receipt_printer_name"
-                                label="Nombre Impresora de Tickets"
-                                value={data.receipt_printer_name}
-                                error={errors.receipt_printer_name}
-                                placeholder="Ej: EPSON TM-T20III"
-                                maxLength={100}
-                                onChange={(value) => setData('receipt_printer_name', value)}
-                            />
                         </FormFieldGrid>
                     </FormSection>
 

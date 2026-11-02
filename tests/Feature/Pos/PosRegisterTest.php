@@ -3,15 +3,18 @@
 declare(strict_types=1);
 
 use App\Modules\Pos\Models\PosRegister;
+use App\Modules\PriceList\Models\PriceList;
 
 use function Pest\Laravel\actingAs;
 
 test('a pos register can be created through HTTP', function () {
     [$user, $company, $client, $warehouse] = salesOrderScenario();
+    $priceList = PriceList::factory()->create(['company_id' => $company->id]);
 
     $payload = [
         'name' => 'Caja Principal 01',
         'warehouse_id' => $warehouse->id,
+        'price_list_id' => $priceList->id,
         'default_client_id' => $client->id,
         'invoice_series' => 'CAJ01',
         'receipt_printer_name' => 'EPSON TM-T20III',
@@ -33,20 +36,36 @@ test('a pos register can be created through HTTP', function () {
     expect($register->code)->toBe('CAJ000001');
     expect($register->name)->toBe('Caja Principal 01');
     expect($register->warehouse_id)->toBe($warehouse->id);
+    expect($register->price_list_id)->toBe($priceList->id);
     expect($register->default_client_id)->toBe($client->id);
     expect($register->allow_custom_discounts)->toBe('yes');
     expect((float) $register->max_discount_percent)->toBe(10.0);
     expect($register->status)->toBe('active');
 });
 
+test('a pos register requires a price list', function () {
+    [$user, $company, $client, $warehouse] = salesOrderScenario();
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('pos-registers.store', ['company' => $company->id]), [
+            'name' => 'Caja Sin Lista',
+            'warehouse_id' => $warehouse->id,
+            'default_client_id' => $client->id,
+        ])
+        ->assertSessionHasErrors(['price_list_id']);
+});
+
 test('pos registers generate sequential CAJ codes per company', function () {
     [$user, $company, $client, $warehouse] = salesOrderScenario();
+    $priceList = PriceList::factory()->create(['company_id' => $company->id]);
 
     actingAs($user)
         ->withSession(['current_company_id' => $company->id])
         ->post(route('pos-registers.store', ['company' => $company->id]), [
             'name' => 'Caja 01',
             'warehouse_id' => $warehouse->id,
+            'price_list_id' => $priceList->id,
             'default_client_id' => $client->id,
         ])
         ->assertSessionHasNoErrors();
@@ -56,6 +75,7 @@ test('pos registers generate sequential CAJ codes per company', function () {
         ->post(route('pos-registers.store', ['company' => $company->id]), [
             'name' => 'Caja 02',
             'warehouse_id' => $warehouse->id,
+            'price_list_id' => $priceList->id,
             'default_client_id' => $client->id,
         ])
         ->assertSessionHasNoErrors();
@@ -68,12 +88,14 @@ test('pos registers generate sequential CAJ codes per company', function () {
 
 test('a pos register can be updated', function () {
     [$user, $company, $client, $warehouse] = salesOrderScenario();
+    $priceList = PriceList::factory()->create(['company_id' => $company->id]);
 
     $register = PosRegister::create([
         'company_id' => $company->id,
         'code' => 'CAJ000001',
         'name' => 'Caja Inicial',
         'warehouse_id' => $warehouse->id,
+        'price_list_id' => $priceList->id,
         'default_client_id' => $client->id,
         'created_by' => $user->id,
         'status' => 'active',
@@ -84,6 +106,7 @@ test('a pos register can be updated', function () {
         ->put(route('pos-registers.update', ['company' => $company->id, 'id' => $register->id]), [
             'name' => 'Caja Modificada',
             'warehouse_id' => $warehouse->id,
+            'price_list_id' => $priceList->id,
             'default_client_id' => $client->id,
             'max_discount_percent' => 15,
         ]);

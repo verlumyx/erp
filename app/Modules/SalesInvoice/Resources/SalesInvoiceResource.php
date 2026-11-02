@@ -30,6 +30,8 @@ class SalesInvoiceResource extends JsonResource
             'client_address_name' => $this->whenLoaded('clientAddress', fn () => $this->clientAddress?->name),
             'warehouse_id' => $this->warehouse_id,
             'warehouse_name' => $this->whenLoaded('warehouse', fn () => $this->warehouse?->name),
+            'price_list_id' => $this->price_list_id,
+            'price_list_name' => $this->whenLoaded('priceList', fn () => $this->priceList?->name),
             'salesperson_id' => $this->salesperson_id,
             'salesperson_name' => $this->whenLoaded('salesperson', fn () => $this->salesperson?->name),
             'invoice_series' => $this->invoice_series,

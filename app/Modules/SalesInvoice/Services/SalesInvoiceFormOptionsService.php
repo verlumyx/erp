@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\SalesInvoice\Services;
 
+use App\Modules\PriceList\Commands\SearchPriceListCommand;
+use App\Modules\PriceList\Models\PriceList;
+use App\Modules\PriceList\Repositories\Contracts\PriceListRepositoryInterface;
 use App\Modules\Tax\Commands\SearchTaxCommand;
 use App\Modules\Tax\Models\Tax;
 use App\Modules\Tax\Repositories\Contracts\TaxRepositoryInterface;
@@ -36,6 +39,7 @@ class SalesInvoiceFormOptionsService
 
     public function __construct(
         private readonly WarehouseRepositoryInterface $warehouses,
+        private readonly PriceListRepositoryInterface $priceLists,
         private readonly UserRepositoryInterface $users,
         private readonly TaxRepositoryInterface $taxes,
     ) {}
@@ -47,9 +51,30 @@ class SalesInvoiceFormOptionsService
     {
         return [
             'warehouses' => $this->warehouseOptions($companyId),
+            'priceLists' => $this->priceListOptions($companyId),
             'salespeople' => $this->salespersonOptions($companyId),
             'taxes' => $this->taxOptions($companyId),
         ];
+    }
+
+    /**
+     * @return array<int, array{id: string, name: string}>
+     */
+    private function priceListOptions(?string $companyId): array
+    {
+        $result = $this->priceLists->search(new SearchPriceListCommand(
+            filters: ['status' => 'active'],
+            limit: self::MAX_OPTIONS,
+            companyId: $companyId,
+        ));
+
+        return array_map(
+            fn (PriceList $priceList): array => [
+                'id' => $priceList->id,
+                'name' => $priceList->name,
+            ],
+            $result['data'],
+        );
     }
 
     /**

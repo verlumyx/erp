@@ -39,7 +39,7 @@ class UpdatePosRegisterRequest extends FormRequest
                     ->where('status', 'active'),
             ],
             'price_list_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_price_lists', 'id')
                     ->where('company_id', $companyId)
@@ -59,6 +59,23 @@ class UpdatePosRegisterRequest extends FormRequest
             'max_discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string'],
             'status' => ['nullable', 'string', 'in:active,inactive'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'El nombre de la caja es obligatorio.',
+            'name.unique' => 'Ya existe una caja con ese nombre en la empresa.',
+            'warehouse_id.required' => 'La bodega de descarga es obligatoria.',
+            'warehouse_id.exists' => 'La bodega seleccionada no existe o está inactiva.',
+            'default_client_id.required' => 'El cliente por defecto es obligatorio.',
+            'default_client_id.exists' => 'El cliente por defecto seleccionado no existe o está inactivo.',
+            'price_list_id.required' => 'La lista de precios es obligatoria.',
+            'price_list_id.exists' => 'La lista de precios seleccionada no existe o está inactiva.',
         ];
     }
 }

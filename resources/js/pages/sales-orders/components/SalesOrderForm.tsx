@@ -256,7 +256,7 @@ export function SalesOrderForm() {
 
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
-                            Lista de precio
+                            Lista de precio *
                         </Label>
                         <Select2
                             options={priceListOptions}
@@ -274,6 +274,11 @@ export function SalesOrderForm() {
                             size="md"
                             placeholder="Seleccione"
                         />
+                        {errors.price_list_id && (
+                            <p className="text-sm text-bad">
+                                {errors.price_list_id}
+                            </p>
+                        )}
                         <span className="text-[12px] text-muted-foreground">
                             Cambiarla revalúa las líneas sin precio pactado
                         </span>

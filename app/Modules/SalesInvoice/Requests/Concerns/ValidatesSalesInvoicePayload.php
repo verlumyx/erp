@@ -65,6 +65,11 @@ trait ValidatesSalesInvoicePayload
                     ->where('company_id', $companyId)
                     ->where('status', 'active'),
             ],
+            'price_list_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('app_price_lists', 'id')->where('company_id', $companyId),
+            ],
             'salesperson_id' => ['nullable', 'uuid', Rule::exists('users', 'id')],
             'invoice_series' => ['nullable', 'string', 'max:20'],
             'invoice_date' => ['required', 'date'],
@@ -137,6 +142,7 @@ trait ValidatesSalesInvoicePayload
             'sourceable_id.required_with' => 'Indica el documento origen.',
             'warehouse_id.required' => 'Selecciona la bodega de despacho.',
             'warehouse_id.exists' => 'La bodega seleccionada no existe o está inactiva.',
+            'price_list_id.exists' => 'La lista de precio seleccionada no existe en la empresa.',
             'invoice_date.required' => 'La fecha de la factura es obligatoria.',
             'due_date.required' => 'La fecha de vencimiento es obligatoria.',
             'due_date.after_or_equal' => 'El vencimiento no puede ser anterior a la fecha de la factura.',
