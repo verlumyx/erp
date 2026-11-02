@@ -185,3 +185,53 @@ test('the delivery note pdf renders active lines and traceability', function () 
         ->assertOk()
         ->assertHeader('content-type', 'application/pdf');
 });
+
+test('a simple delivery note cannot be printed while dispatch is in draft', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.simple-delivery-note', ['company' => $company->id, 'id' => $dispatch->id]))
+        ->assertForbidden();
+});
+
+test('the simple delivery note pdf is generated for confirmed dispatch without fiscal data', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+    $dispatch->update(['status' => 'confirmed']);
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.simple-delivery-note', ['company' => $company->id, 'id' => $dispatch->id]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    expect($response->headers->get('content-disposition'))
+        ->toContain('inline')
+        ->toContain("nota-de-entrega-{$dispatch->code}.pdf");
+
+    $viewContent = view('pdf.dispatch-simple-delivery-note', [
+        'dispatch' => $dispatch->fresh(),
+        'company' => $company,
+    ])->render();
+
+    expect($viewContent)
+        ->toContain('NOTA DE ENTREGA')
+        ->not->toContain('SIN DERECHO A CRÉDITO FISCAL')
+        ->not->toContain('N° DE CONTROL')
+        ->not->toContain('Providencia SENIAT');
+});
+
+test('the simple delivery note pdf requires the show permission', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+    $dispatch->update(['status' => 'confirmed']);
+
+    assignRoleWithPermissions($user, $company, ['dispatches.list']);
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->get(route('dispatches.simple-delivery-note', ['company' => $company->id, 'id' => $dispatch->id]))
+        ->assertForbidden();
+});

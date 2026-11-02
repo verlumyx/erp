@@ -16,8 +16,10 @@ use App\Modules\PurchaseOrder\Services\PurchaseOrderFormOptionsService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderOptionSearchService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderPendingLinesService;
 use App\Modules\PurchaseOrder\Services\PurchaseOrderSearchService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -197,6 +199,33 @@ class PurchaseOrderGetController extends Controller
         return Inertia::render('purchase-orders/show', [
             'purchaseOrder' => (new PurchaseOrderResource($model))->resolve(),
         ]);
+    }
+
+    public function pdf(Request $request, string $company, string $id): HttpResponse
+    {
+        abort_unless($request->user()?->hasPermission('purchase-orders.show') ?? false, 403);
+
+        $order = $this->findService->execute($id, $company);
+        abort_if($order->status === 'draft', 403, 'La orden de compra no puede imprimirse mientras esté en borrador.');
+
+        $order->loadMissing([
+            'company',
+            'supplier',
+            'warehouse',
+            'creator',
+            'approver',
+            'lines.item',
+            'lines.measurementUnit',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.purchase-order', [
+            'order' => $order,
+            'company' => $order->company,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = "orden-compra-{$order->code}.pdf";
+
+        return $pdf->stream($filename);
     }
 
     public function edit(string $company, string $id): Response

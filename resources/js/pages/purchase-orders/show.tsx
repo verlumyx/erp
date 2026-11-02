@@ -7,6 +7,7 @@ import {
     Edit,
     Hash,
     PackageCheck,
+    Printer,
     StickyNote,
     Truck,
     Warehouse,
@@ -100,6 +101,7 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
     const activeLines = (purchaseOrder.lines ?? []).filter(
         (line) => line.status === 'active',
     );
+    const canPrint = purchaseOrder.status !== 'draft';
 
     /** El estado destino viaja en el `transform`: el formulario solo captura el motivo. */
     const advanceTo = (status: PurchaseOrderStatus) => {
@@ -181,6 +183,27 @@ export default function PurchaseOrdersShow({ purchaseOrder }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
+                        {canPrint && (
+                            <a
+                                href={
+                                    purchaseOrders.pdf({
+                                        company: companyId,
+                                        id: purchaseOrder.id,
+                                    }).url
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                                >
+                                    <Printer />
+                                    Imprimir
+                                </Button>
+                            </a>
+                        )}
                         {transitions
                             .filter((status) => status !== 'cancelled')
                             .map((status) => (

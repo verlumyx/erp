@@ -20,6 +20,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/lookup', [PurchaseOrderGetController::class, 'lookup'])->name('purchase-orders.lookup');
             Route::post('/', PurchaseOrderPostController::class)->name('purchase-orders.store');
             Route::get('/{id}', [PurchaseOrderGetController::class, 'show'])->where('id', $uuid)->name('purchase-orders.show');
+            Route::get('/{id}/pdf', [PurchaseOrderGetController::class, 'pdf'])->where('id', $uuid)->name('purchase-orders.pdf');
             Route::get('/{id}/edit', [PurchaseOrderGetController::class, 'edit'])->where('id', $uuid)->name('purchase-orders.edit');
             Route::get('/{id}/invoiceable-lines', [PurchaseOrderGetController::class, 'invoiceableLines'])->where('id', $uuid)->name('purchase-orders.invoiceable-lines');
             Route::get('/{id}/receivable-lines', [PurchaseOrderGetController::class, 'receivableLines'])->where('id', $uuid)->name('purchase-orders.receivable-lines');

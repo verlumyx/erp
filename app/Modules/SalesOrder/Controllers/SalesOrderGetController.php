@@ -16,8 +16,10 @@ use App\Modules\SalesOrder\Services\SalesOrderFormOptionsService;
 use App\Modules\SalesOrder\Services\SalesOrderOptionSearchService;
 use App\Modules\SalesOrder\Services\SalesOrderPendingLinesService;
 use App\Modules\SalesOrder\Services\SalesOrderSearchService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -193,6 +195,35 @@ class SalesOrderGetController extends Controller
         return Inertia::render('sales-orders/show', [
             'salesOrder' => (new SalesOrderResource($model))->resolve(),
         ]);
+    }
+
+    public function pdf(Request $request, string $company, string $id): HttpResponse
+    {
+        abort_unless($request->user()?->hasPermission('sales-orders.show') ?? false, 403);
+
+        $order = $this->findService->execute($id, $company);
+        abort_if($order->status === 'draft', 403, 'La orden de venta no puede imprimirse mientras esté en borrador.');
+
+        $order->loadMissing([
+            'company',
+            'client',
+            'clientAddress',
+            'warehouse',
+            'salesperson',
+            'creator',
+            'approver',
+            'lines.item',
+            'lines.measurementUnit',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.sales-order', [
+            'order' => $order,
+            'company' => $order->company,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = "orden-venta-{$order->code}.pdf";
+
+        return $pdf->stream($filename);
     }
 
     public function edit(string $company, string $id): Response

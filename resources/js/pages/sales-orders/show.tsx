@@ -8,6 +8,7 @@ import {
     Edit,
     Hash,
     Package,
+    Printer,
     Truck,
     StickyNote,
     User,
@@ -102,6 +103,7 @@ export default function SalesOrdersShow({ salesOrder: order }: Props) {
     const allowed = STATUS_TRANSITIONS[order.status];
     const canConfirm = allowed.includes('confirmed');
     const canCancel = allowed.includes('cancelled');
+    const canPrint = order.status !== 'draft';
 
     /**
      * `transform` arma el payload justo antes de enviar: `setData` es asíncrono
@@ -161,6 +163,27 @@ export default function SalesOrdersShow({ salesOrder: order }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
+                        {canPrint && (
+                            <a
+                                href={
+                                    salesOrders.pdf({
+                                        company: companyId,
+                                        id: order.id,
+                                    }).url
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                                >
+                                    <Printer />
+                                    Imprimir
+                                </Button>
+                            </a>
+                        )}
                         {canConfirm && (
                             <Button
                                 className="h-10 rounded-[11px] px-4 font-semibold"

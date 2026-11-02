@@ -90,6 +90,7 @@ export default function DispatchesShow({ dispatch }: Props) {
     const activeLines = (dispatch.lines ?? []).filter(
         (line) => line.status === 'active',
     );
+    const canPrint = dispatch.status !== 'draft';
 
     /** El estado destino viaja en el `transform`: la pantalla no captura nada. */
     const advanceTo = (status: DispatchStatus) => {
@@ -180,25 +181,48 @@ export default function DispatchesShow({ dispatch }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
-                        <a
-                            href={
-                                dispatchRoutes.deliveryNote({
-                                    company: companyId,
-                                    id: dispatch.id,
-                                }).url
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="h-10 rounded-[11px] bg-card px-4 font-semibold"
-                            >
-                                <Printer />
-                                Imprimir Guía de Despacho
-                            </Button>
-                        </a>
+                        {canPrint && (
+                            <>
+                                <a
+                                    href={
+                                        dispatchRoutes.deliveryNote({
+                                            company: companyId,
+                                            id: dispatch.id,
+                                        }).url
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                                    >
+                                        <Printer />
+                                        Imprimir Guía de Despacho
+                                    </Button>
+                                </a>
+                                <a
+                                    href={
+                                        dispatchRoutes.simpleDeliveryNote({
+                                            company: companyId,
+                                            id: dispatch.id,
+                                        }).url
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                                    >
+                                        <Printer />
+                                        Imprimir Nota de Entrega
+                                    </Button>
+                                </a>
+                            </>
+                        )}
                         {transitions
                             .filter((status) => status !== 'cancelled')
                             .map((status) => (

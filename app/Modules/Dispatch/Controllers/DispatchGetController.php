@@ -163,4 +163,23 @@ class DispatchGetController extends Controller
 
         return $pdf->stream($filename);
     }
+
+    public function simpleDeliveryNote(Request $request, string $company, string $id): HttpResponse
+    {
+        abort_unless($request->user()?->hasPermission('dispatches.show') ?? false, 403);
+
+        $dispatch = $this->findService->execute($id, $company);
+        abort_if($dispatch->status === 'draft', 403, 'La nota de entrega no puede imprimirse mientras el despacho esté en borrador.');
+
+        $dispatch->loadMissing('company');
+
+        $pdf = Pdf::loadView('pdf.dispatch-simple-delivery-note', [
+            'dispatch' => $dispatch,
+            'company' => $dispatch->company,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = "nota-de-entrega-{$dispatch->code}.pdf";
+
+        return $pdf->stream($filename);
+    }
 }

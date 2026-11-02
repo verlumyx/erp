@@ -20,6 +20,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/lookup', [SalesOrderGetController::class, 'lookup'])->name('sales-orders.lookup');
             Route::post('/', SalesOrderPostController::class)->name('sales-orders.store');
             Route::get('/{id}', [SalesOrderGetController::class, 'show'])->where('id', $uuid)->name('sales-orders.show');
+            Route::get('/{id}/pdf', [SalesOrderGetController::class, 'pdf'])->where('id', $uuid)->name('sales-orders.pdf');
             Route::get('/{id}/edit', [SalesOrderGetController::class, 'edit'])->where('id', $uuid)->name('sales-orders.edit');
             Route::get('/{id}/invoiceable-lines', [SalesOrderGetController::class, 'invoiceableLines'])->where('id', $uuid)->name('sales-orders.invoiceable-lines');
             Route::get('/{id}/dispatchable-lines', [SalesOrderGetController::class, 'dispatchableLines'])->where('id', $uuid)->name('sales-orders.dispatchable-lines');
