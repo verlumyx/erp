@@ -34,6 +34,7 @@ class PurchaseReturnFactory extends Factory
             'entry_id' => null,
             'warehouse_id' => Warehouse::factory(),
             'return_date' => now()->toDateString(),
+            'type' => 'definitive',
             'reason' => 'damaged',
             'reason_detail' => null,
             'currency' => 'USD',
@@ -51,6 +52,20 @@ class PurchaseReturnFactory extends Factory
             'status' => 'draft',
             'created_by' => User::factory(),
         ];
+    }
+
+    public function definitive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'definitive',
+        ]);
+    }
+
+    public function replacement(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'type' => 'replacement',
+        ]);
     }
 
     /**

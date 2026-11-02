@@ -7,7 +7,9 @@ namespace App\Modules\PurchaseReturn\Services;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoice;
 use App\Modules\PurchaseInvoice\Models\PurchaseInvoiceLine;
 use App\Modules\PurchaseInvoice\Repositories\Contracts\PurchaseInvoiceRepositoryInterface;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseReturn\Commands\PurchaseReturnLineData;
+use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
 use Illuminate\Validation\ValidationException;
 
@@ -44,7 +46,14 @@ class PurchaseReturnLimitsService
         ?string $companyId,
         array $lines,
         ?string $returnId = null,
+        string $type = PurchaseReturn::TYPE_DEFINITIVE,
     ): void {
+        if ($type === PurchaseReturn::TYPE_REPLACEMENT && blank($invoiceId)) {
+            throw ValidationException::withMessages([
+                'type' => 'Para devoluciones por reposición debes indicar la factura de compra.',
+            ]);
+        }
+
         if (blank($invoiceId)) {
             return;
         }
@@ -68,6 +77,26 @@ class PurchaseReturnLimitsService
             throw ValidationException::withMessages([
                 'purchase_invoice_id' => 'No se puede devolver mercancía de una factura anulada.',
             ]);
+        }
+
+        if ($type === PurchaseReturn::TYPE_REPLACEMENT) {
+            $invoiceLines = $invoice->lines->keyBy('id');
+            foreach ($lines as $line) {
+                if ($line->status !== 'active' || blank($line->purchaseInvoiceLineId)) {
+                    continue;
+                }
+
+                $invoiceLine = $invoiceLines->get($line->purchaseInvoiceLineId);
+                if (
+                    ! $invoiceLine instanceof PurchaseInvoiceLine
+                    || $invoiceLine->sourceable_type !== PurchaseOrderLine::MORPH_ALIAS
+                    || blank($invoiceLine->sourceable_id)
+                ) {
+                    throw ValidationException::withMessages([
+                        'type' => 'Para devoluciones por reposición la factura debe provenir de una orden de compra.',
+                    ]);
+                }
+            }
         }
 
         $this->guardReturnedQuantities($invoice, $lines, $returnId);

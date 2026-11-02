@@ -62,6 +62,12 @@ class PurchaseReturnApplyCreditNoteService
             return $return;
         }
 
+        if ($return->isReplacement()) {
+            throw ValidationException::withMessages([
+                'purchase_return_id' => 'Una devolución por reposición no se puede acreditar con nota de crédito: espera el reemplazo físico.',
+            ]);
+        }
+
         if (filled($return->credit_note_id)) {
             throw ValidationException::withMessages([
                 'purchase_return_id' => 'Esa devolución ya está acreditada con otra nota de crédito.',

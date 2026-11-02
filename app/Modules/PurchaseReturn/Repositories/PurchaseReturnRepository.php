@@ -43,6 +43,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
                 'entry_id' => $command->entryId,
                 'warehouse_id' => $command->warehouseId,
                 'return_date' => $command->returnDate,
+                'type' => $command->type,
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
                 ...$rates->toAttributes(),
@@ -91,6 +92,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
                 'entry_id' => $command->entryId,
                 'warehouse_id' => $command->warehouseId,
                 'return_date' => $command->returnDate,
+                'type' => $command->type,
                 'reason' => $command->reason,
                 'reason_detail' => $command->reasonDetail,
                 ...$rates->toAttributes(),
@@ -205,7 +207,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
     {
         return [
             'supplier',
-            'purchaseInvoice',
+            'purchaseInvoice.sourceable',
             'warehouse',
             'creditNote',
             'lines.item',

@@ -34,6 +34,7 @@ class PurchaseReturnOptionResource extends JsonResource
                 'supplier_name' => $this->supplier?->name,
                 'purchase_invoice_id' => $this->purchase_invoice_id,
                 'return_date' => $this->return_date?->format('Y-m-d'),
+                'type' => $this->type ?? 'definitive',
                 'reason' => $this->reason,
                 'currency' => $this->currency,
                 /** Con la tasa que congeló se reexpresa lo devuelto. */

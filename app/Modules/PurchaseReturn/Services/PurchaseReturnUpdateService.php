@@ -40,6 +40,7 @@ class PurchaseReturnUpdateService
             $company,
             $command->lines,
             $model->id,
+            $command->type,
         );
 
         $rates = $this->rates->forDocument(

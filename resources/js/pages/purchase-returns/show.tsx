@@ -7,6 +7,8 @@ import {
     Edit,
     FileMinus,
     ReceiptText,
+    RefreshCw,
+    ShoppingBag,
     StickyNote,
     Truck,
     Warehouse,
@@ -19,6 +21,7 @@ import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import purchaseCreditNotes from '@/routes/purchase-credit-notes';
 import purchaseInvoices from '@/routes/purchase-invoices';
+import purchaseOrders from '@/routes/purchase-orders';
 import purchaseReturns from '@/routes/purchase-returns';
 import type { BreadcrumbItem } from '@/types';
 import {
@@ -27,6 +30,7 @@ import {
     STATUS_LABELS,
     STATUS_PILL_KIND,
     STATUS_TRANSITIONS,
+    TYPE_LABELS,
     type PurchaseReturn,
     type PurchaseReturnStatus,
 } from './types/PurchaseReturn';
@@ -139,9 +143,30 @@ export default function PurchaseReturnsShow({ purchaseReturn }: Props) {
                                 {purchaseReturn.warehouse_name ?? '—'}
                             </span>
                             <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
+                                <RefreshCw className="size-3.5 opacity-80" />
+                                {purchaseReturn.type === 'replacement'
+                                    ? 'Por reposición'
+                                    : 'Definitiva'}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground">
                                 <Calendar className="size-3.5 opacity-80" />
                                 {purchaseReturn.return_date}
                             </span>
+                            {purchaseReturn.purchase_order_id && (
+                                <Link
+                                    href={
+                                        purchaseOrders.show({
+                                            company: companyId,
+                                            id: purchaseReturn.purchase_order_id,
+                                        }).url
+                                    }
+                                    className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-primary"
+                                >
+                                    <ShoppingBag className="size-3.5 opacity-80" />
+                                    {purchaseReturn.purchase_order_code ??
+                                        'Orden de compra'}
+                                </Link>
+                            )}
                             {purchaseReturn.purchase_invoice_id && (
                                 <Link
                                     href={
@@ -175,6 +200,40 @@ export default function PurchaseReturnsShow({ purchaseReturn }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
+                        {purchaseReturn.type === 'definitive' &&
+                            !purchaseReturn.credit_note_id &&
+                            purchaseReturn.status === 'confirmed' && (
+                                <Link
+                                    href={`${purchaseCreditNotes.create(companyId).url}?purchase_return_id=${purchaseReturn.id}`}
+                                >
+                                    <Button
+                                        variant="default"
+                                        className="h-10 rounded-[11px] px-4 font-semibold shadow-xs"
+                                    >
+                                        <FileMinus className="size-4" />
+                                        Crear nota de crédito
+                                    </Button>
+                                </Link>
+                            )}
+                        {purchaseReturn.type === 'replacement' &&
+                            purchaseReturn.purchase_order_id && (
+                                <Link
+                                    href={
+                                        purchaseOrders.show({
+                                            company: companyId,
+                                            id: purchaseReturn.purchase_order_id,
+                                        }).url
+                                    }
+                                >
+                                    <Button
+                                        variant="outline"
+                                        className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                                    >
+                                        <ShoppingBag className="size-4" />
+                                        Ver orden de compra
+                                    </Button>
+                                </Link>
+                            )}
                         {transitions
                             .filter((status) => status !== 'cancelled')
                             .map((status) => (
@@ -231,6 +290,14 @@ export default function PurchaseReturnsShow({ purchaseReturn }: Props) {
                             Documento
                         </div>
                         <DataRow
+                            label="Tipo"
+                            value={
+                                purchaseReturn.type === 'replacement'
+                                    ? 'Por reposición (reabre orden)'
+                                    : 'Definitiva (origina nota de crédito)'
+                            }
+                        />
+                        <DataRow
                             label="Motivo"
                             value={REASON_LABELS[purchaseReturn.reason]}
                         />
@@ -238,10 +305,35 @@ export default function PurchaseReturnsShow({ purchaseReturn }: Props) {
                             label="Factura de origen"
                             value={purchaseReturn.purchase_invoice_code ?? '—'}
                         />
-                        <DataRow
-                            label="Nota de crédito"
-                            value={purchaseReturn.credit_note_code ?? '—'}
-                        />
+                        {purchaseReturn.type === 'replacement' && (
+                            <DataRow
+                                label="Orden de compra"
+                                value={
+                                    purchaseReturn.purchase_order_id ? (
+                                        <Link
+                                            href={
+                                                purchaseOrders.show({
+                                                    company: companyId,
+                                                    id: purchaseReturn.purchase_order_id,
+                                                }).url
+                                            }
+                                            className="text-primary hover:underline"
+                                        >
+                                            {purchaseReturn.purchase_order_code ??
+                                                'Ver orden'}
+                                        </Link>
+                                    ) : (
+                                        '—'
+                                    )
+                                }
+                            />
+                        )}
+                        {purchaseReturn.type === 'definitive' && (
+                            <DataRow
+                                label="Nota de crédito"
+                                value={purchaseReturn.credit_note_code ?? '—'}
+                            />
+                        )}
                         {purchaseReturn.reason_detail && (
                             <DataRow
                                 label="Detalle"

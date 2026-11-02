@@ -19,6 +19,7 @@ import type {
     PurchaseReturn,
     PurchaseReturnOptions,
     PurchaseReturnReason,
+    PurchaseReturnType,
     SupplierOptionMeta,
 } from '../types/PurchaseReturn';
 
@@ -57,6 +58,7 @@ interface PurchaseReturnFormData {
     purchase_invoice_id: string;
     warehouse_id: string;
     return_date: string;
+    type: PurchaseReturnType;
     reason: PurchaseReturnReason;
     reason_detail: string;
     currency: string;
@@ -231,6 +233,7 @@ export function usePurchaseReturnForm({
             return_date:
                 initialData?.return_date ??
                 new Date().toISOString().slice(0, 10),
+            type: initialData?.type ?? 'definitive',
             reason: initialData?.reason ?? 'damaged',
             reason_detail: initialData?.reason_detail ?? '',
             /** Una devolución nace en la moneda en la que la empresa lleva sus cifras. */

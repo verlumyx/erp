@@ -10,6 +10,7 @@ import type { PurchaseCreditNoteOptions } from './types/PurchaseCreditNote';
 
 interface Props {
     options: PurchaseCreditNoteOptions;
+    initialReturnId?: string | null;
 }
 
 interface PageProps {
@@ -17,7 +18,7 @@ interface PageProps {
     [key: string]: unknown;
 }
 
-export default function PurchaseCreditNotesCreate({ options }: Props) {
+export default function PurchaseCreditNotesCreate({ options, initialReturnId }: Props) {
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
 
@@ -32,7 +33,7 @@ export default function PurchaseCreditNotesCreate({ options }: Props) {
         },
     ];
 
-    const formMethods = usePurchaseCreditNoteForm({ mode: 'create', options });
+    const formMethods = usePurchaseCreditNoteForm({ mode: 'create', options, initialReturnId });
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

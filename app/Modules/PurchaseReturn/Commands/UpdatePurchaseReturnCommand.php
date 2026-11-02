@@ -15,6 +15,7 @@ class UpdatePurchaseReturnCommand
         public readonly string $supplierId,
         public readonly string $warehouseId,
         public readonly string $returnDate,
+        public readonly string $type = 'definitive',
         public readonly array $lines = [],
         /** Factura de origen. Vacía en una devolución sin factura previa. */
         public readonly ?string $purchaseInvoiceId = null,
@@ -36,6 +37,7 @@ class UpdatePurchaseReturnCommand
             supplierId: $request->string('supplier_id')->toString(),
             warehouseId: $request->string('warehouse_id')->toString(),
             returnDate: $request->string('return_date')->toString(),
+            type: $request->string('type', 'definitive')->toString(),
             lines: PurchaseReturnLineData::collection($request->input('lines', [])),
             purchaseInvoiceId: $request->input('purchase_invoice_id'),
             entryId: $request->input('entry_id'),

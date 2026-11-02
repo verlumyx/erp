@@ -75,6 +75,7 @@ class PurchaseCreditNoteGetController extends Controller
 
         return Inertia::render('purchase-credit-notes/create', [
             'options' => $this->formOptionsService->execute(session('current_company_id')),
+            'initialReturnId' => $request->string('purchase_return_id')->toString() ?: null,
         ]);
     }
 

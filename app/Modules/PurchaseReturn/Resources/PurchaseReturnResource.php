@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseReturn\Resources;
 
+use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,10 +29,17 @@ class PurchaseReturnResource extends JsonResource
                 'purchaseInvoice',
                 fn () => $this->purchaseInvoice?->supplier_invoice_number,
             ),
+            'purchase_order_id' => $this->whenLoaded('purchaseInvoice', fn (): ?string => $this->purchaseInvoice?->sourceable instanceof PurchaseOrder
+                ? $this->purchaseInvoice->sourceable->id
+                : null),
+            'purchase_order_code' => $this->whenLoaded('purchaseInvoice', fn (): ?string => $this->purchaseInvoice?->sourceable instanceof PurchaseOrder
+                ? $this->purchaseInvoice->sourceable->code
+                : null),
             'entry_id' => $this->entry_id,
             'warehouse_id' => $this->warehouse_id,
             'warehouse_name' => $this->whenLoaded('warehouse', fn () => $this->warehouse?->name),
             'return_date' => $this->return_date?->format('Y-m-d'),
+            'type' => $this->type ?? 'definitive',
             'reason' => $this->reason,
             'reason_detail' => $this->reason_detail,
             'currency' => $this->currency,

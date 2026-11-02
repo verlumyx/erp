@@ -31,6 +31,7 @@ class PurchaseReturnCreateService
             $command->companyId,
             $command->lines,
             $command->id,
+            $command->type,
         );
 
         $rates = $this->rates->forDocument(

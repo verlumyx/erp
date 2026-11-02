@@ -57,6 +57,7 @@ trait ValidatesPurchaseReturnPayload
                     ->where('status', 'active'),
             ],
             'return_date' => ['required', 'date'],
+            'type' => ['nullable', 'string', Rule::in(PurchaseReturn::TYPES)],
             'reason' => ['required', 'string', Rule::in(PurchaseReturn::REASONS)],
             /** Obligatorio cuando el motivo es `other`: si no, no se sabe por qué. */
             'reason_detail' => [
@@ -114,6 +115,7 @@ trait ValidatesPurchaseReturnPayload
             'warehouse_id.required' => 'Indica la bodega desde la que sale la mercancía.',
             'warehouse_id.exists' => 'La bodega seleccionada no está disponible.',
             'return_date.required' => 'La fecha de la devolución es obligatoria.',
+            'type.in' => 'El tipo de devolución no es válido.',
             'reason.required' => 'El motivo de la devolución es obligatorio.',
             'reason.in' => 'El motivo indicado no existe.',
             'reason_detail.required' => 'Explica el motivo cuando eliges «Otro».',

@@ -70,9 +70,15 @@ class PurchaseReturnFilters extends EloquentQueryFilters
         return $this->builder->where('status', $value);
     }
 
+    public function type(string $value): Builder
+    {
+        return $this->builder->where('type', $value);
+    }
+
     /**
      * Devoluciones que una nota de crédito puede acreditar: la mercancía ya
-     * salió y todavía no hay nota que la reconozca.
+     * salió y todavía no hay nota que la reconozca. Solo las devoluciones
+     * definitivas admiten nota de crédito; las de reposición esperan mercancía física.
      */
     public function creditable(string $value): Builder
     {
@@ -82,6 +88,7 @@ class PurchaseReturnFilters extends EloquentQueryFilters
 
         return $this->builder
             ->whereIn('status', PurchaseReturn::POSTED_STATUSES)
+            ->where('type', PurchaseReturn::TYPE_DEFINITIVE)
             ->whereNull('credit_note_id');
     }
 

@@ -6,6 +6,9 @@ namespace App\Modules\PurchaseReturn\Services;
 
 use App\Modules\PurchaseInvoice\Commands\ApplyPurchaseInvoiceReturnCommand;
 use App\Modules\PurchaseInvoice\Services\PurchaseInvoiceApplyReturnService;
+use App\Modules\PurchaseOrder\Commands\ApplyPurchaseOrderReceiptCommand;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
+use App\Modules\PurchaseOrder\Services\PurchaseOrderApplyReceiptService;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\PurchaseReturn\Repositories\Contracts\PurchaseReturnRepositoryInterface;
@@ -27,24 +30,29 @@ class PurchaseReturnPostingService
     public function __construct(
         private readonly PurchaseReturnRepositoryInterface $repository,
         private readonly PurchaseInvoiceApplyReturnService $applyToInvoiceLine,
+        private readonly PurchaseOrderApplyReceiptService $applyToOrderLine,
     ) {}
 
-    /** Apunta lo devuelto en la factura de origen. */
+    /** Apunta lo devuelto en la factura de origen y, si es por reposición, reabre la orden de compra. */
     public function post(PurchaseReturn $return): void
     {
         DB::transaction(function () use ($return): void {
             foreach ($this->repository->activeLines($return) as $line) {
-                $this->moveInvoiceLine($return, $line, round((float) $line->quantity, 4));
+                $qty = round((float) $line->quantity, 4);
+                $this->moveInvoiceLine($return, $line, $qty);
+                $this->moveOrderLine($return, $line, -$qty);
             }
         });
     }
 
-    /** Deshace lo apuntado: la factura recupera el cupo devuelto. */
+    /** Deshace lo apuntado: la factura recupera el cupo devuelto y la orden cancela lo reabierto. */
     public function reverse(PurchaseReturn $return): void
     {
         DB::transaction(function () use ($return): void {
             foreach ($this->repository->activeLines($return) as $line) {
-                $this->moveInvoiceLine($return, $line, -round((float) $line->quantity, 4));
+                $qty = round((float) $line->quantity, 4);
+                $this->moveInvoiceLine($return, $line, -$qty);
+                $this->moveOrderLine($return, $line, $qty);
             }
         });
     }
@@ -63,6 +71,33 @@ class PurchaseReturnPostingService
             companyId: $return->company_id,
             purchaseInvoiceLineId: $line->purchase_invoice_line_id,
             returnedDelta: $delta,
+        ));
+    }
+
+    /**
+     * Reabre —o vuelve a cerrar— la línea de la orden de compra si la devolución
+     * es por reposición.
+     */
+    private function moveOrderLine(PurchaseReturn $return, PurchaseReturnLine $line, float $delta): void
+    {
+        if (! $return->isReplacement() || $delta === 0.0) {
+            return;
+        }
+
+        $invoiceLine = $line->purchaseInvoiceLine;
+
+        if (
+            $invoiceLine === null
+            || $invoiceLine->sourceable_type !== PurchaseOrderLine::MORPH_ALIAS
+            || blank($invoiceLine->sourceable_id)
+        ) {
+            return;
+        }
+
+        $this->applyToOrderLine->execute(new ApplyPurchaseOrderReceiptCommand(
+            companyId: $return->company_id,
+            purchaseOrderLineId: $invoiceLine->sourceable_id,
+            receivedDelta: $delta,
         ));
     }
 }

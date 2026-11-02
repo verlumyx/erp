@@ -16,8 +16,20 @@ import { usePurchaseReturnFormContext } from '../contexts/PurchaseReturnFormCont
 import {
     REASON_LABELS,
     type PurchaseReturnReason,
+    type PurchaseReturnType,
 } from '../types/PurchaseReturn';
 import { PurchaseReturnLinesSection } from './PurchaseReturnLinesSection';
+
+const TYPE_OPTIONS: OptionType[] = [
+    {
+        value: 'definitive',
+        label: 'Definitiva (origina nota de crédito)',
+    },
+    {
+        value: 'replacement',
+        label: 'Por reposición (reabre orden para volver a recibir)',
+    },
+];
 
 const REASON_OPTIONS: OptionType[] = Object.entries(REASON_LABELS).map(
     ([value, label]) => ({ value, label }),
@@ -158,6 +170,41 @@ export function PurchaseReturnForm() {
                             <p className="text-sm text-bad">
                                 {errors.return_date}
                             </p>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
+                        <Label
+                            htmlFor="type"
+                            className="text-[13px] font-semibold"
+                        >
+                            Tipo de devolución *
+                        </Label>
+                        <Select2
+                            inputId="type"
+                            options={TYPE_OPTIONS}
+                            value={
+                                TYPE_OPTIONS.find(
+                                    (option) => option.value === data.type,
+                                ) ?? TYPE_OPTIONS[0]
+                            }
+                            onChange={(option) =>
+                                setData(
+                                    'type',
+                                    (option?.value ??
+                                        'definitive') as PurchaseReturnType,
+                                )
+                            }
+                            error={!!errors.type}
+                            size="md"
+                        />
+                        <span className="text-[12px] text-muted-foreground">
+                            {data.type === 'definitive'
+                                ? 'La mercancía sale definitivamente y la deuda se descuenta con una nota de crédito.'
+                                : 'La mercancía dañada se devuelve al proveedor y la orden de compra se reabre para recibir el reemplazo.'}
+                        </span>
+                        {errors.type && (
+                            <p className="text-sm text-bad">{errors.type}</p>
                         )}
                     </div>
 

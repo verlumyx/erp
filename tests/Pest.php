@@ -781,6 +781,7 @@ function purchaseReturnPayload(
         'supplier_id' => $supplier->id,
         'warehouse_id' => $warehouse->id,
         'return_date' => now()->toDateString(),
+        'type' => 'definitive',
         'reason' => 'damaged',
         'currency' => 'USD',
         'lines' => [
@@ -1491,6 +1492,7 @@ function salesReturnPayload(
         'client_id' => $client->id,
         'warehouse_id' => $warehouse->id,
         'return_date' => now()->toDateString(),
+        'type' => 'definitive',
         'reason' => 'damaged',
         'condition' => 'resalable',
         'currency' => 'USD',

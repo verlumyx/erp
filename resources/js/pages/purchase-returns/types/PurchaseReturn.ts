@@ -6,6 +6,13 @@ export type PurchaseReturnStatus =
     | 'completed'
     | 'cancelled';
 
+export type PurchaseReturnType = 'definitive' | 'replacement';
+
+export const TYPE_LABELS: Record<PurchaseReturnType, string> = {
+    definitive: 'Definitiva (con nota de crédito)',
+    replacement: 'Por reposición (espera reemplazo)',
+};
+
 /** Por qué la mercancía vuelve al proveedor. */
 export type PurchaseReturnReason =
     | 'damaged'
@@ -64,10 +71,13 @@ export interface PurchaseReturn {
     purchase_invoice_id: string | null;
     purchase_invoice_code?: string | null;
     purchase_invoice_number?: string | null;
+    purchase_order_id?: string | null;
+    purchase_order_code?: string | null;
     entry_id: string | null;
     warehouse_id: string;
     warehouse_name?: string;
     return_date: string;
+    type: PurchaseReturnType;
     reason: PurchaseReturnReason;
     reason_detail: string | null;
     currency: string;

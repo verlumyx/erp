@@ -37,6 +37,17 @@ class PurchaseReturn extends Model
 
     public const STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'];
 
+    public const TYPE_DEFINITIVE = 'definitive';
+
+    public const TYPE_REPLACEMENT = 'replacement';
+
+    public const TYPES = [self::TYPE_DEFINITIVE, self::TYPE_REPLACEMENT];
+
+    public const TYPE_LABELS = [
+        self::TYPE_DEFINITIVE => 'Definitiva',
+        self::TYPE_REPLACEMENT => 'Por reposición',
+    ];
+
     public const REASONS = ['damaged', 'wrong_item', 'expired', 'excess', 'quality', 'other'];
 
     /**
@@ -69,6 +80,7 @@ class PurchaseReturn extends Model
         'entry_id',
         'warehouse_id',
         'return_date',
+        'type',
         'reason',
         'reason_detail',
         'currency',
@@ -103,6 +115,16 @@ class PurchaseReturn extends Model
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function isReplacement(): bool
+    {
+        return $this->type === self::TYPE_REPLACEMENT;
+    }
+
+    public function isDefinitive(): bool
+    {
+        return $this->type === self::TYPE_DEFINITIVE;
     }
 
     public function company(): BelongsTo

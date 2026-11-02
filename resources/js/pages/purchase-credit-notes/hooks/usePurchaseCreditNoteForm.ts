@@ -29,6 +29,7 @@ interface UsePurchaseCreditNoteFormProps {
     mode: 'create' | 'edit';
     options: PurchaseCreditNoteOptions;
     initialData?: PurchaseCreditNote;
+    initialReturnId?: string | null;
     onSuccess?: () => void;
 }
 
@@ -110,14 +111,15 @@ function invoiceSeed(note?: PurchaseCreditNote): AjaxOption | null {
 }
 
 /** La devolución que origina la nota, si nace de una. */
-function returnSeed(note?: PurchaseCreditNote): AjaxOption | null {
-    if (!note?.purchase_return_id) {
+function returnSeed(note?: PurchaseCreditNote, initialReturnId?: string | null): AjaxOption | null {
+    const returnId = note?.purchase_return_id ?? initialReturnId;
+    if (!returnId) {
         return null;
     }
 
     return {
-        value: note.purchase_return_id,
-        label: note.purchase_return_code ?? 'Devolución de compra',
+        value: returnId,
+        label: note?.purchase_return_code ?? 'Devolución de compra',
     };
 }
 
@@ -250,6 +252,7 @@ export function usePurchaseCreditNoteForm({
     mode,
     options,
     initialData,
+    initialReturnId,
     onSuccess,
 }: UsePurchaseCreditNoteFormProps) {
     const { currentCompany } = usePage<PageProps>().props;
@@ -280,7 +283,7 @@ export function usePurchaseCreditNoteForm({
      */
     const purchaseReturn = useRemoteOption({
         url: purchaseReturns.lookup(companyId).url,
-        seed: returnSeed(initialData),
+        seed: returnSeed(initialData, initialReturnId),
         hydrate: true,
     });
 
@@ -307,7 +310,7 @@ export function usePurchaseCreditNoteForm({
             id: initialData?.id ?? generateUUID(),
             supplier_id: initialData?.supplier_id ?? '',
             purchase_invoice_id: initialData?.purchase_invoice_id ?? '',
-            purchase_return_id: initialData?.purchase_return_id ?? '',
+            purchase_return_id: initialData?.purchase_return_id ?? initialReturnId ?? '',
             supplier_document_number:
                 initialData?.supplier_document_number ?? '',
             note_date:

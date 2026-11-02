@@ -23,7 +23,7 @@ class PurchaseReturnGetController extends Controller
     /** Claves de filtro aceptadas por el listado. */
     private const FILTERS = [
         'code', 'supplier_id', 'purchase_invoice_id', 'warehouse_id',
-        'tracking_number', 'reason', 'status', 'date_from', 'date_to',
+        'tracking_number', 'type', 'reason', 'status', 'date_from', 'date_to',
     ];
 
     /** Tamaño de página del select remoto. */
