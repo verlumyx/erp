@@ -21,7 +21,6 @@ import { ItemPricesSection } from './ItemPricesSection';
 import { ItemUnitsSection } from './ItemUnitsSection';
 
 const NO_CATEGORY = 'none';
-const NO_TAX = 'none';
 
 /** Ej. "IVA general (16%)": el porcentaje llega como decimal(18,4). */
 function taxLabel(tax: { name: string; percentage: string }): string {
@@ -103,13 +102,10 @@ export function ItemForm() {
         })),
     ];
 
-    const taxOptions: OptionType[] = [
-        { value: NO_TAX, label: 'Sin impuesto' },
-        ...options.taxes.map((tax) => ({
-            value: tax.id,
-            label: taxLabel(tax),
-        })),
-    ];
+    const taxOptions: OptionType[] = options.taxes.map((tax) => ({
+        value: tax.id,
+        label: taxLabel(tax),
+    }));
 
     return (
         <FormLayout onSubmit={handleSubmit}>
@@ -352,28 +348,25 @@ export function ItemForm() {
                 <FormFieldGrid>
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
-                            Impuesto de compra
+                            Impuesto de compra *
                         </Label>
                         <Select2
                             options={taxOptions}
                             value={
                                 taxOptions.find(
                                     (option) =>
-                                        option.value ===
-                                        (data.purchase_tax_id || NO_TAX),
+                                        option.value === data.purchase_tax_id,
                                 ) ?? null
                             }
                             onChange={(option) =>
                                 setData(
                                     'purchase_tax_id',
-                                    !option || option.value === NO_TAX
-                                        ? ''
-                                        : option.value,
+                                    option?.value ?? '',
                                 )
                             }
                             error={!!errors.purchase_tax_id}
                             size="md"
-                            placeholder="Sin impuesto"
+                            placeholder="Selecciona un impuesto"
                         />
                         {errors.purchase_tax_id && (
                             <p className="text-sm text-bad">
@@ -384,28 +377,25 @@ export function ItemForm() {
 
                     <div className="flex flex-col gap-1.5">
                         <Label className="text-[13px] font-semibold">
-                            Impuesto de venta
+                            Impuesto de venta *
                         </Label>
                         <Select2
                             options={taxOptions}
                             value={
                                 taxOptions.find(
                                     (option) =>
-                                        option.value ===
-                                        (data.sale_tax_id || NO_TAX),
+                                        option.value === data.sale_tax_id,
                                 ) ?? null
                             }
                             onChange={(option) =>
                                 setData(
                                     'sale_tax_id',
-                                    !option || option.value === NO_TAX
-                                        ? ''
-                                        : option.value,
+                                    option?.value ?? '',
                                 )
                             }
                             error={!!errors.sale_tax_id}
                             size="md"
-                            placeholder="Sin impuesto"
+                            placeholder="Selecciona un impuesto"
                         />
                         {errors.sale_tax_id && (
                             <p className="text-sm text-bad">
@@ -416,64 +406,65 @@ export function ItemForm() {
                 </FormFieldGrid>
             </FormSection>
 
-            <FormSection
-                step={5}
-                title="Reposición y logística"
-                sub="Puntos de reorden y datos físicos del artículo"
-            >
-                <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">
-                    <QuantityField
-                        id="min_stock"
-                        label="Existencia mínima"
-                        value={data.min_stock}
-                        error={errors.min_stock}
-                        onChange={(value) => setData('min_stock', value)}
-                    />
-                    <QuantityField
-                        id="max_stock"
-                        label="Existencia máxima"
-                        value={data.max_stock}
-                        error={errors.max_stock}
-                        onChange={(value) => setData('max_stock', value)}
-                    />
-                    <QuantityField
-                        id="reorder_quantity"
-                        label="Cantidad a reordenar"
-                        value={data.reorder_quantity}
-                        error={errors.reorder_quantity}
-                        onChange={(value) => setData('reorder_quantity', value)}
-                    />
-                    <QuantityField
-                        id="weight"
-                        label="Peso unitario"
-                        value={data.weight}
-                        error={errors.weight}
-                        onChange={(value) => setData('weight', value)}
-                    />
-                    <QuantityField
-                        id="volume"
-                        label="Volumen unitario"
-                        value={data.volume}
-                        error={errors.volume}
-                        onChange={(value) => setData('volume', value)}
-                    />
-                    <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
-                        <Label
-                            htmlFor="notes"
-                            className="text-[13px] font-semibold"
-                        >
-                            Notas
-                        </Label>
-                        <Textarea
-                            id="notes"
-                            value={data.notes}
-                            onChange={(e) => setData('notes', e.target.value)}
-                            className="rounded-[10px]"
-                            rows={3}
-                        />
-                    </div>
-                </div>
-            </FormSection>
+            {/*Ocultar por los momentos, no es necesario*/}
+            {/*<FormSection*/}
+            {/*    step={5}*/}
+            {/*    title="Reposición y logística"*/}
+            {/*    sub="Puntos de reorden y datos físicos del artículo"*/}
+            {/*>*/}
+            {/*    <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3">*/}
+            {/*        <QuantityField*/}
+            {/*            id="min_stock"*/}
+            {/*            label="Existencia mínima"*/}
+            {/*            value={data.min_stock}*/}
+            {/*            error={errors.min_stock}*/}
+            {/*            onChange={(value) => setData('min_stock', value)}*/}
+            {/*        />*/}
+            {/*        <QuantityField*/}
+            {/*            id="max_stock"*/}
+            {/*            label="Existencia máxima"*/}
+            {/*            value={data.max_stock}*/}
+            {/*            error={errors.max_stock}*/}
+            {/*            onChange={(value) => setData('max_stock', value)}*/}
+            {/*        />*/}
+            {/*        <QuantityField*/}
+            {/*            id="reorder_quantity"*/}
+            {/*            label="Cantidad a reordenar"*/}
+            {/*            value={data.reorder_quantity}*/}
+            {/*            error={errors.reorder_quantity}*/}
+            {/*            onChange={(value) => setData('reorder_quantity', value)}*/}
+            {/*        />*/}
+            {/*        <QuantityField*/}
+            {/*            id="weight"*/}
+            {/*            label="Peso unitario"*/}
+            {/*            value={data.weight}*/}
+            {/*            error={errors.weight}*/}
+            {/*            onChange={(value) => setData('weight', value)}*/}
+            {/*        />*/}
+            {/*        <QuantityField*/}
+            {/*            id="volume"*/}
+            {/*            label="Volumen unitario"*/}
+            {/*            value={data.volume}*/}
+            {/*            error={errors.volume}*/}
+            {/*            onChange={(value) => setData('volume', value)}*/}
+            {/*        />*/}
+            {/*        <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">*/}
+            {/*            <Label*/}
+            {/*                htmlFor="notes"*/}
+            {/*                className="text-[13px] font-semibold"*/}
+            {/*            >*/}
+            {/*                Notas*/}
+            {/*            </Label>*/}
+            {/*            <Textarea*/}
+            {/*                id="notes"*/}
+            {/*                value={data.notes}*/}
+            {/*                onChange={(e) => setData('notes', e.target.value)}*/}
+            {/*                className="rounded-[10px]"*/}
+            {/*                rows={3}*/}
+            {/*            />*/}
+            {/*        </div>*/}
+            {/*    </div>*/}
+            {/*</FormSection>*/}
 
             <FormSummary>
                 <SummaryRow label="Artículo">

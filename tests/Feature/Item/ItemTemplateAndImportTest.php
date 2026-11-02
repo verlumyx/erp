@@ -77,10 +77,11 @@ test('user can download template with existing items', function () {
 test('import creates a new item when sku does not exist', function () {
     [$user, $company, $unit] = itemScenario();
     $priceList = PriceList::factory()->create(['company_id' => $company->id, 'name' => 'Precio regular']);
+    $tax = \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $company->id, 'name' => 'IVA General (16%)']);
 
-    $headers = ['SKU (*)', 'Nombre (*)', 'Precio', 'Moneda', 'Lista de precio', 'Unidad base'];
+    $headers = ['SKU (*)', 'Nombre (*)', 'Precio', 'Moneda', 'Lista de precio', 'Unidad base', 'Impuesto venta (*)', 'Impuesto compra (*)'];
     $rows = [
-        ['NUEVO-001', 'Taladro Percutor 750W', 85.50, 'USD', 'Precio regular', $unit->abbreviation],
+        ['NUEVO-001', 'Taladro Percutor 750W', 85.50, 'USD', 'Precio regular', $unit->abbreviation, 'IVA General (16%)', 'IVA General (16%)'],
     ];
 
     $file = createTestExcelFile($headers, $rows);
@@ -105,6 +106,8 @@ test('import creates a new item when sku does not exist', function () {
     expect($item)->not->toBeNull();
     expect($item->name)->toBe('Taladro Percutor 750W');
     expect($item->code)->toBe('ART000001');
+    expect($item->sale_tax_id)->toBe($tax->id);
+    expect($item->purchase_tax_id)->toBe($tax->id);
 
     // Verifica que se creó la unidad base
     $itemUnit = $item->units->first();
@@ -181,12 +184,13 @@ test('import updates price and details when sku already exists', function () {
 
 test('import handles invalid rows tolerantly and reports errors', function () {
     [$user, $company, $unit] = itemScenario();
+    $tax = \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $company->id, 'name' => 'IVA General (16%)']);
 
-    $headers = ['SKU (*)', 'Nombre (*)', 'Precio'];
+    $headers = ['SKU (*)', 'Nombre (*)', 'Precio', 'Impuesto venta (*)', 'Impuesto compra (*)'];
     $rows = [
-        ['VALID-01', 'Producto Válido', 10.00],
-        ['', 'Sin SKU', 15.00],
-        ['INVALID-NO-NAME', '', 20.00],
+        ['VALID-01', 'Producto Válido', 10.00, 'IVA General (16%)', 'IVA General (16%)'],
+        ['', 'Sin SKU', 15.00, 'IVA General (16%)', 'IVA General (16%)'],
+        ['INVALID-NO-NAME', '', 20.00, 'IVA General (16%)', 'IVA General (16%)'],
     ];
 
     $file = createTestExcelFile($headers, $rows);
@@ -209,4 +213,39 @@ test('import handles invalid rows tolerantly and reports errors', function () {
     expect($data['errors'])->toHaveCount(2);
 
     expect(Item::where('company_id', $company->id)->where('sku', 'VALID-01')->exists())->toBeTrue();
+});
+
+test('import rejects new item without sale tax or purchase tax', function () {
+    [$user, $company, $unit] = itemScenario();
+    $tax = \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $company->id, 'name' => 'IVA General (16%)']);
+
+    $headers = ['SKU (*)', 'Nombre (*)', 'Precio', 'Impuesto venta (*)', 'Impuesto compra (*)'];
+    $rows = [
+        ['NO-TAX-01', 'Sin Impuestos', 10.00, '', ''],
+        ['NO-PURCHASE-TAX', 'Sin Impuesto Compra', 10.00, 'IVA General (16%)', ''],
+        ['NO-SALE-TAX', 'Sin Impuesto Venta', 10.00, '', 'IVA General (16%)'],
+        ['INVALID-TAX', 'Impuesto Inexistente', 10.00, 'Inexistente', 'IVA General (16%)'],
+    ];
+
+    $file = createTestExcelFile($headers, $rows);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.import', ['company' => $company->id]), [
+            'file' => $file,
+        ], [
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+    $response->assertOk();
+    $data = $response->json();
+
+    expect($data['created'])->toBe(0);
+    expect($data['skipped'])->toBe(4);
+    expect($data['errors'])->toHaveCount(4);
+    expect($data['errors'][0])->toContain('El impuesto de venta es obligatorio');
+    expect($data['errors'][1])->toContain('El impuesto de compra es obligatorio');
+    expect($data['errors'][2])->toContain('El impuesto de venta es obligatorio');
+    expect($data['errors'][3])->toContain("El impuesto de venta 'Inexistente' no existe en la empresa");
 });

@@ -261,19 +261,18 @@ test('an item can be created with its sale and purchase taxes', function () {
     expect($item->purchase_tax_id)->toBe($purchaseTax->id);
 });
 
-test('an item can be created without taxes', function () {
+test('the sale and purchase taxes are required', function () {
     [$user, $company, $unit] = itemScenario();
 
-    $payload = itemPayload($unit);
+    $payload = itemPayload($unit, [
+        'sale_tax_id' => null,
+        'purchase_tax_id' => null,
+    ]);
 
     actingAs($user)
         ->withSession(['current_company_id' => $company->id])
         ->post(route('items.store', ['company' => $company->id]), $payload)
-        ->assertSessionHasNoErrors();
-
-    $item = Item::find($payload['id']);
-    expect($item->sale_tax_id)->toBeNull();
-    expect($item->purchase_tax_id)->toBeNull();
+        ->assertSessionHasErrors(['sale_tax_id', 'purchase_tax_id']);
 });
 
 test('a tax from another company is rejected', function () {
@@ -289,6 +288,62 @@ test('a tax from another company is rejected', function () {
         ]));
 
     $response->assertSessionHasErrors(['sale_tax_id', 'purchase_tax_id']);
+});
+
+test('the item requires at least one price', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), itemPayload($unit, ['prices' => []]));
+
+    $response->assertSessionHasErrors('prices');
+});
+
+test('a price list from another company is rejected', function () {
+    [$user, $company, $unit] = itemScenario();
+    $foreignPriceList = PriceList::factory()->create();
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), itemPayload($unit, [
+            'prices' => [
+                ['price_list_id' => $foreignPriceList->id, 'price' => 10, 'currency' => 'USD'],
+            ],
+        ]));
+
+    $response->assertSessionHasErrors('prices.0.price_list_id');
+});
+
+test('the same price list cannot be repeated', function () {
+    [$user, $company, $unit] = itemScenario();
+    $priceList = PriceList::factory()->create(['company_id' => $company->id]);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), itemPayload($unit, [
+            'prices' => [
+                ['price_list_id' => $priceList->id, 'price' => 10, 'currency' => 'USD'],
+                ['price_list_id' => $priceList->id, 'price' => 20, 'currency' => 'USD'],
+            ],
+        ]));
+
+    $response->assertSessionHasErrors('prices.1.price_list_id');
+});
+
+test('the item requires at least one active price', function () {
+    [$user, $company, $unit] = itemScenario();
+    $priceList = PriceList::factory()->create(['company_id' => $company->id]);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('items.store', ['company' => $company->id]), itemPayload($unit, [
+            'prices' => [
+                ['price_list_id' => $priceList->id, 'price' => 10, 'currency' => 'USD', 'status' => 'inactive'],
+            ],
+        ]));
+
+    $response->assertSessionHasErrors('prices');
 });
 
 test('a user without permission cannot create an item', function () {

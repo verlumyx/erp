@@ -32,12 +32,12 @@ trait ValidatesItemPayload
                 Rule::exists('app_categories', 'id')->where('company_id', $companyId),
             ],
             'sale_tax_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_taxes', 'id')->where('company_id', $companyId),
             ],
             'purchase_tax_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_taxes', 'id')->where('company_id', $companyId),
             ],
@@ -64,7 +64,7 @@ trait ValidatesItemPayload
             'units.*.conversion_factor' => ['required', 'numeric', 'gt:0'],
             'units.*.status' => ['nullable', 'string', 'in:active,inactive'],
 
-            'prices' => ['nullable', 'array'],
+            'prices' => ['required', 'array', 'min:1'],
             'prices.*.price_list_id' => [
                 'required',
                 'uuid',
@@ -88,14 +88,22 @@ trait ValidatesItemPayload
             'name.required' => 'El nombre del artículo es obligatorio.',
             'type.required' => 'El tipo de artículo es obligatorio.',
             'cost_method.required' => 'El método de costo es obligatorio.',
+            'sale_tax_id.required' => 'El impuesto de venta es obligatorio.',
             'sale_tax_id.exists' => 'El impuesto de venta seleccionado no existe en la empresa.',
+            'purchase_tax_id.required' => 'El impuesto de compra es obligatorio.',
             'purchase_tax_id.exists' => 'El impuesto de compra seleccionado no existe en la empresa.',
             'units.required' => 'El artículo debe tener al menos una unidad de medida.',
             'units.min' => 'El artículo debe tener al menos una unidad de medida.',
             'units.*.measurement_unit_id.required' => 'Selecciona la unidad de medida.',
             'units.*.measurement_unit_id.distinct' => 'No se puede repetir la misma unidad de medida.',
             'units.*.conversion_factor.gt' => 'El factor de conversión debe ser mayor que cero.',
+            'prices.required' => 'El artículo debe tener al menos un precio.',
+            'prices.min' => 'El artículo debe tener al menos un precio.',
             'prices.*.price_list_id.required' => 'Selecciona la lista de precio.',
+            'prices.*.price_list_id.exists' => 'La lista de precio seleccionada no existe en la empresa.',
+            'prices.*.price.required' => 'El precio es obligatorio.',
+            'prices.*.price.numeric' => 'El precio debe ser un número.',
+            'prices.*.price.min' => 'El precio debe ser mayor o igual a cero.',
             'prices.*.currency.required' => 'La moneda del precio es obligatoria.',
         ];
     }
@@ -124,18 +132,21 @@ trait ValidatesItemPayload
 
         $minPrice = (float) $this->input('min_price', 0);
         $seen = [];
+        $activePricesCount = 0;
 
         foreach ($this->input('prices', []) as $index => $price) {
             $priceListId = $price['price_list_id'] ?? '';
 
-            if (in_array($priceListId, $seen, true)) {
+            if ($priceListId !== '' && in_array($priceListId, $seen, true)) {
                 $validator->errors()->add(
                     "prices.{$index}.price_list_id",
                     'Ya hay un precio para esa lista de precio.',
                 );
             }
 
-            $seen[] = $priceListId;
+            if ($priceListId !== '') {
+                $seen[] = $priceListId;
+            }
 
             if (isset($price['price']) && (float) $price['price'] < $minPrice) {
                 $validator->errors()->add(
@@ -143,6 +154,14 @@ trait ValidatesItemPayload
                     'El precio no puede ser menor que el precio mínimo del artículo.',
                 );
             }
+
+            if (($price['status'] ?? 'active') === 'active') {
+                $activePricesCount++;
+            }
+        }
+
+        if (count($this->input('prices', [])) > 0 && $activePricesCount === 0) {
+            $validator->errors()->add('prices', 'El artículo debe tener al menos un precio activo.');
         }
     }
 }

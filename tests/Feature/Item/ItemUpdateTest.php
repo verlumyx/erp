@@ -180,11 +180,12 @@ test('the sku cannot collide with another item of the same company', function ()
         ->assertSessionHasErrors('sku');
 });
 
-test('the sale and purchase taxes can be changed and cleared', function () {
+test('the sale and purchase taxes can be changed', function () {
     [$user, $company, $unit] = itemScenario();
 
     $oldTax = Tax::factory()->create(['company_id' => $company->id]);
-    $newTax = Tax::factory()->create(['company_id' => $company->id]);
+    $newTax1 = Tax::factory()->create(['company_id' => $company->id]);
+    $newTax2 = Tax::factory()->create(['company_id' => $company->id]);
 
     $item = Item::factory()->create([
         'company_id' => $company->id,
@@ -192,7 +193,10 @@ test('the sale and purchase taxes can be changed and cleared', function () {
         'purchase_tax_id' => $oldTax->id,
     ]);
 
-    $payload = itemPayload($unit, ['sale_tax_id' => $newTax->id]);
+    $payload = itemPayload($unit, [
+        'sale_tax_id' => $newTax1->id,
+        'purchase_tax_id' => $newTax2->id,
+    ]);
     unset($payload['id']);
 
     actingAs($user)
@@ -201,8 +205,30 @@ test('the sale and purchase taxes can be changed and cleared', function () {
         ->assertSessionHasNoErrors();
 
     $item->refresh();
-    expect($item->sale_tax_id)->toBe($newTax->id);
-    expect($item->purchase_tax_id)->toBeNull();
+    expect($item->sale_tax_id)->toBe($newTax1->id);
+    expect($item->purchase_tax_id)->toBe($newTax2->id);
+});
+
+test('updating an item without sale or purchase tax is rejected', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $tax = Tax::factory()->create(['company_id' => $company->id]);
+    $item = Item::factory()->create([
+        'company_id' => $company->id,
+        'sale_tax_id' => $tax->id,
+        'purchase_tax_id' => $tax->id,
+    ]);
+
+    $payload = itemPayload($unit, [
+        'sale_tax_id' => null,
+        'purchase_tax_id' => null,
+    ]);
+    unset($payload['id']);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(route('items.update', ['company' => $company->id, 'id' => $item->id]), $payload)
+        ->assertSessionHasErrors(['sale_tax_id', 'purchase_tax_id']);
 });
 
 test('an item from another company cannot be updated', function () {
@@ -217,6 +243,25 @@ test('an item from another company cannot be updated', function () {
         ->withSession(['current_company_id' => $company->id])
         ->put(route('items.update', ['company' => $company->id, 'id' => $foreignItem->id]), $payload)
         ->assertNotFound();
+});
+
+test('updating an item without prices is rejected', function () {
+    [$user, $company, $unit] = itemScenario();
+
+    $item = Item::factory()->create(['company_id' => $company->id]);
+    ItemUnit::factory()->base()->create([
+        'item_id' => $item->id,
+        'company_id' => $company->id,
+        'measurement_unit_id' => $unit->id,
+    ]);
+
+    $payload = itemPayload($unit, ['prices' => []]);
+    unset($payload['id']);
+
+    actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->put(route('items.update', ['company' => $company->id, 'id' => $item->id]), $payload)
+        ->assertSessionHasErrors('prices');
 });
 
 test('a user without permission cannot update an item', function () {

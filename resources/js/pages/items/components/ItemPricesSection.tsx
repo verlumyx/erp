@@ -25,6 +25,8 @@ export function ItemPricesSection() {
 
     return (
         <div className="flex flex-col gap-4 p-5">
+            {errors.prices && <p className="text-sm text-bad">{errors.prices}</p>}
+
             {options.priceLists.length === 0 && (
                 <p className="text-[13px] text-muted-foreground">
                     Aún no hay listas de precio en esta empresa. Créalas en
@@ -115,6 +117,7 @@ export function ItemPricesSection() {
                         size="icon"
                         className="size-[42px] rounded-[10px] bg-card"
                         onClick={() => removePrice(index)}
+                        disabled={data.prices.length === 1}
                         aria-label="Quitar precio"
                     >
                         <X className="size-4" />

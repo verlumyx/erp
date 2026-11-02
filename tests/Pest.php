@@ -530,6 +530,12 @@ function itemPayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $priceList = \App\Modules\PriceList\Models\PriceList::where('company_id', $unit->company_id)->first()
+        ?? \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $unit->company_id]);
+
+    $tax = \App\Modules\Tax\Models\Tax::where('company_id', $unit->company_id)->first()
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $unit->company_id]);
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'sku' => 'SKU-001',
@@ -538,8 +544,13 @@ function itemPayload(
         'cost_method' => 'average',
         'is_purchasable' => 'yes',
         'is_sellable' => 'yes',
+        'sale_tax_id' => $tax->id,
+        'purchase_tax_id' => $tax->id,
         'units' => [
             ['measurement_unit_id' => $unit->id, 'is_base' => 'yes', 'conversion_factor' => 1],
+        ],
+        'prices' => [
+            ['price_list_id' => $priceList->id, 'price' => 100, 'currency' => 'USD'],
         ],
         ...$overrides,
     ];

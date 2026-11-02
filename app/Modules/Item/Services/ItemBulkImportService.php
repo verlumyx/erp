@@ -188,6 +188,42 @@ class ItemBulkImportService
                         continue;
                     }
 
+                    // Validar impuesto de venta
+                    $stStr = $this->getCellValue($row, $colMap, 'sale_tax');
+                    if ($stStr === null || trim($stStr) === '') {
+                        $errors[] = "Fila {$rowNumber} (SKU: {$sku}): El impuesto de venta es obligatorio.";
+                        $skipped++;
+
+                        continue;
+                    }
+                    $stNeedle = mb_strtolower(trim($stStr));
+                    $stCleanPercent = str_replace(['%', ' '], '', $stNeedle);
+                    $saleTaxModel = $taxesByName->get($stNeedle) ?? $taxesByPercent->get($stCleanPercent);
+                    if (! $saleTaxModel) {
+                        $errors[] = "Fila {$rowNumber} (SKU: {$sku}): El impuesto de venta '{$stStr}' no existe en la empresa.";
+                        $skipped++;
+
+                        continue;
+                    }
+
+                    // Validar impuesto de compra
+                    $ptStr = $this->getCellValue($row, $colMap, 'purchase_tax');
+                    if ($ptStr === null || trim($ptStr) === '') {
+                        $errors[] = "Fila {$rowNumber} (SKU: {$sku}): El impuesto de compra es obligatorio.";
+                        $skipped++;
+
+                        continue;
+                    }
+                    $ptNeedle = mb_strtolower(trim($ptStr));
+                    $ptCleanPercent = str_replace(['%', ' '], '', $ptNeedle);
+                    $purchaseTaxModel = $taxesByName->get($ptNeedle) ?? $taxesByPercent->get($ptCleanPercent);
+                    if (! $purchaseTaxModel) {
+                        $errors[] = "Fila {$rowNumber} (SKU: {$sku}): El impuesto de compra '{$ptStr}' no existe en la empresa.";
+                        $skipped++;
+
+                        continue;
+                    }
+
                     // Validar código de barras si viene
                     $barcodeRaw = $this->getCellValue($row, $colMap, 'barcode');
                     $barcode = ($barcodeRaw !== null && trim($barcodeRaw) !== '') ? trim($barcodeRaw) : null;
@@ -210,10 +246,10 @@ class ItemBulkImportService
                         $colMap,
                         $userId,
                         $baseUnitModel,
+                        $saleTaxModel,
+                        $purchaseTaxModel,
                         $categoriesByName,
                         $categoriesByCode,
-                        $taxesByName,
-                        $taxesByPercent,
                         $priceListsByName,
                         $priceListsByCode,
                         $defaultPriceList,
@@ -228,10 +264,10 @@ class ItemBulkImportService
                             $colMap,
                             $userId,
                             $baseUnitModel,
+                            $saleTaxModel->id,
+                            $purchaseTaxModel->id,
                             $categoriesByName,
                             $categoriesByCode,
-                            $taxesByName,
-                            $taxesByPercent,
                             $priceListsByName,
                             $priceListsByCode,
                             $defaultPriceList,
@@ -338,9 +374,10 @@ class ItemBulkImportService
             $needle = mb_strtolower(trim($saleTaxStr));
             $cleanPercent = str_replace(['%', ' '], '', $needle);
             $tax = $taxesByName->get($needle) ?? $taxesByPercent->get($cleanPercent);
-            if ($tax) {
-                $updates['sale_tax_id'] = $tax->id;
+            if (! $tax) {
+                throw new \InvalidArgumentException("El impuesto de venta '{$saleTaxStr}' no existe en la empresa.");
             }
+            $updates['sale_tax_id'] = $tax->id;
         }
 
         $purchaseTaxStr = $this->getCellValue($row, $colMap, 'purchase_tax');
@@ -348,9 +385,10 @@ class ItemBulkImportService
             $needle = mb_strtolower(trim($purchaseTaxStr));
             $cleanPercent = str_replace(['%', ' '], '', $needle);
             $tax = $taxesByName->get($needle) ?? $taxesByPercent->get($cleanPercent);
-            if ($tax) {
-                $updates['purchase_tax_id'] = $tax->id;
+            if (! $tax) {
+                throw new \InvalidArgumentException("El impuesto de compra '{$purchaseTaxStr}' no existe en la empresa.");
             }
+            $updates['purchase_tax_id'] = $tax->id;
         }
 
         $notes = $this->getCellValue($row, $colMap, 'notes');
@@ -432,10 +470,10 @@ class ItemBulkImportService
         array $colMap,
         string $userId,
         MeasurementUnit $baseUnitModel,
+        string $saleTaxId,
+        string $purchaseTaxId,
         $categoriesByName,
         $categoriesByCode,
-        $taxesByName,
-        $taxesByPercent,
         $priceListsByName,
         $priceListsByCode,
         ?PriceList $defaultPriceList,
@@ -474,24 +512,6 @@ class ItemBulkImportService
             $needle = mb_strtolower(trim($catStr));
             $cat = $categoriesByName->get($needle) ?? $categoriesByCode->get($needle);
             $categoryId = $cat?->id;
-        }
-
-        $saleTaxId = null;
-        $stStr = $this->getCellValue($row, $colMap, 'sale_tax');
-        if ($stStr !== null && trim($stStr) !== '') {
-            $needle = mb_strtolower(trim($stStr));
-            $cleanPercent = str_replace(['%', ' '], '', $needle);
-            $st = $taxesByName->get($needle) ?? $taxesByPercent->get($cleanPercent);
-            $saleTaxId = $st?->id;
-        }
-
-        $purchaseTaxId = null;
-        $ptStr = $this->getCellValue($row, $colMap, 'purchase_tax');
-        if ($ptStr !== null && trim($ptStr) !== '') {
-            $needle = mb_strtolower(trim($ptStr));
-            $cleanPercent = str_replace(['%', ' '], '', $needle);
-            $pt = $taxesByName->get($needle) ?? $taxesByPercent->get($cleanPercent);
-            $purchaseTaxId = $pt?->id;
         }
 
         $description = null;

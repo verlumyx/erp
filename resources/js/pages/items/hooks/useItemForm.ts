@@ -84,13 +84,15 @@ function unitRows(item?: Item): ItemUnitRow[] {
 }
 
 function priceRows(item?: Item, defaultCurrency: string = 'USD'): ItemPriceRow[] {
-    return (item?.prices ?? [])
+    const rows = (item?.prices ?? [])
         .filter((price) => price.status === 'active')
         .map((price) => ({
             price_list_id: price.price_list_id,
             price: Number(price.price),
             currency: defaultCurrency || price.currency || 'USD',
         }));
+
+    return rows.length > 0 ? rows : [emptyPrice(defaultCurrency || 'USD')];
 }
 
 export function useItemForm({
@@ -101,7 +103,7 @@ export function useItemForm({
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
     const configuration = useConfiguration();
-    const baseCurrency = configuration?.base_currency ?? '';
+    const baseCurrency = configuration?.base_currency || 'USD';
 
     const { data, setData, post, put, processing, errors, reset } =
         useForm<ItemFormData>({
@@ -167,11 +169,13 @@ export function useItemForm({
     const addPrice = () =>
         setData('prices', [...data.prices, emptyPrice(baseCurrency)]);
 
-    const removePrice = (index: number) =>
+    const removePrice = (index: number) => {
+        if (data.prices.length <= 1) return;
         setData(
             'prices',
             data.prices.filter((_, i) => i !== index),
         );
+    };
 
     const updatePrice = <K extends keyof ItemPriceRow>(
         index: number,
