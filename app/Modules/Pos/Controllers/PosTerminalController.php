@@ -9,6 +9,7 @@ use App\Modules\Category\Models\Category;
 use App\Modules\Client\Models\Client;
 use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
 use App\Modules\Item\Models\Item;
+use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\Pos\Repositories\Contracts\PosSessionRepositoryInterface;
 use App\Modules\Pos\Resources\PosSaleResource;
@@ -64,12 +65,13 @@ class PosTerminalController extends Controller
                 ->pluck('total_stock', 'item_id')
             : collect();
 
-        // 3. Fetch items sellable
+        // 3. Fetch items sellable (excluding serialized items, which require formal sales order / dispatch)
         $itemsQuery = Item::query()
             ->with(['units.measurementUnit', 'prices', 'saleTax'])
             ->where('company_id', $companyId)
             ->where('status', 'active')
-            ->where('is_sellable', 'yes');
+            ->where('is_sellable', 'yes')
+            ->where('type', '!=', ItemSerial::TRACKABLE_ITEM_TYPE);
 
         $items = $itemsQuery->get()->map(function (Item $item) use ($priceListId, $stockMap) {
             $stock = $item->movesStock()

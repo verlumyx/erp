@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\ClientCollection\Models\ClientCollection;
 use App\Modules\Dispatch\Models\Dispatch;
+use App\Modules\Item\Models\Item;
 use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\Pos\Models\PosRegister;
 use App\Modules\Pos\Models\PosSale;
@@ -487,4 +488,137 @@ test('pos checkout with debit card in ves saves collection matching form format'
     expect((float) $collection->applied_amount)->toBe(10.0);
     expect((float) $collection->unapplied_amount)->toBe(0.0);
     expect($collection->payment_method)->toBe('card_debit');
+});
+
+test('pos checkout rejects serialized items with validation error', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $serializedItem = Item::factory()->create([
+        'company_id' => $company->id,
+        'code' => 'ART-SER-001',
+        'name' => 'Laptop Gamer Serializada',
+        'is_sellable' => 'yes',
+        'type' => \App\Modules\ItemSerial\Models\ItemSerial::TRACKABLE_ITEM_TYPE,
+        'status' => 'active',
+    ]);
+
+    $register = PosRegister::create([
+        'company_id' => $company->id,
+        'code' => 'CAJ000001',
+        'name' => 'Caja Mostrador',
+        'warehouse_id' => $warehouse->id,
+        'default_client_id' => $client->id,
+        'created_by' => $user->id,
+        'status' => 'active',
+    ]);
+
+    $session = PosSession::create([
+        'company_id' => $company->id,
+        'code' => 'COR000001',
+        'pos_register_id' => $register->id,
+        'user_id' => $user->id,
+        'opened_at' => now(),
+        'opening_cash_usd' => 100.00,
+        'opening_cash_ves' => 0.00,
+        'status' => 'confirmed',
+    ]);
+
+    $payload = [
+        'pos_session_id' => $session->id,
+        'client_id' => $client->id,
+        'currency' => 'USD',
+        'lines' => [
+            [
+                'item_id' => $serializedItem->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1.0,
+                'unit_price' => 500.0,
+                'discount_percent' => 0.0,
+                'discount_amount' => 0.0,
+                'tax_percent' => 0.0,
+                'tax_amount' => 0.0,
+                'subtotal' => 500.0,
+                'total' => 500.0,
+            ],
+        ],
+        'payments' => [
+            [
+                'payment_method' => 'cash',
+                'currency' => 'USD',
+                'amount_tendered' => 500.0,
+                'amount_applied' => 500.0,
+                'amount_in_document_currency' => 500.0,
+            ],
+        ],
+        'subtotal' => 500.0,
+        'discount_amount' => 0.0,
+        'tax_amount' => 0.0,
+        'total' => 500.0,
+        'total_in_local_currency' => 500.0,
+        'paid_amount' => 500.0,
+        'change_amount_usd' => 0.0,
+        'change_amount_ves' => 0.0,
+    ];
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('pos.checkout', ['company' => $company->id]), $payload);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['lines.0.item_id']);
+});
+
+test('pos hold rejects serialized items with validation error', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $serializedItem = Item::factory()->create([
+        'company_id' => $company->id,
+        'code' => 'ART-SER-002',
+        'name' => 'Equipo Especial Serializado',
+        'is_sellable' => 'yes',
+        'type' => \App\Modules\ItemSerial\Models\ItemSerial::TRACKABLE_ITEM_TYPE,
+        'status' => 'active',
+    ]);
+
+    $register = PosRegister::create([
+        'company_id' => $company->id,
+        'code' => 'CAJ000001',
+        'name' => 'Caja Mostrador',
+        'warehouse_id' => $warehouse->id,
+        'default_client_id' => $client->id,
+        'created_by' => $user->id,
+        'status' => 'active',
+    ]);
+
+    $session = PosSession::create([
+        'company_id' => $company->id,
+        'code' => 'COR000001',
+        'pos_register_id' => $register->id,
+        'user_id' => $user->id,
+        'opened_at' => now(),
+        'opening_cash_usd' => 100.00,
+        'opening_cash_ves' => 0.00,
+        'status' => 'confirmed',
+    ]);
+
+    $payload = [
+        'pos_session_id' => $session->id,
+        'client_id' => $client->id,
+        'currency' => 'USD',
+        'lines' => [
+            [
+                'item_id' => $serializedItem->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1.0,
+                'unit_price' => 100.0,
+            ],
+        ],
+    ];
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('pos.hold', ['company' => $company->id]), $payload);
+
+    $response->assertUnprocessable();
+    $response->assertJsonValidationErrors(['lines.0.item_id']);
 });

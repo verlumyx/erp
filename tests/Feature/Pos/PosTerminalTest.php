@@ -41,6 +41,16 @@ test('pos terminal displays sellable items with warehouse stock and sku', functi
         'status' => 'active',
     ]);
 
+    // Serialized item should not appear in POS
+    Item::factory()->create([
+        'company_id' => $company->id,
+        'code' => 'ART-003',
+        'name' => 'ITEM SERIALIZADO',
+        'is_sellable' => 'yes',
+        'type' => \App\Modules\ItemSerial\Models\ItemSerial::TRACKABLE_ITEM_TYPE,
+        'status' => 'active',
+    ]);
+
     // Create stock for the sellable item
     ItemStock::factory()->create([
         'company_id' => $company->id,

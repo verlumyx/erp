@@ -16,6 +16,7 @@ use App\Modules\Dispatch\Commands\UpdateStatusDispatchCommand;
 use App\Modules\Dispatch\Services\DispatchCreateService;
 use App\Modules\Dispatch\Services\DispatchUpdateStatusService;
 use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
+use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\Pos\Commands\PosCheckoutCommand;
 use App\Modules\Pos\Exceptions\PosSessionClosedException;
 use App\Modules\Pos\Exceptions\PosUnauthorizedSessionException;
@@ -31,6 +32,7 @@ use App\Modules\SalesInvoice\Services\SalesInvoiceCreateService;
 use App\Modules\SalesInvoice\Services\SalesInvoiceUpdateStatusService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PosSaleCheckoutService
 {
@@ -99,6 +101,17 @@ class PosSaleCheckoutService
 
             // 4. Step 2: Evaluate stockable items and generate Dispatch (DES) if needed
             $invoice->load(['lines.item']);
+
+            $hasSerialized = $invoice->lines->contains(function ($line) {
+                return $line->item?->type === ItemSerial::TRACKABLE_ITEM_TYPE;
+            });
+
+            if ($hasSerialized) {
+                throw ValidationException::withMessages([
+                    'lines' => 'Los artículos controlados por serie no se pueden vender por el terminal POS. Deben venderse por pedido formal.',
+                ]);
+            }
+
             $stockableLines = $invoice->lines->filter(function ($line) {
                 return $line->item?->movesStock() ?? false;
             });

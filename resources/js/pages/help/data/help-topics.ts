@@ -749,14 +749,18 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     },
                     {
                         number: 3,
-                        title: 'Selecciona el serial en la venta',
-                        description: 'Al emitir la factura o ticket POS, el sistema te pedirá escanear el serial que estás entregando al cliente.',
+                        title: 'Selecciona el serial en la venta formal',
+                        description: 'Al emitir la factura de venta o despacho desde el módulo de Ventas, el sistema te pedirá indicar o escanear el serial que estás entregando al cliente. Los artículos serializados no están disponibles para venta en el terminal POS.',
                     },
                 ],
                 tips: [
                     {
                         type: 'tip',
                         text: 'El serial queda impreso en la factura de venta del cliente, sirviendo como su comprobante legal de garantía.',
+                    },
+                    {
+                        type: 'warning',
+                        text: 'Los artículos controlados por serie solo pueden venderse por pedido formal o facturación directa en Ventas; por políticas de trazabilidad unitaria no aparecen en el terminal POS.',
                     },
                 ],
                 relatedModules: [
@@ -777,16 +781,16 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                 title: 'Kardex (Movimientos de Inventario)',
                 subtitle: 'Libro mayor de auditoría y movimientos cronológicos de stock',
                 summary: 'El historial inmutable de cada entrada, salida, venta, compra y traslado con fechas, documentos y costos.',
-                whatIsIt: 'El Kardex es la "caja negra" del inventario. Cada vez que una unidad se mueve en el sistema (por una venta en el POS, una compra a proveedor, o un traslado entre bodegas), el Kardex anota la fecha, la hora, el usuario, el documento de respaldo y el saldo restante.',
+                whatIsIt: 'El Kardex es la "caja negra" del inventario. Cada vez que una unidad se mueve en el sistema (únicamente a través de Entrada, Despacho o Ajuste), el Kardex anota la fecha, la hora, el usuario, el documento de respaldo y el saldo restante.',
                 whyItMatters: 'Si en algún momento el inventario no cuadra, no hay misterio: vas al Kardex y ves exactamente quién y cuándo registró cada movimiento. Nunca se puede alterar manualmente.',
                 keyConcepts: [
                     {
                         term: 'Entrada (+)',
-                        explanation: 'Movimientos que aumentan existencias (compras, ajustes positivos, recepciones).',
+                        explanation: 'Movimientos que aumentan existencias (entradas de almacén o ajustes positivos).',
                     },
                     {
                         term: 'Salida (-)',
-                        explanation: 'Movimientos que restan existencias (ventas, mermas, despachos).',
+                        explanation: 'Movimientos que restan existencias (despachos de almacén o ajustes negativos).',
                     },
                     {
                         term: 'Saldo Resultante',
@@ -807,7 +811,7 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     {
                         number: 3,
                         title: 'Revisa el detalle del documento',
-                        description: 'Haz clic en el número de documento de cualquier línea para ver la factura o despacho original.',
+                        description: 'Haz clic en el número de documento de cualquier línea para ver la entrada, despacho o ajuste original.',
                     },
                 ],
                 tips: [
@@ -818,14 +822,14 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                 ],
                 relatedModules: [
                     {
-                        name: 'Facturas de Venta',
-                        topicId: 'ventas-facturas-venta',
-                        relationship: 'Genera salidas automáticas en el Kardex.',
+                        name: 'Entradas (Recepción)',
+                        topicId: 'logistica-entradas',
+                        relationship: 'Registra los ingresos y aumentos de stock en el Kardex.',
                     },
                     {
-                        name: 'Facturas de Compra',
-                        topicId: 'compras-facturas-compra',
-                        relationship: 'Genera entradas automáticas con costo promedio.',
+                        name: 'Despachos (Salidas)',
+                        topicId: 'logistica-despachos',
+                        relationship: 'Registra las salidas físicas de mercancía en el Kardex.',
                     },
                 ],
                 systemPath: '/inventory-movements',
@@ -946,7 +950,7 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     {
                         number: 4,
                         title: 'Aprobar orden',
-                        description: 'Al aprobarla, queda lista para exportarse en PDF o enviarse por correo al proveedor.',
+                        description: 'Al aprobar la orden de compra se genera automáticamente una entrada de inventario, que es la que mueve existencia al ser confirmada en almacén. Además, la orden queda lista para exportarse en PDF o enviarse por correo al proveedor.',
                     },
                 ],
                 tips: [
@@ -956,6 +960,11 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     },
                 ],
                 relatedModules: [
+                    {
+                        name: 'Entradas (Recepción)',
+                        topicId: 'logistica-entradas',
+                        relationship: 'Al aprobar la orden se genera la entrada de inventario que moverá la existencia.',
+                    },
                     {
                         name: 'Facturas de Compra',
                         topicId: 'compras-facturas-compra',
@@ -971,10 +980,10 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                 moduleName: 'Compras',
                 moduleIcon: 'FileText',
                 title: 'Facturas de Compra',
-                subtitle: 'Recepción formal, costo de inventario y cuenta por pagar',
-                summary: 'Registra la factura legal emitida por el proveedor. Alimenta el stock, el Kardex y genera la deuda contable.',
-                whatIsIt: 'Es el documento definitivo de compra. Cuando el camión llega y el proveedor te entrega su factura física o electrónica, la digitas aquí. En ese instante, los productos entran formalmente a tu stock con su nuevo costo y se crea la cuenta por pagar.',
-                whyItMatters: 'Determina el costo promedio de tu inventario. Un registro exacto de costos es lo que asegura que tu ganancia neta en ventas sea real.',
+                subtitle: 'Comprobante fiscal, costos de compra y cuenta por pagar',
+                summary: 'Registra la factura legal emitida por el proveedor y genera la deuda contable. La factura no actualiza el Kardex: únicamente Entrada, Despacho y Ajuste mueven el Kardex.',
+                whatIsIt: 'Es el documento formal emitido por el proveedor. Cuando llega la factura física o electrónica, la digitas aquí para registrar los costos pactados y generar la cuenta por pagar. Recuerda que la factura no actualiza el Kardex ni mueve existencias directas: la entrada física y el saldo en Kardex se gestionan mediante el documento de Entrada de almacén.',
+                whyItMatters: 'Determina el costo formal de compra y la cuenta por pagar con el proveedor. Un registro exacto asegura que los costos declarados coincidan con los comprobantes fiscales y que la deuda comercial esté al día.',
                 keyConcepts: [
                     {
                         term: 'Número de Control / Factura',
@@ -1008,7 +1017,7 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     {
                         number: 4,
                         title: 'Procesar y asentar',
-                        description: 'Al guardar, el Kardex se actualiza y la factura pasa al estado de cuenta del proveedor.',
+                        description: 'Al guardar, la factura pasa al estado de cuenta del proveedor para gestionar su pago.',
                     },
                 ],
                 tips: [
@@ -1019,9 +1028,9 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                 ],
                 relatedModules: [
                     {
-                        name: 'Kardex',
-                        topicId: 'inventario-kardex',
-                        relationship: 'Ingresa el stock con el costo unitario actualizado.',
+                        name: 'Entradas de Almacén',
+                        topicId: 'logistica-entradas',
+                        relationship: 'Es el documento que realmente ingresa la mercancía al inventario y mueve el Kardex.',
                     },
                     {
                         name: 'Pagos a Proveedor',
@@ -1030,7 +1039,7 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     },
                 ],
                 systemPath: '/purchase-invoices',
-                keywords: ['factura de compra', 'recepción', 'cuenta por pagar', 'crédito fiscal', 'costo'],
+                keywords: ['factura de compra', 'cuenta por pagar', 'crédito fiscal', 'costo', 'proveedor'],
             },
             {
                 id: 'compras-pagos-proveedor',
@@ -1232,8 +1241,8 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                 moduleIcon: 'Receipt',
                 title: 'Facturas de Venta',
                 subtitle: 'Emisión legal de comprobantes de ingreso y débito fiscal',
-                summary: 'Documento fiscal oficial que acredita la venta de bienes o servicios. Descuenta existencias y genera la cuenta por cobrar.',
-                whatIsIt: 'Es el comprobante formal de la transacción comercial. Al emitirse, rebaja el stock del almacén, asienta el ingreso contable, genera el débito fiscal de IVA y, si no fue pagada de contado, crea la cuenta por cobrar a nombre del cliente.',
+                summary: 'Documento fiscal oficial que acredita la venta de bienes o servicios. Registra el débito fiscal y genera la cuenta por cobrar.',
+                whatIsIt: 'Es el comprobante formal de la transacción comercial. Al emitirse, asienta el ingreso contable, genera el débito fiscal de IVA y, si no fue pagada de contado, crea la cuenta por cobrar a nombre del cliente. Ten presente que la factura no actualiza el Kardex: la salida física y el movimiento de existencias los realiza el Despacho de almacén.',
                 whyItMatters: 'Es el documento con validez legal y tributaria. Debe emitirse con exactitud para evitar sanciones fiscales o discrepancias con el comprador.',
                 keyConcepts: [
                     {
@@ -1279,9 +1288,9 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                 ],
                 relatedModules: [
                     {
-                        name: 'Kardex',
-                        topicId: 'inventario-kardex',
-                        relationship: 'Resta automáticamente las unidades vendidas.',
+                        name: 'Despachos',
+                        topicId: 'logistica-despachos',
+                        relationship: 'Es el documento que realmente rebaja las existencias y actualiza el Kardex.',
                     },
                     {
                         name: 'Cobros a Clientes',
@@ -1546,7 +1555,7 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                     {
                         number: 5,
                         title: 'Imprimir comprobante',
-                        description: 'El ticket se imprime en la impresora térmica y la gaveta de dinero se abre automáticamente.',
+                        description: 'El ticket se imprime en la impresora térmica',
                     },
                 ],
                 tips: [

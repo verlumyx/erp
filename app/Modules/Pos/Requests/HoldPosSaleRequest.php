@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Pos\Requests;
 
+use App\Modules\ItemSerial\Models\ItemSerial;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -52,10 +53,26 @@ class HoldPosSaleRequest extends FormRequest
             'total' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
             'lines' => ['required', 'array', 'min:1'],
-            'lines.*.item_id' => ['required', 'uuid'],
+            'lines.*.item_id' => [
+                'required',
+                'uuid',
+                Rule::exists('app_items', 'id')
+                    ->where('company_id', $companyId)
+                    ->whereNot('type', ItemSerial::TRACKABLE_ITEM_TYPE),
+            ],
             'lines.*.measurement_unit_id' => ['required', 'uuid'],
             'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
             'lines.*.unit_price' => ['required', 'numeric', 'min:0'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'lines.*.item_id.exists' => 'El artículo seleccionado no es válido o es un artículo controlado por serie (solo vendible por pedido formal).',
         ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Pos\Requests;
 
+use App\Modules\ItemSerial\Models\ItemSerial;
 use App\Modules\Pos\Models\PosPayment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -58,7 +59,9 @@ class PosCheckoutRequest extends FormRequest
             'lines.*.item_id' => [
                 'required',
                 'uuid',
-                Rule::exists('app_items', 'id')->where('company_id', $companyId),
+                Rule::exists('app_items', 'id')
+                    ->where('company_id', $companyId)
+                    ->whereNot('type', ItemSerial::TRACKABLE_ITEM_TYPE),
             ],
             'lines.*.measurement_unit_id' => [
                 'required',
@@ -95,6 +98,7 @@ class PosCheckoutRequest extends FormRequest
         return [
             'lines.required' => 'El carrito no tiene productos.',
             'lines.min' => 'El carrito debe tener al menos un producto.',
+            'lines.*.item_id.exists' => 'El artículo seleccionado no es válido o es un artículo controlado por serie (solo vendible por pedido formal).',
             'payments.required' => 'Debe registrar al menos un método de pago.',
             'payments.min' => 'Debe registrar al menos un método de pago.',
             'total.gt' => 'El total de la venta debe ser mayor a cero.',
