@@ -1,9 +1,10 @@
-import { Search } from 'lucide-react';
+import { HelpCircle, Search } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { CompanySwitcher } from '@/components/company-switcher';
 import { NotificationBell } from '@/components/notification-bell';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
+import { Link } from '@inertiajs/react';
 
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -27,6 +28,13 @@ export function AppSidebarHeader({
                 </kbd>
             </div>
             <div className="ml-auto flex items-center gap-3 md:ml-0">
+                <Link
+                    href="/ayuda"
+                    className="flex size-9 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                    title="Centro de Ayuda y Guía del Sistema"
+                >
+                    <HelpCircle className="size-4.5" />
+                </Link>
                 <NotificationBell />
                 <CompanySwitcher />
             </div>

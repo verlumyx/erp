@@ -43,4 +43,32 @@ Route::get('dashboard', function (Request $request) {
  * Dashboard module (app/Modules/Dashboard/routes.php).
  */
 
+$uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+
+Route::get('ayuda', function (Request $request) {
+    $companyId = $request->session()->get('current_company_id');
+
+    if (! $companyId && $request->user()) {
+        $defaultPivot = UserCompany::where('user_id', $request->user()->id)
+            ->where('is_default', true)
+            ->first();
+
+        $companyId = $defaultPivot?->company_id
+            ?? $request->user()->companies()->first()?->id;
+    }
+
+    return Inertia::render('help/index', [
+        'companyId' => $companyId,
+    ]);
+})->name('help.index');
+
+Route::middleware(['auth', 'verified'])
+    ->prefix('{company}')
+    ->where(['company' => $uuid])
+    ->get('ayuda', function (string $company) {
+        return Inertia::render('help/index', [
+            'companyId' => $company,
+        ]);
+    })->name('company.help');
+
 require __DIR__.'/settings.php';
