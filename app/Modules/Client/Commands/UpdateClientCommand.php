@@ -58,7 +58,9 @@ class UpdateClientCommand
             country: $request->input('country'),
             paymentTermDays: $request->integer('payment_term_days'),
             creditLimit: (string) $request->input('credit_limit', 0),
-            creditBlocked: $request->string('credit_blocked', 'no')->toString(),
+            creditBlocked: in_array($request->input('credit_blocked'), ['yes', 'no'], true)
+                ? (string) $request->input('credit_blocked')
+                : 'no',
             discountPercent: (string) $request->input('discount_percent', 0),
             salespersonId: $request->input('salesperson_id'),
             latitude: $request->input('latitude'),

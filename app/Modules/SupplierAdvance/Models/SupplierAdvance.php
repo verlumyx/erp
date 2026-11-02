@@ -40,7 +40,19 @@ class SupplierAdvance extends Model
         'cancelled',
     ];
 
-    public const PAYMENT_METHODS = ['cash', 'transfer', 'check', 'card', 'other'];
+    public const PAYMENT_METHODS = [
+        'card_debit',
+        'biopago',
+        'mobile_payment',
+        'cash_ves',
+        'cash_usd',
+        'transfer_usd',
+        'transfer',
+        'cash',
+        'check',
+        'card',
+        'other',
+    ];
 
     /**
      * Estados en los que el anticipo todavía es un papel: se edita y no ha

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { AmountDual } from '@/components/amount-dual';
 import { CurrencySelect } from '@/components/currency-select';
 import { ExchangeRateField } from '@/components/exchange-rate-field';
@@ -17,8 +18,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useClientCollectionFormContext } from '../contexts/ClientCollectionFormContext';
 import { isCreditMethod } from '../hooks/useClientCollectionForm';
 import {
+    isVesPaymentMethod,
     ORIGIN_TYPE_LABELS,
     PAYMENT_METHOD_LABELS,
+    POS_PAYMENT_METHODS,
     type ClientCollectionMethod,
     type ClientCollectionOptions,
     type ClientCollectionOriginType,
@@ -39,24 +42,12 @@ const ORIGIN_OPTIONS: OptionType[] = [
 ];
 
 /**
- * `advance` y `credit_note` entran aquí como formas de cobro de pleno derecho:
- * no traen dinero, gastan el crédito que el cliente ya tiene.
+ * Las 6 formas de cobro habilitadas del POS. Las demás se ocultan temporalmente.
  */
-const PAYMENT_METHOD_OPTIONS: OptionType[] = (
-    [
-        'cash',
-        'card_debit',
-        'card_credit',
-        'mobile_payment',
-        'biopago',
-        'transfer',
-        'check',
-        'card',
-        'advance',
-        'credit_note',
-        'other',
-    ] as ClientCollectionMethod[]
-).map((method) => ({ value: method, label: PAYMENT_METHOD_LABELS[method] }));
+const PAYMENT_METHOD_OPTIONS: OptionType[] = POS_PAYMENT_METHODS.map((method) => ({
+    value: method,
+    label: PAYMENT_METHOD_LABELS[method],
+}));
 
 /** Uno de los dos indicadores del cliente elegido. */
 function BalanceCard({
@@ -108,6 +99,9 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
         routeOption,
         selectRoute,
         selectCurrency,
+        handleAmountVesChange,
+        handleAmountUsdChange,
+        handleExchangeRateChange,
     } = useClientCollectionFormContext();
 
     /** El origen se congela al crear el cobro: en edición solo se muestra. */
@@ -116,6 +110,24 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
     const collectorOptions: OptionType[] = options.collectors.map(
         (collector) => ({ value: collector.id, label: collector.name }),
     );
+
+    const paymentMethodOptions = useMemo(() => {
+        if (
+            data.payment_method &&
+            !PAYMENT_METHOD_OPTIONS.some((o) => o.value === data.payment_method)
+        ) {
+            return [
+                ...PAYMENT_METHOD_OPTIONS,
+                {
+                    value: data.payment_method,
+                    label:
+                        PAYMENT_METHOD_LABELS[data.payment_method] ??
+                        data.payment_method,
+                },
+            ];
+        }
+        return PAYMENT_METHOD_OPTIONS;
+    }, [data.payment_method]);
 
     return (
         <FormLayout onSubmit={handleSubmit}>
@@ -222,12 +234,12 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
                             amount={balances.receivable}
                             currency={data.currency}
                         />
-                        <BalanceCard
-                            label="Crédito a favor"
-                            hint="Anticipos disponibles del cliente"
-                            amount={balances.credit}
-                            currency={data.currency}
-                        />
+                        {/*<BalanceCard*/}
+                        {/*    label="Crédito a favor"*/}
+                        {/*    hint="Anticipos disponibles del cliente"*/}
+                        {/*    amount={balances.credit}*/}
+                        {/*    currency={data.currency}*/}
+                        {/*/>*/}
                     </div>
                 </FormFieldGrid>
             </FormSection>
@@ -267,9 +279,9 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
                         </Label>
                         <Select2
                             inputId="payment_method"
-                            options={PAYMENT_METHOD_OPTIONS}
+                            options={paymentMethodOptions}
                             value={
-                                PAYMENT_METHOD_OPTIONS.find(
+                                paymentMethodOptions.find(
                                     (option) =>
                                         option.value === data.payment_method,
                                 ) ?? null
@@ -277,7 +289,7 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
                             onChange={(option) =>
                                 selectPaymentMethod(
                                     (option?.value ??
-                                        'cash') as ClientCollectionMethod,
+                                        'card_debit') as ClientCollectionMethod,
                                 )
                             }
                             error={!!errors.payment_method}
@@ -508,60 +520,119 @@ export function ClientCollectionForm({ options }: ClientCollectionFormProps) {
 
                     <ExchangeRateField
                         value={data.exchange_rate}
-                        onValueChange={(value) =>
-                            setData('exchange_rate', value)
-                        }
+                        onValueChange={handleExchangeRateChange}
                         currency={data.currency}
                         dateLabel="la fecha del cobro"
                         error={errors.exchange_rate}
+                        disabled={!isVesPaymentMethod(data.payment_method)}
                     />
 
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="amount"
-                            className="text-[13px] font-semibold"
-                        >
-                            Monto recibido *
-                        </Label>
-                        <CurrencyInput
-                            id="amount"
-                            value={data.amount}
-                            onValueChange={(value) => setData('amount', value)}
-                            min={0}
-                            decimals={2}
-                            className={`h-[42px] rounded-[10px] ${errors.amount ? 'border-bad' : ''}`}
-                        />
-                        {errors.amount && (
-                            <p className="text-sm text-bad">{errors.amount}</p>
-                        )}
-                    </div>
+                    {isVesPaymentMethod(data.payment_method) ? (
+                        <>
+                            <div className="flex flex-col gap-1.5">
+                                <Label
+                                    htmlFor="amount_ves"
+                                    className="text-[13px] font-semibold"
+                                >
+                                    Monto recibido (VES) *
+                                </Label>
+                                <CurrencyInput
+                                    id="amount_ves"
+                                    value={data.amount_ves ?? 0}
+                                    onValueChange={handleAmountVesChange}
+                                    currencySymbol="Bs."
+                                    min={0}
+                                    decimals={2}
+                                    className={`h-[42px] rounded-[10px] ${errors.amount_ves ? 'border-bad' : ''}`}
+                                />
+                                <span className="text-[12px] text-muted-foreground">
+                                    Monto en bolívares recibido por{' '}
+                                    {PAYMENT_METHOD_LABELS[data.payment_method]}
+                                </span>
+                                {errors.amount_ves && (
+                                    <p className="text-sm text-bad">
+                                        {errors.amount_ves}
+                                    </p>
+                                )}
+                            </div>
 
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="withholding_amount"
-                            className="text-[13px] font-semibold"
-                        >
-                            Retención
-                        </Label>
-                        <CurrencyInput
-                            id="withholding_amount"
-                            value={data.withholding_amount}
-                            onValueChange={(value) =>
-                                setData('withholding_amount', value)
-                            }
-                            min={0}
-                            decimals={2}
-                            className={`h-[42px] rounded-[10px] ${errors.withholding_amount ? 'border-bad' : ''}`}
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            Cancela deuda aunque no entre en caja
-                        </span>
-                        {errors.withholding_amount && (
-                            <p className="text-sm text-bad">
-                                {errors.withholding_amount}
-                            </p>
-                        )}
-                    </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label
+                                    htmlFor="amount"
+                                    className="text-[13px] font-semibold"
+                                >
+                                    Monto recibido ($) *
+                                </Label>
+                                <CurrencyInput
+                                    id="amount"
+                                    value={data.amount}
+                                    onValueChange={handleAmountUsdChange}
+                                    min={0}
+                                    decimals={2}
+                                    disabled={true}
+                                    className={`h-[42px] rounded-[10px] bg-muted/40 text-muted-foreground cursor-not-allowed ${errors.amount ? 'border-bad' : ''}`}
+                                />
+                                <span className="text-[12px] text-muted-foreground">
+                                    Conversión automática para facturas
+                                </span>
+                                {errors.amount && (
+                                    <p className="text-sm text-bad">
+                                        {errors.amount}
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col gap-1.5">
+                            <Label
+                                htmlFor="amount"
+                                className="text-[13px] font-semibold"
+                            >
+                                Monto recibido *
+                            </Label>
+                            <CurrencyInput
+                                id="amount"
+                                value={data.amount}
+                                onValueChange={handleAmountUsdChange}
+                                min={0}
+                                decimals={2}
+                                className={`h-[42px] rounded-[10px] ${errors.amount ? 'border-bad' : ''}`}
+                            />
+                            {errors.amount && (
+                                <p className="text-sm text-bad">
+                                    {errors.amount}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/*Ocultar por los momentos, no es necesario*/}
+                    {/*<div className="flex flex-col gap-1.5">*/}
+                    {/*    <Label*/}
+                    {/*        htmlFor="withholding_amount"*/}
+                    {/*        className="text-[13px] font-semibold"*/}
+                    {/*    >*/}
+                    {/*        Retención*/}
+                    {/*    </Label>*/}
+                    {/*    <CurrencyInput*/}
+                    {/*        id="withholding_amount"*/}
+                    {/*        value={data.withholding_amount}*/}
+                    {/*        onValueChange={(value) =>*/}
+                    {/*            setData('withholding_amount', value)*/}
+                    {/*        }*/}
+                    {/*        min={0}*/}
+                    {/*        decimals={2}*/}
+                    {/*        className={`h-[42px] rounded-[10px] ${errors.withholding_amount ? 'border-bad' : ''}`}*/}
+                    {/*    />*/}
+                    {/*    <span className="text-[12px] text-muted-foreground">*/}
+                    {/*        Cancela deuda aunque no entre en caja*/}
+                    {/*    </span>*/}
+                    {/*    {errors.withholding_amount && (*/}
+                    {/*        <p className="text-sm text-bad">*/}
+                    {/*            {errors.withholding_amount}*/}
+                    {/*        </p>*/}
+                    {/*    )}*/}
+                    {/*</div>*/}
 
                     <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
                         <Label

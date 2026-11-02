@@ -36,7 +36,7 @@ return new class extends Migration
             $table->uuid('origin_id')->nullable();
 
             $table->date('collection_date');
-            $table->enum('payment_method', ['cash', 'transfer', 'check', 'card', 'advance', 'credit_note', 'other'])
+            $table->enum('payment_method', ['cash', 'card_debit', 'card_credit', 'mobile_payment', 'biopago', 'transfer', 'check', 'card', 'advance', 'credit_note', 'other', 'cash_ves', 'cash_usd', 'transfer_usd'])
                 ->default('cash');
             $table->string('reference', 60)->nullable();
             $table->string('bank_account', 60)->nullable();

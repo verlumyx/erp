@@ -115,6 +115,7 @@ export function ExchangeRateForm() {
                             </Label>
                             <CurrencyInput
                                 id="rate"
+                                currencySymbol="Bs"
                                 value={
                                     data.rate === '' ? null : Number(data.rate)
                                 }

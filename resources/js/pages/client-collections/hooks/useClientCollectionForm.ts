@@ -10,13 +10,14 @@ import clients from '@/routes/clients';
 import routes from '@/routes/routes';
 import salesCreditNotes from '@/routes/sales-credit-notes';
 import salesInvoices from '@/routes/sales-invoices';
-import type {
-    CheckStatus,
-    ClientCollection,
-    ClientCollectionMethod,
-    ClientCollectionOriginType,
-    ClientOptionMeta,
-    SalesInvoiceOptionMeta,
+import {
+    isVesPaymentMethod,
+    type CheckStatus,
+    type ClientCollection,
+    type ClientCollectionMethod,
+    type ClientCollectionOriginType,
+    type ClientOptionMeta,
+    type SalesInvoiceOptionMeta,
 } from '../types/ClientCollection';
 import { useClientOpenInvoices } from './useClientOpenInvoices';
 
@@ -53,6 +54,7 @@ interface ClientCollectionFormData {
      */
     exchange_rate: string;
     amount: number;
+    amount_ves?: number;
     withholding_amount: number;
     check_number: string;
     check_date: string;
@@ -241,6 +243,21 @@ export function useClientCollectionForm({
         return rate === undefined ? '' : String(rate);
     };
 
+    const initialPaymentMethod = initialData?.payment_method ?? 'card_debit';
+    const currentRateNum =
+        parseFloat(catalogRate(initialCurrency)) ||
+        (todayRates[initialCurrency] ? Number(todayRates[initialCurrency]) : 1);
+    const initialAmount = Number(initialData?.amount ?? 0);
+    const initialAmountVes =
+        initialData?.amount_ves != null && Number(initialData.amount_ves) > 0
+            ? Number(initialData.amount_ves)
+            : isVesPaymentMethod(initialPaymentMethod) && initialAmount > 0
+              ? round2(
+                    initialAmount *
+                        (Number(initialData?.exchange_rate) || currentRateNum),
+                )
+              : 0;
+
     const { data, setData, post, put, transform, processing, errors, reset } =
         useForm<ClientCollectionFormData>({
             id: initialData?.id ?? generateUUID(),
@@ -251,7 +268,7 @@ export function useClientCollectionForm({
             collection_date:
                 initialData?.collection_date ??
                 new Date().toISOString().slice(0, 10),
-            payment_method: initialData?.payment_method ?? 'cash',
+            payment_method: initialPaymentMethod,
             reference: initialData?.reference ?? '',
             bank_account: initialData?.bank_account ?? '',
             collected_by: initialData?.collected_by ?? '',
@@ -259,7 +276,8 @@ export function useClientCollectionForm({
             /** Un cobro nace en la moneda en la que la empresa lleva sus cifras. */
             currency: initialCurrency,
             exchange_rate: catalogRate(initialCurrency),
-            amount: Number(initialData?.amount ?? 0),
+            amount: initialAmount,
+            amount_ves: initialAmountVes,
             withholding_amount: Number(initialData?.withholding_amount ?? 0),
             check_number: initialData?.check_number ?? '',
             check_date: initialData?.check_date ?? '',
@@ -267,6 +285,59 @@ export function useClientCollectionForm({
             notes: initialData?.notes ?? '',
             applications: applicationRows(initialData),
         });
+
+    const effectiveRate = (rateStr?: string): number => {
+        const parsed = parseFloat(rateStr ?? data.exchange_rate);
+        if (!isNaN(parsed) && parsed > 0) {
+            return parsed;
+        }
+        const today = todayRates[data.currency] ?? todayRates['USD'];
+        return today !== undefined && today > 0 ? Number(today) : 1;
+    };
+
+    const handleAmountVesChange = (amountVes: number) => {
+        const rate = effectiveRate();
+        const usdAmount = rate > 0 ? round2(amountVes / rate) : 0;
+        setData((current) => ({
+            ...current,
+            amount_ves: amountVes,
+            amount: usdAmount,
+        }));
+    };
+
+    const handleAmountUsdChange = (amount: number) => {
+        const rate = effectiveRate();
+        setData((current) => ({
+            ...current,
+            amount,
+            amount_ves: isVesPaymentMethod(current.payment_method)
+                ? round2(amount * rate)
+                : current.amount_ves,
+        }));
+    };
+
+    const handleExchangeRateChange = (rateStr: string) => {
+        setData((current) => {
+            const parsedRate = parseFloat(rateStr);
+            if (
+                isVesPaymentMethod(current.payment_method) &&
+                !isNaN(parsedRate) &&
+                parsedRate > 0 &&
+                current.amount_ves &&
+                current.amount_ves > 0
+            ) {
+                return {
+                    ...current,
+                    exchange_rate: rateStr,
+                    amount: round2(current.amount_ves / parsedRate),
+                };
+            }
+            return {
+                ...current,
+                exchange_rate: rateStr,
+            };
+        });
+    };
 
     /** El reparto se arma sobre las facturas abiertas del cliente elegido. */
     const { invoices, loading: loadingInvoices } = useClientOpenInvoices(
@@ -307,20 +378,29 @@ export function useClientCollectionForm({
         originInvoice.select(option);
 
         const meta = (option?.meta ?? {}) as Partial<SalesInvoiceOptionMeta>;
+        const balanceUsd = Number(meta.balance ?? 0);
 
-        setData((current) => ({
-            ...current,
-            origin_id: option?.value ?? '',
-            client_id: meta.client_id ?? '',
-            applications: option
-                ? [
-                      {
-                          sales_invoice_id: option.value,
-                          applied_amount: Number(meta.balance ?? 0),
-                      },
-                  ]
-                : [],
-        }));
+        setData((current) => {
+            const rate = effectiveRate(current.exchange_rate);
+            return {
+                ...current,
+                origin_id: option?.value ?? '',
+                client_id: meta.client_id ?? '',
+                amount: option ? balanceUsd : current.amount,
+                amount_ves:
+                    option && isVesPaymentMethod(current.payment_method)
+                        ? round2(balanceUsd * rate)
+                        : current.amount_ves,
+                applications: option
+                    ? [
+                          {
+                              sales_invoice_id: option.value,
+                              applied_amount: balanceUsd,
+                          },
+                      ]
+                    : [],
+            };
+        });
     };
 
     /**
@@ -351,12 +431,20 @@ export function useClientCollectionForm({
             balance?: string;
             currency?: string;
         };
+        const balanceUsd = Number(meta.balance ?? 0);
 
-        setData((current) => ({
-            ...current,
-            credit_source_id: option?.value ?? '',
-            amount: option ? Number(meta.balance ?? 0) : current.amount,
-        }));
+        setData((current) => {
+            const rate = effectiveRate(current.exchange_rate);
+            return {
+                ...current,
+                credit_source_id: option?.value ?? '',
+                amount: option ? balanceUsd : current.amount,
+                amount_ves:
+                    option && isVesPaymentMethod(current.payment_method)
+                        ? round2(balanceUsd * rate)
+                        : current.amount_ves,
+            };
+        });
     };
 
     /**
@@ -370,14 +458,29 @@ export function useClientCollectionForm({
          */
         creditSource.select(null);
 
-        setData((current) => ({
-            ...current,
-            payment_method: method,
-            credit_source_id: '',
-            ...(method === 'check'
-                ? {}
-                : { check_number: '', check_date: '', check_status: '' }),
-        }));
+        setData((current) => {
+            const next: ClientCollectionFormData = {
+                ...current,
+                payment_method: method,
+                credit_source_id: '',
+                ...(method === 'check'
+                    ? {}
+                    : { check_number: '', check_date: '', check_status: '' }),
+            };
+
+            const rate = effectiveRate(current.exchange_rate);
+            if (isVesPaymentMethod(method)) {
+                if (current.amount > 0 && (!current.amount_ves || current.amount_ves === 0)) {
+                    next.amount_ves = round2(current.amount * rate);
+                }
+            } else {
+                if ((!current.amount || current.amount === 0) && current.amount_ves && current.amount_ves > 0) {
+                    next.amount = round2(current.amount_ves / rate);
+                }
+            }
+
+            return next;
+        });
     };
 
     /** Lo que el reparto ya destina a una factura. */
@@ -472,9 +575,18 @@ export function useClientCollectionForm({
         transform((payload) => ({
             ...payload,
             exchange_rate:
-                payload.exchange_rate === catalogRate(payload.currency)
-                    ? ''
-                    : payload.exchange_rate,
+                isVesPaymentMethod(payload.payment_method) &&
+                payload.exchange_rate !== ''
+                    ? payload.exchange_rate
+                    : payload.exchange_rate === catalogRate(payload.currency)
+                      ? ''
+                      : payload.exchange_rate,
+            amount_ves:
+                isVesPaymentMethod(payload.payment_method) &&
+                payload.amount_ves &&
+                payload.amount_ves > 0
+                    ? payload.amount_ves
+                    : undefined,
         }));
 
         if (mode === 'create') {
@@ -528,5 +640,9 @@ export function useClientCollectionForm({
         appliedTo,
         applyToInvoice,
         distributeRemaining,
+        handleAmountVesChange,
+        handleAmountUsdChange,
+        handleExchangeRateChange,
+        effectiveRate,
     };
 }

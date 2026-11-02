@@ -38,7 +38,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
                 'collected_by' => $command->collectedBy,
                 'route_id' => $command->routeId,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates),
+                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates, $command->amountVes),
                 ...$this->check($command->paymentMethod, $command->checkNumber, $command->checkDate, $command->checkStatus),
                 'notes' => $command->notes,
                 'status' => 'draft',
@@ -79,7 +79,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
                 'collected_by' => $command->collectedBy,
                 'route_id' => $command->routeId,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates),
+                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates, $command->amountVes),
                 ...$this->check($command->paymentMethod, $command->checkNumber, $command->checkDate, $command->checkStatus),
                 'notes' => $command->notes,
             ]);
@@ -322,6 +322,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
         float $withholdingAmount,
         array $applications,
         DocumentRatesData $rates,
+        ?float $amountVes = null,
     ): array {
         $amount = round($amount, 2);
         $withholding = round($withholdingAmount, 2);
@@ -333,7 +334,9 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
             'applied_amount' => $applied,
             'unapplied_amount' => round($amount + $withholding - $applied, 2),
             /** El cobro tiene valor legal: lo que entró en bolívares queda escrito. */
-            'amount_ves' => round($amount * $rates->exchangeRate, $rates->amountDecimals),
+            'amount_ves' => $amountVes !== null && $amountVes > 0
+                ? round($amountVes, 2)
+                : round($amount * $rates->exchangeRate, $rates->amountDecimals),
         ];
     }
 

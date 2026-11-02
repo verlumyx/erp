@@ -46,12 +46,15 @@ class ClientCollection extends Model
     public const CREATABLE_ORIGIN_TYPES = ['client', 'invoice'];
 
     public const PAYMENT_METHODS = [
-        'cash',
         'card_debit',
-        'card_credit',
-        'mobile_payment',
         'biopago',
+        'mobile_payment',
+        'cash_ves',
+        'cash_usd',
+        'transfer_usd',
         'transfer',
+        'cash',
+        'card_credit',
         'check',
         'card',
         'advance',

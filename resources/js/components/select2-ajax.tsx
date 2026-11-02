@@ -52,6 +52,12 @@ interface Select2AjaxProps {
     /** Id del input interno; úsalo para enlazar el `<Label htmlFor>`. */
     inputId?: string;
     className?: string;
+    /**
+     * Elemento DOM donde montar el menú (por defecto `document.body`).
+     * Pasa `null` para renderizar el menú en el árbol local sin portal
+     * (esencial dentro de diálogos y modales de Radix para evitar interferencia de clics).
+     */
+    menuPortalTarget?: HTMLElement | null;
 }
 
 const buildUrl = (url: string, params: QueryParams): string => {
@@ -96,7 +102,13 @@ export function Select2Ajax({
     formatLabel,
     inputId,
     className,
+    menuPortalTarget,
 }: Select2AjaxProps) {
+    const portalTarget =
+        menuPortalTarget !== undefined
+            ? (menuPortalTarget ?? undefined)
+            : (typeof document !== 'undefined' ? document.body : undefined);
+
     const [options, setOptions] = useState<AjaxOption[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -258,10 +270,8 @@ export function Select2Ajax({
             components={{ DropdownIndicator: Select2DropdownIndicator }}
             className={cn('react-select-container', className)}
             classNamePrefix="react-select"
-            menuPortalTarget={
-                typeof document !== 'undefined' ? document.body : undefined
-            }
-            menuPosition="fixed"
+            menuPortalTarget={portalTarget}
+            menuPosition={portalTarget ? 'fixed' : 'absolute'}
             options={options}
             value={value}
             getOptionLabel={
@@ -280,11 +290,12 @@ export function Select2Ajax({
                 /*
                  * El input es controlado: si no lo vaciamos al elegir o al
                  * cerrar el menú, el término tapa la etiqueta seleccionada.
+                 * No vaciamos en 'input-blur' para permitir que el clic en
+                 * la opción se procese sin desmontarla del DOM.
                  */
                 if (
                     action.action === 'set-value' ||
-                    action.action === 'menu-close' ||
-                    action.action === 'input-blur'
+                    action.action === 'menu-close'
                 ) {
                     reset();
                 }

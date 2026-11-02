@@ -76,11 +76,17 @@ class ClientFilters extends EloquentQueryFilters
      */
     public function q(string $value): Builder
     {
-        return $this->builder->where(function (Builder $query) use ($value): void {
+        $cleanNumber = preg_replace('/\D/', '', $value);
+
+        return $this->builder->where(function (Builder $query) use ($value, $cleanNumber): void {
             $query->where('name', 'like', "%{$value}%")
                 ->orWhere('legal_name', 'like', "%{$value}%")
                 ->orWhere('code', 'like', "%{$value}%")
                 ->orWhere('document_number', 'like', "%{$value}%");
+
+            if (! empty($cleanNumber)) {
+                $query->orWhere('document_number', 'like', "%{$cleanNumber}%");
+            }
         });
     }
 

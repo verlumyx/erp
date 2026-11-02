@@ -23,6 +23,7 @@ import {
     isEditable,
     ORIGIN_TYPE_LABELS,
     PAYMENT_METHOD_LABELS,
+    POS_PAYMENT_METHODS,
     STATUS_LABELS,
     STATUS_PILL_KIND,
     type ClientCollection,
@@ -55,9 +56,9 @@ const STATUS_OPTIONS: OptionType[] = [
 
 const METHOD_OPTIONS: OptionType[] = [
     { value: ALL, label: 'Todas' },
-    ...Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({
-        value,
-        label,
+    ...POS_PAYMENT_METHODS.map((method) => ({
+        value: method,
+        label: PAYMENT_METHOD_LABELS[method],
     })),
 ];
 

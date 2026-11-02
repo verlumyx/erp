@@ -35,7 +35,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
                 'reference' => $command->reference,
                 'bank_account' => $command->bankAccount,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates),
+                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates, $command->amountVes),
                 'notes' => $command->notes,
                 'status' => 'draft',
                 'created_by' => $command->createdBy,
@@ -73,7 +73,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
                 'reference' => $command->reference,
                 'bank_account' => $command->bankAccount,
                 ...$rates->toAttributes(),
-                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates),
+                ...$this->totals($command->amount, $command->withholdingAmount, $command->applications, $rates, $command->amountVes),
                 'notes' => $command->notes,
             ]);
 
@@ -308,6 +308,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
         float $withholdingAmount,
         array $applications,
         DocumentRatesData $rates,
+        ?float $amountVes = null,
     ): array {
         $amount = round($amount, 2);
         $withholding = round($withholdingAmount, 2);
@@ -319,7 +320,9 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
             'applied_amount' => $applied,
             'unapplied_amount' => round($amount + $withholding - $applied, 2),
             /** El pago tiene valor legal: lo que salió en bolívares queda escrito. */
-            'amount_ves' => round($amount * $rates->exchangeRate, $rates->amountDecimals),
+            'amount_ves' => $amountVes !== null && $amountVes > 0
+                ? round($amountVes, 2)
+                : round($amount * $rates->exchangeRate, $rates->amountDecimals),
         ];
     }
 

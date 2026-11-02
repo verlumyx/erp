@@ -49,6 +49,7 @@ trait ValidatesSupplierPaymentPayload
             /** Opcional: sin valor la resuelve el sistema con el catálogo de tasas. */
             'exchange_rate' => ['nullable', 'numeric', 'gt:0'],
             'amount' => ['required', 'numeric', 'gt:0'],
+            'amount_ves' => ['nullable', 'numeric', 'min:0'],
             'withholding_amount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
 

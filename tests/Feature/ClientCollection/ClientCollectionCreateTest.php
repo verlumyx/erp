@@ -292,7 +292,7 @@ test('a client collection supports pos payment methods such as biopago and mobil
     $collection = ClientCollection::where('reference', 'REF-'.$method)->first();
     expect($collection)->not->toBeNull();
     expect($collection->payment_method)->toBe($method);
-})->with(['biopago', 'mobile_payment', 'card_debit', 'card_credit']);
+})->with(['biopago', 'mobile_payment', 'card_debit', 'card_credit', 'cash_ves', 'cash_usd', 'transfer_usd', 'transfer']);
 
 test('the create form is rendered', function () {
     [$user, $company] = clientCollectionScenario();
@@ -301,6 +301,28 @@ test('the create form is rendered', function () {
         ->get(route('client-collections.create', ['company' => $company->id]))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('client-collections/create'));
+});
+
+test('a client collection preserves custom amount_ves when paying with ves methods', function () {
+    [$user, $company, $client] = clientCollectionScenario();
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('client-collections.store', ['company' => $company->id]),
+            clientCollectionPayload($client, [
+                'payment_method' => 'mobile_payment',
+                'amount' => 11.24,
+                'amount_ves' => 10000.00,
+                'reference' => 'PAGOMOVIL-VES-TEST',
+            ]),
+        );
+
+    $response->assertRedirect();
+
+    $collection = ClientCollection::where('reference', 'PAGOMOVIL-VES-TEST')->first();
+    expect($collection)->not->toBeNull();
+    expect((float) $collection->amount)->toBe(11.24);
+    expect((float) $collection->amount_ves)->toBe(10000.00);
 });
 
 test('a user without permission cannot create a collection', function () {

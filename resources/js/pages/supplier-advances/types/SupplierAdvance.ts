@@ -13,8 +13,14 @@ export type SupplierAdvanceStatus =
     | 'cancelled';
 
 export type SupplierAdvancePaymentMethod =
-    | 'cash'
+    | 'card_debit'
+    | 'biopago'
+    | 'mobile_payment'
+    | 'cash_ves'
+    | 'cash_usd'
+    | 'transfer_usd'
     | 'transfer'
+    | 'cash'
     | 'check'
     | 'card'
     | 'other';
@@ -116,8 +122,14 @@ export const PAYMENT_METHOD_LABELS: Record<
     SupplierAdvancePaymentMethod,
     string
 > = {
+    card_debit: 'Punto Débito',
+    biopago: 'Biopago',
+    mobile_payment: 'Pago Móvil',
+    cash_ves: 'Efectivo VES',
+    cash_usd: 'Efectivo USD',
+    transfer_usd: 'Transferencia USD',
+    transfer: 'Transferencia USD',
     cash: 'Efectivo',
-    transfer: 'Transferencia',
     check: 'Cheque',
     card: 'Tarjeta',
     other: 'Otro',

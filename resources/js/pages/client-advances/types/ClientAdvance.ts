@@ -13,12 +13,15 @@ export type ClientAdvanceStatus =
     | 'cancelled';
 
 export type ClientAdvancePaymentMethod =
-    | 'cash'
     | 'card_debit'
-    | 'card_credit'
-    | 'mobile_payment'
     | 'biopago'
+    | 'mobile_payment'
+    | 'cash_ves'
+    | 'cash_usd'
+    | 'transfer_usd'
     | 'transfer'
+    | 'cash'
+    | 'card_credit'
     | 'check'
     | 'card'
     | 'other';
@@ -118,12 +121,15 @@ export const STATUS_LABELS: Record<ClientAdvanceStatus, string> = {
 
 export const PAYMENT_METHOD_LABELS: Record<ClientAdvancePaymentMethod, string> =
     {
-        cash: 'Efectivo',
         card_debit: 'Punto Débito',
-        card_credit: 'Punto Crédito',
-        mobile_payment: 'Pago Móvil',
         biopago: 'Biopago',
-        transfer: 'Transferencia',
+        mobile_payment: 'Pago Móvil',
+        cash_ves: 'Efectivo VES',
+        cash_usd: 'Efectivo USD',
+        transfer_usd: 'Transferencia USD',
+        transfer: 'Transferencia USD',
+        cash: 'Efectivo',
+        card_credit: 'Punto Crédito',
         check: 'Cheque',
         card: 'Tarjeta',
         other: 'Otro',

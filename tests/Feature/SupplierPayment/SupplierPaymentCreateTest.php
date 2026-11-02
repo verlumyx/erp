@@ -230,6 +230,25 @@ test('the amount of the payment is required and positive', function () {
         ->assertSessionHasErrors('amount');
 });
 
+test('a supplier payment supports pos payment methods', function (string $method) {
+    [$user, $company, $supplier] = supplierPaymentScenario();
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('supplier-payments.store', ['company' => $company->id]),
+            supplierPaymentPayload($supplier, [
+                'payment_method' => $method,
+                'reference' => 'REF-'.$method,
+            ]),
+        );
+
+    $response->assertRedirect();
+
+    $payment = SupplierPayment::where('reference', 'REF-'.$method)->first();
+    expect($payment)->not->toBeNull();
+    expect($payment->payment_method)->toBe($method);
+})->with(['card_debit', 'biopago', 'mobile_payment', 'cash_ves', 'cash_usd', 'transfer_usd', 'transfer']);
+
 test('the code is sequential per company', function () {
     [$user, $company, $supplier] = supplierPaymentScenario();
 
@@ -247,6 +266,28 @@ test('the create form is rendered', function () {
         ->get(route('supplier-payments.create', ['company' => $company->id]))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('supplier-payments/create'));
+});
+
+test('a supplier payment preserves custom amount_ves when paying with ves methods', function () {
+    [$user, $company, $supplier] = supplierPaymentScenario();
+
+    $response = actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('supplier-payments.store', ['company' => $company->id]),
+            supplierPaymentPayload($supplier, [
+                'payment_method' => 'card_debit',
+                'amount' => 50.00,
+                'amount_ves' => 45000.00,
+                'reference' => 'DEBITO-VES-TEST',
+            ]),
+        );
+
+    $response->assertRedirect();
+
+    $payment = SupplierPayment::where('reference', 'DEBITO-VES-TEST')->first();
+    expect($payment)->not->toBeNull();
+    expect((float) $payment->amount)->toBe(50.00);
+    expect((float) $payment->amount_ves)->toBe(45000.00);
 });
 
 test('a user without permission cannot create a payment', function () {

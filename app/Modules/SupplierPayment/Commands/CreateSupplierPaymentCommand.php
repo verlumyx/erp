@@ -31,6 +31,7 @@ class CreateSupplierPaymentCommand
         /** Corrección manual del usuario. `null` deja que la resuelva el sistema. */
         public readonly ?string $exchangeRateOverride = null,
         public readonly float $amount = 0,
+        public readonly ?float $amountVes = null,
         public readonly float $withholdingAmount = 0,
         public readonly ?string $notes = null,
     ) {}
@@ -55,6 +56,7 @@ class CreateSupplierPaymentCommand
                 ? (string) $request->input('exchange_rate')
                 : null,
             amount: (float) $request->input('amount', 0),
+            amountVes: $request->filled('amount_ves') ? (float) $request->input('amount_ves') : null,
             withholdingAmount: (float) $request->input('withholding_amount', 0),
             notes: $request->input('notes'),
         );

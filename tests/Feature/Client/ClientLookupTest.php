@@ -34,6 +34,9 @@ test('the lookup endpoint returns clients as select options', function () {
     $response->assertJsonPath('data.0.meta.salesperson_id', $user->id);
     $response->assertJsonPath('data.0.meta.payment_term_days', 15);
     $response->assertJsonPath('data.0.meta.credit_blocked', 'no');
+    $response->assertJsonPath('data.0.meta.document_type', $client->document_type);
+    $response->assertJsonPath('data.0.meta.document_number', $client->document_number);
+    $response->assertJsonPath('data.0.meta.tax_number', $client->tax_number);
     $response->assertJsonPath('has_more', false);
 });
 
@@ -91,7 +94,7 @@ test('the lookup endpoint searches by name, legal name, code and document', func
     $response->assertOk();
     $response->assertJsonCount(1, 'data');
     $response->assertJsonPath('data.0.label', 'CLI000009 — Supermercado Aragua');
-})->with(['Aragua', 'Inversiones', 'CLI000009', '123456789']);
+})->with(['Aragua', 'Inversiones', 'CLI000009', '123456789', 'V-123456789']);
 
 test('the lookup endpoint only returns active clients of the active company', function () {
     [$user, $company] = createUserWithCompany();

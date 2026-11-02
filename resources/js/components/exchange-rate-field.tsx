@@ -33,6 +33,7 @@ interface ExchangeRateFieldProps {
     dateLabel: string;
     error?: string;
     id?: string;
+    disabled?: boolean;
 }
 
 /**
@@ -50,6 +51,7 @@ export function ExchangeRateField({
     dateLabel,
     error,
     id = 'exchange_rate',
+    disabled = false,
 }: ExchangeRateFieldProps) {
     const configuration = useConfiguration();
     const todayRates = useTodayRates();
@@ -64,13 +66,13 @@ export function ExchangeRateField({
     return (
         <div className="flex flex-col gap-1.5">
             <Label
-                htmlFor={canOverride ? id : undefined}
+                htmlFor={canOverride && !disabled ? id : undefined}
                 className="text-[13px] font-semibold"
             >
                 Tasa de cambio
             </Label>
 
-            {canOverride ? (
+            {canOverride && !disabled ? (
                 <Input
                     id={id}
                     value={value}
@@ -86,19 +88,22 @@ export function ExchangeRateField({
                     className={`h-[42px] rounded-[10px] ${error ? 'border-bad' : ''}`}
                 />
             ) : (
-                <div
-                    className={`flex h-[42px] items-center rounded-[10px] border bg-muted/40 px-3 text-sm text-muted-foreground ${error ? 'border-bad' : 'border-input'}`}
-                >
-                    Automática
-                </div>
+                <Input
+                    id={id}
+                    value={value || (hasRate ? String(todayRates[currency]) : 'Automática')}
+                    disabled
+                    className={`h-[42px] rounded-[10px] bg-muted/40 text-muted-foreground cursor-not-allowed ${error ? 'border-bad' : 'border-input'}`}
+                />
             )}
 
             <span className="text-[12px] text-muted-foreground">
-                {!canOverride
-                    ? `La resuelve el sistema con la tasa del catálogo a ${dateLabel}`
-                    : hasRate
-                      ? `Tasa del catálogo; corrígela si hace falta. Vacía la vuelve a resolver el sistema a ${dateLabel}`
-                      : `No hay tasa cargada para ${currency}: escríbela o cárgala en el catálogo`}
+                {disabled
+                    ? 'Fijada con la tasa del catálogo para pagos en USD'
+                    : !canOverride
+                      ? `La resuelve el sistema con la tasa del catálogo a ${dateLabel}`
+                      : hasRate
+                        ? `Tasa del catálogo; corrígela si hace falta. Vacía la vuelve a resolver el sistema a ${dateLabel}`
+                        : `No hay tasa cargada para ${currency}: escríbela o cárgala en el catálogo`}
             </span>
 
             {error && <p className="text-sm text-bad">{error}</p>}

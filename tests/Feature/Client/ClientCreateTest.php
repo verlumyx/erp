@@ -296,3 +296,42 @@ test('a user without permission cannot create a client', function () {
         ->post(route('clients.store', ['company' => $company->id]), clientPayload())
         ->assertForbidden();
 });
+
+test('credit_blocked is optional and defaults to no when omitted', function () {
+    [$user, $company] = createUserWithCompany();
+
+    $payload = [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'name' => 'Cliente POS Nuevo',
+        'document_type' => 'V',
+        'document_number' => '87654321',
+    ];
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('clients.store', ['company' => $company->id]), $payload);
+
+    $response->assertStatus(201);
+    $response->assertJsonPath('client.name', 'Cliente POS Nuevo');
+    $response->assertJsonPath('client.credit_blocked', 'no');
+
+    $client = Client::find($payload['id']);
+    expect($client)->not->toBeNull();
+    expect($client->credit_blocked)->toBe('no');
+});
+
+test('creating a client via json returns a 201 response with client data', function () {
+    [$user, $company] = createUserWithCompany();
+
+    $payload = clientPayload(['name' => 'API Client']);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('clients.store', ['company' => $company->id]), $payload);
+
+    $response->assertStatus(201);
+    $response->assertJsonStructure([
+        'message',
+        'client' => ['id', 'name', 'document_type', 'document_number', 'credit_blocked', 'status'],
+    ]);
+});

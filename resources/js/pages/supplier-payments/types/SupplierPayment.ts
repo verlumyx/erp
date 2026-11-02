@@ -10,8 +10,14 @@ export type SupplierPaymentStatus =
 export type SupplierPaymentOriginType = 'supplier' | 'invoice' | 'advance';
 
 export type SupplierPaymentMethod =
-    | 'cash'
+    | 'card_debit'
+    | 'biopago'
+    | 'mobile_payment'
+    | 'cash_ves'
+    | 'cash_usd'
+    | 'transfer_usd'
     | 'transfer'
+    | 'cash'
     | 'check'
     | 'card'
     | 'advance'
@@ -144,14 +150,42 @@ export const ORIGIN_TYPE_LABELS: Record<SupplierPaymentOriginType, string> = {
 };
 
 export const PAYMENT_METHOD_LABELS: Record<SupplierPaymentMethod, string> = {
+    card_debit: 'Punto Débito',
+    biopago: 'Biopago',
+    mobile_payment: 'Pago Móvil',
+    cash_ves: 'Efectivo VES',
+    cash_usd: 'Efectivo USD',
+    transfer_usd: 'Transferencia USD',
+    transfer: 'Transferencia USD',
     cash: 'Efectivo',
-    transfer: 'Transferencia',
     check: 'Cheque',
     card: 'Tarjeta',
     advance: 'Anticipo',
     credit_note: 'Nota de crédito',
     other: 'Otro',
 };
+
+/** Las 6 formas de pago habilitadas del POS */
+export const POS_PAYMENT_METHODS: SupplierPaymentMethod[] = [
+    'card_debit',
+    'biopago',
+    'mobile_payment',
+    'cash_ves',
+    'cash_usd',
+    'transfer_usd',
+];
+
+/** Formas de pago en Bolívares (VES) */
+export const VES_PAYMENT_METHODS: SupplierPaymentMethod[] = [
+    'card_debit',
+    'biopago',
+    'mobile_payment',
+    'cash_ves',
+];
+
+export function isVesPaymentMethod(method: SupplierPaymentMethod): boolean {
+    return (VES_PAYMENT_METHODS as string[]).includes(method);
+}
 
 /** Color de la pastilla de estado, uno por estado del documento. */
 export const STATUS_PILL_KIND: Record<SupplierPaymentStatus, StatusKind> = {

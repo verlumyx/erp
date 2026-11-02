@@ -10,12 +10,15 @@ export type ClientCollectionStatus =
 export type ClientCollectionOriginType = 'client' | 'invoice' | 'advance';
 
 export type ClientCollectionMethod =
-    | 'cash'
     | 'card_debit'
-    | 'card_credit'
-    | 'mobile_payment'
     | 'biopago'
+    | 'mobile_payment'
+    | 'cash_ves'
+    | 'cash_usd'
+    | 'transfer_usd'
     | 'transfer'
+    | 'cash'
+    | 'card_credit'
     | 'check'
     | 'card'
     | 'advance'
@@ -164,18 +167,43 @@ export const ORIGIN_TYPE_LABELS: Record<ClientCollectionOriginType, string> = {
 };
 
 export const PAYMENT_METHOD_LABELS: Record<ClientCollectionMethod, string> = {
-    cash: 'Efectivo',
     card_debit: 'Punto Débito',
-    card_credit: 'Punto Crédito',
-    mobile_payment: 'Pago Móvil',
     biopago: 'Biopago',
-    transfer: 'Transferencia',
+    mobile_payment: 'Pago Móvil',
+    cash_ves: 'Efectivo VES',
+    cash_usd: 'Efectivo USD',
+    transfer_usd: 'Transferencia USD',
+    transfer: 'Transferencia USD',
+    cash: 'Efectivo',
+    card_credit: 'Punto Crédito',
     check: 'Cheque',
     card: 'Tarjeta',
     advance: 'Anticipo',
     credit_note: 'Nota de crédito',
     other: 'Otro',
 };
+
+/** Las 6 formas de pago habilitadas del POS */
+export const POS_PAYMENT_METHODS: ClientCollectionMethod[] = [
+    'card_debit',
+    'biopago',
+    'mobile_payment',
+    'cash_ves',
+    'cash_usd',
+    'transfer_usd',
+];
+
+/** Formas de cobro en Bolívares (VES) */
+export const VES_PAYMENT_METHODS: ClientCollectionMethod[] = [
+    'card_debit',
+    'biopago',
+    'mobile_payment',
+    'cash_ves',
+];
+
+export function isVesPaymentMethod(method: ClientCollectionMethod): boolean {
+    return (VES_PAYMENT_METHODS as string[]).includes(method);
+}
 
 export const CHECK_STATUS_LABELS: Record<CheckStatus, string> = {
     pending: 'Sin depositar',

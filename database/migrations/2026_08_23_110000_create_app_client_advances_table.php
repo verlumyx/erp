@@ -24,7 +24,7 @@ return new class extends Migration
 
             $table->date('advance_date');
 
-            $table->enum('payment_method', ['cash', 'transfer', 'check', 'card', 'other'])
+            $table->enum('payment_method', ['cash', 'card_debit', 'card_credit', 'mobile_payment', 'biopago', 'transfer', 'check', 'card', 'other', 'cash_ves', 'cash_usd', 'transfer_usd'])
                 ->default('transfer');
             $table->string('reference', 60)->nullable();
             $table->string('bank_account', 60)->nullable();

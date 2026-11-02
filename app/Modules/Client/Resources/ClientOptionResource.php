@@ -31,6 +31,10 @@ class ClientOptionResource extends JsonResource
             'meta' => [
                 'code' => $this->code,
                 'name' => $this->name,
+                'document_type' => $this->document_type,
+                'document_number' => $this->document_number,
+                'tax_number' => $this->tax_number,
+                'phone' => $this->phone,
                 'price_list_id' => $this->price_list_id,
                 'salesperson_id' => $this->salesperson_id,
                 'payment_term_days' => (int) $this->payment_term_days,

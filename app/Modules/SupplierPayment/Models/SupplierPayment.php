@@ -44,7 +44,21 @@ class SupplierPayment extends Model
      */
     public const CREATABLE_ORIGIN_TYPES = ['supplier', 'invoice'];
 
-    public const PAYMENT_METHODS = ['cash', 'transfer', 'check', 'card', 'advance', 'credit_note', 'other'];
+    public const PAYMENT_METHODS = [
+        'card_debit',
+        'biopago',
+        'mobile_payment',
+        'cash_ves',
+        'cash_usd',
+        'transfer_usd',
+        'transfer',
+        'cash',
+        'check',
+        'card',
+        'advance',
+        'credit_note',
+        'other',
+    ];
 
     /**
      * Formas de pago que no sacan dinero: cancelan la factura con un saldo a
