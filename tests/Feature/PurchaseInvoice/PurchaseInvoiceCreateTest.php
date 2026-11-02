@@ -646,3 +646,24 @@ test('an invoice cannot be born from an order of another supplier', function () 
         ->post(route('purchase-invoices.store', ['company' => $company->id]), $payload)
         ->assertSessionHasErrors('sourceable_id');
 });
+
+test('a tax is required in each purchase invoice line', function () {
+    [$user, $company, $supplier, $warehouse, $item, $unit] = purchaseInvoiceScenario();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('purchase-invoices.store', ['company' => $company->id]),
+            purchaseInvoicePayload($supplier, $warehouse, $item, $unit, [
+                'lines' => [
+                    [
+                        'item_id' => $item->id,
+                        'measurement_unit_id' => $unit->id,
+                        'quantity' => 1,
+                        'unit_price' => 100,
+                        'tax_id' => null,
+                    ],
+                ],
+            ]),
+        )
+        ->assertSessionHasErrors(['lines.0.tax_id' => 'Selecciona el impuesto de la línea.']);
+});

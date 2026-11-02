@@ -69,6 +69,38 @@ test('a sales invoice stores its price list', function () {
     expect($invoice->price_list_id)->toBe($priceList->id);
 });
 
+test('a price list is required to create a sales invoice', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-invoices.store', ['company' => $company->id]),
+            salesInvoicePayload($client, $warehouse, $item, $unit, ['price_list_id' => null]),
+        )
+        ->assertSessionHasErrors(['price_list_id']);
+});
+
+test('a tax is required in each sales invoice line', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-invoices.store', ['company' => $company->id]),
+            salesInvoicePayload($client, $warehouse, $item, $unit, [
+                'lines' => [
+                    [
+                        'item_id' => $item->id,
+                        'measurement_unit_id' => $unit->id,
+                        'quantity' => 1,
+                        'unit_price' => 100,
+                        'tax_id' => null,
+                    ],
+                ],
+            ]),
+        )
+        ->assertSessionHasErrors('lines.0.tax_id');
+});
+
 test('the totals are computed from the lines and never taken from the payload', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 

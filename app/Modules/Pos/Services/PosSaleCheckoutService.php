@@ -181,6 +181,8 @@ class PosSaleCheckoutService
                     default => 'other',
                 };
 
+                $isPaymentInVes = $payment->currency === 'VES';
+
                 $collection = $this->collectionCreateService->execute(new CreateClientCollectionCommand(
                     id: (string) Str::uuid7(),
                     companyId: $command->companyId,
@@ -197,9 +199,12 @@ class PosSaleCheckoutService
                     originId: $invoice->id,
                     paymentMethod: $collectionPaymentMethod,
                     reference: $payment->reference,
-                    currency: $payment->currency,
-                    exchangeRateOverride: (string) $payment->exchangeRate,
-                    amount: $payment->amountApplied,
+                    currency: $command->currency,
+                    exchangeRateOverride: (string) $rates->exchangeRate,
+                    amount: $payment->amountInDocumentCurrency,
+                    amountVes: $isPaymentInVes
+                        ? $payment->amountApplied
+                        : round($payment->amountInDocumentCurrency * (float) $rates->exchangeRate, 2),
                 ));
 
                 $this->collectionStatusService->execute(

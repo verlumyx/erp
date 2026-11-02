@@ -628,3 +628,24 @@ test('an inactive item cannot be credited', function () {
         )
         ->assertSessionHasErrors('lines.0.item_id');
 });
+
+test('a tax is required in each sales credit note line', function () {
+    [$user, $company, $client, , $item, $unit] = salesCreditNoteScenario();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-credit-notes.store', ['company' => $company->id]),
+            salesCreditNotePayload($client, $item, $unit, [
+                'lines' => [
+                    [
+                        'item_id' => $item->id,
+                        'measurement_unit_id' => $unit->id,
+                        'quantity' => 1,
+                        'unit_price' => 10,
+                        'tax_id' => null,
+                    ],
+                ],
+            ]),
+        )
+        ->assertSessionHasErrors(['lines.0.tax_id' => 'Selecciona el impuesto de la línea.']);
+});

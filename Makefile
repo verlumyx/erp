@@ -28,8 +28,14 @@ db-shell: ## Access PostgreSQL shell
 	docker compose exec postgres psql -U erp_user -d erp_dev
 
 # Application Commands
-dev: ## Start the full stack in development (live source + OPcache off)
+dev-build: ## Start the full stack in development (live source + OPcache off)
 	docker compose up -d --build
+	@echo "App running at http://localhost:8080 (Vite HMR on 5174)."
+	@echo "Build the frontend with 'make assets' (or 'make watch'). Run tests with 'make test'."
+
+# Application Commands
+dev: ## Start the full stack in development (live source + OPcache off)
+	docker compose up -d
 	@echo "App running at http://localhost:8080 (Vite HMR on 5174)."
 	@echo "Build the frontend with 'make assets' (or 'make watch'). Run tests with 'make test'."
 

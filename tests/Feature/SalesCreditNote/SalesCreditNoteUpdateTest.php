@@ -27,6 +27,7 @@ test('a draft sales credit note can be updated', function () {
                 'id' => $line->id,
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'tax_id' => $line->tax_id,
                 'quantity' => 4,
                 'unit_price' => 25,
             ]],
@@ -71,6 +72,7 @@ test('a line that stops being sent is deactivated, never deleted', function () {
                 'id' => $kept->id,
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'tax_id' => $kept->tax_id,
                 'quantity' => 1,
                 'unit_price' => 10,
             ]],
@@ -101,7 +103,7 @@ test('a new line takes the next free number and does not reuse the inactive one'
         ->put(route('sales-credit-notes.update', ['company' => $company->id, 'id' => $payload['id']]), [
             ...$payload,
             'lines' => [
-                ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 3, 'unit_price' => 10],
+                ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'tax_id' => $item->sale_tax_id, 'quantity' => 3, 'unit_price' => 10],
             ],
         ])
         ->assertSessionHasNoErrors();
@@ -148,6 +150,7 @@ test('the note does not compete with itself for the credited quantity', function
                 'id' => $note->lines->first()->id,
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'tax_id' => $note->lines->first()->tax_id,
                 'quantity' => 2,
                 'unit_price' => 25,
                 'sales_invoice_line_id' => $invoiceLine->id,

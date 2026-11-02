@@ -13,9 +13,6 @@ import { usePurchaseOrderFormContext } from '../contexts/PurchaseOrderFormContex
 import { lineAmounts } from '../hooks/usePurchaseOrderForm';
 import { formatAmount } from '../types/PurchaseOrder';
 
-/** Valor del select cuando la línea no lleva impuesto: '' no lo distingue. */
-const NO_TAX = 'none';
-
 /**
  * 2.2 Líneas de la orden. Cada fila fija artículo, unidad, cantidad y costo; el
  * importe que se muestra es el mismo que recalcula el backend al guardar.
@@ -34,13 +31,10 @@ export function PurchaseOrderLinesSection() {
     } = usePurchaseOrderFormContext();
 
     /** El catálogo de impuestos es el mismo para todas las líneas. */
-    const taxOptions: OptionType[] = [
-        { value: NO_TAX, label: 'Sin impuesto' },
-        ...options.taxes.map((tax) => ({
-            value: tax.id,
-            label: taxOptionLabel(tax),
-        })),
-    ];
+    const taxOptions: OptionType[] = options.taxes.map((tax) => ({
+        value: tax.id,
+        label: taxOptionLabel(tax),
+    }));
 
     const [openCharges, setOpenCharges] = useState<Record<string, boolean>>({});
 
@@ -68,7 +62,9 @@ export function PurchaseOrderLinesSection() {
                     value: unit.measurement_unit_id,
                     label: unit.name,
                 }));
-                const chargesOpen = openCharges[line.id] === true;
+                const taxError = fieldError(index, 'tax_id');
+                const chargesOpen =
+                    openCharges[line.id] === true || !!taxError;
                 const hasCharges =
                     line.discount_percent > 0 || line.tax_id !== '';
 
@@ -256,29 +252,25 @@ export function PurchaseOrderLinesSection() {
                             <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
                                 <div className="flex flex-col gap-1.5">
                                     <Label className="text-[13px] font-semibold">
-                                        Impuesto
+                                        Impuesto *
                                     </Label>
                                     <Select2
                                         options={taxOptions}
                                         value={
                                             taxOptions.find(
                                                 (option) =>
-                                                    option.value ===
-                                                    (line.tax_id || NO_TAX),
+                                                    option.value === line.tax_id,
                                             ) ?? null
                                         }
                                         onChange={(option) =>
                                             setLineTax(
                                                 index,
-                                                !option ||
-                                                    option.value === NO_TAX
-                                                    ? ''
-                                                    : option.value,
+                                                option?.value ?? '',
                                             )
                                         }
-                                        error={!!fieldError(index, 'tax_id')}
+                                        error={!!taxError}
                                         size="md"
-                                        placeholder="Sin impuesto"
+                                        placeholder="Seleccione un impuesto"
                                     />
                                     {line.withholding_percent > 0 && (
                                         <span className="text-[12px] text-muted-foreground">
@@ -286,9 +278,9 @@ export function PurchaseOrderLinesSection() {
                                             del impuesto
                                         </span>
                                     )}
-                                    {fieldError(index, 'tax_id') && (
+                                    {taxError && (
                                         <p className="text-sm text-bad">
-                                            {fieldError(index, 'tax_id')}
+                                            {taxError}
                                         </p>
                                     )}
                                 </div>

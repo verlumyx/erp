@@ -199,9 +199,13 @@ function purchaseOrderScenario(): array
     $supplier = \App\Modules\Supplier\Models\Supplier::factory()->create(['company_id' => $company->id]);
     $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()->create(['company_id' => $company->id]);
     $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()->create(['company_id' => $company->id]);
+    $tax = \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $company->id, 'percentage' => 0]);
     $item = \App\Modules\Item\Models\Item::factory()->create([
         'company_id' => $company->id,
         'is_purchasable' => 'yes',
+        'is_sellable' => 'yes',
+        'sale_tax_id' => $tax->id,
+        'purchase_tax_id' => $tax->id,
     ]);
 
     \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
@@ -249,21 +253,37 @@ function purchaseOrderPayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $taxId = $item->purchase_tax_id ?? \App\Modules\Tax\Models\Tax::where('company_id', $supplier->company_id)->where('status', 'active')->first()?->id
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $supplier->company_id, 'percentage' => 0])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => 25,
+            'tax_id' => $taxId,
+        ],
+    ];
+
+    if (is_array($lines)) {
+        $lines = array_map(function ($line) use ($taxId) {
+            if (is_array($line) && ! array_key_exists('tax_id', $line)) {
+                $line['tax_id'] = $taxId;
+            }
+
+            return $line;
+        }, $lines);
+    }
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'supplier_id' => $supplier->id,
         'warehouse_id' => $warehouse->id,
         'order_date' => now()->toDateString(),
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 10,
-                'unit_price' => 25,
-            ],
-        ],
         ...$overrides,
+        'lines' => $lines,
     ];
 }
 
@@ -331,8 +351,16 @@ function salesOrderScenario(): array
     $unit = \App\Modules\MeasurementUnit\Models\MeasurementUnit::factory()
         ->create(['company_id' => $company->id]);
 
+    $tax = \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $company->id, 'percentage' => 0]);
+
     $item = \App\Modules\Item\Models\Item::factory()
-        ->create(['company_id' => $company->id]);
+        ->create([
+            'company_id' => $company->id,
+            'is_purchasable' => 'yes',
+            'is_sellable' => 'yes',
+            'sale_tax_id' => $tax->id,
+            'purchase_tax_id' => $tax->id,
+        ]);
 
     \App\Modules\Item\Models\ItemUnit::factory()->base()->create([
         'company_id' => $company->id,
@@ -359,6 +387,29 @@ function salesOrderPayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $taxId = $item->sale_tax_id ?? \App\Modules\Tax\Models\Tax::where('company_id', $client->company_id)->where('status', 'active')->first()?->id
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $client->company_id, 'percentage' => 0])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'unit_price' => 100,
+            'tax_id' => $taxId,
+        ],
+    ];
+
+    if (is_array($lines)) {
+        $lines = array_map(function ($line) use ($taxId) {
+            if (is_array($line) && ! array_key_exists('tax_id', $line)) {
+                $line['tax_id'] = $taxId;
+            }
+
+            return $line;
+        }, $lines);
+    }
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'client_id' => $client->id,
@@ -366,15 +417,8 @@ function salesOrderPayload(
         'price_list_id' => $client->price_list_id ?? \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $client->company_id])->id,
         'order_date' => now()->toDateString(),
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 2,
-                'unit_price' => 100,
-            ],
-        ],
         ...$overrides,
+        'lines' => $lines,
     ];
 }
 
@@ -483,22 +527,39 @@ function salesInvoicePayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $taxId = $item->sale_tax_id ?? \App\Modules\Tax\Models\Tax::where('company_id', $client->company_id)->where('status', 'active')->first()?->id
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $client->company_id, 'percentage' => 0])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'unit_price' => 100,
+            'tax_id' => $taxId,
+        ],
+    ];
+
+    if (is_array($lines)) {
+        $lines = array_map(function ($line) use ($taxId) {
+            if (is_array($line) && ! array_key_exists('tax_id', $line)) {
+                $line['tax_id'] = $taxId;
+            }
+
+            return $line;
+        }, $lines);
+    }
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'client_id' => $client->id,
         'warehouse_id' => $warehouse->id,
+        'price_list_id' => $client->price_list_id ?? \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $client->company_id])->id,
         'invoice_date' => now()->toDateString(),
         'due_date' => now()->toDateString(),
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 2,
-                'unit_price' => 100,
-            ],
-        ],
         ...$overrides,
+        'lines' => $lines,
     ];
 }
 
@@ -541,7 +602,7 @@ function itemPayload(
         ?? \App\Modules\PriceList\Models\PriceList::factory()->create(['company_id' => $unit->company_id]);
 
     $tax = \App\Modules\Tax\Models\Tax::where('company_id', $unit->company_id)->first()
-        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $unit->company_id]);
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $unit->company_id, 'percentage' => 0]);
 
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
@@ -598,6 +659,29 @@ function purchaseInvoicePayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $taxId = $item->purchase_tax_id ?? \App\Modules\Tax\Models\Tax::where('company_id', $supplier->company_id)->where('status', 'active')->first()?->id
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $supplier->company_id, 'percentage' => 0])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 10,
+            'unit_price' => 25,
+            'tax_id' => $taxId,
+        ],
+    ];
+
+    if (is_array($lines)) {
+        $lines = array_map(function ($line) use ($taxId) {
+            if (is_array($line) && ! array_key_exists('tax_id', $line)) {
+                $line['tax_id'] = $taxId;
+            }
+
+            return $line;
+        }, $lines);
+    }
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'supplier_id' => $supplier->id,
@@ -605,15 +689,8 @@ function purchaseInvoicePayload(
         'supplier_invoice_number' => '00-'.fake()->unique()->numerify('######'),
         'invoice_date' => now()->toDateString(),
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 10,
-                'unit_price' => 25,
-            ],
-        ],
         ...$overrides,
+        'lines' => $lines,
     ];
 }
 
@@ -705,21 +782,37 @@ function purchaseCreditNotePayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $taxId = $item->purchase_tax_id ?? \App\Modules\Tax\Models\Tax::where('company_id', $supplier->company_id)->where('status', 'active')->first()?->id
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $supplier->company_id, 'percentage' => 0])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'unit_price' => 25,
+            'tax_id' => $taxId,
+        ],
+    ];
+
+    if (is_array($lines)) {
+        $lines = array_map(function ($line) use ($taxId) {
+            if (is_array($line) && ! array_key_exists('tax_id', $line)) {
+                $line['tax_id'] = $taxId;
+            }
+
+            return $line;
+        }, $lines);
+    }
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'supplier_id' => $supplier->id,
         'note_date' => now()->toDateString(),
         'reason' => 'return',
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 2,
-                'unit_price' => 25,
-            ],
-        ],
         ...$overrides,
+        'lines' => $lines,
     ];
 }
 
@@ -1414,21 +1507,37 @@ function salesCreditNotePayload(
     \App\Modules\MeasurementUnit\Models\MeasurementUnit $unit,
     array $overrides = [],
 ): array {
+    $taxId = $item->sale_tax_id ?? \App\Modules\Tax\Models\Tax::where('company_id', $client->company_id)->where('status', 'active')->first()?->id
+        ?? \App\Modules\Tax\Models\Tax::factory()->create(['company_id' => $client->company_id, 'percentage' => 0])->id;
+
+    $lines = $overrides['lines'] ?? [
+        [
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'unit_price' => 25,
+            'tax_id' => $taxId,
+        ],
+    ];
+
+    if (is_array($lines)) {
+        $lines = array_map(function ($line) use ($taxId) {
+            if (is_array($line) && ! array_key_exists('tax_id', $line)) {
+                $line['tax_id'] = $taxId;
+            }
+
+            return $line;
+        }, $lines);
+    }
+
     return [
         'id' => (string) \Illuminate\Support\Str::uuid7(),
         'client_id' => $client->id,
         'note_date' => now()->toDateString(),
         'reason' => 'return',
         'currency' => 'USD',
-        'lines' => [
-            [
-                'item_id' => $item->id,
-                'measurement_unit_id' => $unit->id,
-                'quantity' => 2,
-                'unit_price' => 25,
-            ],
-        ],
         ...$overrides,
+        'lines' => $lines,
     ];
 }
 

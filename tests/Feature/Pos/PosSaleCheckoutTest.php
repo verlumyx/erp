@@ -382,4 +382,109 @@ test('atomic checkout supports multiple split payment methods including biopago 
     expect($collectionMethods)->toContain('cash');
     expect($collectionMethods)->toContain('mobile_payment');
     expect($collectionMethods)->toContain('biopago');
+
+    foreach ($collections as $col) {
+        expect($col->currency)->toBe('USD');
+        expect((float) $col->amount)->toBe(20.0);
+        expect((float) $col->amount_ves)->toBe(1000.0);
+        expect((float) $col->applied_amount)->toBe(20.0);
+        expect((float) $col->unapplied_amount)->toBe(0.0);
+    }
+});
+
+test('pos checkout with debit card in ves saves collection matching form format', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $warehouse->update(['uses_locations' => 'yes']);
+
+    $location = WarehouseLocation::factory()->default()->create([
+        'warehouse_id' => $warehouse->id,
+        'company_id' => $company->id,
+        'status' => 'active',
+        'created_by' => $user->id,
+    ]);
+
+    ItemStock::factory()->withBalance(20, 5)->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'warehouse_id' => $warehouse->id,
+        'location_id' => $location->id,
+        'status' => 'active',
+    ]);
+
+    $register = PosRegister::create([
+        'company_id' => $company->id,
+        'code' => 'CAJ000001',
+        'name' => 'Caja Mostrador',
+        'warehouse_id' => $warehouse->id,
+        'default_client_id' => $client->id,
+        'created_by' => $user->id,
+        'status' => 'active',
+    ]);
+
+    $session = PosSession::create([
+        'company_id' => $company->id,
+        'code' => 'COR000001',
+        'pos_register_id' => $register->id,
+        'user_id' => $user->id,
+        'opened_at' => now(),
+        'opening_cash_usd' => 100.00,
+        'opening_cash_ves' => 0.00,
+        'status' => 'confirmed',
+    ]);
+
+    // Sale of $10 USD paid with Punto Débito in VES (rate: 889.5754, total VES: 8895.75)
+    $payload = [
+        'pos_session_id' => $session->id,
+        'client_id' => $client->id,
+        'currency' => 'USD',
+        'exchange_rate' => 889.5754,
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 1.0,
+                'unit_price' => 10.0,
+                'discount_percent' => 0.0,
+                'discount_amount' => 0.0,
+                'tax_percent' => 0.0,
+                'tax_amount' => 0.0,
+                'subtotal' => 10.0,
+                'total' => 10.0,
+            ],
+        ],
+        'payments' => [
+            [
+                'payment_method' => 'card_debit',
+                'currency' => 'VES',
+                'exchange_rate' => 889.5754,
+                'amount_tendered' => 8895.75,
+                'amount_applied' => 8895.75,
+                'amount_in_document_currency' => 10.0,
+            ],
+        ],
+        'subtotal' => 10.0,
+        'discount_amount' => 0.0,
+        'tax_amount' => 0.0,
+        'total' => 10.0,
+        'total_in_local_currency' => 8895.75,
+        'paid_amount' => 10.0,
+        'change_amount_usd' => 0.0,
+        'change_amount_ves' => 0.0,
+    ];
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('pos.checkout', ['company' => $company->id]), $payload);
+
+    $response->assertCreated();
+
+    $collection = ClientCollection::where('origin_id', $response->json('sale.sales_invoice_id'))->first();
+    expect($collection)->not->toBeNull();
+    expect($collection->currency)->toBe('USD');
+    expect((float) $collection->amount)->toBe(10.0);
+    expect((float) $collection->amount_ves)->toBe(8895.75);
+    expect((float) $collection->applied_amount)->toBe(10.0);
+    expect((float) $collection->unapplied_amount)->toBe(0.0);
+    expect($collection->payment_method)->toBe('card_debit');
 });

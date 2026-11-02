@@ -104,7 +104,7 @@ trait ValidatesPurchaseInvoicePayload
             'lines.*.discount_percent' => ['nullable', 'numeric', 'between:0,100'],
             'lines.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
             'lines.*.tax_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_taxes', 'id')
                     ->where('company_id', $companyId)
@@ -142,6 +142,7 @@ trait ValidatesPurchaseInvoicePayload
             'lines.*.measurement_unit_id.required' => 'Selecciona la unidad de la línea.',
             'lines.*.quantity.gt' => 'La cantidad debe ser mayor que cero.',
             'lines.*.unit_price.min' => 'El costo unitario no puede ser negativo.',
+            'lines.*.tax_id.required' => 'Selecciona el impuesto de la línea.',
             'lines.*.tax_id.exists' => 'El impuesto de la línea no existe o está inactivo.',
         ];
     }

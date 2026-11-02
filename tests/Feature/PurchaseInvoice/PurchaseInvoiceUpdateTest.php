@@ -27,6 +27,7 @@ test('a draft purchase invoice can be updated', function () {
                 'id' => $line->id,
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'tax_id' => $line->tax_id,
                 'quantity' => 4,
                 'unit_price' => 25,
             ]],
@@ -92,6 +93,7 @@ test('a line that stops being sent is deactivated, never deleted', function () {
                 'id' => $kept->id,
                 'item_id' => $item->id,
                 'measurement_unit_id' => $unit->id,
+                'tax_id' => $kept->tax_id,
                 'quantity' => 1,
                 'unit_price' => 10,
             ]],
@@ -122,7 +124,7 @@ test('a new line takes the next free number and does not reuse the inactive one'
         ->put(route('purchase-invoices.update', ['company' => $company->id, 'id' => $payload['id']]), [
             ...$payload,
             'lines' => [
-                ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'quantity' => 3, 'unit_price' => 10],
+                ['item_id' => $item->id, 'measurement_unit_id' => $unit->id, 'tax_id' => $item->purchase_tax_id, 'quantity' => 3, 'unit_price' => 10],
             ],
         ])
         ->assertSessionHasNoErrors();

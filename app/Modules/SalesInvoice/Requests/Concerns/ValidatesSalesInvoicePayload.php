@@ -66,7 +66,7 @@ trait ValidatesSalesInvoicePayload
                     ->where('status', 'active'),
             ],
             'price_list_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_price_lists', 'id')->where('company_id', $companyId),
             ],
@@ -115,7 +115,7 @@ trait ValidatesSalesInvoicePayload
             'lines.*.unit_price' => ['required', 'numeric', 'min:0'],
             'lines.*.discount_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lines.*.tax_id' => [
-                'nullable',
+                'required',
                 'uuid',
                 Rule::exists('app_taxes', 'id')
                     ->where('company_id', $companyId)
@@ -142,6 +142,7 @@ trait ValidatesSalesInvoicePayload
             'sourceable_id.required_with' => 'Indica el documento origen.',
             'warehouse_id.required' => 'Selecciona la bodega de despacho.',
             'warehouse_id.exists' => 'La bodega seleccionada no existe o está inactiva.',
+            'price_list_id.required' => 'Selecciona la lista de precio de la factura.',
             'price_list_id.exists' => 'La lista de precio seleccionada no existe en la empresa.',
             'invoice_date.required' => 'La fecha de la factura es obligatoria.',
             'due_date.required' => 'La fecha de vencimiento es obligatoria.',
@@ -155,6 +156,7 @@ trait ValidatesSalesInvoicePayload
             'lines.*.quantity.gt' => 'La cantidad de la línea debe ser mayor que cero.',
             'lines.*.unit_price.min' => 'El precio de la línea no puede ser negativo.',
             'lines.*.discount_percent.max' => 'El descuento de la línea no puede superar el 100%.',
+            'lines.*.tax_id.required' => 'Selecciona el impuesto de la línea.',
             'lines.*.tax_id.exists' => 'El impuesto de la línea no existe o está inactivo.',
             'lines.*.sourceable_type.in' => 'Ese tipo de línea origen no es válido para una factura.',
         ];

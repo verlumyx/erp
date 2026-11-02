@@ -458,3 +458,24 @@ test('an inactive tax cannot be used in a line', function () {
         )
         ->assertSessionHasErrors('lines.0.tax_id');
 });
+
+test('a tax is required in each sales order line', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    actingAs($user)->withSession(['current_company_id' => $company->id])
+        ->post(
+            route('sales-orders.store', ['company' => $company->id]),
+            salesOrderPayload($client, $warehouse, $item, $unit, [
+                'lines' => [
+                    [
+                        'item_id' => $item->id,
+                        'measurement_unit_id' => $unit->id,
+                        'quantity' => 1,
+                        'unit_price' => 100,
+                        'tax_id' => null,
+                    ],
+                ],
+            ]),
+        )
+        ->assertSessionHasErrors('lines.0.tax_id');
+});
