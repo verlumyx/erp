@@ -35,6 +35,11 @@ mkdir -p \
 chown -R www-data:www-data storage bootstrap/cache
 
 # -------------------------------------------------------
+# Clear stale cached config so migrations always read fresh .env
+# -------------------------------------------------------
+rm -f bootstrap/cache/config.php
+
+# -------------------------------------------------------
 # Regenerate the package manifest so it always matches the
 # dependencies actually installed in this container (avoids
 # stale dev/no-dev provider mismatches in bootstrap/cache).
