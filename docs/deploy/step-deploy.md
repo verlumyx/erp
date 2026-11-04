@@ -40,6 +40,22 @@ Editar `.env`:
 - Ajustar `POSTGRES_DATA_DIR` si deseas usar una ruta distinta a `/var/lib/postgresql/data`.
 - Configurar `CLOUDFLARE_TUNNEL_TOKEN` si se utiliza túnel.
 
+### 2.1 Activar Cloudflare Tunnel (Paso previo al subdominio)
+
+Si estás usando Cloudflare Zero Trust, el panel web necesita detectar el conector activo antes de permitir configurar el subdominio:
+
+```bash
+# 1. Iniciar el conector de túnel
+docker compose -f docker-compose.prod.yml up -d cloudflared
+
+# 2. Revisar conexión
+docker compose -f docker-compose.prod.yml logs cloudflared
+```
+
+En el dashboard de Cloudflare (Public Hostname):
+- **Type:** `HTTP`
+- **URL:** `nginx:80`
+
 ---
 
 ## 3. Construir e Iniciar en Producción
