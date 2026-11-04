@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Build PHP dependencies + frontend assets
 # =============================================================================
-FROM php:8.5-cli-alpine AS builder
+FROM php:8.5.12-cli-alpine AS builder
 
 RUN apk add --no-cache \
     git \
@@ -64,7 +64,7 @@ RUN php -r "echo 'APP_KEY=base64:' . base64_encode(random_bytes(32)) . PHP_EOL;"
 # needs (artisan, pest, vite/pnpm with PHP available for Wayfinder) so commands
 # run *inside* this single container via `docker compose exec app ...`.
 # =============================================================================
-FROM php:8.5-fpm-alpine AS development
+FROM php:8.5.12-fpm-alpine AS development
 
 RUN apk add --no-cache \
     git \
@@ -119,7 +119,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 # =============================================================================
 # Stage 3: PHP-FPM production runtime
 # =============================================================================
-FROM php:8.5-fpm-alpine AS production
+FROM php:8.5.12-fpm-alpine AS production
 
 RUN apk add --no-cache \
     libpng-dev \
@@ -133,7 +133,7 @@ RUN apk add --no-cache \
     libzip-dev \
     netcat-openbsd
 
-# Note: Zend OPcache is already compiled into the php:8.5 base image,
+# Note: Zend OPcache is already compiled into the php:8.5.12 base image,
 # so it must not be passed to docker-php-ext-install. It is configured
 # via docker/php/opcache.ini below.
 RUN docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \

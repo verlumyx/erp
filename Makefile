@@ -66,8 +66,12 @@ watch: ## Rebuild frontend assets on every change (inside the app container)
 	docker compose exec app pnpm run dev
 
 # Maintenance Commands
-backup-db: ## Backup database
-	docker compose exec postgres pg_dump -U erp_user erp_dev > backup_$(shell date +%Y%m%d_%H%M%S).sql
+backup-dump: ## Backup database in PostgreSQL custom format (.dump)
+	docker compose exec -T postgres pg_dump -U erp_user -Fc erp_dev > backup_$(shell date +%Y%m%d_%H%M%S).dump
+	@echo "Database .dump backup created: backup_$(shell date +%Y%m%d_%H%M%S).dump"
+
+backup-db: ## Backup database (SQL format)
+	docker compose exec -T postgres pg_dump -U erp_user erp_dev > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "Database backup created: backup_$(shell date +%Y%m%d_%H%M%S).sql"
 
 restore-db: ## Restore database (usage: make restore-db file=backup.sql)

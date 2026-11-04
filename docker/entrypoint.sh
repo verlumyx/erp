@@ -2,13 +2,13 @@
 set -e
 
 # -------------------------------------------------------
-# Initialize shared public volume on first boot
+# Initialize/sync shared public volume in production
 # -------------------------------------------------------
-if [ ! -f /var/www/html/public/index.php ]; then
-    echo "Initializing public directory..."
+if [ -d /var/www/public-init ]; then
+    echo "Initializing/syncing public directory..."
     cp -rp /var/www/public-init/. /var/www/html/public/
     chown -R www-data:www-data /var/www/html/public
-    echo "Public directory initialized."
+    echo "Public directory ready."
 fi
 
 # -------------------------------------------------------

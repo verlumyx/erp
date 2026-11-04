@@ -1,0 +1,87 @@
+name: erp-prod
+
+services:
+  # Laravel Application (PHP-FPM - Production Target)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: erp_app_prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persistent storage for user uploads, invoices, logs, and cache
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+      # Shared public volume with Nginx for compiled assets
+      - public_data:/var/www/html/public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - erp
+
+  # Nginx Web Server
+  nginx:
+    image: nginx:alpine
+    container_name: erp_nginx_prod
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - public_data:/var/www/html/public:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./storage/app/public:/var/www/html/public/storage:ro
+    depends_on:
+      - app
+    networks:
+      - erp
+
+  # PostgreSQL Database (Host-level physical storage location)
+  postgres:
+    image: postgres:16-alpine
+    container_name: erp_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-erp_prod}
+      POSTGRES_USER: ${DB_USERNAME:-erp_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-erp_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      # Stores data directly where PostgreSQL usually stores data on a Linux server:
+      # Default: /var/lib/postgresql/data (or override via POSTGRES_DATA_DIR, e.g. /var/lib/postgresql/16/main)
+      - ${POSTGRES_DATA_DIR:-/var/lib/postgresql/data}:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      # Bound to localhost on the host for maintenance / backups (not exposed to internet)
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-erp_user} -d $${POSTGRES_DB:-erp_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erp
+
+  # Cloudflare Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: erp_cloudflared_prod
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks:
+      - erp
+    depends_on:
+      - nginx
+
+networks:
+  erp:
+    driver: bridge
+
+volumes:
+  public_data:
+    driver: local

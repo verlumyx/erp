@@ -29,3 +29,8 @@ yarn-error.log
 
 # pnpm content-addressable store (when run with project-mounted store)
 /.pnpm-store
+
+# PostgreSQL physical data & backups
+/docker/postgres/data/
+*.dump
+*.sql
