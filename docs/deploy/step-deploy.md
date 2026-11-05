@@ -61,7 +61,12 @@ MAIL_FROM_NAME="${APP_NAME}"
 
 > [!IMPORTANT]
 > **Dominio y remitente en Resend:**
-> Para enviar correos desde `no_replay@valolabs.site` o tu propio dominio sin rechazos (error `550`), el dominio debe estar previamente verificado en el panel de **[Resend Domains](https://resend.com/domains)** con los registros DNS correspondientes (SPF, DKIM).
+> - **Producción (Dominio propio):** Para enviar correos desde `no_replay@valolabs.site` o tu propio dominio a cualquier destinatario sin rechazos (error `550`), el dominio debe estar previamente verificado en el panel de **[Resend Domains](https://resend.com/domains)** con los registros DNS correspondientes (SPF, DKIM).
+> - **Entornos de Desarrollo / Sandbox (`onboarding@resend.dev`):** Si estás probando la aplicación en local o en un entorno de desarrollo antes de validar el dominio en DNS, puedes configurar temporalmente:
+>   ```dotenv
+>   MAIL_FROM_ADDRESS="onboarding@resend.dev"
+>   ```
+>   *Nota sobre el sandbox:* En este modo de pruebas, Resend únicamente permite enviar correos hacia **la misma dirección de correo con la que creaste tu cuenta en Resend**. Si intentas enviar a cualquier otro destinatario, Resend responderá con `550`.
 
 ### 2.3 Monitoreo de Errores y Logs con Sentry
 Sentry captura automáticamente todas las excepciones no controladas de Laravel, transacciones de rendimiento y opcionalmente logs de la aplicación.

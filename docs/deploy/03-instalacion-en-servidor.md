@@ -155,6 +155,7 @@ LOG_STACK=single,sentry_logs
 > [!IMPORTANT]
 > **Notas sobre Resend y Sentry en Producción:**
 > - **Resend:** No requiere librerías Composer adicionales. Utiliza el transporte SMTP seguro nativo (`smtps` por el puerto `465`). Recuerda verificar el dominio de envío (`valolabs.site` o tu propio dominio) en **[Resend Domains](https://resend.com/domains)** agregando los registros DNS correspondientes (SPF y DKIM) para prevenir que los servidores receptores reboten los correos.
+>   - *Modo Sandbox (Desarrollo / Pruebas sin DNS):* Si necesitas enviar correos antes de validar el dominio, puedes usar `MAIL_FROM_ADDRESS="onboarding@resend.dev"`. Ten en cuenta que en ese modo Resend solo permite enviar mensajes a la dirección de correo con la que abriste tu cuenta en Resend.
 > - **Sentry:** Si `SENTRY_LARAVEL_DSN` está configurado, las excepciones no controladas se capturan automáticamente. Al habilitar `SENTRY_ENABLE_LOGS=true` y añadir `sentry_logs` a `LOG_STACK`, los registros de error y advertencia de `Log::*` también se sincronizan con tu panel de Sentry.
 
 Generar una clave de encriptación `APP_KEY` segura para producción:
