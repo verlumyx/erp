@@ -6,7 +6,7 @@ interface StreamCrmLogoProps {
 }
 
 /**
- * Valolabs POS brand lockup used across auth and navigation.
+ * Valolabs ERP brand lockup used across auth and navigation.
  * `simple` or `hideText` renders only the primary mark (used inside compact spots).
  */
 export default function StreamCrmLogo({
@@ -28,7 +28,7 @@ export default function StreamCrmLogo({
                 <span className="logo-txt text-xl font-bold tracking-tight text-slate-900 select-none dark:text-white">
                     Valolabs
                     <b className="font-extrabold text-indigo-600 dark:text-indigo-400">
-                        POS
+                        ERP
                     </b>
                 </span>
             )}

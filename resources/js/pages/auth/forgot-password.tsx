@@ -10,7 +10,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
     return (
         <>
-            <Head title="Recuperar contraseña — ValolabsPOS">
+            <Head title="Recuperar contraseña — Valolabs ERP">
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 
