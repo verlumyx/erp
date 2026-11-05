@@ -220,14 +220,25 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         </Form>
 
                         {/* Footnote */}
-                        <div className="mt-6 text-center text-xs text-slate-500 dark:text-zinc-500">
-                            ¿Problemas para entrar?{' '}
-                            <a
-                                href="mailto:soporte@valolabspos.com"
-                                className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
-                            >
-                                Escríbenos
-                            </a>
+                        <div className="mt-6 flex flex-col items-center gap-2 text-center text-xs text-slate-500 dark:text-zinc-500">
+                            <div>
+                                ¿Aún no tienes cuenta?{' '}
+                                <Link
+                                    href="/demo"
+                                    className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                                >
+                                    Solicitar una demo
+                                </Link>
+                            </div>
+                            <div>
+                                ¿Problemas para entrar?{' '}
+                                <a
+                                    href="mailto:soporte@valolabspos.com"
+                                    className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                                >
+                                    Escríbenos
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
