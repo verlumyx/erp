@@ -125,7 +125,37 @@ POSTGRES_DATA_DIR=/var/lib/postgresql/data
 
 # Cloudflare Tunnel (si usas túnel seguro de Cloudflare)
 CLOUDFLARE_TUNNEL_TOKEN=tu_token_aqui
+
+# ==========================================
+# Envío de Correos con Resend (SMTP nativo)
+# ==========================================
+MAIL_MAILER=smtp
+MAIL_SCHEME=smtps
+MAIL_HOST=smtp.resend.com
+MAIL_PORT=465
+MAIL_USERNAME=resend
+MAIL_PASSWORD=re_tu_api_key_de_resend_aqui
+RESEND_API_KEY=re_tu_api_key_de_resend_aqui
+MAIL_FROM_ADDRESS="no_replay@valolabs.site"
+MAIL_FROM_NAME="${APP_NAME}"
+
+# ==========================================
+# Monitoreo de Errores y Logs con Sentry
+# ==========================================
+SENTRY_LARAVEL_DSN=https://tu_dsn_publico@oXXXXXX.ingest.us.sentry.io/tu_proyecto_id
+SENTRY_ENABLE_LOGS=true
+SENTRY_TRACES_SAMPLE_RATE=0.2
+SENTRY_SEND_DEFAULT_PII=false
+
+# Canal de logs de Laravel (agrega sentry_logs al stack)
+LOG_CHANNEL=stack
+LOG_STACK=single,sentry_logs
 ```
+
+> [!IMPORTANT]
+> **Notas sobre Resend y Sentry en Producción:**
+> - **Resend:** No requiere librerías Composer adicionales. Utiliza el transporte SMTP seguro nativo (`smtps` por el puerto `465`). Recuerda verificar el dominio de envío (`valolabs.site` o tu propio dominio) en **[Resend Domains](https://resend.com/domains)** agregando los registros DNS correspondientes (SPF y DKIM) para prevenir que los servidores receptores reboten los correos.
+> - **Sentry:** Si `SENTRY_LARAVEL_DSN` está configurado, las excepciones no controladas se capturan automáticamente. Al habilitar `SENTRY_ENABLE_LOGS=true` y añadir `sentry_logs` a `LOG_STACK`, los registros de error y advertencia de `Log::*` también se sincronizan con tu panel de Sentry.
 
 Generar una clave de encriptación `APP_KEY` segura para producción:
 
@@ -236,6 +266,12 @@ docker compose -f docker-compose.prod.yml logs -f app
 
 # 3. Comprobar respuesta HTTP del endpoint de salud
 curl -I http://localhost/health
+
+# 4. Probar conexión SMTP con Resend
+docker compose -f docker-compose.prod.yml exec app php artisan tinker --execute="app('mailer')->getSymfonyTransport()->start(); dump('Conexión SMTP exitosa con Resend');"
+
+# 5. Probar envío de evento y reporte a Sentry
+docker compose -f docker-compose.prod.yml exec app php artisan sentry:test
 ```
 
 Respuesta esperada:
