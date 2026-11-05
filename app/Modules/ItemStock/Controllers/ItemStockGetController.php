@@ -10,6 +10,8 @@ use App\Modules\ItemStock\Models\ItemStock;
 use App\Modules\ItemStock\Resources\ItemStockResource;
 use App\Modules\ItemStock\Services\ItemStockFindService;
 use App\Modules\ItemStock\Services\ItemStockSearchService;
+use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
+use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\Warehouse\Commands\SearchWarehouseCommand;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\Warehouse\Services\WarehouseSearchService;
@@ -73,8 +75,61 @@ class ItemStockGetController extends Controller
 
         $model = $this->findService->execute($id, $company);
 
+        $activeReservations = SalesOrderLine::query()
+            ->where('company_id', $company)
+            ->where('item_id', $model->item_id)
+            ->where('reserved_quantity', '>', 0)
+            ->whereHas('salesOrder', function ($q) use ($model): void {
+                $q->where('warehouse_id', $model->warehouse_id)
+                    ->whereIn('status', ['confirmed', 'partial']);
+            })
+            ->with(['salesOrder.client'])
+            ->get()
+            ->map(fn (SalesOrderLine $line): array => [
+                'id' => $line->id,
+                'sales_order_id' => $line->sales_order_id,
+                'order_code' => $line->salesOrder?->code ?? '—',
+                'client_name' => $line->salesOrder?->client?->name ?? 'Cliente general',
+                'client_document' => $line->salesOrder?->client?->document_number,
+                'order_date' => $line->salesOrder?->order_date?->format('d/m/Y') ?? '—',
+                'reserved_quantity' => (float) $line->reserved_quantity,
+                'ordered_quantity' => (float) $line->quantity,
+                'dispatched_quantity' => (float) $line->dispatched_quantity,
+                'status' => $line->salesOrder?->status,
+            ])
+            ->values()
+            ->all();
+
+        $incomingOrders = PurchaseOrderLine::query()
+            ->where('company_id', $company)
+            ->where('item_id', $model->item_id)
+            ->where('pending_quantity', '>', 0)
+            ->whereHas('purchaseOrder', function ($q) use ($model): void {
+                $q->where('warehouse_id', $model->warehouse_id)
+                    ->whereIn('status', ['confirmed', 'partial']);
+            })
+            ->with(['purchaseOrder.supplier'])
+            ->get()
+            ->map(fn (PurchaseOrderLine $line): array => [
+                'id' => $line->id,
+                'purchase_order_id' => $line->purchase_order_id,
+                'order_code' => $line->purchaseOrder?->code ?? '—',
+                'supplier_name' => $line->purchaseOrder?->supplier?->name ?? 'Proveedor no registrado',
+                'supplier_document' => $line->purchaseOrder?->supplier?->document_number,
+                'order_date' => $line->purchaseOrder?->order_date?->format('d/m/Y') ?? '—',
+                'expected_date' => $line->purchaseOrder?->expected_date?->format('d/m/Y'),
+                'pending_quantity' => (float) $line->pending_quantity,
+                'ordered_quantity' => (float) $line->quantity,
+                'received_quantity' => (float) $line->received_quantity,
+                'status' => $line->purchaseOrder?->status,
+            ])
+            ->values()
+            ->all();
+
         return Inertia::render('item-stocks/show', [
             'stock' => (new ItemStockResource($model))->resolve(),
+            'activeReservations' => $activeReservations,
+            'incomingOrders' => $incomingOrders,
         ]);
     }
 

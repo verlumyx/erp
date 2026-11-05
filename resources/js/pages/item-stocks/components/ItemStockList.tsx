@@ -209,11 +209,13 @@ export function ItemStockList({
             </div>
 
             <Card className="gap-0 overflow-hidden rounded-2xl py-0">
-                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[2.2fr_1.6fr_0.9fr_0.9fr_0.9fr_0.7fr]">
+                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[2fr_1.3fr_0.8fr_0.8fr_0.8fr_0.8fr_0.9fr_0.6fr]">
                     {[
                         'Artículo',
                         'Ubicación',
-                        'Existencia',
+                        'Físico',
+                        'Reservado',
+                        'En camino',
                         'Disponible',
                         'Valor',
                         'Acciones',
@@ -221,8 +223,8 @@ export function ItemStockList({
                         <div
                             key={h}
                             className={`text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase ${
-                                i >= 2 ? 'text-right' : ''
-                            }`}
+                                i >= 2 && i < 7 ? 'text-right' : ''
+                            } ${i === 7 ? 'text-right pr-2' : ''}`}
                         >
                             {h}
                         </div>
@@ -232,7 +234,7 @@ export function ItemStockList({
                     {stocks.map((stock) => (
                         <div
                             key={stock.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[2.2fr_1.6fr_0.9fr_0.9fr_0.9fr_0.7fr] lg:py-0"
+                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[2fr_1.3fr_0.8fr_0.8fr_0.8fr_0.8fr_0.9fr_0.6fr] lg:py-0"
                             onClick={() =>
                                 router.visit(
                                     itemStocks.show({
@@ -257,6 +259,31 @@ export function ItemStockList({
                                         ? ` · lote ${stock.lot_number}`
                                         : ''}
                                 </span>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs lg:hidden">
+                                    <span className="font-semibold text-foreground">
+                                        Físico: {formatQuantity(stock.quantity)}
+                                    </span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        Disp: {formatQuantity(stock.available_quantity)}
+                                    </span>
+                                    {stock.reserved_quantity > 0 && (
+                                        <>
+                                            <span className="text-muted-foreground">·</span>
+                                            <span className="font-bold text-amber-600 dark:text-amber-400">
+                                                {formatQuantity(stock.reserved_quantity)} res.
+                                            </span>
+                                        </>
+                                    )}
+                                    {stock.incoming_quantity > 0 && (
+                                        <>
+                                            <span className="text-muted-foreground">·</span>
+                                            <span className="font-bold text-sky-600 dark:text-sky-400">
+                                                {formatQuantity(stock.incoming_quantity)} camino
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                             <div className="hidden min-w-0 flex-col lg:flex">
                                 <span className="truncate text-[13px] font-semibold">
@@ -274,7 +301,35 @@ export function ItemStockList({
                                 </span>
                             </div>
                             <div className="hidden text-right lg:block">
-                                <span className="font-semibold text-muted-foreground tabular-nums">
+                                {stock.reserved_quantity > 0 ? (
+                                    <span
+                                        className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 tabular-nums dark:bg-amber-950/40 dark:text-amber-400"
+                                        title="Unidades comprometidas en pedidos de venta confirmados"
+                                    >
+                                        {formatQuantity(stock.reserved_quantity)}
+                                    </span>
+                                ) : (
+                                    <span className="font-medium text-muted-foreground/60 tabular-nums">
+                                        0
+                                    </span>
+                                )}
+                            </div>
+                            <div className="hidden text-right lg:block">
+                                {stock.incoming_quantity > 0 ? (
+                                    <span
+                                        className="inline-flex items-center rounded-md bg-sky-50 px-2 py-0.5 text-xs font-bold text-sky-700 tabular-nums dark:bg-sky-950/40 dark:text-sky-400"
+                                        title="Unidades en camino por órdenes de compra confirmadas"
+                                    >
+                                        {formatQuantity(stock.incoming_quantity)}
+                                    </span>
+                                ) : (
+                                    <span className="font-medium text-muted-foreground/60 tabular-nums">
+                                        0
+                                    </span>
+                                )}
+                            </div>
+                            <div className="hidden text-right lg:block">
+                                <span className="font-extrabold text-foreground tabular-nums">
                                     {formatQuantity(stock.available_quantity)}
                                 </span>
                             </div>
