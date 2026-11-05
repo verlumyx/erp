@@ -34,9 +34,9 @@ class AppServiceProvider extends ServiceProvider
             ], false));
 
             return (new MailMessage)
-                ->subject('Recuperación de contraseña — '.config('app.name', 'Valolabs POS'))
+                ->subject('Recuperación de contraseña — '.config('app.name', 'Valolabs ERP'))
                 ->greeting('¡Hola!')
-                ->line('Recibiste este correo porque se solicitó un restablecimiento de contraseña para tu cuenta en '.config('app.name', 'Valolabs POS').'.')
+                ->line('Recibiste este correo porque se solicitó un restablecimiento de contraseña para tu cuenta en '.config('app.name', 'Valolabs ERP').'.')
                 ->action('Restablecer contraseña', $url)
                 ->line('Este enlace de recuperación caducará en '.(config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60)).' minutos.')
                 ->line('Si no realizaste esta solicitud, puedes ignorar este mensaje de forma segura.');

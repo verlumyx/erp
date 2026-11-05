@@ -50,7 +50,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
 
     return (
         <>
-            <Head title="Restablecer contraseña — ValolabsPOS">
+            <Head title="Restablecer contraseña — Valolabs ERP">
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 

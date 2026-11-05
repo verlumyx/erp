@@ -16,7 +16,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     return (
         <>
-            <Head title="Iniciar sesión — ValolabsPOS">
+            <Head title="Iniciar sesión — Valolabs ERP">
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 
@@ -223,7 +223,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <div className="mt-6 text-center text-xs text-slate-500 dark:text-zinc-500">
                             ¿Problemas para entrar?{' '}
                             <a
-                                href="mailto:soporte@valolabspos.com"
+                                href="mailto:hola@valolabs.site"
                                 className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
                             >
                                 Escríbenos
