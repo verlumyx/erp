@@ -39,54 +39,6 @@ This project has domain-specific skills available. You MUST activate the relevan
 - `inertia-react-development` — Develops Inertia.js v2 React client-side applications. Activates when creating React pages, forms, or navigation; using &lt;Link&gt;, &lt;Form&gt;, useForm, or router; working with deferred props, prefetching, or polling; or when user mentions React with Inertia, React pages, React forms, or React navigation.
 - `tailwindcss-development` — Styles applications using Tailwind CSS v4 utilities. Activates when adding styles, restyling components, working with gradients, spacing, layout, flex, grid, responsive design, dark mode, colors, typography, or borders; or when the user mentions CSS, styling, classes, Tailwind, restyle, hero section, cards, buttons, or any visual/UI changes.
 
-- `laravel-modular-architecture` — Activates when creating a new module, defining layer structure, naming conventions, dependency rules, domain entities, use cases, repositories, controllers, migrations, seeders, or writing architecture-specific tests.
-- `laravel-module-controllers` — Activates when creating or modifying GetController, PostController, PutController, or UpdateStatusController inside any module's Controllers/ folder.
-- `laravel-module-requests` — Activates when creating or modifying Create, Update, or UpdateStatus Request classes inside any module's Requests/ folder.
-- `laravel-module-resources` — Activates when creating or modifying Resource classes inside any module's Resources/ folder.
-- `laravel-module-services` — Activates when creating or modifying CreateService, UpdateService, UpdateStatusService, FindService, or SearchService inside any module's Services/ folder.
-- `laravel-module-repositories` — Activates when creating or modifying Repository or RepositoryInterface classes inside any module's Repositories/ folder.
-- `laravel-module-commands` — Activates when creating or modifying Command DTOs (Create, Update, UpdateStatus, Search) inside any module's Commands/ folder.
-- `laravel-module-models` — Activates when creating or modifying Eloquent Model classes inside any module's Models/ folder. All models use UUID v7 as primary key.
-- `laravel-module-exceptions` — Activates when creating or modifying Exception classes inside any module's Exceptions/ folder.
-- `laravel-module-sequential-code` — Activates when adding an auto-generated human-readable code (e.g. CLI000001): a module-prefixed, zero-padded sequential identifier that is generated on the backend and unique per company.
-- `laravel-module-currency` — Activates whenever a module holds amounts: adding a currency, exchange_rate, total or price column, resolving a rate, converting a listed price, or showing an amount in two currencies.
-- `react-modular-frontend` — Activates when creating React pages, components, hooks, Context providers, or adding permissions for a new module.
-- `no-delete-policy` — Activates whenever implementing delete functionality. Records are NEVER physically deleted.
-
-## Component Creation
-
-When asked to create a React/TypeScript component, follow these rules:
-
-### 1. Check Before Creating
-- **ALWAYS** search for an existing component before creating a new one.
-- Check `resources/js/components/ui/` for shared UI primitives (shadcn/ui).
-- Check `resources/js/pages/[module]/components/` for module-specific components.
-
-### 2. Decide Where the Component Lives
-- **Module-specific** (used only within one module): `resources/js/pages/[module]/components/[Module][Name].tsx`
-- **Global/shared** (used across multiple modules): `resources/js/components/[Name].tsx`
-- **UI primitives** (buttons, inputs, etc.): use existing shadcn/ui components from `resources/js/components/ui/` — do NOT recreate them.
-
-### 3. Use the Context API Pattern for Forms
-- Form components inside a module **must not receive props directly** — they consume the `[Module]FormContext` via `use[Module]FormContext()`.
-- The hook is instantiated in the page (`create.tsx` / `edit.tsx`) and passed to the `[Module]FormProvider`.
-- Activate `react-modular-frontend` skill for the full Context API pattern.
-
-### 4. TypeScript
-- All components must be typed. Define interfaces in `resources/js/pages/[module]/types/[Module].ts` or `resources/js/types/` for shared types.
-- Props interfaces go at the top of the file.
-
-### 5. Styling
-- Use Tailwind CSS utility classes.
-- Use shadcn/ui components as building blocks (`Button`, `Input`, `Card`, `Label`, etc.).
-- Follow the existing visual style of sibling components.
-
-### 6. No Delete Buttons
-- Never add a delete/remove button to a component. Use deactivation instead. Activate `no-delete-policy` skill.
-
-### 7. Routes in Components
-- Use the `route()` helper for named routes or Wayfinder imports. Activate `wayfinder-development` skill.
-
 ## Conventions
 
 - You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, and naming.
@@ -158,6 +110,7 @@ When asked to create a React/TypeScript component, follow these rules:
 
 # PHP
 
+- Always use strict typing at the head of a `.php` file: `declare(strict_types=1);`.
 - Always use curly braces for control structures, even for single-line bodies.
 
 ## Constructors
