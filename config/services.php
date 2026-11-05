@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'demo' => [
+        'notification_emails' => env('DEMO_NOTIFICATION_EMAILS', 'ggomez@valolabs.site,hola@valolabs.site'),
+    ],
+
 ];

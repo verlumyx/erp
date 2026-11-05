@@ -57,6 +57,9 @@ MAIL_PASSWORD=re_tu_api_key_de_resend_aqui
 RESEND_API_KEY=re_tu_api_key_de_resend_aqui
 MAIL_FROM_ADDRESS="no_replay@valolabs.site"
 MAIL_FROM_NAME="${APP_NAME}"
+
+# Destinatarios de notificaciones al solicitar acceso a la Demo (separados por coma)
+DEMO_NOTIFICATION_EMAILS="ggomez@valolabs.site,hola@valolabs.site"
 ```
 
 > [!IMPORTANT]
