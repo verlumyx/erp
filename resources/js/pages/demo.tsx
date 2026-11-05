@@ -67,7 +67,7 @@ export default function DemoPage() {
 
     return (
         <>
-            <Head title="Solicitar Demo — Sistema de Inventario & POS Valolabs" />
+            <Head title="Solicitar Demo — Valolabs ERP & Sistema de Inventario" />
 
             <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-zinc-950 dark:text-zinc-100">
                 {/* AMBIENT BACKGROUND GLOW */}
@@ -144,7 +144,7 @@ export default function DemoPage() {
                                     </h1>
 
                                     <p className="mt-5 text-base text-slate-600 sm:text-lg dark:text-zinc-300">
-                                        Valolabs POS conecta tus almacenes con el punto de venta. Dile adiós a los faltantes misteriosos, errores en caja y ventas sin existencias físicas.
+                                        Valolabs ERP conecta tus almacenes con el punto de venta y operaciones. Dile adiós a los faltantes misteriosos, errores en caja y ventas sin existencias físicas.
                                     </p>
 
                                     {/* Bullet points */}
@@ -232,7 +232,7 @@ export default function DemoPage() {
                                                 </h3>
                                                 <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
                                                     {flash?.success ??
-                                                        'Gracias por tu interés en Valolabs POS. Un especialista se comunicará contigo vía WhatsApp o correo electrónico para coordinar tu acceso a la demo interactiva.'}
+                                                        'Gracias por tu interés en Valolabs ERP. Un especialista se comunicará contigo vía WhatsApp o correo electrónico para coordinar tu acceso a la demo interactiva.'}
                                                 </p>
                                                 <div className="mt-6 flex flex-col gap-2">
                                                     <button
@@ -541,7 +541,7 @@ export default function DemoPage() {
                                     Flujo Operativo
                                 </span>
                                 <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white">
-                                    Cómo viaja la mercancía en Valolabs POS
+                                    Cómo viaja la mercancía en Valolabs ERP
                                 </h2>
                                 <p className="mt-4 text-base text-slate-600 dark:text-zinc-400">
                                     Un ciclo limpio que garantiza que nada entre ni salga de tu empresa sin registro previo.
@@ -625,7 +625,7 @@ export default function DemoPage() {
                                         ¿Funciona en la nube o en servidor local?
                                     </h4>
                                     <p className="mt-2 text-sm text-slate-600 dark:text-zinc-400">
-                                        Valolabs POS funciona 100% en la nube (accesible desde cualquier laptop, tablet o celular) o mediante instalación en servidor local para empresas con redes internas dedicadas.
+                                        Valolabs ERP funciona 100% en la nube (accesible desde cualquier laptop, tablet o celular) o mediante instalación en servidor local para empresas con redes internas dedicadas.
                                     </p>
                                 </div>
                             </div>
@@ -636,7 +636,7 @@ export default function DemoPage() {
                     <section className="relative overflow-hidden bg-indigo-600 py-16 text-white dark:bg-indigo-700">
                         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
                             <h2 className="text-3xl font-extrabold sm:text-4xl">
-                                ¿Listo para ver Valolabs POS en acción?
+                                ¿Listo para ver Valolabs ERP en acción?
                             </h2>
                             <p className="mx-auto mt-4 max-w-2xl text-base text-indigo-100 sm:text-lg">
                                 Solicita tu acceso hoy y descubre cómo simplificar tus conteos, evitar pérdidas de mercancía y acelerar tus ventas.
@@ -660,14 +660,14 @@ export default function DemoPage() {
                             <StreamCrmLogo simple />
                         </div>
                         <p className="text-xs text-slate-500 dark:text-zinc-500">
-                            © {new Date().getFullYear()} Valolabs POS. Todos los derechos reservados.
+                            © {new Date().getFullYear()} Valolabs ERP. Todos los derechos reservados.
                         </p>
                         <div className="flex items-center gap-4 text-xs font-semibold text-slate-600 dark:text-zinc-400">
                             <Link href={login()} className="hover:text-indigo-600 dark:hover:text-indigo-400">
                                 Iniciar sesión
                             </Link>
                             <span className="text-slate-300 dark:text-zinc-700">•</span>
-                            <a href="mailto:soporte@valolabspos.com" className="hover:text-indigo-600 dark:hover:text-indigo-400">
+                            <a href="mailto:hola@valolabs.site" className="hover:text-indigo-600 dark:hover:text-indigo-400">
                                 Soporte
                             </a>
                         </div>
