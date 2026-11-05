@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useState } from 'react';
 import AuthenticatedSessionController from '@/actions/Laravel/Fortify/Http/Controllers/AuthenticatedSessionController';
 import StreamCrmLogo from '@/components/streamcrm-logo';
@@ -19,104 +20,66 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                 <link rel="stylesheet" href="/css/site.css" />
             </Head>
 
-            <div className="auth">
-                {/* BRAND PANEL */}
-                <aside className="auth-brand">
-                    <Link className="logo" href={home()}>
-                        <StreamCrmLogo />
-                    </Link>
-                    <div className="auth-brand-body">
-                        <h2>Tu sistema de facturación y POS, bajo control.</h2>
-                        <p>
-                            Ventas, inventario, caja y facturación — todo en
-                            un panel. Entra y gestiona tu negocio con orden.
-                        </p>
-                        <div className="auth-mini">
-                            <div className="m">
-                                <div className="mv">100%</div>
-                                <div className="ml">Control de caja</div>
-                            </div>
-                            <div className="m">
-                                <div className="mv">POS</div>
-                                <div className="ml">Punto de venta</div>
-                            </div>
-                            <div className="m">
-                                <div className="mv">Multi</div>
-                                <div className="ml">Moneda (USD/VES)</div>
-                            </div>
-                        </div>
-                        <div className="auth-quote">
-                            “Control total de ventas, cobros multimoneda y
-                            facturación rápida en cada turno de caja.”
-                            <span>— Sistema de Facturación & POS</span>
-                        </div>
-                    </div>
-                </aside>
+            <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-slate-50/70 p-4 sm:p-6 lg:p-8 dark:bg-zinc-950">
+                {/* Minimalist ambient background glow */}
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 -z-10 flex items-center justify-center overflow-hidden"
+                >
+                    <div className="h-[520px] w-[520px] rounded-full bg-gradient-to-tr from-indigo-500/10 via-sky-400/10 to-transparent blur-3xl dark:from-indigo-600/15 dark:via-blue-500/10" />
+                </div>
 
-                {/* FORM */}
-                <main className="auth-main">
-                    <div className="auth-top">
-                        <Link className="logo" href={home()}>
-                            <StreamCrmLogo simple />
-                        </Link>
-                        <span className="alt">
-                            ¿Necesitas una cuenta?{' '}
-                            <a href="mailto:soporte@valolabspos.com">
-                                Contáctanos
-                            </a>
-                        </span>
-                    </div>
-
-                    <div className="auth-card">
-                        <h1>Bienvenido de vuelta.</h1>
-                        <p className="sub">
-                            Ingresa tus datos para entrar a tu panel.
-                        </p>
-
-                        {status && (
-                            <div
-                                className="strength-txt"
-                                style={{ color: 'var(--ok)', marginTop: 16 }}
+                <div className="w-full max-w-[420px]">
+                    {/* Card container */}
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-7 shadow-sm sm:p-9 dark:border-zinc-800 dark:bg-zinc-900">
+                        {/* Brand Logo */}
+                        <div className="mb-6 flex justify-center">
+                            <Link
+                                className="logo inline-flex items-center gap-2.5 text-slate-900 transition-opacity hover:opacity-90 dark:text-white"
+                                href={home()}
                             >
+                                <StreamCrmLogo />
+                            </Link>
+                        </div>
+
+                        {/* Title and subtitle */}
+                        <div className="mb-7 space-y-1.5 text-center">
+                            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+                                Bienvenido de vuelta
+                            </h1>
+                            <p className="text-sm text-slate-500 dark:text-zinc-400">
+                                Ingresa tus datos para entrar a tu panel
+                            </p>
+                        </div>
+
+                        {/* Status notification */}
+                        {status && (
+                            <div className="mb-6 rounded-xl border border-emerald-200/80 bg-emerald-50/80 p-3.5 text-center text-sm font-medium text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300">
                                 {status}
                             </div>
                         )}
 
+                        {/* Login form */}
                         <Form
                             action={AuthenticatedSessionController.store.url()}
                             method="post"
                             resetOnSuccess={['password']}
-                            className="form"
+                            className="space-y-4 sm:space-y-5"
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    <div
-                                        className={
-                                            errors.email ? 'fld invalid' : 'fld'
-                                        }
-                                    >
-                                        <label htmlFor="email">
+                                    {/* Email */}
+                                    <div className="space-y-1.5">
+                                        <label
+                                            htmlFor="email"
+                                            className="block text-xs font-semibold tracking-wider text-slate-600 uppercase dark:text-zinc-400"
+                                        >
                                             Correo electrónico
                                         </label>
-                                        <div className="ctrl">
-                                            <svg
-                                                className="lead"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="1.8"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <rect
-                                                    x="2.5"
-                                                    y="4.5"
-                                                    width="19"
-                                                    height="15"
-                                                    rx="2.5"
-                                                />
-                                                <path d="m3 7 9 6 9-6" />
-                                            </svg>
+                                        <div className="relative">
+                                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 dark:text-zinc-500">
+                                                <Mail className="size-4" />
+                                            </div>
                                             <input
                                                 id="email"
                                                 type="email"
@@ -125,53 +88,42 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                                 autoComplete="email"
                                                 autoFocus
                                                 required
+                                                className={`h-11 w-full rounded-xl border bg-slate-50/50 pr-3.5 pl-10 text-sm text-slate-900 transition-colors placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:bg-zinc-800/60 dark:text-white dark:placeholder:text-zinc-500 dark:focus:bg-zinc-800 ${
+                                                    errors.email
+                                                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500'
+                                                        : 'border-slate-200 focus:border-indigo-600 dark:border-zinc-700 dark:focus:border-indigo-500'
+                                                }`}
                                             />
                                         </div>
-                                        <span className="err">
-                                            {errors.email ??
-                                                'Ingresa un correo válido'}
-                                        </span>
+                                        {errors.email && (
+                                            <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                                                {errors.email}
+                                            </p>
+                                        )}
                                     </div>
 
-                                    <div
-                                        className={
-                                            errors.password
-                                                ? 'fld invalid'
-                                                : 'fld'
-                                        }
-                                    >
-                                        <div className="row-between">
-                                            <label htmlFor="password">
+                                    {/* Password */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <label
+                                                htmlFor="password"
+                                                className="block text-xs font-semibold tracking-wider text-slate-600 uppercase dark:text-zinc-400"
+                                            >
                                                 Contraseña
                                             </label>
                                             {canResetPassword && (
                                                 <Link
-                                                    className="link"
+                                                    className="text-xs font-semibold text-indigo-600 transition-colors hover:text-indigo-500 hover:underline dark:text-indigo-400"
                                                     href={request()}
                                                 >
                                                     ¿Olvidaste tu contraseña?
                                                 </Link>
                                             )}
                                         </div>
-                                        <div className="ctrl">
-                                            <svg
-                                                className="lead"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="1.8"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
-                                                <rect
-                                                    x="4"
-                                                    y="10"
-                                                    width="16"
-                                                    height="11"
-                                                    rx="2.5"
-                                                />
-                                                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-                                            </svg>
+                                        <div className="relative">
+                                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400 dark:text-zinc-500">
+                                                <Lock className="size-4" />
+                                            </div>
                                             <input
                                                 id="password"
                                                 type={
@@ -183,90 +135,102 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                                 placeholder="••••••••"
                                                 autoComplete="current-password"
                                                 required
+                                                className={`h-11 w-full rounded-xl border bg-slate-50/50 pr-10 pl-10 text-sm text-slate-900 transition-colors placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:bg-zinc-800/60 dark:text-white dark:placeholder:text-zinc-500 dark:focus:bg-zinc-800 ${
+                                                    errors.password
+                                                        ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500'
+                                                        : 'border-slate-200 focus:border-indigo-600 dark:border-zinc-700 dark:focus:border-indigo-500'
+                                                }`}
                                             />
                                             <button
                                                 type="button"
-                                                className="toggle"
-                                                aria-label="Mostrar contraseña"
+                                                aria-label={
+                                                    showPassword
+                                                        ? 'Ocultar contraseña'
+                                                        : 'Mostrar contraseña'
+                                                }
                                                 onClick={() =>
                                                     setShowPassword((v) => !v)
                                                 }
+                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition-colors hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                                             >
                                                 {showPassword ? (
-                                                    <svg
-                                                        viewBox="0 0 24 24"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        strokeWidth="1.8"
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                    >
-                                                        <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" />
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="3"
-                                                        />
-                                                        <path d="m3 3 18 18" />
-                                                    </svg>
+                                                    <EyeOff className="size-4.5" />
                                                 ) : (
-                                                    <svg
-                                                        viewBox="0 0 24 24"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        strokeWidth="1.8"
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                    >
-                                                        <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" />
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="3"
-                                                        />
-                                                    </svg>
+                                                    <Eye className="size-4.5" />
                                                 )}
                                             </button>
                                         </div>
-                                        <span className="err">
-                                            {errors.password ??
-                                                'Ingresa tu contraseña'}
-                                        </span>
+                                        {errors.password && (
+                                            <p className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                                                {errors.password}
+                                            </p>
+                                        )}
                                     </div>
 
-                                    <div className="row-between">
-                                        <label className="check">
+                                    {/* Remember Me */}
+                                    <div className="flex items-center pt-0.5">
+                                        <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600 select-none dark:text-zinc-400">
                                             <input
                                                 type="checkbox"
                                                 name="remember"
-                                            />{' '}
-                                            Mantener sesión iniciada
+                                                className="size-4 rounded border-slate-300 text-indigo-600 accent-indigo-600 focus:ring-indigo-500/20 dark:border-zinc-700"
+                                            />
+                                            <span>
+                                                Mantener sesión iniciada
+                                            </span>
                                         </label>
                                     </div>
 
+                                    {/* Submit button */}
                                     <button
                                         type="submit"
-                                        className="btn btn-brand btn-block btn-lg"
                                         disabled={processing}
                                         data-test="login-button"
+                                        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 hover:shadow active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60 dark:bg-indigo-600 dark:hover:bg-indigo-500"
                                     >
-                                        {processing && (
-                                            <span className="spin" />
+                                        {processing ? (
+                                            <>
+                                                <svg
+                                                    className="size-4 animate-spin text-white"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                >
+                                                    <circle
+                                                        className="opacity-25"
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        stroke="currentColor"
+                                                        strokeWidth="4"
+                                                    />
+                                                    <path
+                                                        className="opacity-75"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                                    />
+                                                </svg>
+                                                <span>Entrando…</span>
+                                            </>
+                                        ) : (
+                                            <span>Entrar a mi panel</span>
                                         )}
-                                        {processing
-                                            ? 'Entrando…'
-                                            : 'Entrar a mi panel'}
                                     </button>
                                 </>
                             )}
                         </Form>
 
-                        <p className="alt-foot">
+                        {/* Footnote */}
+                        <div className="mt-6 text-center text-xs text-slate-500 dark:text-zinc-500">
                             ¿Problemas para entrar?{' '}
-                            <a href="mailto:soporte@valolabspos.com">Escríbenos</a>
-                        </p>
+                            <a
+                                href="mailto:soporte@valolabspos.com"
+                                className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                            >
+                                Escríbenos
+                            </a>
+                        </div>
                     </div>
-                </main>
+                </div>
             </div>
         </>
     );
