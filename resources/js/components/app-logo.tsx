@@ -1,19 +1,19 @@
-import { Sparkles } from 'lucide-react';
-
 export default function AppLogo() {
     return (
         <>
-            <div
-                className="flex aspect-square size-8 items-center justify-center rounded-[11px] text-white shadow-[0_6px_16px_color-mix(in_srgb,var(--primary)_35%,transparent)]"
-                style={{
-                    background: 'linear-gradient(135deg, #5b54ec, #3f8bff)',
-                }}
-            >
-                <Sparkles className="size-4.5" />
+            <div className="flex aspect-square size-8 shrink-0 items-center justify-center">
+                <img
+                    src="/images/logo-1.png"
+                    alt="Valolabs"
+                    className="size-8 object-contain"
+                />
             </div>
             <div className="ml-1 grid flex-1 text-left">
                 <span className="truncate text-base leading-tight font-semibold tracking-tight text-sidebar-accent-foreground">
-                    Valolabs<b className="font-extrabold">POS</b>
+                    Valolabs
+                    <b className="font-extrabold text-indigo-600 dark:text-indigo-400">
+                        POS
+                    </b>
                 </span>
             </div>
         </>

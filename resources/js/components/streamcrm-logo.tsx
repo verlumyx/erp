@@ -1,33 +1,37 @@
+interface StreamCrmLogoProps {
+    simple?: boolean;
+    className?: string;
+    iconClassName?: string;
+    hideText?: boolean;
+}
+
 /**
- * StreamCRM brand lockup used across the public site (landing + auth).
- * `simple` renders only the primary spark glyph (used inside compact spots);
- * the default renders the spark + secondary sparkle as in the brand panel.
+ * Valolabs POS brand lockup used across auth and navigation.
+ * `simple` or `hideText` renders only the primary mark (used inside compact spots).
  */
 export default function StreamCrmLogo({
     simple = false,
-}: {
-    simple?: boolean;
-}) {
+    className = '',
+    iconClassName = 'h-9 w-auto',
+    hideText = false,
+}: StreamCrmLogoProps) {
+    const showText = !simple && !hideText;
+
     return (
-        <>
-            <span className="logo-mark">
-                <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                    <path d="M12 3l1.8 4.7L18.5 9l-4.7 1.3L12 15l-1.8-4.7L5.5 9l4.7-1.3L12 3Z" />
-                    {!simple && (
-                        <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
-                    )}
-                </svg>
-            </span>
-            <span className="logo-txt">
-                Valolabs<b>POS</b>
-            </span>
-        </>
+        <span className={`inline-flex items-center gap-2.5 ${className}`}>
+            <img
+                src="/images/logo-1.png"
+                alt="Valolabs"
+                className={`shrink-0 object-contain ${iconClassName}`}
+            />
+            {showText && (
+                <span className="logo-txt text-xl font-bold tracking-tight text-slate-900 select-none dark:text-white">
+                    Valolabs
+                    <b className="font-extrabold text-indigo-600 dark:text-indigo-400">
+                        POS
+                    </b>
+                </span>
+            )}
+        </span>
     );
 }
