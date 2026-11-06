@@ -28,9 +28,13 @@ Especificación técnica y funcional de los cuatro reportes esenciales para la p
 5. **Exclusión de anulados:** Los documentos y líneas con `status = 'cancelled'` o `status = 'inactive'` quedan
    estrictamente fuera de los cálculos de saldos, ingresos, costos y utilidades.
 6. **Triple canal de salida:** Cada reporte cuenta con:
-   - Vista interactiva en pantalla (Inertia React con ordenamiento por columna, búsqueda y paginación).
+   - Vista interactiva en pantalla (Inertia React con ordenamiento por columna, búsqueda, estructura jerárquica
+     maestro-detalle con filas desplegables mediante flechas interactivas y paginación en ambos niveles).
    - Exportación a hoja de cálculo (**Excel `.xlsx` / CSV**) para análisis financiero.
    - Exportación a documento imprimible (**PDF**) con membrete fiscal y resumen gerencial.
+7. **Carga bajo demanda (Estado inicial vacío):** Para optimizar la velocidad y evitar consultas pesadas
+   automáticas al navegar en el sistema, la pantalla de reporte carga inicialmente en estado vacío. El cálculo
+   y presentación de tarjetas KPI y tablas solo se dispara cuando el usuario presiona el botón «Consultar».
 
 ---
 
@@ -57,29 +61,39 @@ Es la herramienta central para:
 | **Cobros y abonos** | `app_client_collection_applications` | Pagos aplicados a cada factura para detalle de amortización |
 | **Vendedores / Rutas** | `users`, `app_routes` | Trazabilidad por ejecutivo y zona logística |
 
-### 2.3 Modos de visualización en V1
+### 2.3 Modos de visualización y estructura interactiva en V1
 
-El reporte ofrece dos vistas complementarias:
+En la interfaz interactiva (Inertia React), el reporte opera bajo un modelo **Jerárquico Maestro-Detalle con acordeón**:
 
-#### Vista A: Detalle por Documento (Factura a Factura)
-Lista una fila por cada factura de venta abierta. Permite al gestor de cobranza identificar exactamente qué factura está
-vencida, su correlativo fiscal, días de mora y abonos realizados.
+#### Vista Principal: Listado Maestro de Clientes Deudores con Facturas Desplegables
+Muestra un listado paginado exclusivamente de los **clientes con deuda pendiente** (`balance > 0`).
 
-#### Vista B: Resumen de Antigüedad de Saldos por Cliente (Aging)
-Agrupa la deuda total de cada cliente en tramos de envejecimiento en función de los días transcurridos desde su fecha de
-vencimiento:
-1. **Corriente / Por vencer:** Facturas cuya fecha de vencimiento es posterior o igual a la fecha de corte (`due_date >= as_of_date`).
-2. **1 a 30 días de vencido:** `1 <= (as_of_date - due_date) <= 30`.
-3. **31 a 60 días de vencido:** `31 <= (as_of_date - due_date) <= 60`.
-4. **61 a 90 días de vencido:** `61 <= (as_of_date - due_date) <= 90`.
-5. **Más de 90 días de vencido:** `(as_of_date - due_date) > 90`.
+1. **Fila del Cliente (Nivel Maestro):**
+   - **Flecha de despliegue interactiva (`Chevron`):** Ubicada a la izquierda del nombre del cliente, permite expandir y contraer su detalle de facturas.
+   - **Datos de identificación y solvencia:** RIF/Cédula, Razón Social y Límite de Crédito.
+   - **Columnas de Antigüedad de Saldos (*Aging*):** Agrupa la deuda en los tramos de vencimiento:
+     - **Corriente / Por vencer:** Facturas cuya fecha de vencimiento es posterior o igual a la fecha de corte (`due_date >= as_of_date`).
+     - **1 a 30 días de vencido:** `1 <= (as_of_date - due_date) <= 30`.
+     - **31 a 60 días de vencido:** `31 <= (as_of_date - due_date) <= 60`.
+     - **61 a 90 días de vencido:** `61 <= (as_of_date - due_date) <= 90`.
+     - **Más de 90 días de vencido:** `(as_of_date - due_date) > 90`.
+   - **Deducciones y Deuda Neta:** Total Deuda Bruta, (-) Anticipos Disponibles, (-) Notas de Crédito y Deuda Neta Total.
+
+2. **Panel Expandido: Subtabla de Facturas Pendientes (Nivel Detalle):**
+   - Al pulsar la flecha desplegable a la izquierda del nombre, se abre una fila contenedora debajo del cliente que renderiza una **subtabla dedicada con todas sus facturas de venta pendientes**.
+   - **Paginación interna independiente:** Dentro de este bloque desplegado reside la tabla con sus propios controles de paginación (ej. 5 o 10 facturas por página), permitiendo auditar con agilidad clientes que acumulen decenas de facturas sin desbordar la tabla principal ni alterar la posición del resto de los clientes.
+   - Cada fila de factura detalla: N° control, N° factura fiscal, fechas de emisión y vencimiento, días de crédito y mora, moneda original, importe total, abonado, saldo pendiente (original, base USD y VES), y estado de pago.
+
+> **Modos de salida y exportación:**
+> - En pantalla interactiva, la vista maestro-detalle desplegable es la predeterminada.
+> - En exportación a Excel y PDF se permite generar el formato consolidado por cliente (*Aging*) o el reporte desglosado con agrupación jerárquica cliente-facturas.
 
 ### 2.4 Filtros y parámetros de entrada
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `as_of_date` | `date` | Sí | Fecha de corte (por defecto, fecha actual del sistema). |
-| `view_mode` | `enum` | Sí | `summary` (Antigüedad por cliente) o `detail` (Detallado por documento). |
+| `view_mode` | `enum` | No | `master_detail` (Clientes con facturas desplegables, predeterminado en pantalla), `summary` (Solo clientes/aging) o `detail` (Detallado plano de facturas). |
 | `client_id` | `uuid` | No | Filtro por cliente específico (con selector remoto `Select2Ajax`). |
 | `salesperson_id` | `uuid` | No | Filtro por vendedor asignado al cliente o a la factura. |
 | `route_id` | `uuid` | No | Filtro por ruta / zona de despacho. |
@@ -105,34 +119,37 @@ vencimiento:
 
 ### 2.6 Columnas del reporte
 
-#### Columnas — Vista Detallada (por documento)
-1. **Cliente:** Código (`CLI`), RIF/Cédula y Razón Social.
-2. **N° Control / Código:** Código interno (`FVE000001`) y N° Factura fiscal (`invoice_series` - `invoice_number`).
+#### Tabla Principal — Nivel Maestro (Clientes con Deuda)
+1. **Control de Despliegue:** Flecha interactiva a la izquierda del nombre (`Chevron`) para expandir/contraer las facturas pendientes.
+2. **Código y RIF/Cédula:** Código interno (`CLI`) y documento de identificación fiscal.
+3. **Cliente / Razón Social:** Nombre comercial o denominación legal.
+4. **Límite de Crédito:** Cupo asignado y porcentaje de utilización.
+5. **Corriente (Por vencer):** Saldo de facturas no vencidas a la fecha de corte.
+6. **1 a 30 días:** Saldo de facturas vencidas en este intervalo.
+7. **31 a 60 días:** Saldo de facturas vencidas en este intervalo.
+8. **61 a 90 días:** Saldo de facturas vencidas en este intervalo.
+9. **+90 días:** Saldo de facturas con más de 90 días de retraso.
+10. **Total Deuda Bruta:** Suma de todas las facturas pendientes.
+11. **(-) Anticipos Disponibles:** Saldo de anticipos no aplicados (`app_client_advances`).
+12. **(-) Notas de Crédito Disponibles:** Saldo a favor por notas de crédito pendientes (`app_sales_credit_notes`).
+13. **Deuda Neta Total:** Monto real a cobrar en Moneda Base (`USD`) y en `VES`.
+
+#### Subtabla Desplegable — Nivel Detalle (Facturas Pendientes del Cliente)
+*Se despliega al hacer clic en la flecha izquierda del cliente. Cuenta con su propia barra de paginación interna:*
+1. **N° Control / Código:** Código interno ERP (`FVE000001`).
+2. **N° Factura Fiscal:** Serie y correlativo fiscal (`invoice_series` - `invoice_number`).
 3. **Fecha de Emisión:** `invoice_date`.
 4. **Fecha de Vencimiento:** `due_date`.
-5. **Días de Crédito:** Días de plazo pactados (`payment_term_days`).
+5. **Días de Crédito:** Plazo pactado (`payment_term_days`).
 6. **Días Vencidos / Por Vencer:** Diferencia contra la fecha de corte (en rojo si $> 0$).
 7. **Vendedor / Ruta:** Vendedor asignado y ruta comercial.
 8. **Moneda Original:** Moneda del documento (`USD`, `VES`, `EUR`).
 9. **Importe Total:** `total` en moneda original.
-10. **Abonado / Pagado:** `paid_amount`.
+10. **Abonado / Pagado:** `paid_amount` acumulado.
 11. **Saldo Pendiente:** `balance` en moneda original.
-12. **Saldo en Moneda Base (`USD`):** Contravalor calculado a la tasa respectiva.
+12. **Saldo en Moneda Base (`USD`):** Contravalor calculado a la tasa oficial.
 13. **Saldo en Bolívares (`VES`):** Contravalor a la tasa oficial del día de corte.
-14. **Estado de Pago:** `pending`, `partial`, `overdue`.
-
-#### Columnas — Vista Resumen (Antigüedad de saldos)
-1. **Código y Cliente:** RIF y Nombre del cliente.
-2. **Límite de Crédito:** Cupo asignado.
-3. **Corriente (Por vencer):** Saldo de facturas no vencidas.
-4. **1 a 30 días:** Saldo de facturas vencidas en este intervalo.
-5. **31 a 60 días:** Saldo de facturas vencidas en este intervalo.
-6. **61 a 90 días:** Saldo de facturas vencidas en este intervalo.
-7. **+90 días:** Saldo de facturas con más de 90 días de retraso.
-8. **Total Deuda Bruta:** Suma de todos los tramos de facturas.
-9. **(-) Anticipos Disponibles:** Saldo de anticipos no aplicados.
-10. **(-) Notas de Crédito Disponibles:** Saldo a favor por devoluciones o notas de crédito abiertas.
-11. **Deuda Neta Total:** Monto real a cobrar en Moneda Base y en `VES`.
+14. **Estado de Pago:** Badge (`pending`, `partial`, `overdue`).
 
 ---
 
@@ -158,26 +175,39 @@ Permite a la gerencia de administración y finanzas:
 | **Notas de crédito** | `app_purchase_credit_notes` (`NCP`) | `status = 'confirmed'`, `balance > 0` (descuentos o devoluciones a favor de la empresa) |
 | **Pagos realizados** | `app_supplier_payment_applications` | Detalle de pagos y retenciones aplicadas |
 
-### 3.3 Modos de visualización en V1
+### 3.3 Modos de visualización y estructura interactiva en V1
 
-#### Vista A: Detalle por Factura de Proveedor
-Permite revisar cada factura emitida por el proveedor (`supplier_invoice_number`), su fecha de recepción física en
-almacén, fecha de emisión, fecha de vencimiento, retenciones aplicadas y saldo pendiente.
+En la interfaz interactiva (Inertia React), el reporte de Cuentas por Pagar aplica el mismo patrón **Jerárquico Maestro-Detalle con acordeón**:
 
-#### Vista B: Resumen de Antigüedad de Deuda por Proveedor (Aging de Pasivos)
-Consolida la deuda por proveedor clasificada en columnas de vencimiento:
-1. **Por vencer / Corriente:** `due_date >= as_of_date`.
-2. **1 a 30 días vencido:** `1 <= (as_of_date - due_date) <= 30`.
-3. **31 a 60 días vencido:** `31 <= (as_of_date - due_date) <= 60`.
-4. **61 a 90 días vencido:** `61 <= (as_of_date - due_date) <= 90`.
-5. **Más de 90 días vencido:** `(as_of_date - due_date) > 90`.
+#### Vista Principal: Listado Maestro de Proveedores con Deuda y Facturas Desplegables
+Muestra un listado paginado exclusivamente de los **proveedores a quienes la empresa adeuda dinero** (`balance > 0`).
+
+1. **Fila del Proveedor (Nivel Maestro):**
+   - **Flecha de despliegue interactiva (`Chevron`):** Situada al lado izquierdo del nombre del proveedor, despliega y repliega sus facturas de compra pendientes.
+   - **Identificación y tipo:** RIF, Razón Social y clasificación comercial (`app_supplier_types`).
+   - **Columnas de Antigüedad de Deuda (*Aging de Pasivos*):** Distribución de saldos según vencimiento:
+     - **Por vencer / Corriente:** `due_date >= as_of_date`.
+     - **1 a 30 días vencido:** `1 <= (as_of_date - due_date) <= 30`.
+     - **31 a 60 días vencido:** `31 <= (as_of_date - due_date) <= 60`.
+     - **61 a 90 días vencido:** `61 <= (as_of_date - due_date) <= 90`.
+     - **Más de 90 días vencido:** `(as_of_date - due_date) > 90`.
+   - **Deducciones y Pasivo Neto:** Total Pasivo Bruto, (-) Anticipos Entregados, (-) Notas de Crédito y Total Neto a Pagar.
+
+2. **Panel Expandido: Subtabla de Facturas Pendientes (Nivel Detalle):**
+   - Al hacer clic sobre la flecha a la izquierda del nombre del proveedor, se abre una subtabla con las **facturas de compra pendientes** (`FCO`) correspondientes a ese proveedor.
+   - **Paginación interna independiente:** La subtabla de facturas cuenta con controles de paginación propios adentro del contenedor desplegado (ej. 5 o 10 facturas por página), garantizando una experiencia de usuario fluida y ordenada al consultar proveedores con histórico extenso de compras sin alterar el scroll ni la paginación de la tabla principal de proveedores.
+   - Detalla la factura física del proveedor, código ERP, fechas de emisión, recepción y vencimiento, días restantes/mora, retenciones fiscales, abonos, saldos en moneda original, USD y VES, y estado de pago.
+
+> **Modos de salida y exportación:**
+> - En pantalla interactiva, la vista maestro-detalle desplegable es la predeterminada.
+> - En exportación a Excel y PDF se proveen formatos de resumen por proveedor y listados tabulares completos con facturas agrupadas por proveedor.
 
 ### 3.4 Filtros y parámetros de entrada
 
 | Parámetro | Tipo | Obligatorio | Descripción |
 |---|---|---|---|
 | `as_of_date` | `date` | Sí | Fecha de corte del reporte. |
-| `view_mode` | `enum` | Sí | `summary` (Resumen por proveedor) o `detail` (Detallado por documento). |
+| `view_mode` | `enum` | No | `master_detail` (Proveedores con facturas desplegables, predeterminado en pantalla), `summary` (Solo proveedores/aging) o `detail` (Detallado plano de facturas de compra). |
 | `supplier_id` | `uuid` | No | Filtro por proveedor específico (`Select2Ajax`). |
 | `supplier_type_id` | `uuid` | No | Filtro por tipo o categoría de proveedor. |
 | `payment_status` | `enum` | No | `all`, `overdue`, `pending`, `partial`. |
@@ -202,35 +232,37 @@ Consolida la deuda por proveedor clasificada en columnas de vencimiento:
 
 ### 3.6 Columnas del reporte
 
-#### Columnas — Vista Detallada (por documento)
-1. **Proveedor:** Código (`PRO`), RIF y Razón Social.
-2. **N° Factura Proveedor:** Serie y correlativo impreso en el documento del proveedor (`supplier_invoice_series` - `supplier_invoice_number`).
-3. **Código Interno:** Código ERP (`FCO000001`).
-4. **Fecha Emisión:** `invoice_date`.
-5. **Fecha Recepción:** `received_date` (momento en que llegó a la empresa).
-6. **Fecha Vencimiento:** `due_date`.
-7. **Días de Vencimiento:** Días restantes para vencer o días en mora.
-8. **Moneda:** Moneda del documento.
-9. **Total Factura:** Total facturado por el proveedor.
-10. **Retenciones:** `withholding_amount` (IVA / ISLR retenido).
-11. **Total Abonado:** Pagos aplicados.
-12. **Saldo Pendiente:** Saldo en moneda original.
-13. **Saldo en Moneda Base (`USD`):** Reexpresión en moneda de control.
-14. **Saldo en Bolívares (`VES`):** Reexpresión en moneda de curso legal.
-15. **Estado:** `pending`, `partial`, `overdue`.
+#### Tabla Principal — Nivel Maestro (Proveedores con Deuda)
+1. **Control de Despliegue:** Flecha interactiva a la izquierda del nombre (`Chevron`) para desplegar/contraer la subtabla de facturas.
+2. **Código y RIF:** Identificador (`PRO`) y RIF fiscal del proveedor.
+3. **Proveedor / Razón Social:** Nombre comercial o denominación legal.
+4. **Tipo de Proveedor:** Clasificación (`app_supplier_types.name`).
+5. **Corriente (Por vencer):** Pasivos no vencidos a la fecha de corte.
+6. **1 a 30 días:** Deuda vencida en el primer rango.
+7. **31 a 60 días:** Deuda vencida en el segundo rango.
+8. **61 a 90 días:** Deuda vencida en el tercer rango.
+9. **+90 días:** Deuda con mora superior a tres meses.
+10. **Total Pasivo Bruto:** Suma de todas las facturas de compra pendientes.
+11. **(-) Anticipos Entregados:** Saldo a favor por anticipos pendientes de amortizar (`app_supplier_advances`).
+12. **(-) Notas de Crédito:** Saldo a favor por notas de crédito pendientes de cobro o cruce (`app_purchase_credit_notes`).
+13. **Total Neto a Pagar:** Saldo real adeudado en Moneda Base (`USD`) y en `VES`.
 
-#### Columnas — Vista Resumen (Antigüedad de deuda)
-1. **Proveedor:** RIF y Nombre del proveedor.
-2. **Tipo de Proveedor:** Clasificación (`app_supplier_types.name`).
-3. **Corriente (Por vencer):** Pasivos no vencidos a la fecha de corte.
-4. **1 a 30 días:** Deuda vencida en el primer rango.
-5. **31 a 60 días:** Deuda vencida en el segundo rango.
-6. **61 a 90 días:** Deuda vencida en el tercer rango.
-7. **+90 días:** Deuda con mora superior a tres meses.
-8. **Total Pasivo Bruto:** Suma de facturas pendientes.
-9. **(-) Anticipos Entregados:** Saldo a favor por anticipos pendientes de amortizar.
-10. **(-) Notas de Crédito:** Saldo a favor por notas de crédito pendientes de cobro/cruce.
-11. **Total Neto a Pagar:** Saldo real adeudado en Moneda Base y en `VES`.
+#### Subtabla Desplegable — Nivel Detalle (Facturas Pendientes del Proveedor)
+*Se despliega al hacer clic en la flecha izquierda del proveedor. Cuenta con su propia barra de paginación interna:*
+1. **N° Factura Proveedor:** Serie y correlativo impreso en la factura física (`supplier_invoice_series` - `supplier_invoice_number`).
+2. **Código Interno:** Código ERP (`FCO000001`).
+3. **Fecha Emisión:** `invoice_date`.
+4. **Fecha Recepción:** `received_date` (momento de entrada física al almacén).
+5. **Fecha Vencimiento:** `due_date`.
+6. **Días de Vencimiento / Mora:** Días restantes para vencer o días transcurridos en mora.
+7. **Moneda:** Moneda original del documento (`USD`, `VES`, etc.).
+8. **Total Factura:** Total facturado por el proveedor.
+9. **Retenciones:** `withholding_amount` (IVA / ISLR retenido en origen).
+10. **Total Abonado:** Pagos aplicados a la factura.
+11. **Saldo Pendiente:** Saldo en moneda original.
+12. **Saldo en Moneda Base (`USD`):** Reexpresión en moneda de control.
+13. **Saldo en Bolívares (`VES`):** Reexpresión a la tasa oficial de la fecha de corte.
+14. **Estado:** Badge (`pending`, `partial`, `overdue`).
 
 ---
 
@@ -539,8 +571,11 @@ Cada reporte se protege mediante un permiso específico e independiente:
    - Cuentas por pagar: `index(company_id, payment_status, due_date)`.
    - Ventas por artículo: `index(company_id, invoice_date)` en cabecera y `index(sales_invoice_id, item_id)` en líneas.
    - Ingresos y gastos: `index(company_id, collection_date)` y `index(company_id, payment_date)`.
-3. **Paginación en vistas detalladas:** En pantalla se utiliza paginación por servidor (máximo 50 a 100 registros por
-   página). Las exportaciones completas se ejecutan directamente en streaming o a través de colas si superan 1.000 filas.
+3. **Paginación en vistas jerárquicas y detalladas:** En pantalla se utiliza paginación por servidor para la tabla
+   maestra de clientes/proveedores (50 a 100 registros por página). A su vez, las subtablas desplegables de facturas
+   pendientes cuentan con su propia paginación interna independiente (5 a 10 facturas por página, cargadas bajo demanda /
+   lazy loading al expandir la fila) para evitar transferencias masivas innecesarias y optimizar la reactividad de la
+   interfaz. Las exportaciones completas se ejecutan directamente en streaming o a través de colas si superan 1.000 filas.
 
 ---
 

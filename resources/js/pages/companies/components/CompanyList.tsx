@@ -202,6 +202,16 @@ export function CompanyList({ companies: items, meta, filters: initialFilters }:
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Editar
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            onClick={() =>
+                                                                router.visit(
+                                                                    companies.menus.edit({ company: companyId, id: company.id }).url,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Edit className="mr-2 h-4 w-4" />
+                                                            Menús
+                                                        </DropdownMenuItem>
                                                         {isSystemOwner && (
                                                             <>
                                                                 <DropdownMenuSeparator />

@@ -511,6 +511,46 @@ class MenuSeeder extends Seeder
                 ],
             ],
 
+            [
+                'parent_id' => null,
+                'title' => 'Reportes',
+                'icon' => 'BarChart3',
+                'url' => null,
+                'permission' => null,
+                'order' => 9,
+                'is_active' => true,
+                'section' => 'main',
+                'children' => [
+                    [
+                        'title' => 'Cuentas por cobrar',
+                        'icon' => 'ArrowDownLeft',
+                        'url' => '/reports/accounts-receivable',
+                        'permission' => 'reports.accounts-receivable',
+                        'order' => 1,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Cuentas por pagar',
+                        'icon' => 'ArrowUpRight',
+                        'url' => '/reports/accounts-payable',
+                        'permission' => 'reports.accounts-payable',
+                        'order' => 2,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                    [
+                        'title' => 'Ingresos y gastos',
+                        'icon' => 'TrendingUp',
+                        'url' => '/reports/income-expense',
+                        'permission' => 'reports.income-expense',
+                        'order' => 3,
+                        'is_active' => true,
+                        'section' => 'main',
+                    ],
+                ],
+            ],
+
             // Footer navigation (admin section)
             [
                 'parent_id' => null,
