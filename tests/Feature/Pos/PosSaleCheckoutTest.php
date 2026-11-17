@@ -117,11 +117,12 @@ test('atomic checkout creates sales invoice, dispatch, collection, and completed
     expect($invoice->status)->toBeIn(['confirmed', 'completed']);
     expect((float) $invoice->total)->toBe(30.0);
 
-    // 5. Verify Dispatch was created with sourceable = SalesInvoice
+    // 5. Verify Dispatch was created with sourceable = SalesInvoice and transitioned to delivered (immediate physical delivery)
     expect($posSale->dispatch_id)->not->toBeNull();
     $dispatch = Dispatch::find($posSale->dispatch_id);
     expect($dispatch)->not->toBeNull();
-    expect($dispatch->status)->toBe('confirmed');
+    expect($dispatch->status)->toBe('delivered');
+    expect($dispatch->delivery_date?->toDateString())->toBe(now()->toDateString());
     expect($dispatch->sourceable_type)->toBe(SalesInvoice::MORPH_ALIAS);
     expect($dispatch->sourceable_id)->toBe($invoice->id);
 
@@ -255,6 +256,118 @@ test('a completed pos sale can be cancelled', function () {
 
     $session->refresh();
     expect($session->cancelled_sales_count)->toBe(1);
+});
+
+test('cancelling a completed pos sale with delivered dispatch restores inventory', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = salesOrderScenario();
+
+    $warehouse->update(['uses_locations' => 'yes']);
+
+    $location = WarehouseLocation::factory()->default()->create([
+        'warehouse_id' => $warehouse->id,
+        'company_id' => $company->id,
+        'status' => 'active',
+        'created_by' => $user->id,
+    ]);
+
+    ItemStock::factory()->withBalance(20, 5)->create([
+        'company_id' => $company->id,
+        'item_id' => $item->id,
+        'warehouse_id' => $warehouse->id,
+        'location_id' => $location->id,
+        'status' => 'active',
+    ]);
+
+    $register = PosRegister::create([
+        'company_id' => $company->id,
+        'code' => 'CAJ000001',
+        'name' => 'Caja',
+        'warehouse_id' => $warehouse->id,
+        'default_client_id' => $client->id,
+        'created_by' => $user->id,
+        'status' => 'active',
+    ]);
+
+    $session = PosSession::create([
+        'company_id' => $company->id,
+        'code' => 'COR000001',
+        'pos_register_id' => $register->id,
+        'user_id' => $user->id,
+        'opened_at' => now(),
+        'opening_cash_usd' => 100.00,
+        'opening_cash_ves' => 0.00,
+        'status' => 'confirmed',
+    ]);
+
+    $payload = [
+        'pos_session_id' => $session->id,
+        'client_id' => $client->id,
+        'currency' => 'USD',
+        'lines' => [
+            [
+                'item_id' => $item->id,
+                'measurement_unit_id' => $unit->id,
+                'quantity' => 2.0,
+                'unit_price' => 15.0,
+                'discount_percent' => 0.0,
+                'discount_amount' => 0.0,
+                'tax_percent' => 0.0,
+                'tax_amount' => 0.0,
+                'subtotal' => 30.0,
+                'total' => 30.0,
+            ],
+        ],
+        'payments' => [
+            [
+                'payment_method' => 'cash',
+                'currency' => 'USD',
+                'exchange_rate' => 1.0,
+                'amount_tendered' => 30.0,
+                'amount_applied' => 30.0,
+                'amount_in_document_currency' => 30.0,
+            ],
+        ],
+        'subtotal' => 30.0,
+        'discount_amount' => 0.0,
+        'tax_amount' => 0.0,
+        'total' => 30.0,
+        'total_in_local_currency' => 1500.0,
+        'paid_amount' => 30.0,
+        'change_amount_usd' => 0.0,
+        'change_amount_ves' => 0.0,
+    ];
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('pos.checkout', ['company' => $company->id]), $payload);
+
+    $response->assertCreated();
+    $saleId = $response->json('sale.id');
+    $sale = PosSale::find($saleId);
+
+    expect($sale->dispatch_id)->not->toBeNull();
+    $dispatch = Dispatch::find($sale->dispatch_id);
+    expect($dispatch->status)->toBe('delivered');
+    expect($dispatch->delivery_date?->toDateString())->toBe(now()->toDateString());
+
+    // Stock reduced: 20 - 2 = 18
+    $stock = ItemStock::where('item_id', $item->id)->where('warehouse_id', $warehouse->id)->first();
+    expect((float) $stock->quantity)->toBe(18.0);
+
+    // Cancel the sale
+    $cancelResponse = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->postJson(route('pos.sales.cancel', ['company' => $company->id, 'id' => $saleId]), [
+            'cancellation_reason' => 'Cliente devolvió producto en caja',
+        ]);
+
+    $cancelResponse->assertOk();
+    $dispatch->refresh();
+    expect($dispatch->status)->toBe('cancelled');
+
+    // Stock restored back to 20
+    $stock->refresh();
+    expect((float) $stock->quantity)->toBe(20.0);
 });
 
 test('atomic checkout supports multiple split payment methods including biopago and mobile payment', function () {
