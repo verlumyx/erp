@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Entry\Models;
 
 use App\Modules\Company\Models\Company;
+use App\Modules\Dispatch\Models\DispatchLine;
 use App\Modules\Item\Models\Item;
 use App\Modules\MeasurementUnit\Models\MeasurementUnit;
-use App\Modules\Dispatch\Models\DispatchLine;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\SalesReturn\Models\SalesReturnLine;
 use App\Modules\WarehouseLocation\Models\WarehouseLocation;

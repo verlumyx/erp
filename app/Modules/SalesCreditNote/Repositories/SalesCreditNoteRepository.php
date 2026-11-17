@@ -460,7 +460,7 @@ class SalesCreditNoteRepository extends SalesCreditNoteFilters implements SalesC
     {
         $last = SalesCreditNote::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', SalesCreditNote::CODE_PREFIX.'%')
+            ->where('code', 'ilike', SalesCreditNote::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -106,7 +106,7 @@ class ItemLotRepository extends ItemLotFilters implements ItemLotRepositoryInter
     {
         $last = ItemLot::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', ItemLot::CODE_PREFIX.'%')
+            ->where('code', 'ilike', ItemLot::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

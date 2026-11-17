@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Import\Requests\Concerns;
 
+use App\Modules\Currency\Rules\ActiveCurrency;
 use App\Modules\Import\Models\Import;
 use App\Modules\Import\Models\ImportCost;
-use App\Modules\Currency\Rules\ActiveCurrency;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 

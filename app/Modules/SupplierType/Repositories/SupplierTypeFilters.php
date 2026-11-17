@@ -11,12 +11,12 @@ class SupplierTypeFilters extends EloquentQueryFilters
 {
     public function name(string $value): Builder
     {
-        return $this->builder->where('name', 'like', "%{$value}%");
+        return $this->builder->where('name', 'ilike', "%{$value}%");
     }
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     public function status(string $value): Builder

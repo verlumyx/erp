@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Modules\Company\Models;
 
+use App\Modules\Shared\Models\CompanyDisabledMenu;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Modules\Shared\Models\CompanyDisabledMenu;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -22,7 +22,9 @@ class Company extends Model
     protected $keyType = 'string';
 
     public const TAXPAYER_TYPE_ORDINARY = 'ordinary';
+
     public const TAXPAYER_TYPE_FORMAL = 'formal';
+
     public const TAXPAYER_TYPE_SPECIAL = 'special';
 
     public const TAXPAYER_TYPES = [

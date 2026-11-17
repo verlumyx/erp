@@ -645,7 +645,7 @@ class AdjustmentRepository extends AdjustmentFilters implements AdjustmentReposi
     {
         $last = Adjustment::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Adjustment::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Adjustment::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

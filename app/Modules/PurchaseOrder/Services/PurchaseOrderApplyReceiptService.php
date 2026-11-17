@@ -72,6 +72,7 @@ class PurchaseOrderApplyReceiptService
             return $line;
         });
     }
+
     /**
      * Descuenta —o devuelve— de la mercancía en camino lo que la entrada acaba
      * de mover, en unidad base y en la bodega de la orden.

@@ -85,7 +85,7 @@ class PriceListRepository extends PriceListFilters implements PriceListRepositor
     {
         $last = PriceList::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PriceList::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PriceList::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

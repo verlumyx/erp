@@ -392,7 +392,7 @@ class PurchaseInvoiceRepository extends PurchaseInvoiceFilters implements Purcha
     {
         $last = PurchaseInvoice::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PurchaseInvoice::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PurchaseInvoice::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -110,7 +110,7 @@ test('an order fully dispatched but not invoiced is still open', function () {
 
     $order = tenUnitSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, mirrorDispatchOf($order), 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, mirrorDispatchOf($order))->assertSessionHasNoErrors();
 
     /** La mercancía salió, pero al cliente todavía no se le ha facturado. */
     expect($order->refresh()->status)->toBe('partial');
@@ -122,7 +122,7 @@ test('the order closes on its own once everything left and was invoiced', functi
 
     $order = tenUnitSalesOrder($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, mirrorDispatchOf($order), 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, mirrorDispatchOf($order))->assertSessionHasNoErrors();
     invoiceAgainstSalesOrder($user, $company, $client, $warehouse, $item, $unit, $order, 10);
 
     $order->refresh();
@@ -137,7 +137,7 @@ test('cancelling the documents walks the closed order back to confirmed', functi
     $order = tenUnitSalesOrder($user, $company, $client, $warehouse, $item, $unit);
     $dispatch = mirrorDispatchOf($order);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
     $invoice = invoiceAgainstSalesOrder($user, $company, $client, $warehouse, $item, $unit, $order, 10);
 
     expect($order->refresh()->status)->toBe('completed');
@@ -200,7 +200,7 @@ test('what carries no stock does not hold the dispatched percent back', function
         ],
     ]);
 
-    moveDispatchTo($user, $company, mirrorDispatchOf($order), 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, mirrorDispatchOf($order))->assertSessionHasNoErrors();
 
     /**
      * Toda la mercancía salió. Contando la instalación el avance se quedaría en

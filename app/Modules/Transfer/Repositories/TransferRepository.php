@@ -343,7 +343,7 @@ class TransferRepository extends TransferFilters implements TransferRepositoryIn
     {
         $last = Transfer::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Transfer::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Transfer::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

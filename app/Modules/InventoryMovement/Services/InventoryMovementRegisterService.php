@@ -31,7 +31,6 @@ use Illuminate\Support\Facades\DB;
  */
 class InventoryMovementRegisterService
 {
-
     public function __construct(
         private readonly InventoryMovementRepositoryInterface $repository,
         private readonly ItemStockApplyMovementService $applyMovementService,

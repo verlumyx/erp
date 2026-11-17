@@ -1,5 +1,5 @@
 # ERP - PostgreSQL Development Database
-.PHONY: help db-up db-down db-restart db-logs db-shell backup-db restore-db clean app-shell migrate dev install assets watch test tunnel-up tunnel-down tunnel-start tunnel-stop tunnel-restart tunnel-logs
+.PHONY: help db-up db-down db-restart db-logs db-shell backup-db restore-db clean app-shell migrate dev app-down install assets watch test tunnel-up tunnel-down tunnel-start tunnel-stop tunnel-restart tunnel-logs
 
 # Default target
 help: ## Show this help message
@@ -38,6 +38,10 @@ dev: ## Start the full stack in development (live source + OPcache off)
 	docker compose up -d
 	@echo "App running at http://localhost:8080 (Vite HMR on 5174)."
 	@echo "Build the frontend with 'make assets' (or 'make watch'). Run tests with 'make test'."
+
+# Application Commands
+app-down: ## Start the full stack in development (live source + OPcache off)
+	docker compose down
 
 app-shell: ## Access the application container shell
 	docker compose exec app sh

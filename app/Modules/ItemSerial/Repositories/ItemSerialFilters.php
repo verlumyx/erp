@@ -16,8 +16,8 @@ class ItemSerialFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('serial_number', 'like', "%{$value}%")
-                ->orWhere('code', 'like', "%{$value}%");
+            $query->where('serial_number', 'ilike', "%{$value}%")
+                ->orWhere('code', 'ilike', "%{$value}%");
         });
     }
 
@@ -32,12 +32,12 @@ class ItemSerialFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     public function serial_number(string $value): Builder
     {
-        return $this->builder->where('serial_number', 'like', "%{$value}%");
+        return $this->builder->where('serial_number', 'ilike', "%{$value}%");
     }
 
     public function item_id(string $value): Builder

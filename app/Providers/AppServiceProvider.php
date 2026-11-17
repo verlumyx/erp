@@ -4,6 +4,10 @@ namespace App\Providers;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\Grammars\SQLiteGrammar;
+use Illuminate\Database\SQLiteConnection;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureSqliteIlikeCompatibility();
 
         ResetPassword::toMailUsing(function (object $notifiable, string $token): MailMessage {
             $url = url(route('password.reset', [
@@ -63,5 +68,34 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+    }
+
+    /**
+     * PostgreSQL supports the native 'ilike' operator for case-insensitive LIKE.
+     * SQLite (used in automated test suites) does not support 'ilike' syntax,
+     * but its native 'like' operator is already case-insensitive for ASCII text.
+     * This registers an SQLite grammar override that safely maps 'ilike' to 'like'.
+     */
+    protected function configureSqliteIlikeCompatibility(): void
+    {
+        Connection::resolverFor('sqlite', function ($connection, $database, $prefix, $config) {
+            return new class($connection, $database, $prefix, $config) extends SQLiteConnection
+            {
+                protected function getDefaultQueryGrammar()
+                {
+                    return new class($this) extends SQLiteGrammar
+                    {
+                        protected function whereBasic(Builder $query, $where)
+                        {
+                            if (strtolower((string) ($where['operator'] ?? '')) === 'ilike') {
+                                $where['operator'] = 'like';
+                            }
+
+                            return parent::whereBasic($query, $where);
+                        }
+                    };
+                }
+            };
+        });
     }
 }

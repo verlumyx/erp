@@ -138,7 +138,7 @@ class ExchangeRateRepository extends ExchangeRateFilters implements ExchangeRate
     {
         $last = ExchangeRate::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', ExchangeRate::CODE_PREFIX.'%')
+            ->where('code', 'ilike', ExchangeRate::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -20,8 +20,8 @@ class CreateDispatchCommand
          * su id. La pantalla solo crea despachos a un cliente; los de traslado
          * los arma `TransferMirrorDispatchService`.
          */
-        public readonly ?string $recipientType = null,
-        public readonly ?string $recipientId = null,
+        public readonly ?string $recipientType,
+        public readonly ?string $recipientId,
         public readonly string $warehouseId,
         public readonly string $dispatchDate,
         public readonly string $createdBy,

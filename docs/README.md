@@ -8,6 +8,7 @@ un conjunto de módulos relacionados.
 | [catalogo.md](catalogo.md)     | Catálogo   | Categorías, Listas de precio de venta, Unidades de medida, Impuestos, Tipo de proveedor, Tipo de cliente, Tasas                                     |
 | [inventario.md](inventario.md) | Inventario | Catálogo de artículos, Bodegas, Existencias, Kardex                                                                                                 |
 | [logistica.md](logistica.md)   | Logística  | Despachos, Traslados, Entradas, Rutas, Ajustes, Importaciones (§6, diseño en revisión)                                                              |
+| [plan-de-carga.md](plan-de-carga.md) | Logística | Camiones (flota) y Planes de Carga (consolidación de despachos por viaje) |
 | [compras.md](compras.md)       | Compras    | Proveedores, Órdenes de compra, Facturas de compra, Notas de crédito a proveedor, Anticipos a proveedor, Pagos a proveedor, Devoluciones de compras |
 | [ventas.md](ventas.md)         | Ventas     | Clientes, Órdenes de venta, Facturas de venta, Notas de crédito a cliente, Anticipos de clientes, Cobros a clientes, Devoluciones de ventas         |
 | [reportes.md](reportes.md)     | Reportes   | Propuesta inicial (catálogo general)                                                                                                            |
@@ -53,7 +54,7 @@ no aplica se desactiva, no se elimina.
 |------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Catálogo   | `app_categories`, `app_price_lists`, `app_measurement_units`, `app_taxes`, `app_supplier_types`, `app_client_types`, `app_exchange_rates`                              |
 | Inventario | `app_items`, `app_warehouses`, `app_warehouse_locations`, `app_item_lots`, `app_item_serials`, `app_inventory_movements`                                               |
-| Logística  | `app_dispatches`, `app_transfers`, `app_entries`, `app_routes`, `app_adjustments`                                                                                      |
+| Logística  | `app_dispatches`, `app_transfers`, `app_entries`, `app_routes`, `app_adjustments`, `app_vehicles`, `app_load_plans` |
 | Compras    | `app_suppliers`, `app_purchase_orders`, `app_purchase_invoices`, `app_purchase_credit_notes`, `app_supplier_advances`, `app_supplier_payments`, `app_purchase_returns` |
 | Ventas     | `app_clients`, `app_sales_orders`, `app_sales_invoices`, `app_sales_credit_notes`, `app_client_advances`, `app_client_collections`, `app_sales_returns`                |
 | Tienda     | `app_store_items`, `app_store_customers`, `app_store_orders`                                                                                                           |
@@ -65,7 +66,7 @@ no aplica se desactiva, no se elimina.
 `app_supplier_contacts`, `app_supplier_addresses`, `app_client_contacts`, `app_client_addresses`,
 `app_route_stops`, `app_route_clients`, `app_supplier_payment_applications`,
 `app_client_collection_applications`, `app_entry_line_lots`, `app_entry_line_serials`,
-`app_dispatch_line_lots`, `app_dispatch_line_serials`, `app_store_item_images`,
+`app_dispatch_line_lots`, `app_dispatch_line_serials`, `app_load_plan_dispatches`, `app_store_item_images`,
 `app_pos_sale_lines`, `app_pos_payments`, `app_pos_cash_movements`, `app_pos_session_denominations` y todas las tablas `*_lines`.
 
 `app_item_stocks` es un caso especial: es una tabla **derivada** (el saldo calculado del kardex). No se captura ni se

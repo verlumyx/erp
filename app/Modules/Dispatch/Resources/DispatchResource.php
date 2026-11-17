@@ -61,6 +61,24 @@ class DispatchResource extends JsonResource
             'created_by' => $this->created_by,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'load_plan' => $this->whenLoaded('loadPlans', function () {
+                $plan = $this->loadPlans->first();
+                if (! $plan) {
+                    return null;
+                }
+
+                return [
+                    'id' => $plan->id,
+                    'code' => $plan->code,
+                    'status' => $plan->status,
+                    'driver_name' => $plan->driver_name,
+                    'helper_name' => $plan->helper_name,
+                    'vehicle_plate' => $plan->vehicle?->plate,
+                    'vehicle_name' => $plan->vehicle?->name,
+                    'route_code' => $plan->route?->code,
+                    'route_name' => $plan->route?->name,
+                ];
+            }),
             'lines' => $this->whenLoaded(
                 'lines',
                 fn (): array => DispatchLineResource::collection($this->lines)->resolve($request),

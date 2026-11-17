@@ -75,5 +75,4 @@ class UpdateStatusTransferRequest extends FormRequest
             }
         });
     }
-
 }

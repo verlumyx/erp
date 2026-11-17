@@ -33,6 +33,7 @@ class RouteFactory extends Factory
             'warehouse_id' => null,
             'driver_id' => null,
             'salesperson_id' => null,
+            'vehicle_id' => null,
             'vehicle_plate' => null,
             /** Sin capacidad declarada: la planificación no compara contra nada. */
             'vehicle_capacity_weight' => 0,

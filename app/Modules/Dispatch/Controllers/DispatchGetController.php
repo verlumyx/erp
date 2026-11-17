@@ -152,7 +152,7 @@ class DispatchGetController extends Controller
         abort_unless($request->user()?->hasPermission('dispatches.show') ?? false, 403);
 
         $dispatch = $this->findService->execute($id, $company);
-        $dispatch->loadMissing('company');
+        $dispatch->loadMissing('company', 'loadPlans.vehicle', 'loadPlans.route');
 
         $pdf = Pdf::loadView('pdf.dispatch-delivery-note', [
             'dispatch' => $dispatch,
@@ -171,7 +171,7 @@ class DispatchGetController extends Controller
         $dispatch = $this->findService->execute($id, $company);
         abort_if($dispatch->status === 'draft', 403, 'La nota de entrega no puede imprimirse mientras el despacho esté en borrador.');
 
-        $dispatch->loadMissing('company');
+        $dispatch->loadMissing('company', 'loadPlans.vehicle', 'loadPlans.route');
 
         $pdf = Pdf::loadView('pdf.dispatch-simple-delivery-note', [
             'dispatch' => $dispatch,

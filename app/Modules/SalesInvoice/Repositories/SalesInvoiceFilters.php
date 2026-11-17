@@ -11,7 +11,7 @@ class SalesInvoiceFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -22,8 +22,8 @@ class SalesInvoiceFilters extends EloquentQueryFilters
     {
         return $this->builder->whereHas(
             'client',
-            fn (Builder $query) => $query->where('name', 'like', "%{$value}%")
-                ->orWhere('legal_name', 'like', "%{$value}%"),
+            fn (Builder $query) => $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('legal_name', 'ilike', "%{$value}%"),
         );
     }
 
@@ -45,7 +45,7 @@ class SalesInvoiceFilters extends EloquentQueryFilters
     /** El correlativo fiscal, que no es el `code` del documento. */
     public function invoice_number(string $value): Builder
     {
-        return $this->builder->where('invoice_number', 'like', "%{$value}%");
+        return $this->builder->where('invoice_number', 'ilike', "%{$value}%");
     }
 
     public function invoice_series(string $value): Builder
@@ -103,8 +103,8 @@ class SalesInvoiceFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('invoice_number', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('invoice_number', 'ilike', "%{$value}%");
         });
     }
 

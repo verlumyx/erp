@@ -45,9 +45,6 @@ export function DispatchForm() {
         transferOption,
         selectTransfer,
         selectWarehouse,
-        routeLookupUrl,
-        routeOption,
-        selectRoute,
         options,
         clearErrors,
     } = useDispatchFormContext();
@@ -91,11 +88,6 @@ export function DispatchForm() {
     const warehouseOptions: OptionType[] = options.warehouses.map(
         (warehouse) => ({ value: warehouse.id, label: warehouse.name }),
     );
-
-    const driverOptions: OptionType[] = options.drivers.map((driver) => ({
-        value: driver.id,
-        label: driver.name,
-    }));
 
     const addressOptions: OptionType[] = addresses.map((address) => ({
         value: address.id,
@@ -548,144 +540,6 @@ export function DispatchForm() {
                                 )}
                             </div>
                         )}
-                </FormFieldGrid>
-            </FormSection>
-
-            <FormSection
-                step={3}
-                title="Carga"
-                sub="Qué sale, de qué ubicación y con qué lote o serie"
-            >
-                <DispatchLinesSection />
-            </FormSection>
-
-            <FormSection
-                step={4}
-                title="Transporte"
-                sub="Por qué ruta sale, quién la lleva y con qué guía"
-            >
-                <FormFieldGrid>
-                    <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
-                        <Label
-                            htmlFor="route_id"
-                            className="text-[13px] font-semibold"
-                        >
-                            Ruta
-                        </Label>
-                        <Select2Ajax
-                            inputId="route_id"
-                            url={routeLookupUrl}
-                            params={{ status: 'active' }}
-                            value={routeOption}
-                            onChange={selectRoute}
-                            error={!!errors.route_id}
-                            isClearable
-                            size="md"
-                            placeholder="Sin ruta asignada"
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            Asignarlo mete el despacho en el recorrido: al
-                            planificar el día, la ruta le crea su parada
-                        </span>
-                        {errors.route_id && (
-                            <p className="text-sm text-bad">
-                                {errors.route_id}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Conductor
-                        </Label>
-                        <Select2
-                            inputId="driver_id"
-                            options={driverOptions}
-                            value={
-                                driverOptions.find(
-                                    (option) => option.value === data.driver_id,
-                                ) ?? null
-                            }
-                            onChange={(option) =>
-                                setData('driver_id', option?.value ?? '')
-                            }
-                            error={!!errors.driver_id}
-                            isClearable
-                            size="md"
-                            placeholder="Quién conduce"
-                        />
-                        {errors.driver_id && (
-                            <p className="text-sm text-bad">
-                                {errors.driver_id}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="vehicle_plate"
-                            className="text-[13px] font-semibold"
-                        >
-                            Placa del vehículo
-                        </Label>
-                        <Input
-                            id="vehicle_plate"
-                            value={data.vehicle_plate}
-                            onChange={(e) =>
-                                setData('vehicle_plate', e.target.value)
-                            }
-                            maxLength={20}
-                            className="h-[42px] rounded-[10px]"
-                        />
-                        {errors.vehicle_plate && (
-                            <p className="text-sm text-bad">
-                                {errors.vehicle_plate}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="carrier"
-                            className="text-[13px] font-semibold"
-                        >
-                            Transportista
-                        </Label>
-                        <Input
-                            id="carrier"
-                            value={data.carrier}
-                            onChange={(e) => setData('carrier', e.target.value)}
-                            maxLength={150}
-                            className="h-[42px] rounded-[10px]"
-                            placeholder="Si lo lleva un tercero"
-                        />
-                        {errors.carrier && (
-                            <p className="text-sm text-bad">{errors.carrier}</p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label
-                            htmlFor="tracking_number"
-                            className="text-[13px] font-semibold"
-                        >
-                            Guía de transporte
-                        </Label>
-                        <Input
-                            id="tracking_number"
-                            value={data.tracking_number}
-                            onChange={(e) =>
-                                setData('tracking_number', e.target.value)
-                            }
-                            maxLength={60}
-                            className="h-[42px] rounded-[10px]"
-                        />
-                        {errors.tracking_number && (
-                            <p className="text-sm text-bad">
-                                {errors.tracking_number}
-                            </p>
-                        )}
-                    </div>
 
                     <div className="flex flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
                         <Label
@@ -700,9 +554,21 @@ export function DispatchForm() {
                             onChange={(e) => setData('notes', e.target.value)}
                             className="rounded-[10px]"
                             rows={3}
+                            placeholder="Observaciones o notas adicionales del despacho"
                         />
+                        {errors.notes && (
+                            <p className="text-sm text-bad">{errors.notes}</p>
+                        )}
                     </div>
                 </FormFieldGrid>
+            </FormSection>
+
+            <FormSection
+                step={3}
+                title="Carga"
+                sub="Qué sale, de qué ubicación y con qué lote o serie"
+            >
+                <DispatchLinesSection />
             </FormSection>
 
             <FormSummary>

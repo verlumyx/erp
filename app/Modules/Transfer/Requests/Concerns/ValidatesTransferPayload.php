@@ -162,5 +162,4 @@ trait ValidatesTransferPayload
             }
         }
     }
-
 }

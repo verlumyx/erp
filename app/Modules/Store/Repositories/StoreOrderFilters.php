@@ -17,9 +17,9 @@ class StoreOrderFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('buyer_name', 'like', "%{$value}%")
-                ->orWhere('buyer_email', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('buyer_name', 'ilike', "%{$value}%")
+                ->orWhere('buyer_email', 'ilike', "%{$value}%");
         });
     }
 

@@ -20,7 +20,6 @@ function purchaseCreditNoteMovements(PurchaseCreditNote $note): \Illuminate\Data
         ->get();
 }
 
-
 test('confirming lowers what is owed to the supplier', function () {
     [$user, $company, , , $item, $unit] = purchaseReturnScenario();
 

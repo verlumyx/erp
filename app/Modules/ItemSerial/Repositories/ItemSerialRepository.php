@@ -106,7 +106,7 @@ class ItemSerialRepository extends ItemSerialFilters implements ItemSerialReposi
     {
         $last = ItemSerial::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', ItemSerial::CODE_PREFIX.'%')
+            ->where('code', 'ilike', ItemSerial::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

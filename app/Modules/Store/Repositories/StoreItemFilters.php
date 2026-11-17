@@ -17,12 +17,12 @@ class StoreItemFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('app_store_items.title', 'like', "%{$value}%")
-                ->orWhere('app_store_items.summary', 'like', "%{$value}%")
-                ->orWhere('app_store_items.slug', 'like', "%{$value}%")
+            $query->where('app_store_items.title', 'ilike', "%{$value}%")
+                ->orWhere('app_store_items.summary', 'ilike', "%{$value}%")
+                ->orWhere('app_store_items.slug', 'ilike', "%{$value}%")
                 ->orWhereHas('item', fn (Builder $item): Builder => $item
-                    ->where('name', 'like', "%{$value}%")
-                    ->orWhere('sku', 'like', "%{$value}%"));
+                    ->where('name', 'ilike', "%{$value}%")
+                    ->orWhere('sku', 'ilike', "%{$value}%"));
         });
     }
 

@@ -390,7 +390,7 @@ class ClientCollectionRepository extends ClientCollectionFilters implements Clie
     {
         $last = ClientCollection::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', ClientCollection::CODE_PREFIX.'%')
+            ->where('code', 'ilike', ClientCollection::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -356,7 +356,7 @@ class SalesReturnRepository extends SalesReturnFilters implements SalesReturnRep
     {
         $last = SalesReturn::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', SalesReturn::CODE_PREFIX.'%')
+            ->where('code', 'ilike', SalesReturn::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -124,7 +124,7 @@ class WarehouseLocationRepository extends WarehouseLocationFilters implements Wa
     {
         $last = WarehouseLocation::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', WarehouseLocation::CODE_PREFIX.'%')
+            ->where('code', 'ilike', WarehouseLocation::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

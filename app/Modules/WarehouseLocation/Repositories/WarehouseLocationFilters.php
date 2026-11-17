@@ -11,17 +11,17 @@ class WarehouseLocationFilters extends EloquentQueryFilters
 {
     public function name(string $value): Builder
     {
-        return $this->builder->where('name', 'like', "%{$value}%");
+        return $this->builder->where('name', 'ilike', "%{$value}%");
     }
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     public function location_code(string $value): Builder
     {
-        return $this->builder->where('location_code', 'like', "%{$value}%");
+        return $this->builder->where('location_code', 'ilike', "%{$value}%");
     }
 
     public function warehouse_id(string $value): Builder

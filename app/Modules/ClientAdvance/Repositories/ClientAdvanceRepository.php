@@ -159,7 +159,7 @@ class ClientAdvanceRepository extends ClientAdvanceFilters implements ClientAdva
     {
         $last = ClientAdvance::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', ClientAdvance::CODE_PREFIX.'%')
+            ->where('code', 'ilike', ClientAdvance::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

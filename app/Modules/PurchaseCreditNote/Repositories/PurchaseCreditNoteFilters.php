@@ -11,7 +11,7 @@ class PurchaseCreditNoteFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -30,7 +30,7 @@ class PurchaseCreditNoteFilters extends EloquentQueryFilters
 
     public function supplier_document_number(string $value): Builder
     {
-        return $this->builder->where('supplier_document_number', 'like', "%{$value}%");
+        return $this->builder->where('supplier_document_number', 'ilike', "%{$value}%");
     }
 
     public function reason(string $value): Builder
@@ -63,8 +63,8 @@ class PurchaseCreditNoteFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('supplier_document_number', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('supplier_document_number', 'ilike', "%{$value}%");
         });
     }
 

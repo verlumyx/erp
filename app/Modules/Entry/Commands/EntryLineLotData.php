@@ -47,7 +47,6 @@ class EntryLineLotData
      * Las filas de lote de una línea, sin las que llegaron en blanco: una fila
      * sin número ni cantidad es una fila que el usuario abrió y no llenó.
      *
-     * @param  mixed  $rows
      * @return array<int, self>
      */
     public static function collection(mixed $rows): array

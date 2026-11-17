@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Vehicle\Commands;
+
+class SearchVehicleCommand
+{
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function __construct(
+        public readonly array $filters = [],
+        public readonly int $limit = 10,
+        public readonly int $offset = 0,
+        public readonly ?string $companyId = null,
+    ) {}
+}

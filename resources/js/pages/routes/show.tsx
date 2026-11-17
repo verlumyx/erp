@@ -218,8 +218,14 @@ export default function RoutesShow({ route, stop_date, stops }: Props) {
 
                     <Card className="gap-3 rounded-2xl px-[18px] py-4">
                         <div className="text-[13px] font-bold text-muted-foreground">
-                            El vehículo
+                            El camión / vehículo
                         </div>
+                        {route.vehicle_name && (
+                            <DataRow
+                                label="Camión"
+                                value={route.vehicle_name}
+                            />
+                        )}
                         <DataRow
                             label="Placa"
                             value={route.vehicle_plate ?? '—'}
@@ -228,7 +234,7 @@ export default function RoutesShow({ route, stop_date, stops }: Props) {
                             label="Capacidad en peso"
                             value={
                                 Number(route.vehicle_capacity_weight) > 0
-                                    ? route.vehicle_capacity_weight
+                                    ? `${Number(route.vehicle_capacity_weight).toLocaleString('es-VE')} kg`
                                     : 'Sin declarar'
                             }
                         />
@@ -236,7 +242,7 @@ export default function RoutesShow({ route, stop_date, stops }: Props) {
                             label="Capacidad en volumen"
                             value={
                                 Number(route.vehicle_capacity_volume) > 0
-                                    ? route.vehicle_capacity_volume
+                                    ? `${Number(route.vehicle_capacity_volume).toLocaleString('es-VE')} m³`
                                     : 'Sin declarar'
                             }
                         />

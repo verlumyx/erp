@@ -33,7 +33,6 @@ use Illuminate\Support\Facades\DB;
  */
 class PurchaseOrderIncomingService
 {
-
     public function __construct(
         private readonly PurchaseOrderRepositoryInterface $repository,
         private readonly ItemStockApplyMovementService $stocks,

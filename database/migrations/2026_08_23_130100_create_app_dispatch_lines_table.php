@@ -92,8 +92,6 @@ return new class extends Migration
                 ->on('app_measurement_units')
                 ->restrictOnDelete();
 
-
-
             $table->foreign('location_id')
                 ->references('id')
                 ->on('app_warehouse_locations')

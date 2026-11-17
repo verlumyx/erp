@@ -16,8 +16,8 @@ class AdjustmentFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('count_id', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('count_id', 'ilike', "%{$value}%");
         });
     }
 
@@ -32,7 +32,7 @@ class AdjustmentFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -56,7 +56,7 @@ class AdjustmentFilters extends EloquentQueryFilters
 
     public function count_id(string $value): Builder
     {
-        return $this->builder->where('count_id', 'like', "%{$value}%");
+        return $this->builder->where('count_id', 'ilike', "%{$value}%");
     }
 
     public function approved_by(string $value): Builder

@@ -40,6 +40,7 @@ interface RouteFormData {
     warehouse_id: string;
     driver_id: string;
     salesperson_id: string;
+    vehicle_id: string;
     vehicle_plate: string;
     vehicle_capacity_weight: number;
     vehicle_capacity_volume: number;
@@ -90,6 +91,16 @@ export function useRouteForm({
     const { currentCompany } = usePage<PageProps>().props;
     const companyId = currentCompany!.id;
 
+    const initialVehicleId =
+        initialData?.vehicle_id ??
+        (initialData?.vehicle_plate
+            ? (options.vehicles?.find(
+                  (v) =>
+                      v.plate?.toLowerCase() ===
+                      initialData.vehicle_plate?.toLowerCase(),
+              )?.id ?? '')
+            : '');
+
     const { data, setData, post, put, transform, processing, errors, reset } =
         useForm<RouteFormData>({
             id: initialData?.id ?? generateUUID(),
@@ -99,6 +110,7 @@ export function useRouteForm({
             warehouse_id: initialData?.warehouse_id ?? '',
             driver_id: initialData?.driver_id ?? '',
             salesperson_id: initialData?.salesperson_id ?? '',
+            vehicle_id: initialVehicleId,
             vehicle_plate: initialData?.vehicle_plate ?? '',
             vehicle_capacity_weight: Number(
                 initialData?.vehicle_capacity_weight ?? 0,

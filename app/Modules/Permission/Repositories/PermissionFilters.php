@@ -11,7 +11,7 @@ class PermissionFilters extends EloquentQueryFilters
 {
     public function label(string $value): Builder
     {
-        return $this->builder->where('label', 'like', "%{$value}%");
+        return $this->builder->where('label', 'ilike', "%{$value}%");
     }
 
     public function module_id(string $value): Builder

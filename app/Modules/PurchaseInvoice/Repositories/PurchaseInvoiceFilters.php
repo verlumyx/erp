@@ -11,7 +11,7 @@ class PurchaseInvoiceFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -30,7 +30,7 @@ class PurchaseInvoiceFilters extends EloquentQueryFilters
 
     public function supplier_invoice_number(string $value): Builder
     {
-        return $this->builder->where('supplier_invoice_number', 'like', "%{$value}%");
+        return $this->builder->where('supplier_invoice_number', 'ilike', "%{$value}%");
     }
 
     public function status(string $value): Builder
@@ -53,8 +53,8 @@ class PurchaseInvoiceFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('supplier_invoice_number', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('supplier_invoice_number', 'ilike', "%{$value}%");
         });
     }
 

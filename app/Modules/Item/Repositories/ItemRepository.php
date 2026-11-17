@@ -247,7 +247,7 @@ class ItemRepository extends ItemFilters implements ItemRepositoryInterface
     {
         $last = Item::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Item::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Item::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

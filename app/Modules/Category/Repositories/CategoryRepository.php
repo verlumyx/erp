@@ -87,7 +87,7 @@ class CategoryRepository extends CategoryFilters implements CategoryRepositoryIn
     {
         $last = Category::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Category::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Category::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -112,7 +112,7 @@ test('an invoice freezes the cost of the dispatch that took the goods out', func
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     /** Después de despachar, el promedio de lo que queda sigue siendo 30. */
     $invoice = createSalesInvoice($user, $company, $client, $warehouse, $item, $unit, [

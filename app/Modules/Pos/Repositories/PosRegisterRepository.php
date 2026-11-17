@@ -148,7 +148,7 @@ class PosRegisterRepository implements PosRegisterRepositoryInterface
     {
         $last = PosRegister::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PosRegister::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PosRegister::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

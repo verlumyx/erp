@@ -17,8 +17,8 @@ interface AdjustmentRepositoryInterface
 {
     /**
      * @param  array<int, array{factor: float, system: float, base_system: float, average: float, lots: array<string, array{system: float, base_system: float, average: float}>}>  $stock
-     *                                                                                                                                                                             Existencia y promedio de cada línea y de cada uno de sus
-     *                                                                                                                                                                             lotes, ya resueltos por `AdjustmentStockService`.
+     *                                                                                                                                                                                     Existencia y promedio de cada línea y de cada uno de sus
+     *                                                                                                                                                                                     lotes, ya resueltos por `AdjustmentStockService`.
      */
     public function create(CreateAdjustmentCommand $command, array $stock): void;
 

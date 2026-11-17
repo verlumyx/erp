@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\SalesOrder\Requests\Concerns;
 
 use App\Modules\Currency\Rules\ActiveCurrency;
-use Illuminate\Validation\Rule;
 use App\Modules\Item\Models\Item;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**

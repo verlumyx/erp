@@ -77,6 +77,7 @@ class SalesOrderApplyDispatchService
             return $written;
         });
     }
+
     /**
      * Suelta en la bodega del pedido lo que la salida acaba de llevarse, en
      * unidad base. Una línea sin pedido detrás no reserva nada, así que

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Dispatch\Requests;
 
+use App\Modules\Dispatch\Models\Dispatch;
 use App\Modules\Dispatch\Repositories\Contracts\DispatchRepositoryInterface;
 use App\Modules\Dispatch\Requests\Concerns\ValidatesDispatchPayload;
 use Illuminate\Foundation\Http\FormRequest;
@@ -43,7 +44,7 @@ class UpdateDispatchRequest extends FormRequest
     }
 
     /**
-     * Solo se edita en `draft`. Confirmado, la mercancía ya salió de la bodega
+     * Solo se edita en estados no publicados (`draft` o `pending`). Confirmado, la mercancía ya salió de la bodega
      * y el kardex lo tiene escrito: se corrige anulándolo y emitiendo otro.
      */
     private function validateStillEditable(Validator $validator): void
@@ -51,10 +52,10 @@ class UpdateDispatchRequest extends FormRequest
         $dispatch = app(DispatchRepositoryInterface::class)
             ->findById((string) $this->route('id'), session('current_company_id'));
 
-        if ($dispatch !== null && $dispatch->status !== 'draft') {
+        if ($dispatch !== null && ! in_array($dispatch->status, Dispatch::EDITABLE_STATUSES, true)) {
             $validator->errors()->add(
                 'status',
-                'Solo se puede editar un despacho en borrador.',
+                'Solo se puede editar un despacho en borrador o pendiente.',
             );
         }
     }

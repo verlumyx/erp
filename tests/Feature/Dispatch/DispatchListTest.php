@@ -89,7 +89,7 @@ test('the list filters by status', function () {
     registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
 
     $confirmed = createDispatch($user, $company, $client, $warehouse, $item, $unit);
-    moveDispatchTo($user, $company, $confirmed, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $confirmed)->assertSessionHasNoErrors();
 
     createDispatch($user, $company, $client, $warehouse, $item, $unit);
 

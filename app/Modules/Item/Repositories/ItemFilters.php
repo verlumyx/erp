@@ -11,22 +11,22 @@ class ItemFilters extends EloquentQueryFilters
 {
     public function name(string $value): Builder
     {
-        return $this->builder->where('name', 'like', "%{$value}%");
+        return $this->builder->where('name', 'ilike', "%{$value}%");
     }
 
     public function sku(string $value): Builder
     {
-        return $this->builder->where('sku', 'like', "%{$value}%");
+        return $this->builder->where('sku', 'ilike', "%{$value}%");
     }
 
     public function barcode(string $value): Builder
     {
-        return $this->builder->where('barcode', 'like', "%{$value}%");
+        return $this->builder->where('barcode', 'ilike', "%{$value}%");
     }
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     public function type(string $value): Builder
@@ -64,10 +64,10 @@ class ItemFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('name', 'like', "%{$value}%")
-                ->orWhere('code', 'like', "%{$value}%")
-                ->orWhere('sku', 'like', "%{$value}%")
-                ->orWhere('barcode', 'like', "%{$value}%");
+            $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('code', 'ilike', "%{$value}%")
+                ->orWhere('sku', 'ilike', "%{$value}%")
+                ->orWhere('barcode', 'ilike', "%{$value}%");
         });
     }
 

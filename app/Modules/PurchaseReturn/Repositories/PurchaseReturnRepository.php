@@ -347,7 +347,7 @@ class PurchaseReturnRepository extends PurchaseReturnFilters implements Purchase
     {
         $last = PurchaseReturn::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PurchaseReturn::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PurchaseReturn::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

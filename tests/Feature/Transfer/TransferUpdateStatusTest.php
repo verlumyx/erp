@@ -83,7 +83,7 @@ test('the chain moves the goods from origin to destination as a transfer', funct
     $dispatch = transferDispatch($transfer);
 
     /** Confirmar el despacho es lo que saca la mercancía del origen. */
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     expect($transfer->refresh()->transfer_status)->toBe('in_transit');
 
@@ -137,7 +137,7 @@ test('the cost travels with the goods: the destination receives at the cost of t
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
     $dispatch = transferDispatch($transfer);
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     /** El costo real de la salida se congela en la línea del traslado. */
     expect((float) $transfer->refresh()->lines->first()->unit_cost)->toBe(10.0);
@@ -161,9 +161,11 @@ test('confirming the dispatch without stock in the origin is rejected', function
 
     $dispatch = transferDispatch($transfer);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
 
-    expect($dispatch->refresh()->status)->toBe('draft');
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'confirmed')->assertSessionHasErrors('status');
+
+    expect($dispatch->refresh()->status)->toBe('pending');
     expect(transferMovements($transfer))->toHaveCount(0);
 });
 
@@ -194,7 +196,7 @@ test('a transfer whose dispatch already left cannot be cancelled', function () {
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
     $dispatch = transferDispatch($transfer);
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     /** La mercancía ya salió: primero se anula el despacho que la sacó. */
     moveTransferTo($user, $company, $transfer, 'cancelled')->assertSessionHasErrors('status');
@@ -213,7 +215,7 @@ test('a dispatch whose entry already arrived cannot be cancelled', function () {
     moveTransferTo($user, $company, $transfer, 'confirmed')->assertSessionHasNoErrors();
 
     $dispatch = transferDispatch($transfer);
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $entry = dispatchEntry($dispatch->refresh());
     moveEntryTo($user, $company, $entry, 'confirmed')->assertSessionHasNoErrors();

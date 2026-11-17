@@ -472,7 +472,7 @@ class SalesOrderRepository extends SalesOrderFilters implements SalesOrderReposi
     {
         $last = SalesOrder::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', SalesOrder::CODE_PREFIX.'%')
+            ->where('code', 'ilike', SalesOrder::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -28,7 +28,7 @@ test('the lookup only offers dispatches a sales invoice can bill', function () {
     createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
     $confirmed = createDispatch($user, $company, $client, $warehouse, $item, $unit);
-    moveDispatchTo($user, $company, $confirmed, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $confirmed)->assertSessionHasNoErrors();
 
     $response = lookupDispatches($user, $company)->assertOk();
 
@@ -68,10 +68,10 @@ test('the lookup narrows down to the chosen client', function () {
     $other = Client::factory()->create(['company_id' => $company->id]);
 
     $mine = createDispatch($user, $company, $client, $warehouse, $item, $unit);
-    moveDispatchTo($user, $company, $mine, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $mine)->assertSessionHasNoErrors();
 
     $theirs = createDispatch($user, $company, $other, $warehouse, $item, $unit);
-    moveDispatchTo($user, $company, $theirs, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $theirs)->assertSessionHasNoErrors();
 
     $response = lookupDispatches($user, $company, ['recipient_id' => $other->id])->assertOk();
 

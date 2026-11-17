@@ -8,7 +8,6 @@ use App\Modules\Item\Models\Item;
 use function Pest\Laravel\actingAs;
 
 /** Emite la factura por HTTP, que es la única vía para confirmarla. */
-
 test('confirming an invoice burns its fiscal number and posts the receivable', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = salesInvoiceScenario();
 

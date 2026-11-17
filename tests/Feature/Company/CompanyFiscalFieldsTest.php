@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Company;
 
 use App\Modules\Company\Models\Company;
-use App\Modules\User\Models\User;
 use Illuminate\Support\Str;
 
 use function Pest\Laravel\actingAs;

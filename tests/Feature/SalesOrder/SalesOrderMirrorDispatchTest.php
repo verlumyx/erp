@@ -226,7 +226,7 @@ test('the generated dispatch moves no stock and the order stays reserved', funct
     expect((float) $stock->quantity)->toBe(100.0);
     expect((float) $stock->reserved_quantity)->toBe(2.0);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     expect(dispatchMovements($dispatch))->toHaveCount(1);
 
@@ -259,9 +259,11 @@ test('a serialized item travels without serials and the dispatch demands them wh
     expect((float) $dispatch->lines->first()->quantity)->toBe(2.0);
     expect($dispatch->lines->first()->serials)->toHaveCount(0);
 
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+
     /** Y sin ellas la mercancía no se mueve. */
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
-    expect($dispatch->refresh()->status)->toBe('draft');
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'confirmed')->assertSessionHasErrors('status');
+    expect($dispatch->refresh()->status)->toBe('pending');
     expect(dispatchMovements($dispatch))->toHaveCount(0);
 
     loadDispatchSerials($user, $company, $dispatch, $serials->pluck('id')->all());
@@ -298,7 +300,7 @@ test('an order whose dispatch is already confirmed cannot be cancelled', functio
     moveSalesOrderTo($user, $company, $order, 'confirmed')->assertSessionHasNoErrors();
 
     $dispatch = generatedDispatch($order);
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     /** La mercancía ya salió: el pedido no se anula hasta anular el despacho. */
     moveSalesOrderTo($user, $company, $order, 'cancelled', [

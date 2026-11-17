@@ -194,7 +194,7 @@ class StoreCustomerRepository extends StoreCustomerFilters implements StoreCusto
     {
         $last = StoreCustomer::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', StoreCustomer::CODE_PREFIX.'%')
+            ->where('code', 'ilike', StoreCustomer::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

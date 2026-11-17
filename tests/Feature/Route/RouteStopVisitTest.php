@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Modules\Route\Models\RouteStop;
 
-use function Pest\Laravel\actingAs;
-
 test('a visit is registered on the stop', function () {
     [$user, $company, $client] = routeScenario();
 

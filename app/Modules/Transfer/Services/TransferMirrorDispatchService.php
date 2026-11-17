@@ -39,7 +39,6 @@ use Illuminate\Validation\ValidationException;
  */
 class TransferMirrorDispatchService
 {
-
     public function __construct(
         private readonly TransferRepositoryInterface $transfers,
         private readonly DispatchRepositoryInterface $dispatches,

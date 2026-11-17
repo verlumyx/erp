@@ -397,7 +397,7 @@ class PurchaseOrderRepository extends PurchaseOrderFilters implements PurchaseOr
     {
         $last = PurchaseOrder::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PurchaseOrder::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PurchaseOrder::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

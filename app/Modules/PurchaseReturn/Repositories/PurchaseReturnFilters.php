@@ -17,8 +17,8 @@ class PurchaseReturnFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('tracking_number', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('tracking_number', 'ilike', "%{$value}%");
         });
     }
 
@@ -33,7 +33,7 @@ class PurchaseReturnFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -57,7 +57,7 @@ class PurchaseReturnFilters extends EloquentQueryFilters
 
     public function tracking_number(string $value): Builder
     {
-        return $this->builder->where('tracking_number', 'like', "%{$value}%");
+        return $this->builder->where('tracking_number', 'ilike', "%{$value}%");
     }
 
     public function reason(string $value): Builder

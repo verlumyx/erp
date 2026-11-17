@@ -16,9 +16,9 @@ class RouteFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('name', 'like', "%{$value}%")
-                ->orWhere('zone', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('name', 'ilike', "%{$value}%")
+                ->orWhere('zone', 'ilike', "%{$value}%");
         });
     }
 
@@ -33,12 +33,12 @@ class RouteFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     public function name(string $value): Builder
     {
-        return $this->builder->where('name', 'like', "%{$value}%");
+        return $this->builder->where('name', 'ilike', "%{$value}%");
     }
 
     /**
@@ -60,6 +60,11 @@ class RouteFilters extends EloquentQueryFilters
         return $this->builder->where('salesperson_id', $value);
     }
 
+    public function vehicle_id(string $value): Builder
+    {
+        return $this->builder->where('vehicle_id', $value);
+    }
+
     public function type(string $value): Builder
     {
         return $this->builder->where('type', $value);
@@ -72,12 +77,12 @@ class RouteFilters extends EloquentQueryFilters
 
     public function zone(string $value): Builder
     {
-        return $this->builder->where('zone', 'like', "%{$value}%");
+        return $this->builder->where('zone', 'ilike', "%{$value}%");
     }
 
     public function city(string $value): Builder
     {
-        return $this->builder->where('city', 'like', "%{$value}%");
+        return $this->builder->where('city', 'ilike', "%{$value}%");
     }
 
     public function status(string $value): Builder

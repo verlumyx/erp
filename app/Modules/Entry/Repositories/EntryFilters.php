@@ -17,8 +17,8 @@ class EntryFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('supplier_document', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('supplier_document', 'ilike', "%{$value}%");
         });
     }
 
@@ -33,7 +33,7 @@ class EntryFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -62,7 +62,7 @@ class EntryFilters extends EloquentQueryFilters
 
     public function supplier_document(string $value): Builder
     {
-        return $this->builder->where('supplier_document', 'like', "%{$value}%");
+        return $this->builder->where('supplier_document', 'ilike', "%{$value}%");
     }
 
     public function is_invoiced(string $value): Builder

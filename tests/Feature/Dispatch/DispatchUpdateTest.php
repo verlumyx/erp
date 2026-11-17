@@ -95,7 +95,7 @@ test('a confirmed dispatch is no longer edited', function () {
     registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 5]);
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $payload = dispatchPayload($client, $warehouse, $item, $unit, ['carrier' => 'Tarde']);
     unset($payload['id']);
