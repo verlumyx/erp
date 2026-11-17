@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
     ArrowDownToLine,
+    ArrowLeftRight,
     ArrowUpFromLine,
     BadgePercent,
     Barcode,
@@ -20,6 +21,7 @@ import {
     Monitor,
     Package,
     Receipt,
+    Route,
     Scale,
     ShoppingBag,
     ShoppingCart,
@@ -59,6 +61,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
     ShoppingBag,
     ArrowUpFromLine,
     ArrowDownToLine,
+    ArrowLeftRight,
+    Route,
     Monitor,
     CalendarCheck,
     Store,

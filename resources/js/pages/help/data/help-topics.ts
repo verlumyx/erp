@@ -553,6 +553,11 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                         topicId: 'inventario-existencias',
                         relationship: 'El stock de cada producto se calcula por bodega.',
                     },
+                    {
+                        name: 'Traslados',
+                        topicId: 'logistica-traslados',
+                        relationship: 'Permite transferir existencias entre distintas bodegas de la empresa sin alterar el patrimonio.',
+                    },
                 ],
                 systemPath: '/warehouses',
                 keywords: ['bodega', 'almacén', 'depósito', 'galpón', 'sucursal'],
@@ -1369,8 +1374,8 @@ export const HELP_MODULES: HelpModuleGroup[] = [
         id: 'logistica',
         name: 'Logística',
         icon: 'Truck',
-        badge: '2 temas',
-        description: 'Movimiento físico en almacenes: despachos de salida y recepciones de entrada.',
+        badge: '6 temas',
+        description: 'Movimiento físico, almacenes y distribución: despachos, recepciones, traslados entre bodegas, rutas, control de flota de camiones y planes de carga consolidada.',
         topics: [
             {
                 id: 'logistica-despachos',
@@ -1430,6 +1435,16 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                         name: 'Existencias',
                         topicId: 'inventario-existencias',
                         relationship: 'Descarga las unidades del inventario físico.',
+                    },
+                    {
+                        name: 'Planes de Carga',
+                        topicId: 'logistica-planes-carga',
+                        relationship: 'Agrupa múltiples despachos hacia una misma ruta en un viaje de reparto consolidado.',
+                    },
+                    {
+                        name: 'Rutas',
+                        topicId: 'logistica-rutas',
+                        relationship: 'Permite asociar el despacho al circuito geográfico de entrega correspondiente.',
                     },
                 ],
                 systemPath: '/dispatches',
@@ -1494,9 +1509,499 @@ export const HELP_MODULES: HelpModuleGroup[] = [
                         topicId: 'inventario-kardex',
                         relationship: 'Registra el incremento oficial de existencias.',
                     },
+                    {
+                        name: 'Traslados',
+                        topicId: 'logistica-traslados',
+                        relationship: 'La recepción de mercancía inter-bodegas se confirma mediante una entrada en destino.',
+                    },
                 ],
                 systemPath: '/entries',
                 keywords: ['entrada', 'recepción', 'conteo', 'almacén', 'ingreso de mercancía'],
+            },
+            {
+                id: 'logistica-traslados',
+                moduleId: 'logistica',
+                moduleName: 'Logística',
+                moduleIcon: 'ArrowLeftRight',
+                title: 'Traslados (Transferencias entre Bodegas)',
+                subtitle: 'Control de movimientos internos de mercancía entre almacenes sin alterar el valor patrimonial',
+                summary: 'Permite mover existencias de un almacén a otro manteniendo la trazabilidad, costos unitarios reales y control de mercancía en tránsito.',
+                whatIsIt: 'Es el documento operativo que formaliza el movimiento de productos entre dos almacenes de la misma empresa (por ejemplo: del Almacén Central a una Sucursal o a la Bodega de Mostrador). A diferencia de una venta o una compra, un traslado no altera el patrimonio ni el valor total del inventario de la empresa: solo cambia la ubicación física de las existencias.\n\nPara garantizar un estricto control de auditoría, el traslado opera mediante un ciclo en tres pasos: el Traslado ordena el movimiento; al confirmarlo se genera automáticamente una orden de Despacho (DES) que descuenta las unidades de la bodega de origen mediante el movimiento transfer_out en el Kardex; y al confirmar ese despacho se crea una Entrada de almacén (ENT) en borrador en la bodega de destino, que al ser recibida y confirmada ingresa las unidades al inventario con transfer_in, completando el ciclo del traslado.',
+                whyItMatters: 'Evita que la mercancía enviada entre locales quede en un "limbo" donde no aparece en el origen ni en el destino, provocando descuadres físicos, pérdidas o robos en el trayecto. Además, congela el costo unitario de salida para que el almacén receptor valore el ingreso con exactitud matemática, sin distorsionar los costos promedio.',
+                keyConcepts: [
+                    {
+                        term: 'Bodega de Origen y Bodega de Destino',
+                        explanation: 'Almacenes entre los cuales se realiza la transferencia. El sistema valida estrictamente que ambas bodegas sean distintas.',
+                    },
+                    {
+                        term: 'Ciclo Traslado → Despacho → Entrada',
+                        explanation: 'El documento de traslado no toca el Kardex directamente. Es el despacho de salida el que descuenta el stock de origen (transfer_out), y la entrada de llegada la que registra el ingreso en destino (transfer_in).',
+                    },
+                    {
+                        term: 'Costo Congelado en Tránsito',
+                        explanation: 'El costo unitario promedio del artículo en la bodega de origen viaja con la mercancía. La bodega de destino recibe exactamente al costo del origen, preservando la valoración contable.',
+                    },
+                    {
+                        term: 'Motivos de Traslado',
+                        explanation: 'Clasificación del movimiento para análisis operativo: Reabastecimiento (restock), Rebalanceo de inventario (rebalance), Mercancía dañada/merma (damaged), Cuarentena (quarantine) u Otro motivo.',
+                    },
+                    {
+                        term: 'Asignación de Lotes y Series al Despachar',
+                        explanation: 'En el traslado se definen las cantidades teóricas a mover. La selección física de lotes con fecha de vencimiento o números de serie se realiza al confirmar el despacho de salida, cuando el operario tiene el producto en sus manos.',
+                    },
+                    {
+                        term: 'Estados del Traslado',
+                        explanation: 'Borrador (draft: editable) → Confirmado (confirmed: genera el despacho de origen) → Completado (completed: cerrado automáticamente al confirmar la entrada en destino), o Anulado (cancelled).',
+                    },
+                ],
+                stepByStep: [
+                    {
+                        number: 1,
+                        title: 'Accede a Logística > Traslados',
+                        description: 'En el menú lateral, abre la sección Logística y pulsa en "Traslados" para consultar el listado con estados y fechas de entrega.',
+                    },
+                    {
+                        number: 2,
+                        title: 'Presiona "Nuevo Traslado"',
+                        description: 'Haz clic en el botón superior derecho para abrir el formulario de creación de transferencias.',
+                    },
+                    {
+                        number: 3,
+                        title: 'Configura el viaje',
+                        description: 'Selecciona la Bodega de Origen y la Bodega de Destino, la fecha programada de traslado, fecha estimada de llegada y el motivo (ej. Reabastecimiento de tienda). Opcionalmente asigna el conductor y la placa del vehículo.',
+                    },
+                    {
+                        number: 4,
+                        title: 'Agrega los artículos y cantidades',
+                        description: 'Selecciona los productos del catálogo e introduce las cantidades que viajarán en el envío. El costo unitario se cargará automáticamente del almacén de origen.',
+                    },
+                    {
+                        number: 5,
+                        title: 'Guarda y confirma el traslado',
+                        description: 'Guarda en borrador para revisiones. Cuando la orden esté lista, pulsa "Confirmar": el sistema generará el Despacho correspondiente en Logística > Despachos.',
+                    },
+                    {
+                        number: 6,
+                        title: 'Despacho en origen y recepción en destino',
+                        description: 'El equipo del almacén emisor confirma el Despacho (rebajando el Kardex). Al arribar al destino, el equipo receptor revisa la Entrada generada y la confirma, cerrando automáticamente el traslado como Completado.',
+                    },
+                ],
+                tips: [
+                    {
+                        type: 'info',
+                        text: 'El traslado no descuenta existencias por sí solo: el descuento en Kardex ocurre cuando el almacén de origen confirma el Despacho de salida.',
+                    },
+                    {
+                        type: 'warning',
+                        text: 'Para anular un traslado confirmado cuyo despacho ya fue emitido, primero debe anularse el despacho asociado; el sistema impide eliminar registros para garantizar la trazabilidad de auditoría.',
+                    },
+                    {
+                        type: 'tip',
+                        text: 'Registra siempre la fecha estimada de llegada y el chofer para hacer seguimiento de los pedidos intersucursales que se encuentran en carretera.',
+                    },
+                ],
+                relatedModules: [
+                    {
+                        name: 'Despachos',
+                        topicId: 'logistica-despachos',
+                        relationship: 'Al confirmar el traslado se origina la orden de despacho que da salida física a los artículos.',
+                    },
+                    {
+                        name: 'Entradas',
+                        topicId: 'logistica-entradas',
+                        relationship: 'La recepción en la bodega receptora se valida con una entrada de tipo traslado.',
+                    },
+                    {
+                        name: 'Bodegas',
+                        topicId: 'inventario-bodegas',
+                        relationship: 'Almacenes físicos de origen y destino configurados en la empresa.',
+                    },
+                    {
+                        name: 'Kardex',
+                        topicId: 'inventario-kardex',
+                        relationship: 'Audita los asientos transfer_out (salida origen) y transfer_in (ingreso destino).',
+                    },
+                ],
+                systemPath: '/transfers',
+                faqs: [
+                    {
+                        question: '¿Por qué no puedo anular directamente un traslado que ya está en tránsito?',
+                        answer: 'Porque ya existe un despacho confirmado que rebajó mercancía del Kardex. Si se pudiera borrar el traslado, el inventario quedaría descuadrado. Debe seguirse la cadena inversa anulando el despacho correspondiente.',
+                    },
+                    {
+                        question: '¿Se pueden trasladar productos tipo servicio o no inventariados?',
+                        answer: 'No. El sistema filtra únicamente artículos inventariables, ya que los servicios no poseen existencia física ni ocupan espacio en almacén.',
+                    },
+                ],
+                keywords: ['traslado', 'transferencia', 'bodega', 'almacén', 'inter-almacén', 'despacho', 'recepción', 'movimiento interno', 'reabastecimiento', 'stock en tránsito'],
+            },
+            {
+                id: 'logistica-rutas',
+                moduleId: 'logistica',
+                moduleName: 'Logística',
+                moduleIcon: 'Route',
+                title: 'Rutas (Circuitos de Reparto y Cobranza)',
+                subtitle: 'Organización territorial de visitas, secuencias de clientes, planificación diaria y bitácora de paradas',
+                summary: 'Define zonas y circuitos de distribución recurrente, asociando clientes fijos, orden de visita, vehículos, conductores y días de frecuencia.',
+                whatIsIt: 'El módulo de Rutas permite ordenar y planificar los recorridos comerciales y de reparto de la empresa (por ejemplo: "Ruta 16 - El Pilar", "Zona Norte - Lunes y Jueves", "Casco Central - Preventa y Cobranza"). Una ruta agrupa la zona geográfica, bodega de partida, conductor asignado, camión de la flota y vendedor o cobrador responsable.\n\nFunciona como una plantilla maestra donde se asignan clientes habituales con su orden numérico de visita (secuencia 1, 2, 3...). A partir de esta plantilla, el coordinador puede seleccionar una fecha en el calendario y pulsar "Planificar día": el ERP cruzará los clientes fijos con los despachos pendientes de entrega asignados a esa ruta para generar la hoja interactiva de paradas diarias.',
+                whyItMatters: 'Sin rutas organizadas, los vehículos realizan viajes desordenados, gastan más combustible, aumentan el desgaste mecánico y retrasan la entrega de pedidos. Al estandarizar circuitos y frecuencias, se optimiza la puntualidad con los clientes, se reduce el costo de flete por bulto y se obtiene una bitácora clara de visitas cumplidas o fallidas.',
+                keyConcepts: [
+                    {
+                        term: 'Tipo de Ruta',
+                        explanation: 'Clasificación según el objetivo: Entrega (delivery: reparto de pedidos y bultos), Cobranza (collection: recaudación de facturas a crédito), Preventa (sales: toma de pedidos por vendedor), o Mixta (combina entrega y cobranza).',
+                    },
+                    {
+                        term: 'Frecuencia y Días de la Semana',
+                        explanation: 'Periodicidad con la que se cubre el recorrido: diaria, semanal, quincenal, mensual o a demanda, especificando los días exactos (ej. lunes y jueves).',
+                    },
+                    {
+                        term: 'Plantilla de Clientes y Secuencia',
+                        explanation: 'Lista fija de establecimientos comerciales asignados a la ruta con su respectiva dirección y orden ideal de llegada para evitar retrocesos en carretera.',
+                    },
+                    {
+                        term: 'Planificar Día (Generación de Paradas)',
+                        explanation: 'Acción inteligente que consolida los clientes de la plantilla con los despachos activos que tienen fecha para el día seleccionado, generando las paradas a visitar.',
+                    },
+                    {
+                        term: 'Estados de la Parada',
+                        explanation: 'Pendiente (pending) → Llegó (arrived) → Completada (completed: visita exitosa). Si no se pudo atender, se marca como Omitida (skipped: con motivo obligatorio como negocio cerrado o falta de tiempo) o Fallida (failed).',
+                    },
+                    {
+                        term: 'Bitácora vs. Inventario',
+                        explanation: 'Registrar una parada en la ruta es un registro de auditoría y recorrido para saber a qué hora llegó y partió el transporte. La entrega física y rebaja de stock es gestionada a través del Despacho.',
+                    },
+                ],
+                stepByStep: [
+                    {
+                        number: 1,
+                        title: 'Accede a Logística > Rutas',
+                        description: 'Ingresa a la sección de rutas para visualizar los circuitos disponibles, sus zonas, tipos de servicio y frecuencias.',
+                    },
+                    {
+                        number: 2,
+                        title: 'Crea una Nueva Ruta',
+                        description: 'Pulsa "Nueva Ruta". Completa el nombre descriptivo (ej. "Ruta Este - Troncal 9"), el tipo de operación, la zona geográfica o ciudad y la bodega de origen.',
+                    },
+                    {
+                        number: 3,
+                        title: 'Configura la Frecuencia y el Transporte',
+                        description: 'Indica la frecuencia de atención y marca los días de la semana correspondientes. Selecciona el camión de la flota, el conductor habitual y el vendedor asignado.',
+                    },
+                    {
+                        number: 4,
+                        title: 'Agrega los Clientes Frecuentes',
+                        description: 'En la pestaña de clientes de la ruta, asocia los clientes de la zona y ordénalos con el número de secuencia (1 para la primera parada, 2 para la segunda, etc.).',
+                    },
+                    {
+                        number: 5,
+                        title: 'Planifica el Día de Recorrido',
+                        description: 'En la vista de detalle de la ruta, elige la fecha del viaje en el selector de calendario y pulsa "Planificar día". El sistema armará el itinerario con los despachos listos.',
+                    },
+                    {
+                        number: 6,
+                        title: 'Registra las Visitas en Ruta',
+                        description: 'Durante o al concluir el recorrido, el supervisor o chofer reporta el estado de cada parada indicando hora real de llegada, salida y notas de la visita.',
+                    },
+                ],
+                tips: [
+                    {
+                        type: 'tip',
+                        text: 'El botón "Planificar día" es idempotente: puedes presionarlo varias veces durante el día si se facturan nuevos pedidos de última hora; el sistema sumará las nuevas paradas sin alterar las que el conductor ya marcó como visitadas.',
+                    },
+                    {
+                        type: 'warning',
+                        text: 'No se puede desactivar una ruta si tiene paradas planificadas pendientes o despachos asignados que no han sido entregados.',
+                    },
+                    {
+                        type: 'info',
+                        text: 'Si un cliente tiene varias sucursales o direcciones de entrega, asegúrate de vincular la dirección fiscal o de entrega exacta al agregarlo a la ruta.',
+                    },
+                ],
+                relatedModules: [
+                    {
+                        name: 'Planes de Carga',
+                        topicId: 'logistica-planes-carga',
+                        relationship: 'Los planes de carga se arman sobre una ruta específica para consolidar los despachos de ese circuito.',
+                    },
+                    {
+                        name: 'Camiones',
+                        topicId: 'logistica-camiones',
+                        relationship: 'Permite asociar el vehículo asignado a la ruta para cotejar capacidades de peso y volumen.',
+                    },
+                    {
+                        name: 'Despachos',
+                        topicId: 'logistica-despachos',
+                        relationship: 'Al emitir una orden de venta se le asigna la ruta de entrega para su programación física.',
+                    },
+                    {
+                        name: 'Clientes',
+                        topicId: 'ventas-clientes',
+                        relationship: 'Los clientes registrados en el sistema se vinculan a sus rutas de atención habituales.',
+                    },
+                ],
+                systemPath: '/routes',
+                faqs: [
+                    {
+                        question: '¿Qué hago si el conductor no pudo entregar la mercancía porque el negocio estaba cerrado?',
+                        answer: 'Registra la parada con resultado "Omitida" (skipped) y escribe el motivo en el campo de texto (ej. "Local cerrado por inventario"). Esto dejará la bitácora limpia y permitirá reprogramar el despacho para el próximo viaje.',
+                    },
+                    {
+                        question: '¿Se pueden compartir clientes entre dos rutas diferentes?',
+                        answer: 'Sí, un cliente puede estar en una ruta de Entrega los días lunes y en una ruta de Cobranza los días viernes, siempre que no se solapen en la misma fecha.',
+                    },
+                ],
+                keywords: ['ruta', 'recorrido', 'circuito', 'flete', 'reparto', 'paradas', 'secuencia de entrega', 'zona', 'frecuencia', 'visitas', 'conductor'],
+            },
+            {
+                id: 'logistica-camiones',
+                moduleId: 'logistica',
+                moduleName: 'Logística',
+                moduleIcon: 'Truck',
+                title: 'Camiones (Control de Flota y Capacidad)',
+                subtitle: 'Registro de vehículos de reparto, límites máximos de carga en kg, cubicaje en m³ y disponibilidad',
+                summary: 'Centraliza los vehículos de transporte propios y tercerizados, definiendo sus capacidades físicas de peso y volumen para evitar sobrecargas.',
+                whatIsIt: 'Es el catálogo maestro de transporte donde se registran los camiones, cavas, camionetas y gandolas utilizados para la distribución logística. Sustituye la práctica propensa a errores de escribir placas libres en texto por fichas estructuradas que contienen: placa única por empresa, alias descriptivo (ej. "Cargo 1721 Blanco"), marca, modelo, año, tipo de carrocería y, de forma fundamental, los límites máximos de Carga en Peso (kg) y Capacidad Volumétrica en Metros Cúbicos (m³).\n\nCada vehículo cuenta con un indicador de estado operativo: Operativo (disponible para asignación), En mantenimiento (en taller mecánico o mantenimiento preventivo, quedando inhabilitado para nuevos viajes) o Inactivo. Sus límites de peso y cubicaje son leídos automáticamente por los Planes de Carga para verificar el porcentaje de ocupación en tiempo real.',
+                whyItMatters: 'Evita sobrecargas peligrosas que provoquen multas de tránsito, daños en la suspensión del camión o accidentes viales. Al calcular simultáneamente peso y volumen, previene enviar camiones a medio llenar con productos livianos pero voluminosos (como papel o snacks), o sobrecargar los ejes con productos pesados (como bebidas, sacos o ferretería).',
+                keyConcepts: [
+                    {
+                        term: 'Placa del Vehículo',
+                        explanation: 'Identificador oficial del vehículo (ej. A12BC3D). El sistema valida que sea estrictamente única dentro de la empresa.',
+                    },
+                    {
+                        term: 'Tipos de Vehículo',
+                        explanation: 'Categorías adaptadas a logística mayorista: Camioneta / Pick-up, Camión 350 / Cava Liviana, Camión Mediano / NPR / Cargo, Camión Pesado / Gandola / Chuto, u Otro vehículo.',
+                    },
+                    {
+                        term: 'Capacidad Máxima de Peso (kg)',
+                        explanation: 'Límite de carga útil neta en kilogramos que el vehículo puede transportar de forma segura sin sobrecargar sus ejes.',
+                    },
+                    {
+                        term: 'Capacidad Volumétrica (m³)',
+                        explanation: 'Espacio cúbico interior útil del furgón o cava (Largo × Ancho × Alto) expresado en metros cúbicos para medir el cubicaje de las cajas.',
+                    },
+                    {
+                        term: 'Estado Operativo',
+                        explanation: 'Operativo (activo para asignación a rutas y planes de carga), En mantenimiento (bloqueado preventivamente mientras esté en taller), o Inactivo.',
+                    },
+                    {
+                        term: 'Notas Técnicas y Pólizas',
+                        explanation: 'Campo para registrar números de póliza de seguro de carga, fechas de vencimiento de revisiones técnicas, certificados de sanidad o chofer asignado habitual.',
+                    },
+                ],
+                stepByStep: [
+                    {
+                        number: 1,
+                        title: 'Accede a Logística > Camiones',
+                        description: 'Entra al listado de camiones donde podrás consultar la flota activa, sus capacidades declaradas y su estado operativo.',
+                    },
+                    {
+                        number: 2,
+                        title: 'Presiona "Nuevo Camión"',
+                        description: 'Haz clic en el botón superior derecho para abrir el formulario de registro de vehículo.',
+                    },
+                    {
+                        number: 3,
+                        title: 'Ingresa Placa y Nombre Descriptivo',
+                        description: 'Escribe la placa (sin guiones ni espacios extraños) y un nombre identificativo claro para el personal de despacho (ej. "Cava NPR 02 - Don Pedro").',
+                    },
+                    {
+                        number: 4,
+                        title: 'Selecciona el Tipo y Datos del Fabricante',
+                        description: 'Elige el tipo de vehículo (ej. Camión Mediano / NPR) y opcionalmente especifica la marca (Chevrolet, Iveco, Ford), modelo y año de fabricación.',
+                    },
+                    {
+                        number: 5,
+                        title: 'Establece los Límites de Capacidad',
+                        description: 'Ingresa la Capacidad de Peso en kilogramos (ej. 4500 kg) y la Capacidad de Volumen en m³ (ej. 18.5 m³). Si no los conoces con exactitud, consúltalos en la ficha técnica del fabricante.',
+                    },
+                    {
+                        number: 6,
+                        title: 'Gestiona el Mantenimiento',
+                        description: 'Cuando el camión ingrese a revisión periódica o reparación de motor, ingresa a su ficha y cambia el estado a "En mantenimiento". Al salir del taller, devuélvelo a "Operativo".',
+                    },
+                ],
+                tips: [
+                    {
+                        type: 'tip',
+                        text: 'Para aprovechar al máximo el cubicaje automático, configura el peso (kg) y las dimensiones de cada producto en el Catálogo de Artículos.',
+                    },
+                    {
+                        type: 'warning',
+                        text: 'Los vehículos marcados "En mantenimiento" o "Inactivo" no aparecerán en el selector de camiones al crear nuevos Planes de Carga ni al planificar Rutas.',
+                    },
+                    {
+                        type: 'info',
+                        text: 'Si utilizas transporte tercerizado recurrente, puedes registrar a esos transportistas con el tipo de vehículo correspondiente para validar el cubicaje de sus viajes.',
+                    },
+                ],
+                relatedModules: [
+                    {
+                        name: 'Planes de Carga',
+                        topicId: 'logistica-planes-carga',
+                        relationship: 'El plan de carga compara el peso y volumen total de los despachos contra los límites del camión seleccionado.',
+                    },
+                    {
+                        name: 'Rutas',
+                        topicId: 'logistica-rutas',
+                        relationship: 'Cada ruta puede tener preasignado un camión para sus salidas programadas.',
+                    },
+                    {
+                        name: 'Catálogo de Artículos',
+                        topicId: 'inventario-catalogo-articulos',
+                        relationship: 'Aporta el peso y volumen unitario con los que se calcula la carga total.',
+                    },
+                ],
+                systemPath: '/vehicles',
+                faqs: [
+                    {
+                        question: '¿Qué ocurre si la suma de despachos supera el peso o volumen del camión?',
+                        answer: 'El ERP no te bloquea de manera forzosa, pero en la pantalla del Plan de Carga las barras de capacidad se pondrán en rojo con advertencias de sobrecarga para que el coordinador decida si redistribuye los bultos en otro viaje.',
+                    },
+                    {
+                        question: '¿Se pueden registrar camionetas pequeñas o motos de cobranza?',
+                        answer: 'Sí, utilizando los tipos "Camioneta / Pick-up" u "Otro vehículo" con capacidad de peso y volumen adaptadas a su escala.',
+                    },
+                ],
+                keywords: ['camión', 'camiones', 'vehículo', 'flota', 'transporte', 'placa', 'peso', 'volumen', 'cubicaje', 'mantenimiento', 'cava', 'npr', 'gandola'],
+            },
+            {
+                id: 'logistica-planes-carga',
+                moduleId: 'logistica',
+                moduleName: 'Logística',
+                moduleIcon: 'ClipboardList',
+                title: 'Planes de Carga (Consolidación de Viajes)',
+                subtitle: 'Consolidación de pedidos por ruta, validación de cubicaje en tiempo real, tripulación e impresión de hoja de carga',
+                summary: 'Agrupa múltiples despachos hacia una misma ruta en un solo viaje de camión, controlando peso, volumen, secuencia de entrega y liquidación.',
+                whatIsIt: 'El módulo de Planes de Carga (prefijo PLC) es el centro neurálgico de la distribución mayorista. Permite consolidar decenas de órdenes de Despacho (DES) individuales generadas en ventas que van hacia un mismo circuito o ruta geográfica, organizándolas en un solo viaje de entrega.\n\nAl crear un plan de carga, se selecciona la ruta (ej. "Ruta 16 - El Pilar"), la bodega de salida, el camión de la flota, el chofer y los ayudantes o caleteros. El sistema ofrece un buscador interactivo de despachos pendientes pre-filtrados por la ruta seleccionada. Conforme se van sumando pedidos, dos barras de progreso en tiempo real calculan el porcentaje de ocupación en kilogramos y en metros cúbicos frente a la capacidad del vehículo. Desde aquí se imprime la Hoja de Carga oficial para el chofer y el almacén, y al retornar de la ruta se realiza la liquidación de las entregas cumplidas.',
+                whyItMatters: 'Elimina la desorganización de enviar camiones con facturas sueltas y sin control de carga. Asegura que el vehículo viaje a capacidad óptima sin sobrecargas peligrosas, provee al chofer una guía impresa con las paradas y montos de cobranza a recaudar, y permite que con un solo clic se confirmen como entregados todos los despachos que regresaron conformes.',
+                keyConcepts: [
+                    {
+                        term: 'Correlativo de Plan (PLC)',
+                        explanation: 'Código identificador correlativo único para el viaje (ej. PLC-000001).',
+                    },
+                    {
+                        term: 'Pre-filtro Inteligente por Ruta',
+                        explanation: 'Al abrir el selector de despachos, el sistema lista únicamente los despachos pendientes asignados a la ruta del viaje, con opción de marcar "Ver todas las rutas" si se desea añadir una parada de paso.',
+                    },
+                    {
+                        term: 'Barras de Ocupación en Vivo',
+                        explanation: 'Indicadores visuales que comparan Peso Total Acumulado (kg) y Volumen Total Acumulado (m³) contra los límites del camión. Si se rebasa el 100%, la barra cambia a color rojo de advertencia.',
+                    },
+                    {
+                        term: 'Secuencia de Entrega',
+                        explanation: 'Orden numérico de descarga para organizar cómo se acomodan los bultos en la cava (la primera parada debe quedar junto a la puerta del camión).',
+                    },
+                    {
+                        term: 'Tripulación: Chofer y Ayudantes',
+                        explanation: 'Identificación formal del conductor responsable y los nombres y cédulas del personal de caleteros o ayudantes de carga que viajan en la unidad.',
+                    },
+                    {
+                        term: 'Hoja de Carga (PDF)',
+                        explanation: 'Documento formal con código de viaje, fecha, camión, paradas ordenadas, clientes, números de factura amparada, bultos y observaciones de cobranza (crédito o contado).',
+                    },
+                    {
+                        term: 'Ciclo del Viaje',
+                        explanation: 'En proceso (draft: armando la carga y agregando despachos) → En tránsito (in_transit: camión en calle repartiendo) → Confirmado (confirmed: viaje concluido y liquidado) o Anulado (cancelled).',
+                    },
+                    {
+                        term: 'Modal de Confirmación de Entregas',
+                        explanation: 'Al cambiar el estado a Confirmado, se abre un modal con el checklist de despachos del viaje; los despachos seleccionados pasan automáticamente a estado "Entregado".',
+                    },
+                ],
+                stepByStep: [
+                    {
+                        number: 1,
+                        title: 'Accede a Logística > Planes de Carga',
+                        description: 'Revisa la lista de planes de carga programados con sus estados, fechas, rutas y camiones asignados.',
+                    },
+                    {
+                        number: 2,
+                        title: 'Presiona "Nuevo Plan de Carga"',
+                        description: 'Haz clic en el botón superior para iniciar la preparación de un nuevo viaje.',
+                    },
+                    {
+                        number: 3,
+                        title: 'Completa la Cabecera',
+                        description: 'Indica la fecha programada del viaje, la Ruta de destino, la Bodega de donde saldrá la mercancía y el Camión operativo de la flota.',
+                    },
+                    {
+                        number: 4,
+                        title: 'Asigna el Conductor y Ayudantes',
+                        description: 'Indica el nombre y cédula del chofer (o selecciónalo de los usuarios) y el nombre de los caleteros o ayudantes que lo acompañan.',
+                    },
+                    {
+                        number: 5,
+                        title: 'Presiona "Incluir Despachos"',
+                        description: 'En el modal interactivo, selecciona los despachos pendientes a embarcar. Puedes buscar por cliente o factura. Observa cómo se incrementan las barras de peso y volumen.',
+                    },
+                    {
+                        number: 6,
+                        title: 'Verifica el Cubicaje y Guarda',
+                        description: 'Comprueba que los indicadores de peso y volumen no excedan la capacidad máxima del camión. Guarda el plan en estado "En proceso".',
+                    },
+                    {
+                        number: 7,
+                        title: 'Imprime la Hoja de Carga',
+                        description: 'Haz clic en "Imprimir Hoja de Carga" para abrir el PDF formal. Entrega una copia al almacén para el picking y otra al chofer para la ruta.',
+                    },
+                    {
+                        number: 8,
+                        title: 'Despachar a Tránsito y Liquidar',
+                        description: 'Cuando el camión sale de la empresa, pulsa "Despachar a tránsito". Al volver, pulsa "Confirmar entrega", marca los despachos entregados conforme y confirma el cierre del viaje.',
+                    },
+                ],
+                tips: [
+                    {
+                        type: 'tip',
+                        text: 'Acomoda la secuencia de despachos en el orden inverso al que se carga el camión: el primer cliente a visitar debe quedar accesible en la compuerta trasera.',
+                    },
+                    {
+                        type: 'warning',
+                        text: 'Un despacho individual no puede estar incluido en dos planes de carga diferentes al mismo tiempo mientras el plan esté en proceso o en tránsito.',
+                    },
+                    {
+                        type: 'info',
+                        text: 'Si un cliente no recibió su pedido durante el recorrido, desmárcalo en el modal de confirmación final: ese despacho permanecerá pendiente para ser reasignado a otro viaje.',
+                    },
+                ],
+                relatedModules: [
+                    {
+                        name: 'Despachos',
+                        topicId: 'logistica-despachos',
+                        relationship: 'Los planes de carga agrupan y entregan los despachos individuales generados por ventas.',
+                    },
+                    {
+                        name: 'Camiones',
+                        topicId: 'logistica-camiones',
+                        relationship: 'Proporciona el vehículo y las capacidades máximas de kilogramos y metros cúbicos.',
+                    },
+                    {
+                        name: 'Rutas',
+                        topicId: 'logistica-rutas',
+                        relationship: 'Define el trayecto territorial y pre-filtra automáticamente los despachos pendientes.',
+                    },
+                    {
+                        name: 'Facturas de Venta',
+                        topicId: 'ventas-facturas-venta',
+                        relationship: 'La hoja de carga asocia cada factura a cobrar con su cliente y despacho.',
+                    },
+                ],
+                systemPath: '/load-plans',
+                faqs: [
+                    {
+                        question: '¿Qué pasa si un despacho corresponde a una ruta distinta pero queda en el camino?',
+                        answer: 'En el selector de despachos, activa la casilla "Ver todas las rutas". Podrás elegir ese despacho específico e incorporarlo al plan de carga sin restricciones.',
+                    },
+                    {
+                        question: '¿La confirmación del plan de carga afecta el Kardex?',
+                        answer: 'No directamente: el Kardex fue rebajado cuando se confirmó cada Despacho individual en almacén. El plan de carga actualiza el estado de entrega física (delivery_status) a "Entregado" y liquida el viaje.',
+                    },
+                    {
+                        question: '¿Puedo volver a imprimir la hoja de carga si se extravía?',
+                        answer: 'Sí, el botón "Imprimir Hoja de Carga" permanece disponible en todo momento desde la ficha del plan.',
+                    },
+                ],
+                keywords: ['plan de carga', 'consolidación', 'viaje', 'reparto', 'camión', 'despacho', 'cubicaje', 'hoja de carga', 'picking', 'caletero', 'ayudante', 'chofer', 'flete'],
             },
         ],
     },
