@@ -123,8 +123,8 @@ export const STATUS_LABELS: Record<LoadPlanStatus, string> = {
 };
 
 export const STATUS_PILL_KIND: Record<LoadPlanStatus, StatusKind> = {
-    draft: 'neutral',
-    in_transit: 'warning',
-    confirmed: 'success',
-    cancelled: 'bad',
+    draft: 'inactivo',
+    in_transit: 'libre',
+    confirmed: 'pagado',
+    cancelled: 'vencido',
 };

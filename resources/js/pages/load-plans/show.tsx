@@ -3,23 +3,26 @@ import {
     AlertTriangle,
     ArrowLeft,
     Calendar,
+    Check,
     CheckCircle2,
     Edit,
     FileText,
     MapPin,
     Package,
+    Printer,
     Truck,
     User,
     Warehouse,
     XCircle,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { StatusPill } from '@/components/status-pill';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import loadPlans from '@/routes/load-plans';
 import type { BreadcrumbItem } from '@/types';
+import { ConfirmDeliveryModal } from './components/ConfirmDeliveryModal';
 import {
     STATUS_LABELS,
     STATUS_PILL_KIND,
@@ -57,17 +60,37 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
         },
     ];
 
-    const { put, processing, transform } = useForm<{ status: LoadPlanStatus }>({
+    const [confirmDeliveryModalOpen, setConfirmDeliveryModalOpen] = useState(false);
+
+    const { put, processing, transform } = useForm<{
+        status: LoadPlanStatus;
+        delivered_dispatch_ids?: string[];
+    }>({
         status: plan.status,
     });
 
-    const handleSwitchStatus = (status: LoadPlanStatus) => {
-        transform(() => ({ status }));
+    const handleSwitchStatus = (status: LoadPlanStatus, deliveredDispatchIds?: string[]) => {
+        transform(() => ({
+            status,
+            ...(deliveredDispatchIds !== undefined ? { delivered_dispatch_ids: deliveredDispatchIds } : {}),
+        }));
         put(
             loadPlans.updateStatus({ company: companyId, id: plan.id }).url,
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onSuccess: () => setConfirmDeliveryModalOpen(false),
+            },
         );
     };
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('confirm') === '1' && plan.status === 'in_transit') {
+                setConfirmDeliveryModalOpen(true);
+            }
+        }
+    }, [plan.status]);
 
     const dispatches = plan.dispatches ?? [];
 
@@ -110,16 +133,9 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
                                 <h1 className="text-2xl font-extrabold tracking-tight">
                                     {plan.code}
                                 </h1>
-                                <StatusPill
-                                    label={
-                                        STATUS_LABELS[plan.status] ??
-                                        plan.status
-                                    }
-                                    kind={
-                                        STATUS_PILL_KIND[plan.status] ??
-                                        'neutral'
-                                    }
-                                />
+                                <StatusPill kind={STATUS_PILL_KIND[plan.status]}>
+                                    {STATUS_LABELS[plan.status] ?? plan.status}
+                                </StatusPill>
                             </div>
                             <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
                                 <span className="flex items-center gap-1">
@@ -137,6 +153,21 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
 
                     {/* Actions */}
                     <div className="flex flex-wrap items-center gap-2">
+                        <a
+                            href={`/${companyId}/load-plans/${plan.id}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="gap-1.5 h-9 text-xs font-semibold"
+                            >
+                                <Printer className="size-3.5" />
+                                Imprimir Hoja de Carga
+                            </Button>
+                        </a>
+
                         {plan.is_editable && (
                             <Link
                                 href={
@@ -170,7 +201,7 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
                         {plan.status === 'in_transit' && (
                             <>
                                 <Button
-                                    onClick={() => handleSwitchStatus('confirmed')}
+                                    onClick={() => setConfirmDeliveryModalOpen(true)}
                                     disabled={processing}
                                     className="gap-1.5 h-9 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
                                 >
@@ -388,13 +419,14 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
                                     <th className="p-3">Factura / Pedido</th>
                                     <th className="p-3 text-right">Peso (kg)</th>
                                     <th className="p-3 text-right">Volumen (m³)</th>
+                                    <th className="p-3 text-center w-36">Estado</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {dispatches.length === 0 ? (
                                     <tr>
                                         <td
-                                            colSpan={6}
+                                            colSpan={7}
                                             className="p-8 text-center text-muted-foreground"
                                         >
                                             No hay despachos asociados a este plan de carga.
@@ -456,6 +488,27 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
                                                     maximumFractionDigits: 3,
                                                 })}
                                             </td>
+                                            <td className="p-3 text-center">
+                                                {d.dispatch_status === 'delivered' ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 text-[11px] font-bold">
+                                                        <Check className="size-3" />
+                                                        Entregado
+                                                    </span>
+                                                ) : d.dispatch_status === 'confirmed' ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 px-2 py-0.5 text-[11px] font-bold">
+                                                        <Truck className="size-3" />
+                                                        Despachado
+                                                    </span>
+                                                ) : d.dispatch_status === 'pending' ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-2 py-0.5 text-[11px] font-bold">
+                                                        Pendiente
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-[11px]">
+                                                        {d.dispatch_status || '—'}
+                                                    </span>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))
                                 )}
@@ -479,12 +532,23 @@ export default function LoadPlansShow({ loadPlan: plan }: Props) {
                                         })}{' '}
                                         m³
                                     </td>
+                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </Card>
             </div>
+
+            {/* Modal de confirmación de entrega con selección de pedidos devueltos/entregados */}
+            <ConfirmDeliveryModal
+                isOpen={confirmDeliveryModalOpen}
+                onClose={() => setConfirmDeliveryModalOpen(false)}
+                planCode={plan.code}
+                dispatches={dispatches}
+                onConfirm={(deliveredIds) => handleSwitchStatus('confirmed', deliveredIds)}
+                processing={processing}
+            />
         </AppLayout>
     );
 }

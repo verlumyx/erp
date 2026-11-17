@@ -20,6 +20,7 @@ Route::middleware(['web', 'auth', 'verified', 'company.access'])
             Route::get('/pending-dispatches', [LoadPlanGetController::class, 'pendingDispatches'])->name('load-plans.pending-dispatches');
             Route::post('/', LoadPlanPostController::class)->name('load-plans.store');
             Route::get('/{id}', [LoadPlanGetController::class, 'show'])->where('id', $uuid)->name('load-plans.show');
+            Route::get('/{id}/pdf', [LoadPlanGetController::class, 'pdf'])->where('id', $uuid)->name('load-plans.pdf');
             Route::get('/{id}/edit', [LoadPlanGetController::class, 'edit'])->where('id', $uuid)->name('load-plans.edit');
             Route::put('/{id}', LoadPlanPutController::class)->where('id', $uuid)->name('load-plans.update');
             Route::put('/{id}/status', LoadPlanUpdateStatusController::class)->where('id', $uuid)->name('load-plans.update-status');

@@ -7,6 +7,7 @@ import {
     Eye,
     MoreHorizontal,
     Plus,
+    Printer,
     Search,
     Truck,
     XCircle,
@@ -386,10 +387,9 @@ export function LoadPlanList({
 
                                         {/* Status */}
                                         <td className="p-3.5 text-center">
-                                            <StatusPill
-                                                label={STATUS_LABELS[plan.status] ?? plan.status}
-                                                kind={STATUS_PILL_KIND[plan.status] ?? 'neutral'}
-                                            />
+                                            <StatusPill kind={STATUS_PILL_KIND[plan.status]}>
+                                                {STATUS_LABELS[plan.status] ?? plan.status}
+                                            </StatusPill>
                                         </td>
 
                                         {/* Actions */}
@@ -419,6 +419,18 @@ export function LoadPlanList({
                                                             <Eye className="size-3.5 text-muted-foreground" />
                                                             Ver detalle
                                                         </Link>
+                                                    </DropdownMenuItem>
+
+                                                    <DropdownMenuItem asChild>
+                                                        <a
+                                                            href={`/${companyId}/load-plans/${plan.id}/pdf`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 text-xs"
+                                                        >
+                                                            <Printer className="size-3.5 text-muted-foreground" />
+                                                            Imprimir Hoja de Carga (PDF)
+                                                        </a>
                                                     </DropdownMenuItem>
 
                                                     {plan.is_editable && (
@@ -452,7 +464,7 @@ export function LoadPlanList({
 
                                                     {plan.status === 'in_transit' && (
                                                         <DropdownMenuItem
-                                                            onClick={() => handleUpdateStatus(plan, 'confirmed')}
+                                                            onClick={() => router.visit(loadPlans.show({ company: companyId, id: plan.id }).url + '?confirm=1')}
                                                             className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400"
                                                         >
                                                             <CheckCircle2 className="size-3.5" />

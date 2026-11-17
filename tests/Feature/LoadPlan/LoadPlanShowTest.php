@@ -52,3 +52,30 @@ test('cannot view a load plan from another company', function () {
         ->get(route('load-plans.show', ['company' => $companyB->id, 'id' => $plan->id]))
         ->assertNotFound();
 });
+
+test('it generates load plan pdf stream successfully', function () {
+    [$user, $company, $warehouse, $route, $vehicle] = loadPlanScenario();
+
+    $dispatch = Dispatch::factory()->create([
+        'company_id' => $company->id,
+        'warehouse_id' => $warehouse->id,
+        'route_id' => $route->id,
+        'total_weight' => 120.0,
+        'total_volume' => 1.5,
+        'status' => 'confirmed',
+    ]);
+
+    $plan = createLoadPlan($user, $company, $route, $warehouse, $vehicle, [
+        'driver_name' => 'Conductor de Prueba',
+        'dispatches' => [
+            ['dispatch_id' => $dispatch->id, 'sequence' => 1],
+        ],
+    ]);
+
+    $response = actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->get(route('load-plans.pdf', ['company' => $company->id, 'id' => $plan->id]));
+
+    $response->assertOk();
+    $response->assertHeader('content-type', 'application/pdf');
+});

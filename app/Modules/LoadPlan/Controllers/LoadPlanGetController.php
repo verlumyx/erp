@@ -12,8 +12,10 @@ use App\Modules\LoadPlan\Services\LoadPlanFindService;
 use App\Modules\LoadPlan\Services\LoadPlanFormOptionsService;
 use App\Modules\LoadPlan\Services\LoadPlanPendingDispatchesService;
 use App\Modules\LoadPlan\Services\LoadPlanSearchService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -73,6 +75,59 @@ class LoadPlanGetController extends Controller
         return Inertia::render('load-plans/show', [
             'loadPlan' => (new LoadPlanResource($loadPlan))->resolve(),
         ]);
+    }
+
+    public function pdf(Request $request, string $company, string $id): HttpResponse
+    {
+        abort_unless($request->user()?->hasPermission('load-plans.show') ?? false, 403);
+
+        $loadPlan = $this->findService->execute($id, $company);
+        $loadPlan->loadMissing([
+            'company',
+            'route',
+            'warehouse',
+            'vehicle',
+            'driver',
+            'creator',
+            'planDispatches.dispatch.recipient',
+            'planDispatches.dispatch.clientAddress',
+            'planDispatches.dispatch.sourceable',
+            'planDispatches.dispatch.lines.item',
+            'planDispatches.dispatch.lines.measurementUnit',
+        ]);
+
+        // Consolidar artículos de todos los despachos para el picking de almacén
+        $consolidatedItems = [];
+        foreach ($loadPlan->planDispatches as $planDispatch) {
+            $dispatch = $planDispatch->dispatch;
+            if (! $dispatch) {
+                continue;
+            }
+            foreach ($dispatch->lines as $line) {
+                $itemId = (string) $line->item_id;
+                if (! isset($consolidatedItems[$itemId])) {
+                    $consolidatedItems[$itemId] = [
+                        'sku' => $line->item?->sku ?? $line->item?->code ?? '—',
+                        'name' => $line->item?->name ?? '—',
+                        'unit' => $line->measurementUnit?->code ?? $line->measurementUnit?->name ?? 'UND',
+                        'quantity' => 0.0,
+                    ];
+                }
+                $consolidatedItems[$itemId]['quantity'] += (float) $line->quantity;
+            }
+        }
+
+        uasort($consolidatedItems, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        $pdf = Pdf::loadView('pdf.load-plan', [
+            'plan' => $loadPlan,
+            'company' => $loadPlan->company,
+            'consolidatedItems' => array_values($consolidatedItems),
+        ])->setPaper('letter', 'portrait');
+
+        $filename = "plan-de-carga-{$loadPlan->code}.pdf";
+
+        return $pdf->stream($filename);
     }
 
     public function edit(Request $request, string $company, string $id): Response

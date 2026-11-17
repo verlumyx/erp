@@ -24,6 +24,8 @@ class UpdateStatusLoadPlanRequest extends FormRequest
     {
         return [
             'status' => ['required', 'string', Rule::in(LoadPlan::STATUSES)],
+            'delivered_dispatch_ids' => ['nullable', 'array'],
+            'delivered_dispatch_ids.*' => ['string'],
         ];
     }
 
