@@ -66,7 +66,7 @@ export function HelpOverview({ onSelectTopic }: HelpOverviewProps) {
         {
             step: 4,
             title: 'Logística',
-            desc: 'Recepciones de entrada y guías de despacho.',
+            desc: 'Entradas, despachos, traslados, rutas y planes de carga.',
             icon: Truck,
             topicId: 'logistica-despachos',
         },
