@@ -114,199 +114,276 @@ export function LoadPlanList({
         );
     };
 
+    const pickFilter = (
+        list: OptionType[],
+        value: string | undefined,
+        apply: (next: string | undefined) => void,
+    ) => ({
+        options: list,
+        value: list.find((option) => option.value === (value ?? ALL)) ?? null,
+        onChange: (option: OptionType | null) =>
+            apply(!option || option.value === ALL ? undefined : option.value),
+    });
+
     return (
         <div className="flex flex-col gap-5">
             {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-extrabold tracking-tight">
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
+                <div>
+                    <h1 className="text-[27px] font-extrabold tracking-tight">
                         Planes de Carga
                     </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Consolidación de despachos y asignación de camiones por ruta comercial
+                    <p className="mt-1 text-[14.5px] text-muted-foreground">
+                        {meta.total} plan{meta.total !== 1 ? 'es' : ''} de carga
                     </p>
                 </div>
-                <Link href={loadPlans.create(companyId).url}>
-                    <Button className="h-10 rounded-[11px] px-4 font-semibold">
-                        <Plus className="mr-1.5 size-4" />
-                        Nuevo plan de carga
-                    </Button>
-                </Link>
+                <Button
+                    className="h-10 rounded-[11px] px-4 font-semibold shadow-[0_4px_12px_color-mix(in_srgb,var(--primary)_28%,transparent)]"
+                    onClick={() =>
+                        router.visit(loadPlans.create(companyId).url)
+                    }
+                >
+                    <Plus />
+                    Nuevo plan de carga
+                </Button>
             </div>
 
             {/* Filters */}
-            <Card className="gap-3 rounded-2xl p-4">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-                    {/* Search Q */}
-                    <div className="flex flex-col gap-1.5 sm:col-span-2">
-                        <Label
-                            htmlFor="filter-q"
-                            className="text-[12px] font-semibold text-muted-foreground"
-                        >
-                            Buscar por código, chofer o ayudante
-                        </Label>
-                        <div className="relative">
-                            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                                id="filter-q"
-                                value={filters.q ?? ''}
-                                onChange={(e) =>
-                                    setFilters({ ...filters, q: e.target.value })
+            <div className="rounded-lg border bg-card p-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="filter-q">Buscar por código, chofer o ayudante</Label>
+                        <Input
+                            id="filter-q"
+                            type="text"
+                            placeholder="PLC000001, Juan Perez..."
+                            value={filters.q ?? ''}
+                            onChange={(e) =>
+                                setFilters({ ...filters, q: e.target.value })
+                            }
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    applyFilters({ ...filters, offset: 0 });
                                 }
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        applyFilters({ ...filters, offset: 0 });
-                                    }
-                                }}
-                                placeholder="PLC000001, Juan Perez..."
-                                className="h-9 rounded-[9px] pl-9 text-xs"
-                            />
-                        </div>
+                            }}
+                        />
                     </div>
 
-                    {/* Route Filter */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[12px] font-semibold text-muted-foreground">
-                            Ruta
-                        </Label>
+                    <div className="space-y-2">
+                        <Label htmlFor="filter-route">Ruta</Label>
                         <Select2
                             inputId="filter-route"
-                            options={routeOptions}
-                            value={
-                                routeOptions.find(
-                                    (opt) =>
-                                        opt.value === (filters.route_id ?? ALL),
-                                ) ?? null
-                            }
-                            onChange={(option) => {
-                                const next = {
-                                    ...filters,
-                                    route_id: option?.value,
-                                    offset: 0,
-                                };
-                                setFilters(next);
-                                applyFilters(next);
-                            }}
-                            size="sm"
+                            {...pickFilter(
+                                routeOptions,
+                                filters.route_id,
+                                (route_id) => {
+                                    const next = {
+                                        ...filters,
+                                        route_id,
+                                        offset: 0,
+                                    };
+                                    setFilters(next);
+                                    applyFilters(next);
+                                },
+                            )}
+                            placeholder="Todas las rutas"
                         />
                     </div>
 
-                    {/* Vehicle Filter */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[12px] font-semibold text-muted-foreground">
-                            Camión
-                        </Label>
+                    <div className="space-y-2">
+                        <Label htmlFor="filter-vehicle">Camión</Label>
                         <Select2
                             inputId="filter-vehicle"
-                            options={vehicleOptions}
-                            value={
-                                vehicleOptions.find(
-                                    (opt) =>
-                                        opt.value === (filters.vehicle_id ?? ALL),
-                                ) ?? null
-                            }
-                            onChange={(option) => {
-                                const next = {
-                                    ...filters,
-                                    vehicle_id: option?.value,
-                                    offset: 0,
-                                };
-                                setFilters(next);
-                                applyFilters(next);
-                            }}
-                            size="sm"
+                            {...pickFilter(
+                                vehicleOptions,
+                                filters.vehicle_id,
+                                (vehicle_id) => {
+                                    const next = {
+                                        ...filters,
+                                        vehicle_id,
+                                        offset: 0,
+                                    };
+                                    setFilters(next);
+                                    applyFilters(next);
+                                },
+                            )}
+                            placeholder="Todos los camiones"
                         />
                     </div>
 
-                    {/* Status Filter */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[12px] font-semibold text-muted-foreground">
-                            Estado
-                        </Label>
+                    <div className="space-y-2">
+                        <Label htmlFor="filter-status">Estado</Label>
                         <Select2
                             inputId="filter-status"
-                            options={statusOptions}
-                            value={
-                                statusOptions.find(
-                                    (opt) =>
-                                        opt.value === (filters.status ?? ALL),
-                                ) ?? null
-                            }
-                            onChange={(option) => {
-                                const next = {
-                                    ...filters,
-                                    status: option?.value,
-                                    offset: 0,
-                                };
-                                setFilters(next);
-                                applyFilters(next);
-                            }}
-                            size="sm"
+                            {...pickFilter(
+                                statusOptions,
+                                filters.status,
+                                (status) => {
+                                    const next = {
+                                        ...filters,
+                                        status: status as LoadPlanStatus | undefined,
+                                        offset: 0,
+                                    };
+                                    setFilters(next);
+                                    applyFilters(next);
+                                },
+                            )}
+                            placeholder="Todos los estados"
                         />
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="mt-4 flex justify-end gap-2">
                     <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearFilters}
-                        className="h-8 text-xs text-muted-foreground"
-                    >
-                        Limpiar filtros
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
                         onClick={() => applyFilters({ ...filters, offset: 0 })}
-                        className="h-8 text-xs font-semibold"
+                        variant="default"
                     >
-                        Filtrar
+                        <Search className="mr-2 h-4 w-4" />
+                        Buscar
+                    </Button>
+                    <Button onClick={handleClearFilters} variant="outline">
+                        Limpiar
                     </Button>
                 </div>
-            </Card>
+            </div>
 
-            {/* Table */}
-            <Card className="overflow-hidden rounded-2xl border">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                        <thead className="bg-muted/40 font-semibold text-muted-foreground uppercase text-[11px] border-b">
-                            <tr>
-                                <th className="p-3.5">Plan / Fecha</th>
-                                <th className="p-3.5">Ruta</th>
-                                <th className="p-3.5">Camión</th>
-                                <th className="p-3.5">Tripulación</th>
-                                <th className="p-3.5 text-center">Despachos</th>
-                                <th className="p-3.5 text-right">Peso (kg)</th>
-                                <th className="p-3.5 text-right">Volumen (m³)</th>
-                                <th className="p-3.5 text-center">Estado</th>
-                                <th className="p-3.5 w-12 text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {items.length === 0 ? (
-                                <tr>
-                                    <td
-                                        colSpan={9}
-                                        className="p-8 text-center text-muted-foreground"
-                                    >
-                                        <div className="flex flex-col items-center justify-center gap-2">
-                                            <Truck className="size-8 text-muted-foreground/40" />
-                                            <p className="font-medium text-sm">
-                                                No se encontraron planes de carga
-                                            </p>
+            {/* List Table Card */}
+            <Card className="gap-0 overflow-hidden rounded-2xl py-0">
+                <div className="hidden h-12 items-center gap-3.5 border-b bg-muted px-5 lg:grid lg:grid-cols-[1.1fr_1.1fr_1.1fr_1.4fr_0.7fr_0.8fr_0.8fr_0.9fr_0.5fr]">
+                    {[
+                        'Plan / Fecha',
+                        'Ruta',
+                        'Camión',
+                        'Tripulación',
+                        'Despachos',
+                        'Peso (kg)',
+                        'Volumen (m³)',
+                        'Estado',
+                        'Acciones',
+                    ].map((header, index) => (
+                        <div
+                            key={header}
+                            className={`text-[11.5px] font-bold tracking-wider text-muted-foreground uppercase ${
+                                index === 4 || index === 7
+                                    ? 'text-center'
+                                    : index === 5 || index === 6 || index === 8
+                                      ? 'text-right'
+                                      : ''
+                            }`}
+                        >
+                            {header}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="flex flex-col">
+                    {items.map((plan) => (
+                        <div
+                            key={plan.id}
+                            className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[1.1fr_1.1fr_1.1fr_1.4fr_0.7fr_0.8fr_0.8fr_0.9fr_0.5fr] lg:py-0"
+                        >
+                            {/* Code & Date */}
+                            <div>
+                                <Link
+                                    href={
+                                        loadPlans.show({
+                                            company: companyId,
+                                            id: plan.id,
+                                        }).url
+                                    }
+                                    className="font-bold text-primary hover:underline tabular-nums"
+                                >
+                                    {plan.code}
+                                </Link>
+                                <div className="mt-0.5 flex items-center gap-1 text-[11.5px] text-muted-foreground">
+                                    <Calendar className="size-3" />
+                                    {plan.plan_date}
+                                </div>
+                            </div>
+
+                            {/* Route */}
+                            <div className="flex min-w-0 flex-col">
+                                <span className="truncate font-semibold text-foreground">
+                                    {plan.route_name || '—'}
+                                </span>
+                                {plan.route_code && (
+                                    <span className="truncate text-[11.5px] text-muted-foreground">
+                                        {plan.route_code}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Vehicle */}
+                            <div className="hidden min-w-0 flex-col lg:flex">
+                                {plan.vehicle_plate ? (
+                                    <div>
+                                        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs font-bold uppercase">
+                                            {plan.vehicle_plate}
+                                        </span>
+                                        <div className="mt-0.5 max-w-[140px] truncate text-[11.5px] text-muted-foreground">
+                                            {plan.vehicle_name}
                                         </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                items.map((plan) => (
-                                    <tr
-                                        key={plan.id}
-                                        className="hover:bg-muted/30 transition-colors"
-                                    >
-                                        {/* Code & Date */}
-                                        <td className="p-3.5">
+                                    </div>
+                                ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                )}
+                            </div>
+
+                            {/* Driver & Helper */}
+                            <div className="hidden min-w-0 flex-col lg:flex">
+                                <span className="truncate text-[13px] font-medium">
+                                    Chofer: {plan.driver_name}
+                                </span>
+                                {plan.helper_name && (
+                                    <span className="truncate text-[11.5px] text-muted-foreground">
+                                        Ayudante: {plan.helper_name}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Dispatches Count */}
+                            <div className="hidden text-center lg:block">
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-bold tabular-nums text-primary">
+                                    {plan.total_dispatches}
+                                </span>
+                            </div>
+
+                            {/* Weight */}
+                            <div className="hidden text-right text-[13px] font-semibold tabular-nums lg:block">
+                                {Number(plan.total_weight).toLocaleString('es-VE', {
+                                    maximumFractionDigits: 1,
+                                })}
+                            </div>
+
+                            {/* Volume */}
+                            <div className="hidden text-right text-[13px] tabular-nums text-muted-foreground lg:block">
+                                {Number(plan.total_volume).toLocaleString('es-VE', {
+                                    maximumFractionDigits: 2,
+                                })}
+                            </div>
+
+                            {/* Status */}
+                            <div className="hidden text-center lg:block">
+                                <StatusPill kind={STATUS_PILL_KIND[plan.status]}>
+                                    {STATUS_LABELS[plan.status] ?? plan.status}
+                                </StatusPill>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+                                            aria-label="Opciones"
+                                        >
+                                            <MoreHorizontal className="size-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem asChild>
                                             <Link
                                                 href={
                                                     loadPlans.show({
@@ -314,195 +391,100 @@ export function LoadPlanList({
                                                         id: plan.id,
                                                     }).url
                                                 }
-                                                className="font-bold text-primary hover:underline"
+                                                className="flex items-center gap-2 text-xs"
                                             >
-                                                {plan.code}
+                                                <Eye className="size-3.5 text-muted-foreground" />
+                                                Ver detalle
                                             </Link>
-                                            <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                <Calendar className="size-3" />
-                                                {plan.plan_date}
-                                            </div>
-                                        </td>
+                                        </DropdownMenuItem>
 
-                                        {/* Route */}
-                                        <td className="p-3.5">
-                                            <div className="font-semibold text-foreground">
-                                                {plan.route_name || '—'}
-                                            </div>
-                                            {plan.route_code && (
-                                                <div className="text-[11px] text-muted-foreground">
-                                                    {plan.route_code}
-                                                </div>
-                                            )}
-                                        </td>
+                                        <DropdownMenuItem asChild>
+                                            <a
+                                                href={`/${companyId}/load-plans/${plan.id}/pdf`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-2 text-xs"
+                                            >
+                                                <Printer className="size-3.5 text-muted-foreground" />
+                                                Imprimir Hoja de Carga (PDF)
+                                            </a>
+                                        </DropdownMenuItem>
 
-                                        {/* Vehicle */}
-                                        <td className="p-3.5">
-                                            {plan.vehicle_plate ? (
-                                                <div>
-                                                    <span className="font-mono font-bold text-xs uppercase bg-muted px-1.5 py-0.5 rounded">
-                                                        {plan.vehicle_plate}
-                                                    </span>
-                                                    <div className="text-[11px] text-muted-foreground truncate max-w-[140px] mt-0.5">
-                                                        {plan.vehicle_name}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <span className="text-muted-foreground">—</span>
-                                            )}
-                                        </td>
+                                        {plan.is_editable && (
+                                            <DropdownMenuItem asChild>
+                                                <Link
+                                                    href={
+                                                        loadPlans.edit({
+                                                            company: companyId,
+                                                            id: plan.id,
+                                                        }).url
+                                                    }
+                                                    className="flex items-center gap-2 text-xs"
+                                                >
+                                                    <Edit className="size-3.5 text-muted-foreground" />
+                                                    Editar plan
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        )}
 
-                                        {/* Driver & Helper */}
-                                        <td className="p-3.5">
-                                            <div className="font-medium">
-                                                Chofer: {plan.driver_name}
-                                            </div>
-                                            {plan.helper_name && (
-                                                <div className="text-[11px] text-muted-foreground">
-                                                    Ayudante: {plan.helper_name}
-                                                </div>
-                                            )}
-                                        </td>
+                                        <DropdownMenuSeparator />
 
-                                        {/* Dispatches Count */}
-                                        <td className="p-3.5 text-center">
-                                            <span className="font-bold tabular-nums px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                                {plan.total_dispatches}
-                                            </span>
-                                        </td>
+                                        {plan.status === 'draft' && (
+                                            <DropdownMenuItem
+                                                onClick={() => handleUpdateStatus(plan, 'in_transit')}
+                                                className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400"
+                                            >
+                                                <Truck className="size-3.5" />
+                                                Despachar a tránsito
+                                            </DropdownMenuItem>
+                                        )}
 
-                                        {/* Weight */}
-                                        <td className="p-3.5 text-right font-semibold tabular-nums">
-                                            {Number(plan.total_weight).toLocaleString('es-VE', {
-                                                maximumFractionDigits: 1,
-                                            })}
-                                        </td>
+                                        {plan.status === 'in_transit' && (
+                                            <DropdownMenuItem
+                                                onClick={() =>
+                                                    router.visit(
+                                                        loadPlans.show({
+                                                            company: companyId,
+                                                            id: plan.id,
+                                                        }).url + '?confirm=1',
+                                                    )
+                                                }
+                                                className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400"
+                                            >
+                                                <CheckCircle2 className="size-3.5" />
+                                                Confirmar entrega
+                                            </DropdownMenuItem>
+                                        )}
 
-                                        {/* Volume */}
-                                        <td className="p-3.5 text-right tabular-nums text-muted-foreground">
-                                            {Number(plan.total_volume).toLocaleString('es-VE', {
-                                                maximumFractionDigits: 2,
-                                            })}
-                                        </td>
-
-                                        {/* Status */}
-                                        <td className="p-3.5 text-center">
-                                            <StatusPill kind={STATUS_PILL_KIND[plan.status]}>
-                                                {STATUS_LABELS[plan.status] ?? plan.status}
-                                            </StatusPill>
-                                        </td>
-
-                                        {/* Actions */}
-                                        <td className="p-3.5 text-center">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-7 rounded-md"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                        <span className="sr-only">Acciones</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-44">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={
-                                                                loadPlans.show({
-                                                                    company: companyId,
-                                                                    id: plan.id,
-                                                                }).url
-                                                            }
-                                                            className="flex items-center gap-2 text-xs"
-                                                        >
-                                                            <Eye className="size-3.5 text-muted-foreground" />
-                                                            Ver detalle
-                                                        </Link>
-                                                    </DropdownMenuItem>
-
-                                                    <DropdownMenuItem asChild>
-                                                        <a
-                                                            href={`/${companyId}/load-plans/${plan.id}/pdf`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center gap-2 text-xs"
-                                                        >
-                                                            <Printer className="size-3.5 text-muted-foreground" />
-                                                            Imprimir Hoja de Carga (PDF)
-                                                        </a>
-                                                    </DropdownMenuItem>
-
-                                                    {plan.is_editable && (
-                                                        <DropdownMenuItem asChild>
-                                                            <Link
-                                                                href={
-                                                                    loadPlans.edit({
-                                                                        company: companyId,
-                                                                        id: plan.id,
-                                                                    }).url
-                                                                }
-                                                                className="flex items-center gap-2 text-xs"
-                                                            >
-                                                                <Edit className="size-3.5 text-muted-foreground" />
-                                                                Editar plan
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                    )}
-
-                                                    <DropdownMenuSeparator />
-
-                                                    {plan.status === 'draft' && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleUpdateStatus(plan, 'in_transit')}
-                                                            className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400"
-                                                        >
-                                                            <Truck className="size-3.5" />
-                                                            Despachar a tránsito
-                                                        </DropdownMenuItem>
-                                                    )}
-
-                                                    {plan.status === 'in_transit' && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => router.visit(loadPlans.show({ company: companyId, id: plan.id }).url + '?confirm=1')}
-                                                            className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400"
-                                                        >
-                                                            <CheckCircle2 className="size-3.5" />
-                                                            Confirmar entrega
-                                                        </DropdownMenuItem>
-                                                    )}
-
-                                                    {(plan.status === 'draft' || plan.status === 'in_transit') && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleUpdateStatus(plan, 'cancelled')}
-                                                            className="flex items-center gap-2 text-xs text-bad"
-                                                        >
-                                                            <XCircle className="size-3.5" />
-                                                            Anular plan
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                        {(plan.status === 'draft' || plan.status === 'in_transit') && (
+                                            <DropdownMenuItem
+                                                onClick={() => handleUpdateStatus(plan, 'cancelled')}
+                                                className="flex items-center gap-2 text-xs text-bad"
+                                            >
+                                                <XCircle className="size-3.5" />
+                                                Anular plan
+                                            </DropdownMenuItem>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                    ))}
+                    {items.length === 0 && (
+                        <div className="p-12 text-center text-sm text-muted-foreground">
+                            Sin resultados para tu búsqueda.
+                        </div>
+                    )}
                 </div>
 
-                {meta.total > meta.limit && (
-                    <div className="border-t p-4">
-                        <Pagination
-                            meta={meta}
-                            onPageChange={(offset) =>
-                                applyFilters({ ...filters, offset })
-                            }
-                            label="plan de carga"
-                            labelPlural="planes de carga"
-                        />
-                    </div>
-                )}
+                <Pagination
+                    meta={meta}
+                    onPageChange={(offset) =>
+                        applyFilters({ ...filters, offset })
+                    }
+                    label="plan de carga"
+                    labelPlural="planes de carga"
+                />
             </Card>
         </div>
     );

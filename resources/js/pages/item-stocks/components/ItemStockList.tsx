@@ -1,5 +1,5 @@
 import { Pagination } from '@/components/pagination';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Eye, MoreHorizontal, Power, Search } from 'lucide-react';
 import { useState } from 'react';
 import { StatusPill } from '@/components/status-pill';
@@ -232,25 +232,25 @@ export function ItemStockList({
                     {stocks.map((stock) => (
                         <div
                             key={stock.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[2.2fr_1.6fr_0.9fr_0.9fr_0.9fr_0.7fr] lg:py-0"
-                            onClick={() =>
-                                router.visit(
-                                    itemStocks.show({
-                                        company: companyId,
-                                        id: stock.id,
-                                    }).url,
-                                )
-                            }
+                            className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[2.2fr_1.6fr_0.9fr_0.9fr_0.9fr_0.7fr] lg:py-0"
                         >
                             <div className="flex min-w-0 flex-col">
-                                <span className="truncate font-bold">
-                                    {stock.item_name ?? '—'}
+                                <div className="flex items-center">
+                                    <Link
+                                        href={itemStocks.show({
+                                            company: companyId,
+                                            id: stock.id,
+                                        }).url}
+                                        className="truncate font-bold text-primary hover:underline"
+                                    >
+                                        {stock.item_name ?? '—'}
+                                    </Link>
                                     {stock.status === 'inactive' && (
                                         <span className="ml-2 align-middle">
                                             <StatusPill kind="inactivo" />
                                         </span>
                                     )}
-                                </span>
+                                </div>
                                 <span className="truncate text-[12.5px] text-muted-foreground">
                                     {stock.item_code ?? '—'}
                                     {stock.lot_number
@@ -283,16 +283,13 @@ export function ItemStockList({
                                     {formatAmount(stock.total_value)}
                                 </span>
                             </div>
-                            <div
-                                className="flex items-center justify-end gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex items-center justify-end gap-2">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="icon"
-                                            className="rounded-[10px] bg-card"
+                                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                             aria-label="Opciones"
                                         >
                                             <MoreHorizontal className="size-4" />

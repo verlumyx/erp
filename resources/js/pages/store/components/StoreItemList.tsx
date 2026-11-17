@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Pagination } from '@/components/pagination';
 import {
     Edit,
@@ -222,8 +222,7 @@ export function StoreItemList({
                         return (
                             <div
                                 key={row.id}
-                                className="grid min-h-[66px] cursor-pointer grid-cols-[auto_1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.5fr_0.9fr_2.4fr_1fr_1fr_1fr_0.8fr] lg:py-2"
-                                onClick={() => goTo(row)}
+                                className="grid min-h-[66px] grid-cols-[auto_1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[0.5fr_0.9fr_2.4fr_1fr_1fr_1fr_0.8fr] lg:py-2"
                             >
                                 <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[10px] border bg-muted">
                                     {image ? (
@@ -237,9 +236,12 @@ export function StoreItemList({
                                     )}
                                 </div>
                                 <div className="hidden lg:block">
-                                    <span className="font-semibold text-muted-foreground tabular-nums">
-                                        {row.code}
-                                    </span>
+                                    <Link
+                                    href={storeItems.show({ company: companyId, id: row.id }).url}
+                                    className="font-bold text-primary hover:underline tabular-nums"
+                                >
+                                    {row.code}
+                                </Link>
                                 </div>
                                 <div className="flex min-w-0 flex-col">
                                     <span className="flex items-center gap-1.5 truncate font-bold">
@@ -289,16 +291,13 @@ export function StoreItemList({
                                             : 'Oculta'}
                                     </StatusPill>
                                 </div>
-                                <div
-                                    className="flex items-center justify-end gap-2"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
+                                <div className="flex items-center justify-end gap-2">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon"
-                                                className="rounded-[10px] bg-card"
+                                                className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                                 aria-label="Opciones"
                                             >
                                                 <MoreHorizontal className="size-4" />

@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     Download,
     Edit,
@@ -258,20 +258,20 @@ export function ClientList({
                         return (
                             <div
                                 key={client.id}
-                                className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.2fr_1.2fr_1fr_0.9fr_1.2fr] lg:py-0"
-                                onClick={() =>
-                                    router.visit(
-                                        clients.show({
-                                            company: companyId,
-                                            id: client.id,
-                                        }).url,
-                                    )
-                                }
+                                className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[0.9fr_2.2fr_1.2fr_1fr_0.9fr_1.2fr] lg:py-0"
                             >
                                 <div className="hidden lg:block">
-                                    <span className="font-semibold text-muted-foreground tabular-nums">
+                                    <Link
+                                        href={
+                                            clients.show({
+                                                company: companyId,
+                                                id: client.id,
+                                            }).url
+                                        }
+                                        className="font-bold text-primary hover:underline tabular-nums"
+                                    >
                                         {client.code}
-                                    </span>
+                                    </Link>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <InitialsAvatar
@@ -301,17 +301,14 @@ export function ClientList({
                                 <div className="hidden lg:block">
                                     <StatusPill kind={estadoCliente} />
                                 </div>
-                                <div
-                                    className="flex items-center justify-end gap-2"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
+                                <div className="flex items-center justify-end gap-2">
                                     {tel && <WhatsAppButton tel={tel} />}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon"
-                                                className="rounded-[10px] bg-card"
+                                                className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                                 aria-label="Opciones"
                                             >
                                                 <MoreHorizontal className="size-4" />

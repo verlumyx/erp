@@ -1,5 +1,5 @@
 import { Pagination } from '@/components/pagination';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -291,20 +291,20 @@ export function SalesInvoiceList({
                     {rows.map((invoice) => (
                         <div
                             key={invoice.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2fr_0.9fr_1.1fr_0.9fr_0.9fr_0.8fr] lg:py-0"
-                            onClick={() =>
-                                router.visit(
-                                    salesInvoices.show({
-                                        company: companyId,
-                                        id: invoice.id,
-                                    }).url,
-                                )
-                            }
+                            className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[0.9fr_2fr_0.9fr_1.1fr_0.9fr_0.9fr_0.8fr] lg:py-0"
                         >
                             <div className="hidden min-w-0 flex-col lg:flex">
-                                <span className="truncate font-semibold text-muted-foreground tabular-nums">
+                                <Link
+                                    href={
+                                        salesInvoices.show({
+                                            company: companyId,
+                                            id: invoice.id,
+                                        }).url
+                                    }
+                                    className="truncate font-bold text-primary hover:underline tabular-nums"
+                                >
                                     {invoice.code}
-                                </span>
+                                </Link>
                                 {invoice.invoice_number && (
                                     <span className="truncate text-[12.5px] text-muted-foreground tabular-nums">
                                         {invoice.invoice_series
@@ -360,16 +360,13 @@ export function SalesInvoiceList({
                                     }
                                 />
                             </div>
-                            <div
-                                className="flex items-center justify-end gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex items-center justify-end gap-2">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="icon"
-                                            className="rounded-[10px] bg-card"
+                                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                             aria-label="Opciones"
                                         >
                                             <MoreHorizontal className="size-4" />

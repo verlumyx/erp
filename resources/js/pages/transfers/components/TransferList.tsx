@@ -1,5 +1,5 @@
 import { Pagination } from '@/components/pagination';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowRight,
     Edit,
@@ -318,20 +318,20 @@ export function TransferList({
                     {rows.map((row) => (
                         <div
                             key={row.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.4fr_1fr_1fr_1fr_0.8fr] lg:py-0"
-                            onClick={() =>
-                                router.visit(
-                                    transfers.show({
-                                        company: companyId,
-                                        id: row.id,
-                                    }).url,
-                                )
-                            }
+                            className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[0.9fr_2.4fr_1fr_1fr_1fr_0.8fr] lg:py-0"
                         >
                             <div className="hidden lg:block">
-                                <span className="font-semibold text-muted-foreground tabular-nums">
+                                <Link
+                                    href={
+                                        transfers.show({
+                                            company: companyId,
+                                            id: row.id,
+                                        }).url
+                                    }
+                                    className="font-bold text-primary hover:underline tabular-nums"
+                                >
                                     {row.code}
-                                </span>
+                                </Link>
                             </div>
                             <div className="flex min-w-0 flex-col">
                                 <span className="flex min-w-0 items-center gap-1.5 truncate font-bold">
@@ -367,22 +367,19 @@ export function TransferList({
                                     {STATUS_LABELS[row.status]}
                                 </StatusPill>
                             </div>
-                            <div
-                                className="flex items-center justify-end gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex items-center justify-end gap-2">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="icon"
-                                            className="rounded-[10px] bg-card"
+                                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                             aria-label="Opciones"
                                         >
                                             <MoreHorizontal className="size-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuContent align="end" className="w-44">
                                         <DropdownMenuItem
                                             onClick={() =>
                                                 router.visit(
@@ -392,9 +389,10 @@ export function TransferList({
                                                     }).url,
                                                 )
                                             }
+                                            className="flex items-center gap-2 text-xs"
                                         >
-                                            <Eye className="mr-2 h-4 w-4" />
-                                            Ver
+                                            <Eye className="size-3.5 text-muted-foreground" />
+                                            Ver detalle
                                         </DropdownMenuItem>
                                         {isEditable(row.status) && (
                                             <DropdownMenuItem
@@ -406,9 +404,10 @@ export function TransferList({
                                                         }).url,
                                                     )
                                                 }
+                                                className="flex items-center gap-2 text-xs"
                                             >
-                                                <Edit className="mr-2 h-4 w-4" />
-                                                Editar
+                                                <Edit className="size-3.5 text-muted-foreground" />
+                                                Editar traslado
                                             </DropdownMenuItem>
                                         )}
                                     </DropdownMenuContent>

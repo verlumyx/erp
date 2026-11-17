@@ -1,5 +1,5 @@
 import { Pagination } from '@/components/pagination';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { ArrowDownLeft, ArrowUpRight, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Select2Ajax, type AjaxOption } from '@/components/select2-ajax';
@@ -298,15 +298,7 @@ export function InventoryMovementList({
                     {movements.map((movement) => (
                         <div
                             key={movement.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-1 items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[2.2fr_1.5fr_1.2fr_0.9fr_0.9fr_0.9fr] lg:py-0"
-                            onClick={() =>
-                                router.visit(
-                                    inventoryMovements.show({
-                                        company: companyId,
-                                        id: movement.id,
-                                    }).url,
-                                )
-                            }
+                            className="grid min-h-[66px] grid-cols-1 items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[2.2fr_1.5fr_1.2fr_0.9fr_0.9fr_0.9fr] lg:py-0"
                         >
                             <div className="flex min-w-0 items-center gap-3">
                                 <span
