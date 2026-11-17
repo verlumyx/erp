@@ -128,7 +128,7 @@ class WarehouseRepository extends WarehouseFilters implements WarehouseRepositor
     {
         $last = Warehouse::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Warehouse::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Warehouse::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

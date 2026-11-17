@@ -27,6 +27,26 @@ test('a route is created active with its sequential code', function () {
     expect($route->clients)->toHaveCount(0);
 });
 
+test('a route is created with an assigned vehicle from the vehicles module', function () {
+    [$user, $company] = routeScenario();
+
+    $vehicle = \App\Modules\Vehicle\Models\Vehicle::factory()->create([
+        'company_id' => $company->id,
+        'plate' => 'ABC-999',
+        'capacity_weight' => 2500,
+        'capacity_volume' => 15,
+    ]);
+
+    $route = createRoute($user, $company, [
+        'vehicle_id' => $vehicle->id,
+    ]);
+
+    expect($route->vehicle_id)->toBe($vehicle->id);
+    expect($route->vehicle_plate)->toBe('ABC-999');
+    expect((float) $route->vehicle_capacity_weight)->toBe(2500.0);
+    expect((float) $route->vehicle_capacity_volume)->toBe(15.0);
+});
+
 test('the fixed clients are saved in visiting order', function () {
     [$user, $company, $client] = routeScenario();
 

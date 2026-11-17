@@ -87,7 +87,7 @@ class MeasurementUnitRepository extends MeasurementUnitFilters implements Measur
     {
         $last = MeasurementUnit::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', MeasurementUnit::CODE_PREFIX.'%')
+            ->where('code', 'ilike', MeasurementUnit::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

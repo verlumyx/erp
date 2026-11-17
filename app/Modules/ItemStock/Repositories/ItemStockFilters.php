@@ -16,9 +16,9 @@ class ItemStockFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->whereHas('item', function (Builder $query) use ($value): void {
-            $query->where('name', 'like', "%{$value}%")
-                ->orWhere('code', 'like', "%{$value}%")
-                ->orWhere('sku', 'like', "%{$value}%");
+            $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('code', 'ilike', "%{$value}%")
+                ->orWhere('sku', 'ilike', "%{$value}%");
         });
     }
 

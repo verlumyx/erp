@@ -34,9 +34,9 @@ return new class extends Migration
         foreach ($dispatches as $dispatch) {
             $cId = $dispatch->company_id ?? 'global';
             $companyCounters[$cId] = ($companyCounters[$cId] ?? 0) + 1;
-            $ctrl = '00-' . str_pad((string) $companyCounters[$cId], 8, '0', STR_PAD_LEFT);
+            $ctrl = '00-'.str_pad((string) $companyCounters[$cId], 8, '0', STR_PAD_LEFT);
 
-            $isSale = !in_array($dispatch->sourceable_type, ['transfer', 'purchase_return'], true);
+            $isSale = ! in_array($dispatch->sourceable_type, ['transfer', 'purchase_return'], true);
             $reason = match ($dispatch->sourceable_type) {
                 'transfer' => 'internal_transfer',
                 'purchase_return' => 'purchase_return',

@@ -14,8 +14,8 @@ class UpdateDispatchCommand
      */
     public function __construct(
         /** A quién va la mercancía: alias del morph map e id del destinatario. */
-        public readonly ?string $recipientType = null,
-        public readonly ?string $recipientId = null,
+        public readonly ?string $recipientType,
+        public readonly ?string $recipientId,
         public readonly string $warehouseId,
         public readonly string $dispatchDate,
         public readonly array $lines = [],

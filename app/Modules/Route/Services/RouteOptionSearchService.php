@@ -28,7 +28,7 @@ class RouteOptionSearchService
     {
         $result = $this->repository->search($command);
 
-        (new Collection($result['data']))->loadMissing(['warehouse', 'driver']);
+        (new Collection($result['data']))->loadMissing(['warehouse', 'driver', 'vehicle']);
 
         return $result;
     }

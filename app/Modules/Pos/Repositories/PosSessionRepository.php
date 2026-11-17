@@ -243,7 +243,7 @@ class PosSessionRepository implements PosSessionRepositoryInterface
     {
         $last = PosSession::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PosSession::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PosSession::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

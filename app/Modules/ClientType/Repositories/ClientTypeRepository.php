@@ -85,7 +85,7 @@ class ClientTypeRepository extends ClientTypeFilters implements ClientTypeReposi
     {
         $last = ClientType::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', ClientType::CODE_PREFIX.'%')
+            ->where('code', 'ilike', ClientType::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

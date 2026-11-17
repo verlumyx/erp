@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Pagination } from '@/components/pagination';
 import { Eye, Link2, MoreHorizontal, Power, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -203,13 +203,15 @@ export function StoreCustomerList({
                     {rows.map((row) => (
                         <div
                             key={row.id}
-                            className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[2.2fr_1.5fr_1fr_1.6fr_1fr_1.2fr_0.7fr] lg:py-0"
-                            onClick={() => goTo(row)}
+                            className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[2.2fr_1.5fr_1fr_1.6fr_1fr_1.2fr_0.7fr] lg:py-0"
                         >
                             <div className="flex min-w-0 flex-col">
-                                <span className="truncate font-bold">
+                                <Link
+                                    href={storeCustomers.show({ company: companyId, id: row.id }).url}
+                                    className="truncate font-bold text-primary hover:underline"
+                                >
                                     {row.email}
-                                </span>
+                                </Link>
                                 <span className="truncate text-[12.5px] text-muted-foreground">
                                     {row.code}
                                     {row.phone ? ` · ${row.phone}` : ''}
@@ -245,16 +247,13 @@ export function StoreCustomerList({
                             <div className="hidden text-[13px] text-muted-foreground tabular-nums lg:block">
                                 {row.last_login_at ?? 'Nunca'}
                             </div>
-                            <div
-                                className="flex items-center justify-end gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                            <div className="flex items-center justify-end gap-2">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="icon"
-                                            className="rounded-[10px] bg-card"
+                                            className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                             aria-label="Opciones"
                                         >
                                             <MoreHorizontal className="size-4" />

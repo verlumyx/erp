@@ -11,7 +11,7 @@ class SalesCreditNoteFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -31,7 +31,7 @@ class SalesCreditNoteFilters extends EloquentQueryFilters
     /** El correlativo fiscal, que no es el `code` del documento. */
     public function note_number(string $value): Builder
     {
-        return $this->builder->where('note_number', 'like', "%{$value}%");
+        return $this->builder->where('note_number', 'ilike', "%{$value}%");
     }
 
     public function note_series(string $value): Builder
@@ -69,8 +69,8 @@ class SalesCreditNoteFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('note_number', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('note_number', 'ilike', "%{$value}%");
         });
     }
 

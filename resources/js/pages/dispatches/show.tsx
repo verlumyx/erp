@@ -225,18 +225,26 @@ export default function DispatchesShow({ dispatch }: Props) {
                         )}
                         {transitions
                             .filter((status) => status !== 'cancelled')
-                            .map((status) => (
-                                <Button
-                                    key={status}
-                                    variant="outline"
-                                    className="h-10 rounded-[11px] bg-card px-4 font-semibold"
-                                    onClick={() => advanceTo(status)}
-                                    disabled={processing}
-                                >
-                                    <Check />
-                                    {STATUS_LABELS[status]}
-                                </Button>
-                            ))}
+                            .map((status) => {
+                                const actionLabels: Record<string, string> = {
+                                    pending: 'Pasar a pendiente',
+                                    confirmed: 'Despachar',
+                                    delivered: 'Marcar entregado',
+                                };
+
+                                return (
+                                    <Button
+                                        key={status}
+                                        variant="outline"
+                                        className="h-10 rounded-[11px] bg-card px-4 font-semibold"
+                                        onClick={() => advanceTo(status)}
+                                        disabled={processing}
+                                    >
+                                        <Check />
+                                        {actionLabels[status] ?? STATUS_LABELS[status]}
+                                    </Button>
+                                );
+                            })}
                         {transitions.includes('cancelled') && (
                             <Button
                                 variant="outline"
@@ -276,40 +284,86 @@ export default function DispatchesShow({ dispatch }: Props) {
                 <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
                     <Card className="gap-3 rounded-2xl px-[18px] py-4">
                         <div className="text-[13px] font-bold text-muted-foreground">
-                            Transporte
+                            Plan de Carga / Logística
                         </div>
-                        <DataRow
-                            label="Ruta"
-                            value={
-                                dispatch.route_id
-                                    ? `${dispatch.route_code ?? ''} ${dispatch.route_name ?? ''}`.trim()
-                                    : 'Sin ruta asignada'
-                            }
-                        />
-                        <DataRow
-                            label="Parada"
-                            value={
-                                dispatch.route_stop_id
-                                    ? 'Asignada en el recorrido'
-                                    : 'Sin planificar'
-                            }
-                        />
-                        <DataRow
-                            label="Conductor"
-                            value={dispatch.driver_name ?? '—'}
-                        />
-                        <DataRow
-                            label="Placa"
-                            value={dispatch.vehicle_plate ?? '—'}
-                        />
-                        <DataRow
-                            label="Transportista"
-                            value={dispatch.carrier ?? '—'}
-                        />
-                        <DataRow
-                            label="Guía"
-                            value={dispatch.tracking_number ?? '—'}
-                        />
+                        {dispatch.load_plan ? (
+                            <>
+                                <DataRow
+                                    label="Plan de Carga"
+                                    value={
+                                        <Link
+                                            href={`/load-plans/${dispatch.load_plan.id}`}
+                                            className="font-medium text-primary hover:underline"
+                                        >
+                                            {dispatch.load_plan.code}
+                                        </Link>
+                                    }
+                                />
+                                <DataRow
+                                    label="Ruta"
+                                    value={
+                                        dispatch.load_plan.route_name
+                                            ? `${dispatch.load_plan.route_code ?? ''} ${dispatch.load_plan.route_name}`.trim()
+                                            : 'Sin ruta asignada'
+                                    }
+                                />
+                                <DataRow
+                                    label="Camión / Placa"
+                                    value={
+                                        dispatch.load_plan.vehicle_plate
+                                            ? `${dispatch.load_plan.vehicle_plate} — ${dispatch.load_plan.vehicle_name ?? ''}`.trim()
+                                            : '—'
+                                    }
+                                />
+                                <DataRow
+                                    label="Conductor"
+                                    value={dispatch.load_plan.driver_name ?? '—'}
+                                />
+                                {dispatch.load_plan.helper_name && (
+                                    <DataRow
+                                        label="Ayudante"
+                                        value={dispatch.load_plan.helper_name}
+                                    />
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <DataRow
+                                    label="Plan de Carga"
+                                    value="Pendiente por asignar en Plan de Carga"
+                                />
+                                {dispatch.route_id && (
+                                    <DataRow
+                                        label="Ruta"
+                                        value={`${dispatch.route_code ?? ''} ${dispatch.route_name ?? ''}`.trim()}
+                                    />
+                                )}
+                                {dispatch.driver_name && (
+                                    <DataRow
+                                        label="Conductor"
+                                        value={dispatch.driver_name}
+                                    />
+                                )}
+                                {dispatch.vehicle_plate && (
+                                    <DataRow
+                                        label="Placa"
+                                        value={dispatch.vehicle_plate}
+                                    />
+                                )}
+                                {dispatch.carrier && (
+                                    <DataRow
+                                        label="Transportista"
+                                        value={dispatch.carrier}
+                                    />
+                                )}
+                                {dispatch.tracking_number && (
+                                    <DataRow
+                                        label="Guía"
+                                        value={dispatch.tracking_number}
+                                    />
+                                )}
+                            </>
+                        )}
                     </Card>
 
                     <Card className="gap-3 rounded-2xl px-[18px] py-4">

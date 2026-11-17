@@ -85,7 +85,7 @@ class SupplierTypeRepository extends SupplierTypeFilters implements SupplierType
     {
         $last = SupplierType::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', SupplierType::CODE_PREFIX.'%')
+            ->where('code', 'ilike', SupplierType::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

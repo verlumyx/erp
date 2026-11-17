@@ -440,7 +440,7 @@ class ImportRepository extends ImportFilters implements ImportRepositoryInterfac
     {
         $last = Import::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Import::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Import::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

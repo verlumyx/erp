@@ -61,6 +61,31 @@ test('the header of a route is edited at any time', function () {
     expect($route->code)->toBe('RUT000001');
 });
 
+test('the vehicle of a route can be updated from the vehicles module', function () {
+    [$user, $company] = routeScenario();
+
+    $vehicle = \App\Modules\Vehicle\Models\Vehicle::factory()->create([
+        'company_id' => $company->id,
+        'plate' => 'CAM-111',
+        'capacity_weight' => 3000,
+        'capacity_volume' => 20,
+    ]);
+
+    $route = createRoute($user, $company);
+
+    updateRoute($user, $company, $route, [
+        'name' => $route->name,
+        'vehicle_id' => $vehicle->id,
+    ])->assertSessionHasNoErrors();
+
+    $route->refresh();
+
+    expect($route->vehicle_id)->toBe($vehicle->id);
+    expect($route->vehicle_plate)->toBe('CAM-111');
+    expect((float) $route->vehicle_capacity_weight)->toBe(3000.0);
+    expect((float) $route->vehicle_capacity_volume)->toBe(20.0);
+});
+
 test('a client removed from the route is deactivated, never deleted', function () {
     [$user, $company, $client] = routeScenario();
 

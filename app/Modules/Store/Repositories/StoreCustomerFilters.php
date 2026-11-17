@@ -17,10 +17,10 @@ class StoreCustomerFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('name', 'like', "%{$value}%")
-                ->orWhere('email', 'like', "%{$value}%")
-                ->orWhere('document_number', 'like', "%{$value}%")
-                ->orWhere('code', 'like', "%{$value}%");
+            $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('email', 'ilike', "%{$value}%")
+                ->orWhere('document_number', 'ilike', "%{$value}%")
+                ->orWhere('code', 'ilike', "%{$value}%");
         });
     }
 

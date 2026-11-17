@@ -274,7 +274,7 @@ class PosSaleRepository implements PosSaleRepositoryInterface
     {
         $last = PosSale::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PosSale::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PosSale::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

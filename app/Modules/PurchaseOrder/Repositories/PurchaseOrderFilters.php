@@ -11,7 +11,7 @@ class PurchaseOrderFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -30,7 +30,7 @@ class PurchaseOrderFilters extends EloquentQueryFilters
 
     public function supplier_reference(string $value): Builder
     {
-        return $this->builder->where('supplier_reference', 'like', "%{$value}%");
+        return $this->builder->where('supplier_reference', 'ilike', "%{$value}%");
     }
 
     public function status(string $value): Builder
@@ -48,8 +48,8 @@ class PurchaseOrderFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('supplier_reference', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('supplier_reference', 'ilike', "%{$value}%");
         });
     }
 

@@ -36,7 +36,6 @@ use Illuminate\Validation\ValidationException;
  */
 class SalesOrderReservationService
 {
-
     public function __construct(
         private readonly SalesOrderRepositoryInterface $repository,
         private readonly ItemStockApplyMovementService $stocks,

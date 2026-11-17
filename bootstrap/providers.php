@@ -46,8 +46,11 @@ return [
     App\Modules\Transfer\Providers\TransferServiceProvider::class,
     App\Modules\Import\Providers\ImportServiceProvider::class,
     App\Modules\Route\Providers\RouteServiceProvider::class,
+    App\Modules\Vehicle\Providers\VehicleServiceProvider::class,
+    App\Modules\LoadPlan\Providers\LoadPlanServiceProvider::class,
     App\Modules\Lead\Providers\LeadServiceProvider::class,
     App\Modules\Dashboard\Providers\DashboardServiceProvider::class,
     App\Modules\Store\Providers\StoreServiceProvider::class,
     App\Modules\Pos\Providers\PosServiceProvider::class,
+    App\Modules\Report\Providers\ReportServiceProvider::class,
 ];

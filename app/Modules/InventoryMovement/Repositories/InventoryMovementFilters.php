@@ -14,18 +14,18 @@ class InventoryMovementFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
+            $query->where('code', 'ilike', "%{$value}%")
                 ->orWhereHas('item', function (Builder $item) use ($value): void {
-                    $item->where('name', 'like', "%{$value}%")
-                        ->orWhere('code', 'like', "%{$value}%")
-                        ->orWhere('sku', 'like', "%{$value}%");
+                    $item->where('name', 'ilike', "%{$value}%")
+                        ->orWhere('code', 'ilike', "%{$value}%")
+                        ->orWhere('sku', 'ilike', "%{$value}%");
                 });
         });
     }
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     public function item_id(string $value): Builder

@@ -25,7 +25,7 @@ test('a user without permission cannot download the invoice pdf', function () {
 
     $role = \App\Modules\Role\Models\Role::create([
         'company_id' => $company->id,
-        'name' => 'No access ' . uniqid(),
+        'name' => 'No access '.uniqid(),
         'status' => 'active',
         'permission_type' => 'specific',
     ]);

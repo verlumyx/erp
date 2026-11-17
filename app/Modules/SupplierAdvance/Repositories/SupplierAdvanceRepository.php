@@ -154,7 +154,7 @@ class SupplierAdvanceRepository extends SupplierAdvanceFilters implements Suppli
     {
         $last = SupplierAdvance::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', SupplierAdvance::CODE_PREFIX.'%')
+            ->where('code', 'ilike', SupplierAdvance::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

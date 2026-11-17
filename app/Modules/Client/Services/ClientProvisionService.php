@@ -13,7 +13,9 @@ use Illuminate\Support\Str;
 class ClientProvisionService
 {
     public const DEFAULT_CLIENT_NAME = 'Consumidor Final';
+
     public const DEFAULT_DOCUMENT_TYPE = 'V';
+
     public const DEFAULT_DOCUMENT_NUMBER = '0000000';
 
     public function __construct(

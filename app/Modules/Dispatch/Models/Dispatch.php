@@ -7,6 +7,8 @@ namespace App\Modules\Dispatch\Models;
 use App\Modules\Client\Models\Client;
 use App\Modules\Client\Models\ClientAddress;
 use App\Modules\Company\Models\Company;
+use App\Modules\LoadPlan\Models\LoadPlan;
+use App\Modules\LoadPlan\Models\LoadPlanDispatch;
 use App\Modules\PurchaseReturn\Models\PurchaseReturn;
 use App\Modules\PurchaseReturn\Models\PurchaseReturnLine;
 use App\Modules\Route\Models\Route;
@@ -24,6 +26,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -61,10 +64,10 @@ class Dispatch extends Model
      */
     public const MORPH_ALIAS = 'dispatch';
 
-    public const STATUSES = ['draft', 'confirmed', 'delivered', 'cancelled'];
+    public const STATUSES = ['draft', 'pending', 'confirmed', 'delivered', 'cancelled'];
 
     /** Un despacho confirmado ya sacó la mercancía: no se edita, se anula. */
-    public const EDITABLE_STATUSES = ['draft'];
+    public const EDITABLE_STATUSES = ['draft', 'pending'];
 
     /**
      * Alias del morph map admitidos como documento origen: el pedido de venta,
@@ -123,7 +126,8 @@ class Dispatch extends Model
      * @var array<string, array<int, string>>
      */
     public const STATUS_TRANSITIONS = [
-        'draft' => ['confirmed', 'cancelled'],
+        'draft' => ['pending', 'cancelled'],
+        'pending' => ['confirmed', 'cancelled'],
         'confirmed' => ['delivered', 'cancelled'],
         'delivered' => [],
         'cancelled' => [],
@@ -269,6 +273,21 @@ class Dispatch extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(DispatchLine::class, 'dispatch_id', 'id');
+    }
+
+    public function loadPlanDispatches(): HasMany
+    {
+        return $this->hasMany(LoadPlanDispatch::class, 'dispatch_id', 'id');
+    }
+
+    public function loadPlans(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            LoadPlan::class,
+            'app_load_plan_dispatches',
+            'dispatch_id',
+            'load_plan_id'
+        )->withPivot(['id', 'sequence', 'status'])->withTimestamps();
     }
 
     protected static function newFactory(): DispatchFactory

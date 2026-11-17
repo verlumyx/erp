@@ -337,7 +337,7 @@ class PurchaseCreditNoteRepository extends PurchaseCreditNoteFilters implements 
     {
         $last = PurchaseCreditNote::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', PurchaseCreditNote::CODE_PREFIX.'%')
+            ->where('code', 'ilike', PurchaseCreditNote::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

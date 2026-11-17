@@ -16,8 +16,8 @@ class ImportFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('reference', 'like', "%{$value}%");
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('reference', 'ilike', "%{$value}%");
         });
     }
 
@@ -32,7 +32,7 @@ class ImportFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -46,7 +46,7 @@ class ImportFilters extends EloquentQueryFilters
 
     public function reference(string $value): Builder
     {
-        return $this->builder->where('reference', 'like', "%{$value}%");
+        return $this->builder->where('reference', 'ilike', "%{$value}%");
     }
 
     public function allocation_method(string $value): Builder

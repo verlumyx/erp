@@ -56,6 +56,18 @@ export function RouteForm() {
     const driverOptions = withNone(options.users, 'Sin conductor asignado');
     const salespersonOptions = withNone(options.users, 'Sin vendedor asignado');
 
+    const vehicleOptions: OptionType[] = [
+        { value: NONE, label: 'Sin camión asignado' },
+        ...(options.vehicles ?? []).map((v) => ({
+            value: v.id,
+            label: `${v.plate} — ${v.name} (${Number(v.capacity_weight).toLocaleString('es-VE')} kg / ${Number(v.capacity_volume).toLocaleString('es-VE')} m³)`,
+        })),
+    ];
+
+    const selectedVehicle = (options.vehicles ?? []).find(
+        (v) => v.id === data.vehicle_id,
+    );
+
     const pick = (list: OptionType[], value: string) =>
         list.find((option) => option.value === (value || NONE)) ?? null;
 
@@ -377,66 +389,62 @@ export function RouteForm() {
 
                     <div className="flex flex-col gap-1.5">
                         <Label
-                            htmlFor="vehicle_plate"
+                            htmlFor="vehicle_id"
                             className="text-[13px] font-semibold"
                         >
-                            Placa del vehículo
+                            Camión
                         </Label>
-                        <Input
-                            id="vehicle_plate"
-                            value={data.vehicle_plate}
-                            onChange={(e) =>
-                                setData('vehicle_plate', e.target.value)
-                            }
-                            maxLength={20}
-                            className="h-[42px] rounded-[10px]"
+                        <Select2
+                            inputId="vehicle_id"
+                            options={vehicleOptions}
+                            value={pick(vehicleOptions, data.vehicle_id)}
+                            onChange={(option) => {
+                                const val = chosen(option);
+                                const selected = (options.vehicles ?? []).find(
+                                    (v) => v.id === val,
+                                );
+                                if (selected) {
+                                    setData((prev) => ({
+                                        ...prev,
+                                        vehicle_id: val,
+                                        vehicle_plate: selected.plate,
+                                        vehicle_capacity_weight: Number(
+                                            selected.capacity_weight,
+                                        ),
+                                        vehicle_capacity_volume: Number(
+                                            selected.capacity_volume,
+                                        ),
+                                    }));
+                                } else {
+                                    setData((prev) => ({
+                                        ...prev,
+                                        vehicle_id: '',
+                                        vehicle_plate: '',
+                                        vehicle_capacity_weight: 0,
+                                        vehicle_capacity_volume: 0,
+                                    }));
+                                }
+                            }}
+                            error={!!errors.vehicle_id}
+                            size="md"
+                            placeholder="Seleccionar camión de la flota"
                         />
-                        {errors.vehicle_plate && (
-                            <p className="text-sm text-bad">
-                                {errors.vehicle_plate}
-                            </p>
+                        {selectedVehicle && (
+                            <span className="text-[12px] text-muted-foreground">
+                                Capacidad:{' '}
+                                {Number(
+                                    selectedVehicle.capacity_weight,
+                                ).toLocaleString('es-VE')}{' '}
+                                kg ·{' '}
+                                {Number(
+                                    selectedVehicle.capacity_volume,
+                                ).toLocaleString('es-VE')}{' '}
+                                m³
+                            </span>
                         )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Capacidad en peso
-                        </Label>
-                        <NumberInput
-                            value={data.vehicle_capacity_weight}
-                            onValueChange={(value) =>
-                                setData('vehicle_capacity_weight', value)
-                            }
-                            min={0}
-                            decimals={4}
-                            className={`h-[42px] rounded-[10px] ${errors.vehicle_capacity_weight ? 'border-bad' : ''}`}
-                        />
-                        <span className="text-[12px] text-muted-foreground">
-                            En cero no se comprueba nada al planificar
-                        </span>
-                        {errors.vehicle_capacity_weight && (
+                        {errors.vehicle_id && (
                             <p className="text-sm text-bad">
-                                {errors.vehicle_capacity_weight}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        <Label className="text-[13px] font-semibold">
-                            Capacidad en volumen
-                        </Label>
-                        <NumberInput
-                            value={data.vehicle_capacity_volume}
-                            onValueChange={(value) =>
-                                setData('vehicle_capacity_volume', value)
-                            }
-                            min={0}
-                            decimals={4}
-                            className={`h-[42px] rounded-[10px] ${errors.vehicle_capacity_volume ? 'border-bad' : ''}`}
-                        />
-                        {errors.vehicle_capacity_volume && (
-                            <p className="text-sm text-bad">
-                                {errors.vehicle_capacity_volume}
+                                {errors.vehicle_id}
                             </p>
                         )}
                     </div>

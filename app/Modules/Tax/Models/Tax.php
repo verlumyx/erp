@@ -25,8 +25,11 @@ class Tax extends Model
     public const CODE_PREFIX = 'IMP';
 
     public const TYPE_GENERAL = 'general';
+
     public const TYPE_REDUCED = 'reduced';
+
     public const TYPE_ADDITIONAL = 'additional';
+
     public const TYPE_EXEMPT = 'exempt';
 
     public const TAX_TYPES = [

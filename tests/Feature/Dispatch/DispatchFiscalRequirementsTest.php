@@ -1,8 +1,5 @@
 <?php
 
-use App\Modules\Company\Models\Company;
-use App\Modules\Dispatch\Models\Dispatch;
-
 use function Pest\Laravel\actingAs;
 
 test('dispatch automatically assigns a sequential control number (Art. 13.3, 21)', function () {

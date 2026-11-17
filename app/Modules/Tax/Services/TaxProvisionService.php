@@ -59,7 +59,7 @@ class TaxProvisionService
                     $query->where('tax_type', $def['tax_type'])
                         ->orWhere(function ($q) use ($def) {
                             $q->where('percentage', $def['percentage'])
-                                ->where('name', 'like', '%' . explode(' ', $def['name'])[0] . '%');
+                                ->where('name', 'ilike', '%'.explode(' ', $def['name'])[0].'%');
                         });
                 })
                 ->exists();

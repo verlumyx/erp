@@ -416,7 +416,8 @@
         $statusKey = $dispatch->status;
         $statusLabels = [
             'draft' => 'Borrador',
-            'confirmed' => 'Confirmado',
+            'pending' => 'Pendiente',
+            'confirmed' => 'Despachado',
             'delivered' => 'Entregado',
             'cancelled' => 'Anulado',
         ];
@@ -620,28 +621,37 @@
                             </td>
                         </tr>
                     @endif
+                    @php
+                        $activeLoadPlan = $dispatch->loadPlans?->first();
+                        $pdfDriverName = $dispatch->driver?->name ?? $dispatch->driver_name ?? $activeLoadPlan?->driver_name ?? '—';
+                        $pdfVehiclePlate = $dispatch->vehicle_plate ?: ($activeLoadPlan?->vehicle ? ($activeLoadPlan->vehicle->plate . ' (' . $activeLoadPlan->vehicle->name . ')') : '—');
+                        $pdfCarrier = $dispatch->carrier ?: ($activeLoadPlan ? ('Plan de Carga ' . $activeLoadPlan->code) : 'Transporte Interno');
+                        $pdfRoute = $dispatch->deliveryRoute
+                            ? (($dispatch->deliveryRoute->code ? $dispatch->deliveryRoute->code . ' - ' : '') . $dispatch->deliveryRoute->name)
+                            : ($activeLoadPlan?->route ? (($activeLoadPlan->route->code ? $activeLoadPlan->route->code . ' - ' : '') . $activeLoadPlan->route->name) : null);
+                    @endphp
                     <tr>
                         <td class="data-label">Conductor:</td>
-                        <td class="data-value">{{ $dispatch->driver?->name ?? $dispatch->driver_name ?? '—' }}</td>
+                        <td class="data-value">{{ $pdfDriverName }}</td>
                     </tr>
                     <tr>
                         <td class="data-label">Vehículo / Placa:</td>
-                        <td class="data-value">{{ $dispatch->vehicle_plate ?: '—' }}</td>
+                        <td class="data-value">{{ $pdfVehiclePlate }}</td>
                     </tr>
                     <tr>
                         <td class="data-label">Transportista:</td>
                         <td class="data-value">
-                            {{ $dispatch->carrier ?: 'Transporte Interno' }}
+                            {{ $pdfCarrier }}
                             @if($dispatch->tracking_number)
                                 &nbsp;·&nbsp; Guía: {{ $dispatch->tracking_number }}
                             @endif
                         </td>
                     </tr>
-                    @if($dispatch->deliveryRoute)
+                    @if($pdfRoute)
                         <tr>
                             <td class="data-label">Ruta:</td>
                             <td class="data-value">
-                                {{ $dispatch->deliveryRoute->code ? $dispatch->deliveryRoute->code . ' - ' : '' }}{{ $dispatch->deliveryRoute->name }}
+                                {{ $pdfRoute }}
                             </td>
                         </tr>
                     @endif
@@ -786,10 +796,10 @@
                 <div class="signature-line"></div>
                 <div class="signature-title">Entregado por / Conductor</div>
                 <div class="signature-subtitle">
-                    {{ $dispatch->driver?->name ?? $dispatch->driver_name ?? 'Firma del Transportista / Despachador' }}
+                    {{ $pdfDriverName !== '—' ? $pdfDriverName : 'Firma del Transportista / Despachador' }}
                 </div>
                 <div class="signature-fields">
-                    <div><strong>Nombre:</strong> {{ $dispatch->driver?->name ?? $dispatch->driver_name ?? '__________________________________' }}</div>
+                    <div><strong>Nombre:</strong> {{ $pdfDriverName !== '—' ? $pdfDriverName : '__________________________________' }}</div>
                     <div><strong>C.I. / Doc:</strong> ___________________________________</div>
                     <div><strong>Fecha:</strong> ______ / ______ / 20_____ &nbsp; <strong>Hora:</strong> ________</div>
                 </div>

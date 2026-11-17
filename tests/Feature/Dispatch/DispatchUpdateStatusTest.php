@@ -26,7 +26,7 @@ test('confirming takes the goods out of the warehouse at the current average cos
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $dispatch->refresh();
     expect($dispatch->status)->toBe('confirmed');
@@ -72,7 +72,7 @@ test('the exit is written in the base unit of the item', function () {
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     /** 2 cajas de 12 son 24 unidades base. */
     expect((float) dispatchMovements($dispatch)->first()->quantity)->toBe(24.0);
@@ -85,7 +85,7 @@ test('a line without location falls back to the default one of the warehouse', f
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     expect(dispatchMovements($dispatch)->first()->location_id)->toBe($location->id);
 });
@@ -100,9 +100,10 @@ test('a warehouse without a default location cannot confirm the dispatch', funct
     WarehouseLocation::where('id', $location->id)->update(['is_default' => 'no']);
     $dispatch->lines()->update(['location_id' => null]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'confirmed')->assertSessionHasErrors('status');
 
-    expect($dispatch->refresh()->status)->toBe('draft');
+    expect($dispatch->refresh()->status)->toBe('pending');
     expect(dispatchMovements($dispatch))->toHaveCount(0);
 });
 
@@ -121,9 +122,10 @@ test('a dispatch without enough stock is not confirmed', function () {
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'confirmed')->assertSessionHasErrors('status');
 
-    expect($dispatch->refresh()->status)->toBe('draft');
+    expect($dispatch->refresh()->status)->toBe('pending');
     expect(dispatchMovements($dispatch))->toHaveCount(0);
 });
 
@@ -134,7 +136,7 @@ test('a service item does not reach the kardex', function () {
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     expect($dispatch->refresh()->status)->toBe('confirmed');
     expect(dispatchMovements($dispatch))->toHaveCount(0);
@@ -175,7 +177,7 @@ test('a line split across two lots writes one kardex movement per lot', function
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $movements = dispatchMovements($dispatch);
     expect($movements)->toHaveCount(2);
@@ -208,7 +210,7 @@ test('confirming moves the order forward and releases its reservation', function
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $orderLine = SalesOrderLine::find($orderLine->id);
     expect((float) $orderLine->dispatched_quantity)->toBe(2.0);
@@ -241,7 +243,7 @@ test('cancelling a confirmed dispatch brings the goods back with a counter-entry
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
     moveDispatchTo($user, $company, $dispatch, 'cancelled')->assertSessionHasNoErrors();
 
     $dispatch->refresh();
@@ -280,7 +282,7 @@ test('a confirmed dispatch can be marked as delivered without moving the kardex'
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     /** La salida ya está escrita: entregar no toca el inventario. */
     expect(dispatchMovements($dispatch))->toHaveCount(1);
@@ -302,7 +304,7 @@ test('a delivered dispatch is final', function () {
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
     moveDispatchTo($user, $company, $dispatch->refresh(), 'delivered')->assertSessionHasNoErrors();
 
     /** Ya no se anula: lo que el cliente rechace se resuelve con una devolución de venta. */
@@ -321,12 +323,64 @@ test('a dispatch cannot jump from draft to delivered', function () {
     expect($dispatch->refresh()->status)->toBe('draft');
 });
 
+test('a dispatch cannot jump from draft to confirmed directly', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
+
+    expect($dispatch->refresh()->status)->toBe('draft');
+});
+
+test('a dispatch can transition from draft to pending, then to confirmed', function () {
+    [$user, $company, $client, $warehouse, $item, $unit, $location] = dispatchScenario();
+    registerInventoryMovement($company, $item, $warehouse, $location, ['quantity' => 10, 'unitCost' => 20]);
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit, [
+        'lines' => [[
+            'item_id' => $item->id,
+            'measurement_unit_id' => $unit->id,
+            'quantity' => 2,
+            'unit_price' => 100,
+            'location_id' => $location->id,
+        ]],
+    ]);
+
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+    expect($dispatch->refresh()->status)->toBe('pending');
+
+    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    expect($dispatch->refresh()->status)->toBe('confirmed');
+});
+
+test('a pending dispatch cannot go back to draft', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'draft')->assertSessionHasErrors('status');
+    expect($dispatch->refresh()->status)->toBe('pending');
+});
+
+test('a pending dispatch can be cancelled', function () {
+    [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
+
+    $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+
+    moveDispatchTo($user, $company, $dispatch->refresh(), 'cancelled')->assertSessionHasNoErrors();
+    expect($dispatch->refresh()->status)->toBe('cancelled');
+});
+
 test('a cancelled dispatch is final', function () {
     [$user, $company, $client, $warehouse, $item, $unit] = dispatchScenario();
 
     $dispatch = createDispatch($user, $company, $client, $warehouse, $item, $unit);
 
     moveDispatchTo($user, $company, $dispatch, 'cancelled')->assertSessionHasNoErrors();
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasErrors('status');
     moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasErrors('status');
 
     expect($dispatch->refresh()->status)->toBe('cancelled');
@@ -339,7 +393,7 @@ test('changing the status requires its own permission', function () {
 
     assignRoleWithPermissions($user, $company, ['dispatches.list', 'dispatches.show']);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertForbidden();
+    moveDispatchTo($user, $company, $dispatch, 'pending')->assertForbidden();
 
     expect(Dispatch::find($dispatch->id)->status)->toBe('draft');
 });

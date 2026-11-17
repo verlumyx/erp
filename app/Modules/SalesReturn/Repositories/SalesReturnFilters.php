@@ -16,7 +16,7 @@ class SalesReturnFilters extends EloquentQueryFilters
      */
     public function q(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -30,7 +30,7 @@ class SalesReturnFilters extends EloquentQueryFilters
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**

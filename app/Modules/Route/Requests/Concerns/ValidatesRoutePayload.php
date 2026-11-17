@@ -47,6 +47,12 @@ trait ValidatesRoutePayload
             ],
             'driver_id' => ['nullable', 'uuid', Rule::exists('users', 'id')],
             'salesperson_id' => ['nullable', 'uuid', Rule::exists('users', 'id')],
+            'vehicle_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('app_vehicles', 'id')
+                    ->when($companyId, fn ($rule) => $rule->where('company_id', $companyId)),
+            ],
             'vehicle_plate' => ['nullable', 'string', 'max:20'],
             'vehicle_capacity_weight' => ['nullable', 'numeric', 'min:0'],
             'vehicle_capacity_volume' => ['nullable', 'numeric', 'min:0'],
@@ -92,6 +98,7 @@ trait ValidatesRoutePayload
             'warehouse_id.exists' => 'La bodega de salida no está disponible.',
             'driver_id.exists' => 'El conductor indicado no existe.',
             'salesperson_id.exists' => 'El vendedor indicado no existe.',
+            'vehicle_id.exists' => 'El camión seleccionado no está disponible.',
             'frequency.required' => 'Indica cada cuánto se recorre la ruta.',
             'frequency.in' => 'Esa frecuencia no existe.',
             'weekdays.*.in' => 'Ese día de la semana no existe.',

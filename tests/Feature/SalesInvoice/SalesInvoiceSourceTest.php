@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Modules\Client\Models\Client;
 use App\Modules\SalesInvoice\Models\SalesInvoice;
-use App\Modules\SalesOrder\Models\SalesOrder;
 
 use function Pest\Laravel\actingAs;
 

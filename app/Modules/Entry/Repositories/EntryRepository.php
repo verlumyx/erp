@@ -559,7 +559,7 @@ class EntryRepository extends EntryFilters implements EntryRepositoryInterface
     {
         $last = Entry::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Entry::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Entry::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

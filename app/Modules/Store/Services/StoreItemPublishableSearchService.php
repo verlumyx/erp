@@ -32,9 +32,9 @@ class StoreItemPublishableSearchService
                 ->select('item_id')
                 ->where('company_id', $companyId))
             ->when($q !== '', fn (Builder $query): Builder => $query->where(function (Builder $inner) use ($q): void {
-                $inner->where('name', 'like', "%{$q}%")
-                    ->orWhere('code', 'like', "%{$q}%")
-                    ->orWhere('sku', 'like', "%{$q}%");
+                $inner->where('name', 'ilike', "%{$q}%")
+                    ->orWhere('code', 'ilike', "%{$q}%")
+                    ->orWhere('sku', 'ilike', "%{$q}%");
             }));
 
         $total = $query->count();

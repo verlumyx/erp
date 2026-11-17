@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\SupplierPayment\Services;
 
 use App\Modules\ExchangeRate\Services\Contracts\DocumentRatesResolverInterface;
-use App\Modules\SupplierPayment\Commands\SupplierPaymentApplicationData;
 use App\Modules\SupplierPayment\Commands\CreateSupplierPaymentCommand;
+use App\Modules\SupplierPayment\Commands\SupplierPaymentApplicationData;
 use App\Modules\SupplierPayment\Models\SupplierPayment;
 use App\Modules\SupplierPayment\Repositories\Contracts\SupplierPaymentRepositoryInterface;
 

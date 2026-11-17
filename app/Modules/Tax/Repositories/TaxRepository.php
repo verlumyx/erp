@@ -98,7 +98,7 @@ class TaxRepository extends TaxFilters implements TaxRepositoryInterface
     {
         $last = Tax::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Tax::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Tax::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

@@ -75,6 +75,8 @@ export interface Route {
     driver_name?: string | null;
     salesperson_id: string | null;
     salesperson_name?: string | null;
+    vehicle_id?: string | null;
+    vehicle_name?: string | null;
     vehicle_plate: string | null;
     /** En cero significa «sin declarar»: no hay límite contra el que comparar. */
     vehicle_capacity_weight: string;
@@ -124,9 +126,19 @@ export interface RouteFilters {
  * buscan contra `clients.lookup`. De la opción elegida salen sus direcciones,
  * así que tampoco viaja un catálogo de direcciones.
  */
+export interface RouteVehicleOption {
+    id: string;
+    code?: string | null;
+    plate: string;
+    name: string;
+    capacity_weight: number;
+    capacity_volume: number;
+}
+
 export interface RouteOptions {
     warehouses: Array<{ id: string; name: string; type?: string }>;
     users: Array<{ id: string; name: string }>;
+    vehicles?: RouteVehicleOption[];
 }
 
 /** Una dirección del cliente, tal como llega en el `meta` de su opción. */

@@ -12,24 +12,24 @@ class ClientFilters extends EloquentQueryFilters
     public function name(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('name', 'like', "%{$value}%")
-                ->orWhere('legal_name', 'like', "%{$value}%");
+            $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('legal_name', 'ilike', "%{$value}%");
         });
     }
 
     public function email(string $value): Builder
     {
-        return $this->builder->where('email', 'like', "%{$value}%");
+        return $this->builder->where('email', 'ilike', "%{$value}%");
     }
 
     public function phone(string $value): Builder
     {
-        return $this->builder->where('phone', 'like', "%{$value}%");
+        return $this->builder->where('phone', 'ilike', "%{$value}%");
     }
 
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -38,7 +38,7 @@ class ClientFilters extends EloquentQueryFilters
      */
     public function document_number(string $value): Builder
     {
-        return $this->builder->where('document_number', 'like', "%{$value}%");
+        return $this->builder->where('document_number', 'ilike', "%{$value}%");
     }
 
     public function document_type(string $value): Builder
@@ -79,13 +79,13 @@ class ClientFilters extends EloquentQueryFilters
         $cleanNumber = preg_replace('/\D/', '', $value);
 
         return $this->builder->where(function (Builder $query) use ($value, $cleanNumber): void {
-            $query->where('name', 'like', "%{$value}%")
-                ->orWhere('legal_name', 'like', "%{$value}%")
-                ->orWhere('code', 'like', "%{$value}%")
-                ->orWhere('document_number', 'like', "%{$value}%");
+            $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('legal_name', 'ilike', "%{$value}%")
+                ->orWhere('code', 'ilike', "%{$value}%")
+                ->orWhere('document_number', 'ilike', "%{$value}%");
 
             if (! empty($cleanNumber)) {
-                $query->orWhere('document_number', 'like', "%{$cleanNumber}%");
+                $query->orWhere('document_number', 'ilike', "%{$cleanNumber}%");
             }
         });
     }

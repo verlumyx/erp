@@ -6,6 +6,7 @@ namespace App\Modules\Route\Models;
 
 use App\Modules\Company\Models\Company;
 use App\Modules\User\Models\User;
+use App\Modules\Vehicle\Models\Vehicle;
 use App\Modules\Warehouse\Models\Warehouse;
 use Database\Factories\RouteFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -63,6 +64,7 @@ class Route extends Model
         'warehouse_id',
         'driver_id',
         'salesperson_id',
+        'vehicle_id',
         'vehicle_plate',
         'vehicle_capacity_weight',
         'vehicle_capacity_volume',
@@ -112,6 +114,11 @@ class Route extends Model
     public function salesperson(): BelongsTo
     {
         return $this->belongsTo(User::class, 'salesperson_id', 'id');
+    }
+
+    public function vehicle(): BelongsTo
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id', 'id');
     }
 
     public function creator(): BelongsTo

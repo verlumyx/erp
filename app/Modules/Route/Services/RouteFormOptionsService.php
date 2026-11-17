@@ -7,6 +7,9 @@ namespace App\Modules\Route\Services;
 use App\Modules\User\Commands\SearchUserCommand;
 use App\Modules\User\Models\User;
 use App\Modules\User\Repositories\Contracts\UserRepositoryInterface;
+use App\Modules\Vehicle\Commands\SearchVehicleCommand;
+use App\Modules\Vehicle\Models\Vehicle;
+use App\Modules\Vehicle\Repositories\Contracts\VehicleRepositoryInterface;
 use App\Modules\Warehouse\Commands\SearchWarehouseCommand;
 use App\Modules\Warehouse\Models\Warehouse;
 use App\Modules\Warehouse\Repositories\Contracts\WarehouseRepositoryInterface;
@@ -29,12 +32,14 @@ class RouteFormOptionsService
     public function __construct(
         private readonly WarehouseRepositoryInterface $warehouses,
         private readonly UserRepositoryInterface $users,
+        private readonly VehicleRepositoryInterface $vehicles,
     ) {}
 
     /**
      * @return array{
      *     warehouses: array<int, array{id: string, name: string, type: string}>,
-     *     users: array<int, array{id: string, name: string}>
+     *     users: array<int, array{id: string, name: string}>,
+     *     vehicles: array<int, array{id: string, code: ?string, plate: string, name: string, capacity_weight: float, capacity_volume: float}>
      * }
      */
     public function execute(?string $companyId): array
@@ -42,6 +47,7 @@ class RouteFormOptionsService
         return [
             'warehouses' => $this->warehouseOptions($companyId),
             'users' => $this->userOptions($companyId),
+            'vehicles' => $this->vehicleOptions($companyId),
         ];
     }
 
@@ -85,6 +91,32 @@ class RouteFormOptionsService
             fn (User $user): array => [
                 'id' => $user->id,
                 'name' => $user->name,
+            ],
+            $result['data'],
+        );
+    }
+
+    /**
+     * Catálogo de camiones activos de la empresa para asignar a la ruta.
+     *
+     * @return array<int, array{id: string, code: ?string, plate: string, name: string, capacity_weight: float, capacity_volume: float}>
+     */
+    private function vehicleOptions(?string $companyId): array
+    {
+        $result = $this->vehicles->search(new SearchVehicleCommand(
+            filters: ['status' => 'active'],
+            limit: self::MAX_OPTIONS,
+            companyId: $companyId,
+        ));
+
+        return array_map(
+            fn (Vehicle $vehicle): array => [
+                'id' => $vehicle->id,
+                'code' => $vehicle->code,
+                'plate' => $vehicle->plate,
+                'name' => $vehicle->name,
+                'capacity_weight' => (float) $vehicle->capacity_weight,
+                'capacity_volume' => (float) $vehicle->capacity_volume,
             ],
             $result['data'],
         );

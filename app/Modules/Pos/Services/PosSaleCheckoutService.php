@@ -165,6 +165,13 @@ class PosSaleCheckoutService
                     $command->companyId
                 );
 
+                // Transition to delivered: in POS, goods are handed over immediately to the customer at checkout
+                $this->dispatchStatusService->execute(
+                    $dispatch->id,
+                    new UpdateStatusDispatchCommand(status: 'delivered'),
+                    $command->companyId
+                );
+
                 $invoice->update(['dispatch_id' => $dispatch->id]);
             }
 

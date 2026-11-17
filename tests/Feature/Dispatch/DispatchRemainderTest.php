@@ -57,7 +57,7 @@ test('confirming a partial dispatch opens a draft with what the order still owes
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $remainder = remainderDispatchOf($order, $dispatch->id);
 
@@ -102,7 +102,7 @@ test('a dispatch that empties the order leaves no remainder draft behind', funct
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     expect(remainderDispatchOf($order, $dispatch->id))->toBeNull();
 });
@@ -154,7 +154,7 @@ test('only the line that stayed behind travels to the remainder draft', function
         ]],
     ]);
 
-    moveDispatchTo($user, $company, $dispatch, 'confirmed')->assertSessionHasNoErrors();
+    confirmDispatch($user, $company, $dispatch)->assertSessionHasNoErrors();
 
     $remainder = remainderDispatchOf($order, $dispatch->id);
 

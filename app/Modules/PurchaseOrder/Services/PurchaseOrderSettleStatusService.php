@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\PurchaseOrder\Services;
 
-use App\Modules\PurchaseOrder\Models\PurchaseOrder;
 use App\Modules\PurchaseOrder\Models\PurchaseOrderLine;
 use App\Modules\PurchaseOrder\Repositories\Contracts\PurchaseOrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;

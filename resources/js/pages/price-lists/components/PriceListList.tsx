@@ -1,5 +1,5 @@
 import { Pagination } from '@/components/pagination';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Edit, Eye, MoreHorizontal, Plus, Power, Search } from 'lucide-react';
 import { useState } from 'react';
 import { StatusPill } from '@/components/status-pill';
@@ -193,20 +193,18 @@ export function PriceListList({
                         return (
                             <div
                                 key={priceList.id}
-                                className="grid min-h-[66px] cursor-pointer grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted lg:grid-cols-[0.9fr_2.8fr_0.9fr_1fr] lg:py-0"
-                                onClick={() =>
-                                    router.visit(
-                                        priceLists.show({
-                                            company: companyId,
-                                            id: priceList.id,
-                                        }).url,
-                                    )
-                                }
+                                className="grid min-h-[66px] grid-cols-[1fr_auto] items-center gap-3.5 border-b px-5 py-3 transition-colors last:border-b-0 hover:bg-muted/50 lg:grid-cols-[0.9fr_2.8fr_0.9fr_1fr] lg:py-0"
                             >
                                 <div className="hidden lg:block">
-                                    <span className="font-semibold text-muted-foreground tabular-nums">
-                                        {priceList.code}
-                                    </span>
+                                    <Link
+                                    href={priceLists.show({
+                                            company: companyId,
+                                            id: priceList.id,
+                                        }).url}
+                                    className="font-bold text-primary hover:underline tabular-nums"
+                                >
+                                    {priceList.code}
+                                </Link>
                                 </div>
                                 <div className="flex min-w-0 flex-col">
                                     <span className="truncate font-bold">
@@ -219,16 +217,13 @@ export function PriceListList({
                                 <div className="hidden lg:block">
                                     <StatusPill kind={estadoLista} />
                                 </div>
-                                <div
-                                    className="flex items-center justify-end gap-2"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
+                                <div className="flex items-center justify-end gap-2">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
-                                                variant="outline"
+                                                variant="ghost"
                                                 size="icon"
-                                                className="rounded-[10px] bg-card"
+                                                className="size-7 rounded-md text-muted-foreground hover:text-foreground"
                                                 aria-label="Opciones"
                                             >
                                                 <MoreHorizontal className="size-4" />

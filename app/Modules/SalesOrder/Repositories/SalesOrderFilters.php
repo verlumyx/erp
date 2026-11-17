@@ -11,7 +11,7 @@ class SalesOrderFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -22,8 +22,8 @@ class SalesOrderFilters extends EloquentQueryFilters
     {
         return $this->builder->whereHas(
             'client',
-            fn (Builder $query) => $query->where('name', 'like', "%{$value}%")
-                ->orWhere('legal_name', 'like', "%{$value}%"),
+            fn (Builder $query) => $query->where('name', 'ilike', "%{$value}%")
+                ->orWhere('legal_name', 'ilike', "%{$value}%"),
         );
     }
 
@@ -44,7 +44,7 @@ class SalesOrderFilters extends EloquentQueryFilters
 
     public function client_reference(string $value): Builder
     {
-        return $this->builder->where('client_reference', 'like', "%{$value}%");
+        return $this->builder->where('client_reference', 'ilike', "%{$value}%");
     }
 
     public function currency(string $value): Builder
@@ -74,12 +74,12 @@ class SalesOrderFilters extends EloquentQueryFilters
     public function q(string $value): Builder
     {
         return $this->builder->where(function (Builder $query) use ($value): void {
-            $query->where('code', 'like', "%{$value}%")
-                ->orWhere('client_reference', 'like', "%{$value}%")
+            $query->where('code', 'ilike', "%{$value}%")
+                ->orWhere('client_reference', 'ilike', "%{$value}%")
                 ->orWhereHas(
                     'client',
-                    fn (Builder $client) => $client->where('name', 'like', "%{$value}%")
-                        ->orWhere('legal_name', 'like', "%{$value}%"),
+                    fn (Builder $client) => $client->where('name', 'ilike', "%{$value}%")
+                        ->orWhere('legal_name', 'ilike', "%{$value}%"),
                 );
         });
     }

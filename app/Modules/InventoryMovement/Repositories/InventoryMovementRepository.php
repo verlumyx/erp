@@ -99,7 +99,7 @@ class InventoryMovementRepository extends InventoryMovementFilters implements In
     {
         $last = InventoryMovement::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', InventoryMovement::CODE_PREFIX.'%')
+            ->where('code', 'ilike', InventoryMovement::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

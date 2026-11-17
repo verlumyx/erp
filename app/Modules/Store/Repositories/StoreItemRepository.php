@@ -243,7 +243,7 @@ class StoreItemRepository extends StoreItemFilters implements StoreItemRepositor
     {
         $last = StoreItem::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', StoreItem::CODE_PREFIX.'%')
+            ->where('code', 'ilike', StoreItem::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

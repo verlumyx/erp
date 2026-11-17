@@ -17,7 +17,7 @@ class ImportCostingData
 {
     /**
      * @param  array<int, array{exchange_rate: float, converted_amount: float}>  $charges
-     *                                                                           Indexados igual que los costos del comando.
+     *                                                                                     Indexados igual que los costos del comando.
      * @param  array<int, array{
      *     entry_line_id: string,
      *     item_id: string,

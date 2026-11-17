@@ -31,7 +31,6 @@ class PurchaseOrderPendingLinesService
     /** Lo que queda por recibir: lo pide la entrada de mercancía. */
     public const AGAINST_RECEIVED = 'received_quantity';
 
-
     public function __construct(
         private readonly PurchaseOrderFindService $findService,
     ) {}

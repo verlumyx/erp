@@ -298,7 +298,7 @@ class StoreOrderRepository extends StoreOrderFilters implements StoreOrderReposi
     {
         $last = StoreOrder::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', StoreOrder::CODE_PREFIX.'%')
+            ->where('code', 'ilike', StoreOrder::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

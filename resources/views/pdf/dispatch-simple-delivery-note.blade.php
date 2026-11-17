@@ -294,7 +294,8 @@
         $statusKey = $dispatch->status;
         $statusLabels = [
             'draft' => 'Borrador',
-            'confirmed' => 'Confirmado',
+            'pending' => 'Pendiente',
+            'confirmed' => 'Despachado',
             'delivered' => 'Entregado',
             'cancelled' => 'Anulado',
         ];
@@ -467,22 +468,28 @@
                         <td class="data-label">Doc. Origen:</td>
                         <td class="data-value">{{ $sourceDocLabel }}</td>
                     </tr>
-                    @if(!empty($dispatch->driver?->name))
+                    @php
+                        $simpleLoadPlan = $dispatch->loadPlans?->first();
+                        $simpleDriver = $dispatch->driver?->name ?? $dispatch->driver_name ?? $simpleLoadPlan?->driver_name;
+                        $simplePlate = $dispatch->vehicle_plate ?: ($simpleLoadPlan?->vehicle ? ($simpleLoadPlan->vehicle->plate . ' (' . $simpleLoadPlan->vehicle->name . ')') : null);
+                        $simpleCarrier = $dispatch->carrier ?: ($simpleLoadPlan ? ('Plan de Carga ' . $simpleLoadPlan->code) : null);
+                    @endphp
+                    @if(!empty($simpleDriver))
                         <tr>
                             <td class="data-label">Conductor:</td>
-                            <td class="data-value">{{ $dispatch->driver->name }}</td>
+                            <td class="data-value">{{ $simpleDriver }}</td>
                         </tr>
                     @endif
-                    @if(!empty($dispatch->vehicle_plate))
+                    @if(!empty($simplePlate))
                         <tr>
                             <td class="data-label">Vehículo / Placa:</td>
-                            <td class="data-value">{{ $dispatch->vehicle_plate }}</td>
+                            <td class="data-value">{{ $simplePlate }}</td>
                         </tr>
                     @endif
-                    @if(!empty($dispatch->carrier))
+                    @if(!empty($simpleCarrier))
                         <tr>
                             <td class="data-label">Transportista:</td>
-                            <td class="data-value">{{ $dispatch->carrier }}</td>
+                            <td class="data-value">{{ $simpleCarrier }}</td>
                         </tr>
                     @endif
                     @if(!empty($dispatch->tracking_number))

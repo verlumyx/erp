@@ -356,7 +356,7 @@ class SupplierPaymentRepository extends SupplierPaymentFilters implements Suppli
     {
         $last = SupplierPayment::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', SupplierPayment::CODE_PREFIX.'%')
+            ->where('code', 'ilike', SupplierPayment::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

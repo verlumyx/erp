@@ -28,7 +28,6 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class StoreCatalogService
 {
-
     public function __construct(
         private readonly ExchangeRateResolverInterface $rates,
         private readonly ConfigurationFindService $configurations,

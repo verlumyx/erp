@@ -31,7 +31,6 @@ class SalesOrderPendingLinesService
     /** Lo que queda por despachar: lo pide el despacho. */
     public const AGAINST_DISPATCHED = 'dispatched_quantity';
 
-
     public function __construct(
         private readonly SalesOrderFindService $findService,
     ) {}

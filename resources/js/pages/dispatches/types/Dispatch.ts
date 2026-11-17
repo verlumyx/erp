@@ -2,7 +2,12 @@ import type { StatusKind } from '@/components/status-pill';
 import { formatMoney } from '@/lib/money';
 import type { TaxOption } from '@/types/tax';
 
-export type DispatchStatus = 'draft' | 'confirmed' | 'delivered' | 'cancelled';
+export type DispatchStatus =
+    | 'draft'
+    | 'pending'
+    | 'confirmed'
+    | 'delivered'
+    | 'cancelled';
 
 /** Motivos legales de traslado conforme al Art. 21 de la Providencia SENIAT 00071 */
 export const TRANSFER_REASONS: Record<string, string> = {
@@ -136,6 +141,17 @@ export interface Dispatch {
     created_by: string | null;
     created_at: string;
     updated_at: string | null;
+    load_plan?: {
+        id: string;
+        code: string;
+        status: string;
+        driver_name?: string | null;
+        helper_name?: string | null;
+        vehicle_plate?: string | null;
+        vehicle_name?: string | null;
+        route_code?: string | null;
+        route_name?: string | null;
+    } | null;
     lines?: DispatchLine[];
 }
 
@@ -239,7 +255,8 @@ export interface DispatchOptions {
 
 export const STATUS_LABELS: Record<DispatchStatus, string> = {
     draft: 'Borrador',
-    confirmed: 'Confirmado',
+    pending: 'Pendiente',
+    confirmed: 'Despachado',
     delivered: 'Entregado',
     cancelled: 'Anulado',
 };
@@ -254,6 +271,7 @@ export const SOURCE_LABELS: Record<string, string> = {
 /** Color de la pastilla de estado, uno por estado del documento. */
 export const STATUS_PILL_KIND: Record<DispatchStatus, StatusKind> = {
     draft: 'inactivo',
+    pending: 'pendiente',
     confirmed: 'libre',
     delivered: 'pagado',
     cancelled: 'vencido',
@@ -264,14 +282,15 @@ export const STATUS_PILL_KIND: Record<DispatchStatus, StatusKind> = {
  * pantalla solo ofrece lo que el backend acepta.
  */
 export const STATUS_TRANSITIONS: Record<DispatchStatus, DispatchStatus[]> = {
-    draft: ['confirmed', 'cancelled'],
+    draft: ['pending', 'cancelled'],
+    pending: ['confirmed', 'cancelled'],
     confirmed: ['delivered', 'cancelled'],
     delivered: [],
     cancelled: [],
 };
 
 export function isEditable(status: DispatchStatus): boolean {
-    return status === 'draft';
+    return status === 'draft' || status === 'pending';
 }
 
 export function formatAmount(value: number | string, currency: string): string {

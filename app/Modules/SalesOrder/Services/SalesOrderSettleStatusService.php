@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\SalesOrder\Services;
 
-use App\Modules\SalesOrder\Models\SalesOrder;
 use App\Modules\SalesOrder\Models\SalesOrderLine;
 use App\Modules\SalesOrder\Repositories\Contracts\SalesOrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;

@@ -11,7 +11,7 @@ class ClientCollectionFilters extends EloquentQueryFilters
 {
     public function code(string $value): Builder
     {
-        return $this->builder->where('code', 'like', "%{$value}%");
+        return $this->builder->where('code', 'ilike', "%{$value}%");
     }
 
     /**
@@ -25,7 +25,7 @@ class ClientCollectionFilters extends EloquentQueryFilters
 
     public function reference(string $value): Builder
     {
-        return $this->builder->where('reference', 'like', "%{$value}%");
+        return $this->builder->where('reference', 'ilike', "%{$value}%");
     }
 
     public function payment_method(string $value): Builder

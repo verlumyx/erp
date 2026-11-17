@@ -49,7 +49,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 $transferReason = $transferReason ?: ($isSale ? 'sale' : 'other');
             }
 
-            $controlNumber = !empty($command->controlNumber)
+            $controlNumber = ! empty($command->controlNumber)
                 ? $command->controlNumber
                 : $this->generateNextControlNumber($command->companyId);
 
@@ -123,7 +123,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
                 $transferReason = $transferReason ?: ($isSale ? 'sale' : 'other');
             }
 
-            $controlNumber = !empty($command->controlNumber)
+            $controlNumber = ! empty($command->controlNumber)
                 ? $command->controlNumber
                 : ($model->control_number ?: $this->generateNextControlNumber($model->company_id));
 
@@ -315,6 +315,8 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
             /** La cantidad que pidió el pedido se lee de la línea origen. */
             'lines.sourceable',
             'lines.location',
+            'loadPlans.vehicle',
+            'loadPlans.route',
         ];
     }
 
@@ -587,7 +589,7 @@ class DispatchRepository extends DispatchFilters implements DispatchRepositoryIn
     {
         $last = Dispatch::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Dispatch::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Dispatch::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');

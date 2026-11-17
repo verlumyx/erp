@@ -11,12 +11,12 @@ class UserFilters extends EloquentQueryFilters
 {
     public function name(string $value): Builder
     {
-        return $this->builder->where('name', 'like', "%{$value}%");
+        return $this->builder->where('name', 'ilike', "%{$value}%");
     }
 
     public function email(string $value): Builder
     {
-        return $this->builder->where('email', 'like', "%{$value}%");
+        return $this->builder->where('email', 'ilike', "%{$value}%");
     }
 
     public function email_verified(mixed $value): Builder

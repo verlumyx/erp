@@ -1792,6 +1792,22 @@ function moveDispatchTo(
 }
 
 /**
+ * Moves a draft dispatch through pending and then to confirmed.
+ */
+function confirmDispatch(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Dispatch\Models\Dispatch $dispatch,
+): \Illuminate\Testing\TestResponse {
+    if ($dispatch->status === 'draft') {
+        moveDispatchTo($user, $company, $dispatch, 'pending')->assertSessionHasNoErrors();
+        $dispatch->refresh();
+    }
+
+    return moveDispatchTo($user, $company, $dispatch, 'confirmed');
+}
+
+/**
  * The live kardex movements a dispatch wrote, counter-entries included: the
  * tests that check a cancellation need to see both sides.
  */
@@ -2892,4 +2908,130 @@ function importAdjustment(
 ): ?\App\Modules\Adjustment\Models\Adjustment {
     return \App\Modules\Adjustment\Models\Adjustment::with('lines.lots')
         ->find($import->refresh()->adjustment_id);
+}
+
+/**
+ * @return array{0: \App\Modules\User\Models\User, 1: \App\Modules\Company\Models\Company}
+ */
+function vehicleScenario(): array
+{
+    return createUserWithCompany();
+}
+
+/**
+ * A valid `vehicles.store` / `vehicles.update` payload.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function vehiclePayload(array $overrides = []): array
+{
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'plate' => 'A'.rand(10, 99).'BC'.rand(1, 9).'D',
+        'name' => 'Camión Reparto '.uniqid(),
+        'brand' => 'Chevrolet',
+        'model' => 'NPR',
+        'year' => 2020,
+        'vehicle_type' => 'truck',
+        'capacity_weight' => 4500.0,
+        'capacity_volume' => 18.5,
+        'notes' => 'Vehículo de prueba',
+        ...$overrides,
+    ];
+}
+
+/**
+ * Creates a vehicle over HTTP and returns the freshly saved model.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function createVehicle(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    array $overrides = [],
+): \App\Modules\Vehicle\Models\Vehicle {
+    $payload = vehiclePayload($overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('vehicles.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\Vehicle\Models\Vehicle::findOrFail($payload['id']);
+}
+
+/**
+ * @return array{
+ *     0: \App\Modules\User\Models\User,
+ *     1: \App\Modules\Company\Models\Company,
+ *     2: \App\Modules\Warehouse\Models\Warehouse,
+ *     3: \App\Modules\Route\Models\Route,
+ *     4: \App\Modules\Vehicle\Models\Vehicle
+ * }
+ */
+function loadPlanScenario(): array
+{
+    [$user, $company] = createUserWithCompany();
+
+    $warehouse = \App\Modules\Warehouse\Models\Warehouse::factory()->create([
+        'company_id' => $company->id,
+        'status' => 'active',
+    ]);
+
+    $route = createRoute($user, $company, [
+        'warehouse_id' => $warehouse->id,
+    ]);
+
+    $vehicle = createVehicle($user, $company, [
+        'capacity_weight' => 5000.0,
+        'capacity_volume' => 20.0,
+    ]);
+
+    return [$user, $company, $warehouse, $route, $vehicle];
+}
+
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function loadPlanPayload(
+    \App\Modules\Route\Models\Route $route,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Vehicle\Models\Vehicle $vehicle,
+    array $overrides = [],
+): array {
+    return [
+        'id' => (string) \Illuminate\Support\Str::uuid7(),
+        'plan_date' => now()->toDateString(),
+        'route_id' => $route->id,
+        'warehouse_id' => $warehouse->id,
+        'vehicle_id' => $vehicle->id,
+        'driver_name' => 'Carlos Rodríguez (V-18456789)',
+        'helper_name' => 'Pedro Sánchez (V-22123456)',
+        'description' => 'Plan de carga para ruta principal',
+        'dispatches' => [],
+        ...$overrides,
+    ];
+}
+
+/**
+ * @param  array<string, mixed>  $overrides
+ */
+function createLoadPlan(
+    \App\Modules\User\Models\User $user,
+    \App\Modules\Company\Models\Company $company,
+    \App\Modules\Route\Models\Route $route,
+    \App\Modules\Warehouse\Models\Warehouse $warehouse,
+    \App\Modules\Vehicle\Models\Vehicle $vehicle,
+    array $overrides = [],
+): \App\Modules\LoadPlan\Models\LoadPlan {
+    $payload = loadPlanPayload($route, $warehouse, $vehicle, $overrides);
+
+    \Pest\Laravel\actingAs($user)
+        ->withSession(['current_company_id' => $company->id])
+        ->post(route('load-plans.store', ['company' => $company->id]), $payload)
+        ->assertSessionHasNoErrors();
+
+    return \App\Modules\LoadPlan\Models\LoadPlan::findOrFail($payload['id']);
 }

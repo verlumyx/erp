@@ -17,6 +17,8 @@ Ajustes. El resto ordena el movimiento o lo valora, y deja el asiento a los prim
 | Rutas     | `app_routes` (+ `app_route_stops`, `app_route_clients`) | `RUT`   | —                                  |
 | Ajustes   | `app_adjustments` + `app_adjustment_lines` (+ lotes y series) | `AJU`   | `adjustment_in` / `adjustment_out` |
 | Importaciones | `app_imports` + `app_import_costs`, `app_import_entries`, `app_import_lines` | `IMP` | — (lo escribe el ajuste de revaluación que genera) |
+| Camiones  | `app_vehicles`                                          | `CAM`   | — (maestro de flota y capacidad de carga) |
+| Planes de Carga | `app_load_plans` + `app_load_plan_dispatches`          | `PLC`   | — (agrupa despachos por ruta y camión; ver [plan-de-carga.md](plan-de-carga.md)) |
 
 **Depende de:** [Inventario](inventario.md) (artículos, bodegas, existencias), [Ventas](ventas.md)
 (órdenes de venta) y [Compras](compras.md) (órdenes de compra y facturas de compra).

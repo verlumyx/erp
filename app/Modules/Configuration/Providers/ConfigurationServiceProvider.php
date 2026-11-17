@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Configuration\Providers;
 
-use App\Modules\Configuration\Repositories\Contracts\ConfigurationRepositoryInterface;
 use App\Modules\Configuration\Repositories\ConfigurationRepository;
+use App\Modules\Configuration\Repositories\Contracts\ConfigurationRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
 
 class ConfigurationServiceProvider extends ServiceProvider

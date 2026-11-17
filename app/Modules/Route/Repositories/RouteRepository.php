@@ -15,6 +15,7 @@ use App\Modules\Route\Models\Route;
 use App\Modules\Route\Models\RouteClient;
 use App\Modules\Route\Models\RouteStop;
 use App\Modules\Route\Repositories\Contracts\RouteRepositoryInterface;
+use App\Modules\Vehicle\Models\Vehicle;
 use Illuminate\Support\Facades\DB;
 
 class RouteRepository extends RouteFilters implements RouteRepositoryInterface
@@ -22,6 +23,19 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
     public function create(CreateRouteCommand $command): void
     {
         DB::transaction(function () use ($command): void {
+            $vehiclePlate = $command->vehiclePlate;
+            $vehicleCapacityWeight = $command->vehicleCapacityWeight;
+            $vehicleCapacityVolume = $command->vehicleCapacityVolume;
+
+            if ($command->vehicleId) {
+                $vehicle = Vehicle::find($command->vehicleId);
+                if ($vehicle) {
+                    $vehiclePlate = $vehiclePlate ?: $vehicle->plate;
+                    $vehicleCapacityWeight = $vehicleCapacityWeight > 0 ? $vehicleCapacityWeight : (float) $vehicle->capacity_weight;
+                    $vehicleCapacityVolume = $vehicleCapacityVolume > 0 ? $vehicleCapacityVolume : (float) $vehicle->capacity_volume;
+                }
+            }
+
             $route = Route::create([
                 'id' => $command->id,
                 'company_id' => $command->companyId,
@@ -32,9 +46,10 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
                 'warehouse_id' => $command->warehouseId,
                 'driver_id' => $command->driverId,
                 'salesperson_id' => $command->salespersonId,
-                'vehicle_plate' => $command->vehiclePlate,
-                'vehicle_capacity_weight' => $command->vehicleCapacityWeight,
-                'vehicle_capacity_volume' => $command->vehicleCapacityVolume,
+                'vehicle_id' => $command->vehicleId,
+                'vehicle_plate' => $vehiclePlate,
+                'vehicle_capacity_weight' => $vehicleCapacityWeight,
+                'vehicle_capacity_volume' => $vehicleCapacityVolume,
                 'frequency' => $command->frequency,
                 'weekdays' => $command->weekdays,
                 'zone' => $command->zone,
@@ -69,6 +84,19 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
     public function update(Route $model, UpdateRouteCommand $command): void
     {
         DB::transaction(function () use ($model, $command): void {
+            $vehiclePlate = $command->vehiclePlate;
+            $vehicleCapacityWeight = $command->vehicleCapacityWeight;
+            $vehicleCapacityVolume = $command->vehicleCapacityVolume;
+
+            if ($command->vehicleId) {
+                $vehicle = Vehicle::find($command->vehicleId);
+                if ($vehicle) {
+                    $vehiclePlate = $vehiclePlate ?: $vehicle->plate;
+                    $vehicleCapacityWeight = $vehicleCapacityWeight > 0 ? $vehicleCapacityWeight : (float) $vehicle->capacity_weight;
+                    $vehicleCapacityVolume = $vehicleCapacityVolume > 0 ? $vehicleCapacityVolume : (float) $vehicle->capacity_volume;
+                }
+            }
+
             $model->update([
                 'name' => $command->name,
                 'description' => $command->description,
@@ -76,9 +104,10 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
                 'warehouse_id' => $command->warehouseId,
                 'driver_id' => $command->driverId,
                 'salesperson_id' => $command->salespersonId,
-                'vehicle_plate' => $command->vehiclePlate,
-                'vehicle_capacity_weight' => $command->vehicleCapacityWeight,
-                'vehicle_capacity_volume' => $command->vehicleCapacityVolume,
+                'vehicle_id' => $command->vehicleId,
+                'vehicle_plate' => $vehiclePlate,
+                'vehicle_capacity_weight' => $vehicleCapacityWeight,
+                'vehicle_capacity_volume' => $vehicleCapacityVolume,
                 'frequency' => $command->frequency,
                 'weekdays' => $command->weekdays,
                 'zone' => $command->zone,
@@ -103,7 +132,7 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
     public function search(SearchRouteCommand $command): array
     {
         $query = Route::query()
-            ->with(['warehouse', 'driver', 'salesperson'])
+            ->with(['warehouse', 'driver', 'salesperson', 'vehicle'])
             ->withCount(['clients as clients_count' => fn ($q) => $q->where('status', 'active')])
             ->when($command->companyId, fn ($q) => $q->where('company_id', $command->companyId));
 
@@ -260,6 +289,7 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
             'warehouse',
             'driver',
             'salesperson',
+            'vehicle',
             'clients' => fn ($query) => $query->orderBy('sequence'),
             'clients.client',
             'clients.clientAddress',
@@ -328,7 +358,7 @@ class RouteRepository extends RouteFilters implements RouteRepositoryInterface
     {
         $last = Route::query()
             ->where('company_id', $companyId)
-            ->where('code', 'like', Route::CODE_PREFIX.'%')
+            ->where('code', 'ilike', Route::CODE_PREFIX.'%')
             ->lockForUpdate()
             ->orderByDesc('code')
             ->value('code');
